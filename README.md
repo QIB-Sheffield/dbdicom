@@ -1,2 +1,3 @@
 # dbdicom
-Read and write to DICOM database
+
+A Python interface for reading and writing DICOM databases. 
