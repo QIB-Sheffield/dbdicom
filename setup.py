@@ -34,6 +34,7 @@ if __name__ == '__main__':
         url="https://github.com/QIB-Sheffield/dbdicom",
         license='Apache Software License (http://www.apache.org/licenses/LICENSE-2.0)',
         python_requires='>=3.6, <4',
+        packages=['dbdicom'],
         install_requires=["numpy", "pandas", "PyQt5", "matplotlib", "pdoc3", "pydicom", "nibabel"],
         include_package_data=True,
         keywords=['python', "medical imaging", "DICOM"],
