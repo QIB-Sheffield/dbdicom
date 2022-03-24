@@ -659,7 +659,7 @@ It also means that any result you generate can easily be integrated in open acce
 and can be visualised along with any other images of the same subject 
 by anyone with a DICOM viewer (i.e. literally anyone).
 
-Since 'dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. 
+Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. 
 However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately 
 clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. 
 Convenience classes are provided for user interaction that print to a terminal when used 

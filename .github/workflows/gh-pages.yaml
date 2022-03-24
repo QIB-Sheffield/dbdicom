@@ -27,13 +27,13 @@ jobs:
 
       - name: Generate updated Reference Manual
         run: |
-          python create_weasel_manual.py
+          python build_docs.py
 
-      - name: Deploy manual to Github Page https://qib-sheffield.github.io/Weasel/
+      - name: Deploy manual to Github Page https://qib-sheffield.github.io/dbdicom/
         uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
           BRANCH: gh-pages
-          FOLDER: Documents/Manual
+          FOLDER: docs/dbdicom
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MESSAGE: "Reference Manual ${{ steps.date.outputs.date }}"

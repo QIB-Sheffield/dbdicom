@@ -1,8 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
-### documentation
-html/*
+### package builds
+.venv/*
+docs/*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

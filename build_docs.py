@@ -21,4 +21,5 @@ print('Installing requirements..')
 os.system(activate + ' && ' + 'py -m pip install -r requirements.txt')
 
 print('Generating documentation..')
-os.system(activate + ' && ' + 'pdoc --html -f -c sort_identifiers=False dbdicom')
+dir = os.path.join(os.getcwd(), "docs")
+os.system(activate + ' && ' + 'pdoc --html -f -c sort_identifiers=False --output-dir ' + str(dir) + ' dbdicom')
