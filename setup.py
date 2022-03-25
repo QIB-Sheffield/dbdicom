@@ -12,16 +12,17 @@ with open('README.md', encoding='utf-8') as f:
 
 # Get latest version published online in PYPI (https://pypi.org/project/dbdicom/) 
 # and increment 0.0.1 (or other) so that it's uploaded correctly during Github Action
-contents = urllib.request.urlopen('https://pypi.org/pypi/dbdicom/json').read()
-data = json.loads(contents)
-LATEST_VERSION = data['info']['version']
-latest_major, latest_minor, latest_patch = LATEST_VERSION.split(".")
-new_major = "0"
-new_minor = "1"
-new_patch = str(int(latest_patch) + 1)  # The authors can modify this to be minor or major versions instead
+# JSousa commenting the section below for the first ever upload. 25/03/2022 JS
+#contents = urllib.request.urlopen('https://pypi.org/pypi/dbdicom/json').read()
+#data = json.loads(contents)
+#LATEST_VERSION = data['info']['version']
+#latest_major, latest_minor, latest_patch = LATEST_VERSION.split(".")
+#new_major = "0"
+#new_minor = "1"
+#new_patch = str(int(latest_patch) + 1)  # The authors can modify this to be minor or major versions instead
 
-NEW_VERSION = new_major + "." + new_minor + "." + new_patch
-
+#NEW_VERSION = new_major + "." + new_minor + "." + new_patch
+NEW_VERSION = new_major + "." + new_minor + "." + new_patch # This is temporary 25/03/2022 JS
 if __name__ == '__main__':
     setup(
         name="dbdicom",
