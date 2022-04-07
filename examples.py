@@ -1,13 +1,13 @@
+import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-
 from dbdicom.folder import Folder
 
-test_folder = 'C:\\Users\\steve\\Dropbox\\Data\\WeaselDevSmallBrain'
-test_folder2 = 'C:\\Users\\steve\\Dropbox\\Data\\WeaselDevSmallKid'
-test_export_folder = 'C:\\Users\\steve\\Dropbox\\Data\\Tmp'
+test_folder = os.path.join(os.path.dirname(__file__), 'data')
+test_folder2 = os.path.join(os.path.dirname(__file__), 'data')
+test_export_folder = os.path.join(os.path.dirname(__file__), 'results')
 
 
 def test_df():
