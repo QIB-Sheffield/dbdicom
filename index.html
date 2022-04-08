@@ -452,19 +452,21 @@ and sorting and tabulating of data by <code>pandas</code>. Export to other forma
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import os
-# Use README.md for description in Github Page
-with open(os.path.join(&#34;.&#34;, &#39;README.md&#39;), encoding=&#39;utf-8&#39;) as f:
-    introduction = f.read()
+<pre><code class="python">import base64
+import requests
+url = &#39;https://api.github.com/repos/QIB-Sheffield/dbdicom/contents/README.md&#39;
+req = requests.get(url)
+if req.status_code == requests.codes.ok:
+    req = req.json()  # the response is a JSON
+    content = base64.b64decode(req[&#39;content&#39;])
+    introduction = content.decode()
 __doc__ = introduction
 
 # do not show in documentation
 __pdoc__ = {}
-__pdoc__[&#34;utilities&#34;] = False 
-__pdoc__[&#34;external&#34;] = False 
-__pdoc__[&#34;dicm&#34;] = False 
-
-from .folder import *</code></pre>
+__pdoc__[&#34;utilities&#34;] = False
+__pdoc__[&#34;external&#34;] = False
+__pdoc__[&#34;dicm&#34;] = False</code></pre>
 </details>
 </section>
 <section>
