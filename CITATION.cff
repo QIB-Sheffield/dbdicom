@@ -8,4 +8,4 @@ authors:
   given-names: "Steven"
   orcid: "https://orcid.org/0000-0002-3374-3973"
 title: "dbdicom"
-version: 0.0.0
+version: 0.0.1

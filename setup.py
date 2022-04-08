@@ -10,19 +10,23 @@ with open('README.md', encoding='utf-8') as f:
     long_description = f.read()
     print(long_description)
 
+with open('requirements.txt', encoding='utf-8') as f:
+    required = f.read().splitlines()
+
 # Get latest version published online in PYPI (https://pypi.org/project/dbdicom/) 
-# and increment 0.0.1 (or other) so that it's uploaded correctly during Github Action
+# and increment 0.0.1 (or other) so that it's uploaded correctly during Github Actions
 # JSousa commenting the section below for the first ever upload. 25/03/2022 JS
 #contents = urllib.request.urlopen('https://pypi.org/pypi/dbdicom/json').read()
 #data = json.loads(contents)
 #LATEST_VERSION = data['info']['version']
 #latest_major, latest_minor, latest_patch = LATEST_VERSION.split(".")
-#new_major = "0"
-#new_minor = "1"
+new_major = "0"
+new_minor = "0"
+new_patch = "1"
 #new_patch = str(int(latest_patch) + 1)  # The authors can modify this to be minor or major versions instead
 
-#NEW_VERSION = new_major + "." + new_minor + "." + new_patch
-NEW_VERSION = new_major + "." + new_minor + "." + new_patch # This is temporary 25/03/2022 JS
+NEW_VERSION = new_major + "." + new_minor + "." + new_patch
+
 if __name__ == '__main__':
     setup(
         name="dbdicom",
@@ -36,7 +40,7 @@ if __name__ == '__main__':
         license='Apache Software License (http://www.apache.org/licenses/LICENSE-2.0)',
         python_requires='>=3.6, <4',
         packages=['dbdicom'],
-        install_requires=["numpy", "pandas", "PyQt5", "matplotlib", "pdoc3", "pydicom", "nibabel"],
+        install_requires=required,
         include_package_data=True,
         keywords=['python', "medical imaging", "DICOM"],
         # Classifiers - the purpose is to create a wheel and upload it to PYPI
