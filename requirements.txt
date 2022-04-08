@@ -1,7 +1,8 @@
 PyQt5
 matplotlib
 nibabel
+numpy
 pandas
 pydicom
 pdoc3
-numpy
+requests
