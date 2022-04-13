@@ -462,7 +462,7 @@ if req.status_code == requests.codes.ok:
     req = req.json()  # the response is a JSON
     content = base64.b64decode(req[&#39;content&#39;])
     introduction = content.decode()
-__doc__ = introduction
+    __doc__ = introduction
 
 # do not show in documentation
 __pdoc__ = {}
