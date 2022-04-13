@@ -7,7 +7,6 @@ if req.status_code == requests.codes.ok:
     content = base64.b64decode(req['content'])
     introduction = content.decode()
     __doc__ = introduction
-    req.close()
 
 # do not show in documentation
 __pdoc__ = {}
