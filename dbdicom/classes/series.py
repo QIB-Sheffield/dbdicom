@@ -24,7 +24,7 @@ from .record import Record
 class Series(Record):
     """Programming interface for reading and writing DICOM data series"""
 
-    def __init__(self, folder, UID=[]):
+    def __init__(self, folder, UID=[], **attributes):
         """Initialise the series with an instance of Folder.
 
         Args:
@@ -35,7 +35,7 @@ class Series(Record):
                 If UID is not provided or has less than 3 elements, the missing elements
                 are automatically created.
         """
-        super().__init__(folder, UID, generation=3)
+        super().__init__(folder, UID, generation=3, **attributes)
 
     def label(self, row=None):
         """

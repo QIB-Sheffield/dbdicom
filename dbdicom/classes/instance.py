@@ -12,8 +12,8 @@ from .. import utilities
 
 class Instance(Record):
 
-    def __init__(self, folder, UID=[]):
-        super().__init__(folder, UID, generation=4)
+    def __init__(self, folder, UID=[], **attributes):
+        super().__init__(folder, UID, generation=4, **attributes)
 
     def label(self, row=None):
 
@@ -83,13 +83,13 @@ class Instance(Record):
             ds.SOPInstanceUID = pydicom.uid.generate_uid()    
 
         df = self.data()
-        if df.empty: # Data exist in memory only
-            self.folder._append(ds, checked=True)
+        if df.empty: # Data exist in memory only.
+            self.folder._append(ds)
         else: 
             file = df.index[0] 
             if not df.loc[file,'created']:  # This is the first change 
                 self.folder.dataframe.loc[file,'removed'] = True
-                self.folder._append(ds, checked=df.loc[file,'checked'])
+                self.folder._append(ds)
             else:   # Update values in dataframe row
                 self.folder._update(file, ds)
 
@@ -126,7 +126,7 @@ class Instance(Record):
             self.dialog.information(message)            
         return self.ds # return self instead so read can be piped: series.read().copy_to(parent)
 
-    def copy_to(self, ancestor):
+    def _copy_to_OBSOLETE(self, ancestor): # Replaced by copy_to in record
         """copy instance to a new ancestor.
         
         dicom_object: Root, Patient, Study, or Series
@@ -145,7 +145,7 @@ class Instance(Record):
             self.read()
             copy.__dict__['ds'] = self.ds
             copy._initialize(self.ds)
-            copy.folder._append(copy.ds, checked=self.is_checked())
+            copy.folder._append(copy.ds)
             copy._save_ds()
             self.clear()
             if ancestor.in_memory():
@@ -155,7 +155,7 @@ class Instance(Record):
             
         return copy
 
-    def save(self):
+    def save_OBSOLETE(self):
         """
         Saves all changes made in the instance
         """
@@ -195,7 +195,7 @@ class Instance(Record):
         elif not created.empty: # instance has been newly created
             self.folder.dataframe.loc[created.index, 'created'] = False
 
-    def restore(self):
+    def restore_OBSOLETE(self):
         """
         Reverses all changes made since the last save.
         """
@@ -236,6 +236,9 @@ class Instance(Record):
 
     def _initialize(self, ref_ds=None):
         """Initialize the attributes relevant for the Images"""
+
+        self.ds = utilities._initialize(self.ds, UID=self.UID, ref=ref_ds)
+        return
 
         # overwrite UIDs
         self.ds.PatientID = self.UID[0]

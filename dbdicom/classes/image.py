@@ -1,3 +1,5 @@
+__all__ = ['QImage']
+
 import os
 import struct
 import numpy as np
@@ -29,7 +31,9 @@ class Image(Instance):
         array = self.ds.pixel_array.astype(np.float32)
         slope = float(getattr(self.ds, 'RescaleSlope', 1)) 
         intercept = float(getattr(self.ds, 'RescaleIntercept', 0)) 
-        array = array * slope + intercept
+        #array = array * slope + intercept
+        array *= slope
+        array += intercept
         array = np.transpose(array)
         if on_disk: self.clear()
         return array
@@ -330,16 +334,26 @@ class Image(Instance):
 
     def QImage(self):
 
-        width = self.WindowWidth
-        center = self.WindowCenter
-        imgData, alpha = _makeARGB(
-            data = self.array(), 
-            levels = [center-width/2, center+width/2],
-        )
-        return _makeQImage(imgData, alpha)
+        array = self.array()
+        return QImage(array, width=self.WindowWidth, center=self.WindowCenter)
 
 
-# HELPER FUNCTIONS ADAPTED FROM ???
+def QImage(array, width=None, center=None):
+
+    if (width is None) or (center is None):
+        max = np.amax(array)
+        min = np.amin(array)
+    if width is None: width = max-min
+    if center is None: center = (max-min)/2
+
+    imgData, alpha = _makeARGB(
+        data = array, 
+        levels = [center-width/2, center+width/2],
+    )
+    return _makeQImage(imgData, alpha)
+
+
+# HELPER FUNCTIONS ADAPTED FROM pyQtGraph
 
 
 def _makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False): 

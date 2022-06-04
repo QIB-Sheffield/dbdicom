@@ -2,9 +2,9 @@ from .record import Record
 
 class Study(Record):
 
-    def __init__(self, folder, UID=[]):
+    def __init__(self, folder, UID=[], **attributes):
         
-        super().__init__(folder, UID, generation=2)
+        super().__init__(folder, UID, generation=2, **attributes)
 
     def label(self, row=None):
 

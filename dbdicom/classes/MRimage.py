@@ -11,12 +11,12 @@ class MRImage(Image):
         on_disk = self.on_disk()
         if on_disk: self.read()
         if [0x2005, 0x100E] in self.ds: # 'Philips Rescale Slope'
-            pixelArray = self.ds.pixel_array.astype(np.float32)
+            array = self.ds.pixel_array.astype(np.float32)
             slope = self.ds[(0x2005, 0x100E)].value
             intercept = self.ds[(0x2005, 0x100D)].value
-            pixelArray = (pixelArray - intercept) / slope
-            pixelArray = np.transpose(pixelArray)
-            array = pixelArray
+            array -= intercept
+            array /= slope
+            array = np.transpose(array)
         else:
             array = super().array()
         if on_disk: self.clear()
@@ -26,10 +26,13 @@ class MRImage(Image):
 
         on_disk = self.on_disk()
         if on_disk: self.read()
+        if self.ds is None:
+            # TODO: Handle this by creating new dataset from scratch
+            raise RuntimeError('Cannot set array: no dataset defined on disk or in memory')
         if (0x2005, 0x100E) in self.ds: del self.ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
         if (0x2005, 0x100D) in self.ds: del self.ds[0x2005, 0x100D]
         super().set_array(pixelArray, value_range=value_range)
-        self.write()
+        #self.write()
         if on_disk: 
             self.write()
             self.clear()

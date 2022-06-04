@@ -1,13 +1,15 @@
 import os
-import math
+from copy import deepcopy
 import pydicom
 import numpy as np
+import pandas as pd
 from .. import utilities
+import weasel.dbdicom as db
 
 
 class Record():
 
-    def __init__(self, folder, UID=[], generation=0):
+    def __init__(self, folder, UID=[], generation=0, **attributes):
 
         objUID = [] + UID
 #        for i in range(generation-len(UID)):
@@ -21,6 +23,9 @@ class Record():
         self.__dict__['dialog'] = folder.dialog
         self.__dict__['dicm'] = folder.dicm
         self.__dict__['ds'] = None
+        # placeholder DICOM attributes
+        # these will populate the dataset and dataframe when data are created
+        self.__dict__['attributes'] = attributes
 
     @property
     def generation(self):
@@ -33,18 +38,26 @@ class Record():
         key = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
         return key[0:self.generation]
 
+    def new_uid(self):
+        
+        return pydicom.uid.generate_uid()
+
     def data(self):
-        """Dataframe with current data - excluding those that were removed"""
+        """Dataframe with current data - excluding those that were removed
+        """
+
+        # Note: this returns a copy - could be a view instead using .loc?
 
         if self.folder.path is None:
             return self.folder.dataframe
         current = self.folder.dataframe.removed == False
         data = self.folder.dataframe[current]
-        if self.UID == []: return data       
+        if self.UID == []: 
+            return data       
         rows = data[self.key[-1]] == self.UID[-1]
         return data[rows]
 
-    def dataset(self, sortby=None): 
+    def dataset(self, sortby=None, status=True): 
         """Sort instances by a list of attributes.
         
         Args:
@@ -57,20 +70,24 @@ class Record():
             df = self.data()
             return self._dataset_from_df(df)
         else:
-            df = utilities.dataframe(self.files, sortby, self.status)
-            df.sort_values(sortby, inplace=True)
-            return self._sorted_dataset_from_df(df, sortby)
+            if set(sortby) <= set(self.folder.dataframe):
+                df = self.folder.dataframe.loc[self.data().index, sortby]
+            else:
+                df = utilities.dataframe(self.folder.path, self.files, sortby, self.status)
+            df.sort_values(sortby, inplace=True) 
+            return self._sorted_dataset_from_df(df, sortby, status=status)
 
-    def _sorted_dataset_from_df(self, df, sortby): 
+    def _sorted_dataset_from_df(self, df, sortby, status=True): 
 
         data = []
-        for c in df[sortby[0]].unique():
-            self.status.message('Reading ' + str(sortby[0]) + ' ' + str(c))
+        vals = df[sortby[0]].unique()
+        for i, c in enumerate(vals):
+            if status: self.status.progress(i, len(vals), message='Sorting..')
             dfc = df[df[sortby[0]] == c]
             if len(sortby) == 1:
                 datac = self._dataset_from_df(dfc)
             else:
-                datac = self._sorted_dataset_from_df(dfc, sortby[1:])
+                datac = self._sorted_dataset_from_df(dfc, sortby[1:], status=False)
             data.append(datac)
         return utilities._stack_arrays(data, align_left=True)
 
@@ -80,10 +97,10 @@ class Record():
         data = np.empty(df.shape[0], dtype=object)
         cnt = 0
         for file, _ in df.iterrows(): # just enumerate over df.index
-            self.status.progress(cnt, df.shape[0])
+            #self.status.progress(cnt, df.shape[0])
             data[cnt] = self.folder.instance(file)
             cnt += 1
-        self.status.hide()
+        #self.status.hide()
         return data
 
     def array(self, sortby=None, pixels_first=False): 
@@ -129,15 +146,48 @@ class Record():
             ```  
         """
         dataset = self.dataset(sortby)
-        array = [instance.array() for instance in dataset.ravel()]
-        array = utilities._stack_arrays(array)
+        array = []
+        ds = dataset.ravel()
+        for i, im in enumerate(ds):
+            self.status.progress(i, len(ds), 'Reading pixel data..')
+            if im is None:
+                array.append(np.zeros((1,1)))
+            else:
+                array.append(im.array())
+        self.status.hide()
+        #array = [im.array() for im in dataset.ravel() if im is not None]
+        array = utilities._stack_arrays(array) #db.stack(array)
         array = array.reshape(dataset.shape + array.shape[1:])
         if pixels_first:
             array = np.moveaxis(array, -1, 0)
             array = np.moveaxis(array, -1, 0)
-        return array, dataset
+        return array, dataset # REPLACE BY DBARRAY
 
-    def set_array(self, array, dataset=None, pixels_first=False, inplace=True): 
+    def npy(self):
+
+        path = os.path.join(self.folder.path, "dbdicom_npy")
+        if not os.path.isdir(path): os.mkdir(path)
+        file = os.path.join(path, self.UID[-1] + '.npy') 
+        return file
+
+    def load_npy(self):
+
+        file = self.npy()
+        if not os.path.exists(file):
+            return
+        with open(file, 'rb') as f:
+            array = np.load(f)
+        return array
+
+    def save_npy(self, array=None, sortby=None, pixels_first=False):
+
+        if array is None:
+            array = self.array(sortby=sortby, pixels_first=pixels_first)
+        file = self.npy() 
+        with open(file, 'wb') as f:
+            np.save(f, array)
+
+    def set_array(self, array, dataset=None, pixels_first=False, inplace=False): 
         """
         Set pixel values of a series from a numpy ndarray.
 
@@ -145,6 +195,7 @@ class Record():
         image such as geometry, or other metainformation,
         a dataset must be provided as well with the same 
         shape as the array except for the slice dimensions. 
+
         If a dataset is not provided, header info is 
         derived from existing instances in order.
 
@@ -211,24 +262,35 @@ class Record():
         if dataset is None:
             dataset = self.dataset()
         # Return with error message if dataset and array do not match.
-        nr_of_slices = math.prod(array.shape[:-2])
-        if nr_of_slices != math.prod(dataset.shape):
-            message = "Array and dataset do not match"
+        nr_of_slices = np.prod(array.shape[:-2])
+        if nr_of_slices != np.prod(dataset.shape):
+            message = 'Error in set_array(): array and dataset do not match'
             message += '\n Array has ' + str(nr_of_slices) + ' elements'
-            message += '\n dataset has ' + str(math.prod(dataset.shape)) + ' elements'
+            message += '\n dataset has ' + str(np.prod(dataset.shape)) + ' elements'
+            message += '\n Check if the keyword pixels_first is set correctly.'
             self.dialog.error(message)
-            return self
+            raise ValueError(message)
         # If self is not a series, create a new series.
         if self.generation != 3:
             series = self.new_series()
         else:
             series = self
         # Reshape, copy instances and save slices.
-        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1]))
-        dataset = dataset.reshape(nr_of_slices)
+        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+        dataset = dataset.reshape(nr_of_slices) # shape (i,)
+
+        dataset = db.copy(dataset.tolist(), series, status=self.status)
         for i, instance in enumerate(dataset):
-            instance.copy_to(series).set_array(array[i,...])
-            if inplace: instance.remove()
+            self.status.progress(i, len(dataset), 'Writing array to file..')
+            instance.set_array(array[i,...])
+            if inplace: instance.remove() # delete?
+           
+        #for i, instance in enumerate(dataset):
+        #    self.status.progress(i, len(dataset), 'Saving data..')
+        #    instance.copy_to(series).set_array(array[i,...])
+            # instance.set_array(array[i,...])
+        #    if inplace: instance.remove() # delete?
+
         return series
 
 #    def write_array(self, array, dataset): 
@@ -251,28 +313,8 @@ class Record():
     def files(self):
         """Returns the filepath to the instances in the object."""
  
-        return self.data().index.tolist()
-
-    def check(self):
-        """Check all instances of the object."""
-
-        self.set_checked(True)
-
-    def uncheck(self):
-        """Check all instances of the object."""
-
-        self.set_checked(False)
-
-    def set_checked(self, checked):
-        """Set the checkstate of all instances of the object."""
-
-        files = self.files
-        self.folder.dataframe.at[files, 'checked'] = checked
-
-    def is_checked(self):
-        """Check if all instances of the object are checked."""
-
-        return self.data().checked.all()
+        relpaths = self.data().index.tolist()
+        return [os.path.join(self.folder.path, p) for p in relpaths]
 
     def in_memory(self): # is_in_memory
         """Check if the object has been read into memory"""
@@ -289,26 +331,21 @@ class Record():
 
         return self.dicm.parent(self)
         
-    def children(self, index=None, checked=None, **kwargs):
-        """List of Patients"""
+    def children(self, index=None, **kwargs):
+        """List of children"""
 
         if self.generation == 4: return []
         if self.in_memory():
             objects = utilities._filter(self.ds, **kwargs)
-            if checked is not None:
-                if checked:
-                    objects = [obj for obj in objects if obj.is_checked()]
-                else:
-                    objects = [obj for obj in objects if not obj.is_checked()]
             if index is not None:
                 if index >= len(objects): 
                     return
                 else:
                     return objects[index]
             return objects
-        return self.records(generation=self.generation+1, index=index, checked=checked, **kwargs)
+        return self.records(generation=self.generation+1, index=index, **kwargs)
 
-    def records(self, generation=0, index=None, checked=None, **kwargs):
+    def records(self, generation=0, index=None, **kwargs):
         """A list of all records of a given generation corresponding to the record.
 
         If generation is lower then that of the object, 
@@ -348,13 +385,6 @@ class Record():
                 rec_list = [rec_list[index]]
             for rec in rec_list:
                 rec_data = data[column == rec]
-                if checked is not None:
-                    if checked == True:
-                        if not rec_data.checked.all():
-                            continue
-                    elif checked == False:
-                        if rec_data.checked.all():
-                            continue
                 row = rec_data.iloc[0]
                 obj = self.dicm.object(self.folder, row, generation)
                 objects.append(obj)
@@ -362,7 +392,7 @@ class Record():
         if index is not None: return objects[0]
         return objects
 
-    def patients(self, index=None, checked=None, **kwargs):
+    def patients(self, index=None,  **kwargs):
         """A list of patients of the object"""
 
         if self.generation==4: 
@@ -373,9 +403,9 @@ class Record():
             self.parent
         if self.generation==1:
             return
-        return self.children(index=index, checked=checked, **kwargs)
+        return self.children(index=index, **kwargs)
 
-    def studies(self, index=None, checked=None, **kwargs):
+    def studies(self, index=None, **kwargs):
         """A list of studies of the object"""
 
         if self.generation==4: 
@@ -385,10 +415,10 @@ class Record():
         if self.generation==2:
             return
         if self.generation==1:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         objects = []
         for child in self.children():
-            inst = child.studies(checked=checked, **kwargs)
+            inst = child.studies(**kwargs)
             objects.extend(inst)
         if index is not None:
             if index >= len(objects):
@@ -397,7 +427,7 @@ class Record():
                 return objects[index]
         return objects
 
-    def series(self, index=None, checked=None, **kwargs):
+    def series(self, index=None, **kwargs):
         """A list of series of the object"""
 
         if self.generation==4: 
@@ -405,11 +435,11 @@ class Record():
         if self.generation==3:
             return
         if self.generation==2:
-            kids = self.children(index=index, checked=checked, **kwargs)
+            kids = self.children(index=index, **kwargs)
             return kids
         series = []
         for child in self.children():
-            inst = child.series(checked=checked, **kwargs)
+            inst = child.series(**kwargs)
             series.extend(inst)
         if index is not None:
             if index >= len(series):
@@ -418,16 +448,16 @@ class Record():
                 return series[index]
         return series
 
-    def instances(self, index=None, checked=None, **kwargs): # VERY slow - needs optimizing
+    def instances(self, index=None, **kwargs): # VERY slow - needs optimizing
         """A list of instances of the object"""
 
         if self.generation==4: 
             return
         if self.generation==3:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         instances = []
         for child in self.children():
-            inst = child.instances(checked=checked, **kwargs)
+            inst = child.instances(**kwargs)
             instances.extend(inst)
         if index is not None:
             if index >= len(instances):
@@ -436,43 +466,52 @@ class Record():
                 return instances[index]
         return instances       
 
-    def new_child(self):
+    def new_child(self, **attributes):
         """Creates a new child object"""
 
-        obj = self.dicm.new_child(self)
-        obj.read()
+        obj = self.dicm.new_child(self, **attributes)
+        obj.read() # Why??
         return obj
 
-    def new_sibling(self):
+    def new_sibling(self, **attributes):
         """
         Creates a new sibling under the same parent.
         """
         if self.generation == 0:
             return
         else:
-            return self.parent.new_child()
+            return self.parent.new_child(**attributes)
 
-    def new_pibling(self):
+    def new_pibling(self, **attributes):
         """
         Creates a new sibling of parent.
         """
         if self.generation <= 1:
             return
         else:
-            return self.parent.new_sibling()
+            return self.parent.new_sibling(**attributes)
 
-    def new_series(self):
+    def new_cousin(self, **attributes):
+        """
+        Creates a new sibling of parent.
+        """
+        if self.generation <= 1:
+            return
+        else:
+            return self.new_pibling().new_child(**attributes)
+
+    def new_series(self, **attributes):
         """
         Creates a new series under the same parent
         """ 
         if self.generation <= 1: 
-            return self.new_child().new_series()
+            return self.new_child().new_series(**attributes)
         if self.generation == 2:
-            return self.new_child()
+            return self.new_child(**attributes)
         if self.generation == 3:
-            return self.new_sibling()
+            return self.new_sibling(**attributes)
         if self.generation == 4:
-            return self.new_pibling() 
+            return self.new_pibling(**attributes) 
 
     def __getattr__(self, tag):
         """Gets the value of the data element with given tag.
@@ -516,6 +555,7 @@ class Record():
     def __setitem__(self, tags, values):
         """Sets the value of the data element with given tag."""
 
+        # LAZY - SLOW
         instances = self.instances()
         self.status.message('Writing DICOM tags..')
         for i, instance in enumerate(instances):
@@ -529,7 +569,8 @@ class Record():
         files = self.files
         if files == []: 
             return
-        self.folder.dataframe.loc[self.files,'removed'] = True
+        self.folder.dataframe.loc[self.data().index,'removed'] = True
+
 
     def move_to(self, ancestor):
         """move object to a new parent.
@@ -538,18 +579,17 @@ class Record():
             If the object is not a parent, the missing 
             intermediate generations are automatically created.
         """
-#        self[ancestor.key] = ancestor.UID
         copy = self.copy_to(ancestor)
         self.remove()
-        self = copy
+        return copy
 
-    def move(self, child, ancestor):
-        """Move a child object to a new parent"""
+#    def move(self, child, ancestor):
+#        """Move a child object to a new parent"""
 
-        if self.in_memory():
-            if child in self.ds:
-                self.ds.remove(child)
-        child.move_to(ancestor)
+#        if self.in_memory():
+#            if child in self.ds:
+#                self.ds.remove(child)
+#        child = child.move_to(ancestor)
     
     def copy(self):
         """Returns a copy in the same parent"""
@@ -558,7 +598,7 @@ class Record():
         if self.in_memory(): copy.read()
         return copy
 
-    def copy_to(self, ancestor, message=None):
+    def _copy_to_OBSOLETE(self, ancestor, message=None): # functional but slow
         """copy object to a new ancestor.
         
         ancestor: Root, Patient or Study
@@ -579,8 +619,85 @@ class Record():
             child.copy_to(copy)
             self.status.progress(i, len(children))
         self.status.hide()
-
         return copy
+
+    def _initialize(self, ref=None):
+
+        if self.generation == 4:
+            self.ds = utilities.initialize(self.ds, UID=self.UID, ref=ref)
+        else:
+            for i, obj in enumerate(self.ds):
+                if ref is not None:
+                    obj._initialize(ref.ds[i])
+                else:
+                    obj._initialize()
+
+    def merge_with(self, obj, message=None): 
+
+        if self.generation == 0: return
+        if message is None:
+            message = "Merging " + self.__class__.__name__ + ' ' + self.label()
+        # replace by db.merge()
+        return self._merge_with(obj, obj.parent, message=message)
+
+    def copy_to(self, ancestor, message=None):
+
+        if self.generation == 0: return
+        if message is None:
+            message = "Copying " + self.__class__.__name__ + ' ' + self.label()
+        copy = self.__class__(self.folder, UID=ancestor.UID)
+        # replace by db.merge()
+        return self._merge_with(copy, ancestor, message=message)
+
+    def _merge_with(self, obj, ancestor, message=None): # obsolete - replace by db.merge()
+
+        if self.in_memory(): # Create the copy in memory
+            obj.__dict__['ds'] = deepcopy(self.ds)
+            obj._initialize(self.ds)
+            if ancestor.in_memory():
+                if ancestor.generation == obj.generation-1:
+                    ancestor.ds.append(obj)
+            return obj
+
+        # Extend dataframe & create new files
+        dfsource = self.data()
+        sourcefiles = [os.path.join(self.folder.path, p) for p in dfsource.index.tolist()]
+        df = dfsource.copy(deep=True)
+        df['files'] = [self.folder.new_file() for _ in range(df.shape[0])]
+        df.set_index('files', inplace=True)
+        for key in self.folder._columns[self.generation:3]:
+            for id in df[key].unique():
+                uid = self.folder.new_uid()
+                rows = df[key] == id
+                df.loc[rows.index, key] = uid
+            #    for file in rows.index:
+            #        df.at[file, key] = uid
+        df.SOPInstanceUID = self.folder.new_uid(df.shape[0])
+        df.removed = False
+        df.created = True
+        copyfiles = df.index.tolist()
+
+        for i, file in enumerate(copyfiles):
+            self.status.progress(i, len(copyfiles), message=message)
+            df.loc[file, self.folder._columns[0:self.generation]] = obj.UID 
+            ds = pydicom.dcmread(sourcefiles[i])
+            ds = utilities._initialize(ds, UID=df.loc[file, self.folder._columns[:4]].values.tolist())
+            if obj.attributes is not None:
+                for key, value in obj.attributes.items():
+                    utilities._set_tags(ds, key, value)
+                    if key in self.folder._columns[4:]:
+                        df.at[file, key] = value  
+            ds.save_as(os.path.join(self.folder.path, file))
+
+        self.folder.__dict__['dataframe'] = pd.concat([self.folder.dataframe, df])
+        self.status.hide()
+
+        if ancestor.in_memory():
+            if ancestor.generation == obj.generation-1:
+                obj.read() # unnecessary read - can be integrated in loop.
+                ancestor.ds.append(obj)
+
+        return obj
 
     def export(self, path):
         """Export instances to an external folder.
@@ -601,9 +718,10 @@ class Record():
             self.status.progress(i,len(instances))
         self.status.hide()
 
-    def save(self):
-        """Save all instances."""
+    def save_OBSOLETE(self):
+        """Save all instances of the record."""
 
+        # Slow - edit df directly
         self.status.message("Saving all current instances..")
         instances = self.instances() 
         for i, instance in enumerate(instances):
@@ -618,47 +736,104 @@ class Record():
             rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
             data = self.folder.dataframe[rows] 
         removed = data.removed[data.removed]
-        files = removed.index.tolist()
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
         for i, file in enumerate(files): 
             os.remove(file)
             self.status.progress(i, len(files))
         self.folder.dataframe.drop(removed.index, inplace=True)
         self.status.hide()
 
-    def restore(self, message = 'Restoring..'):
+    def save(self, message = "Saving changes.."):
+        """Save all instances of the record."""
+
+        self.status.message(message)
+        self.write()
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message='Deleting removed files..')
+            if os.path.exists(file): os.remove(file)
+        #self.status.message('Clearing rapid access storage..')
+        #npyfile = self.npy()
+        #if os.path.exists(npyfile): os.remove(npyfile)
+        self.status.message('Done saving..')
+        self.folder.dataframe.loc[created.index, 'created'] = False
+        self.folder.dataframe.drop(removed.index, inplace=True)
+
+    def restore(self, message = "Restoring saved state.."):
+        """
+        Restore all instances.
+        """
+        self.status.message(message)
+
+        in_memory = self.in_memory() 
+        self.clear()
+
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in created.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message='Deleting new files..')
+            if os.path.exists(file): os.remove(file)
+        self.status.hide()
+        self.folder.dataframe.loc[removed.index, 'removed'] = False
+        self.folder.dataframe.drop(created.index, inplace=True)
+
+        if in_memory: self.read()
+        return self
+        
+    def restore_OBSOLETE(self, message = 'Restoring..'):
         """
         Restore all instances.
         """
         in_memory = self.in_memory() 
         self.clear()
+
         instances = self.instances()
         self.status.message(message)
         for i, instance in enumerate(instances):
             instance.restore()
             self.status.progress(i,len(instances))
         self.status.hide()
+
         if in_memory: self.read()
         return self
 
     def read_dataframe(self, tags):
 
-        return utilities.dataframe(self.files, tags, self.status)
+        return utilities.dataframe(self.folder.path, self.files, tags, self.status)
 
     def read(self, message = 'Reading..'):
 
         self.status.message(message)
         self.__dict__['ds'] = self.children()
         for i, child in enumerate(self.ds):
-            child.read()
             self.status.progress(i, len(self.ds))
+            child.read()
         self.status.hide()
 
     def write(self):
 
         if self.ds is None: 
             return
-        for child in self.ds:
+        for i, child in enumerate(self.ds):
+            self.status.progress(i, len(self.ds), message='Writing data..')
             child.write()
+        self.status.hide()
 
     def clear(self):
 

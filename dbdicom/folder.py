@@ -22,18 +22,18 @@ from . import dicm, utilities
 from .message import StatusBar, Dialog
 from .classes.database import Database
 
-
-class Folder(Database):
+class Folder(Database): 
+    # This really needs to be Database() with Folder as an attribute. 
     """Programming interface for reading and writing a DICOM folder."""
 
-    
-    _columns = [    # The column labels of the dataframe
+    # The column labels of the dataframe as required by dbdicom
+    required = [    
         'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 
         'SOPClassUID','NumberOfFrames', 
         'PatientName', 
         'StudyDescription', 'StudyDate', 
         'SeriesDescription', 'SeriesNumber',
-        'InstanceNumber'
+        'InstanceNumber', 'AcquisitionTime', 
     ]
 
     def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
@@ -42,6 +42,11 @@ class Folder(Database):
         When used inside a GUI, status and dialog should be instances of the status bar and 
         dialog class defined in `weasel`.
         """
+        # A list of optional dicom attributes that are not used by dbdicom 
+        # but can be included for faster access in other applications. 
+        # The list can be changed or extended by applications.
+        self.__dict__['attributes'] = ['SliceLocation']
+        
         self.__dict__['dataframe'] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__['path'] = path
         self.__dict__['status'] = status
@@ -50,7 +55,29 @@ class Folder(Database):
 
         super().__init__(self)
 
-    def open(self, path=None):
+    @property
+    def _columns(self):
+
+        return self.required + self.__dict__['attributes']
+
+    def set_attributes(self, attributes, scan=True):
+        """DICOM attributes that are NOT used by dbdicom.
+        
+        Can be set by applications for fast access to key DICOM attributes such
+        as those used for sorting series data.
+
+        Args:
+            attributes: list of DICOM attributes.
+        """
+        # Make sure all columns are unique
+        attr = []
+        for a in attributes:
+            if a not in self.required:
+                attr.append(a)
+        self.__dict__['attributes'] = attr
+        if scan: self.scan()
+
+    def open(self, path=None, message='Opening folder..', unzip=True):
         """Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -73,25 +100,36 @@ class Folder(Database):
             self.dialog.information(message)
             return self
         if os.path.exists(self._csv):
-            self.status.message("Reading..")
+            self.status.message("Reading register..")
             self._read_csv()
+            # If the saved register does not have all required attributes
+            # then scan the folder again and create a new register
+            labels = self._columns + ['removed','created']
+            if labels != list(self.dataframe.columns):
+#            for attribute in self.__dict__['attributes']:
+#                if attribute not in self.dataframe:
+                self.scan(message=message)
+                self.status.hide()
+                return self
             self.status.hide()
         else:
-            self.scan()
+            self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self):
-        """Reads the folder again.
-
-        Use this function after opening the folder if the files on the folder 
-        may have been corrputed or modified by another application.
+    def scan(self, message='Scanning..', unzip=True):
         """
-        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()] 
-        self.__dict__['dataframe'] = utilities.dataframe(files, self._columns, self.status)
-        self.dataframe['checked'] = [False] * self.dataframe.shape[0]
+        Reads all files in the folder and summarises key attributes in a table for faster access.
+        """
+        if unzip:
+            self.status.message('Extracting compressed folders..')
+            utilities._unzip_files(self.path, self.status)
+        self.status.message('Finding all files..')
+        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()]
+        self.__dict__['dataframe'] = utilities.dataframe(self.path, files, self._columns, self.status, message=message)
         self.dataframe['removed'] = [False] * self.dataframe.shape[0]
         self.dataframe['created'] = [False] * self.dataframe.shape[0]
         self._multiframe_to_singleframe()
+        self._write_csv()
         return self
 
     def close(self):
@@ -129,6 +167,15 @@ class Folder(Database):
 
         return True
 
+    def save(self):
+
+        self.status.message("Saving..")
+        if self.is_saved():
+            self._write_csv()
+        else:
+            super().save()
+        self.status.hide()
+
     def is_saved(self):
         """Check if the folder is saved.
         
@@ -146,6 +193,11 @@ class Folder(Database):
             True if the folder is open and False otherwise.
         """
         return self.path is not None
+
+    def sortby(self, sortby):
+        
+        self.dataframe.sort_values(sortby, inplace=True)
+        return self
 
     def object(self, row, generation=4):
         """Create a new dicom object from a row in the dataframe.
@@ -200,7 +252,50 @@ class Folder(Database):
         filename = os.path.basename(os.path.normpath(self.path)) + ".csv"
         return os.path.join(self.path, filename) 
 
-    def _append(self, ds, checked=False):
+    def label(self, row, type):
+
+        if type == 'Patient':
+            name = row.PatientName
+            id = row.PatientID
+            label = str(name)
+            label += ' [' + str(id) + ']'
+            return type + " - {}".format(label)
+        if type == 'Study':
+            descr = row.StudyDescription
+            date = row.StudyDate
+            label = str(descr)
+            label += ' [' + str(date) + ']'
+            return type + " - {}".format(label)
+        if type == 'Series':
+            descr = row.SeriesDescription
+            nr = row.SeriesNumber
+            label = '[' + str(nr).zfill(3) + '] ' 
+            label += str(descr)
+            return type + " - {}".format(label)
+        if type == 'Instance':
+            nr = row.InstanceNumber
+            label = str(nr).zfill(6)
+            return type + " - {}".format(label)
+
+    def new_uid(self, n=1):
+        
+        if n == 1:
+            return pydicom.uid.generate_uid()
+        uid = []
+        for _ in range(n):
+            uid.append(pydicom.uid.generate_uid())
+        return uid
+
+    def new_file(self):
+
+        # Generate a new filename
+        path = os.path.join(self.path, "dbdicom")
+        if not os.path.isdir(path): os.mkdir(path)
+        #file = os.path.join(path, self.new_uid() + '.dcm') 
+        file = os.path.join("dbdicom", self.new_uid() + '.dcm') 
+        return file
+
+    def _append(self, ds):
         """Append a new row to the dataframe from a pydicom dataset.
         
         Args:
@@ -208,17 +303,23 @@ class Folder(Database):
         """
 
         # Generate a new filename
-        path = os.path.join(self.path, "Weasel")
-        if not os.path.isdir(path): os.mkdir(path)
-        file = os.path.join(path, pydicom.uid.generate_uid() + '.dcm') 
+        file = self.new_file()
+#        path = os.path.join(self.path, "Weasel")
+#        if not os.path.isdir(path): os.mkdir(path)
+#        file = os.path.join(path, pydicom.uid.generate_uid() + '.dcm') 
 
-        # Add a new row in the dataframe
-        labels = self._columns + ['checked','removed','created']
-        row = pd.Series(data=['']*len(labels), index=labels, name=file)
-        row['checked'] = checked
+        row = pd.DataFrame([]*len(self._columns), index=[file], columns=self._columns)
         row['removed'] = False
         row['created'] = True
-        self.__dict__['dataframe'] = self.dataframe.append(row) # REPLACE BY CONCAT
+        self.__dict__['dataframe'] = pd.concat([self.dataframe, row]) 
+        
+        # REPLACED BY CONCAT on 03 june 2022
+        # labels = self._columns + ['removed','created']
+        #row = pd.Series(data=['']*len(labels), index=labels, name=file)
+        #row['removed'] = False
+        #row['created'] = True
+        #self.__dict__['dataframe'] = self.dataframe.append(row) # REPLACE BY CONCAT
+
         self._update(file, ds)
 
     def _update(self, file, ds):
@@ -230,7 +331,8 @@ class Folder(Database):
         """
         for tag in self._columns:
             if tag in ds:
-                self.dataframe.loc[file, tag] = utilities._read_tags(ds, tag)
+                value = utilities._read_tags(ds, tag)
+                self.dataframe.loc[file, tag] = value
                 #self.dataframe.loc[file, tag] = ds[tag].value
 
     def _multiframe_to_singleframe(self):
@@ -255,8 +357,7 @@ class Folder(Database):
                 singleframe_files = utilities.split_multiframe(filepath, str(instance.SeriesInstanceUID))
                 if singleframe_files != []:                    
                     # add the single frame files to the dataframe
-                    df = utilities.dataframe(singleframe_files, self._columns)
-                    df['checked'] = [False] * df.shape[0]
+                    df = utilities.dataframe(self.path, singleframe_files, self._columns)
                     df['removed'] = [False] * df.shape[0]
                     df['created'] = [False] * df.shape[0]
                     self.__dict__['dataframe'] = pd.concat([self.dataframe, df])

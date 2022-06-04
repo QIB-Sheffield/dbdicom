@@ -3,8 +3,8 @@ from .record import Record
 
 class Patient(Record):
 
-    def __init__(self, folder, UID=[]):
-        super().__init__(folder, UID, generation=1)
+    def __init__(self, folder, UID=[], **attributes):
+        super().__init__(folder, UID, generation=1, **attributes)
 
 
     def label(self, row=None):

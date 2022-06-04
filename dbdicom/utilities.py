@@ -1,13 +1,17 @@
 import os
 import sys
+import zipfile
+from datetime import datetime
 import math
 import pathlib
 import subprocess
 import pydicom
+from pydicom.dataset import Dataset
+from pydicom.sequence import Sequence
 import pandas as pd
 import numpy as np
 
-def dataframe(files, tags, status=None):
+def dataframe(path, files, tags, status=None, message='Reading DICOM folder..'):
     """Reads a list of tags in a list of files.
 
     Arguments
@@ -32,17 +36,85 @@ def dataframe(files, tags, status=None):
         tags = [tags]
     array = []
     dicom_files = []
-    if status is not None: status.message('Reading DICOM folder..')
+    if status is not None: status.message(message)
     for i, file in enumerate(files):
         ds = pydicom.dcmread(file, force=True)
         if isinstance(ds, pydicom.dataset.FileDataset):
             if 'TransferSyntaxUID' in ds.file_meta:
                 row = _read_tags(ds, tags)
                 array.append(row)
-                dicom_files.append(file)
-        if status is not None: status.progress(i, len(files))
+                relpath = os.path.relpath(file, path)
+                dicom_files.append(relpath) 
+        if status is not None: status.progress(i+1, len(files), message)
     if status is not None: status.hide()
     return pd.DataFrame(array, index = dicom_files, columns = tags)
+
+def _initialize(ds, UID=None, ref=None):
+
+    # Date and Time of Creation
+    dt = datetime.now()
+    timeStr = dt.strftime('%H%M%S')  # long format with micro seconds
+
+    ds.ContentDate = dt.strftime('%Y%m%d')
+    ds.ContentTime = timeStr
+    ds.AcquisitionDate = dt.strftime('%Y%m%d')
+    ds.AcquisitionTime = timeStr
+    ds.SeriesDate = dt.strftime('%Y%m%d')
+    ds.SeriesTime = timeStr
+    ds.InstanceCreationDate = dt.strftime('%Y%m%d')
+    ds.InstanceCreationTime = timeStr
+
+    if UID is not None:
+
+        # overwrite UIDs
+        ds.PatientID = UID[0]
+        ds.StudyInstanceUID = UID[1]
+        ds.SeriesInstanceUID = UID[2]
+        ds.SOPInstanceUID = UID[3]
+
+    if ref is not None: 
+
+        # Series, Instance and Class for Reference
+        refd_instance = Dataset()
+        refd_instance.ReferencedSOPClassUID = ref.SOPClassUID
+        refd_instance.ReferencedSOPInstanceUID = ref.SOPInstanceUID
+        refd_instance_sequence = Sequence()
+        refd_instance_sequence.append(refd_instance)
+
+        refd_series = Dataset()
+        refd_series.ReferencedInstanceSequence = refd_instance_sequence
+        refd_series.SeriesInstanceUID = ds.SeriesInstanceUID
+        refd_series_sequence = Sequence()
+        refd_series_sequence.append(refd_series)
+
+        ds.ReferencedSeriesSequence = refd_series_sequence
+
+    return ds
+
+def _unzip_files(path, status):
+    """
+    Unzip any zipped files in a directory.
+    
+    Checking for zipped files is slow so this only searches the top folder.
+
+    Returns : a list with unzipped files
+    """
+    files = [entry.path for entry in os.scandir(path) if entry.is_file()]
+    zipfiles = []
+    for i, file in enumerate(files):
+        status.progress(i, len(files), 'Searching for zipped folders..')
+        if zipfile.is_zipfile(file):
+            zipfiles.append(file)
+    if zipfiles == []:
+        return
+    for i, file in enumerate(zipfiles): # unzip any zip files and delete the original zip
+        status.progress(i, len(zipfiles), 'Unzipping file ' + file)
+        with zipfile.ZipFile(file, 'r') as zip_folder:
+            path = ''.join(file.split('.')[:-1]) # remove file extension
+            if not os.path.isdir(path): 
+                os.mkdir(path)
+            zip_folder.extractall(path)
+        os.remove(file)
 
 def _read_tags(ds, tags):
     """Helper function return a list of values"""
@@ -81,7 +153,7 @@ def _convert_attribute_type(value):
     if value.__class__.__name__ == 'UID': 
         return str(value) 
     if value.__class__.__name__ == 'IS': 
-        return str(value)
+        return int(value)
     if value.__class__.__name__ == 'DT': 
         return str(value)
     if value.__class__.__name__ == 'DA': 
@@ -110,6 +182,7 @@ def _set_tags(ds, tags, values):
                 ds.add_new(tag, VR, values[i])
             else:
                 pass # for now
+    return ds
 
 def _filter(objects, **kwargs):
     """
@@ -130,6 +203,8 @@ def _filter(objects, **kwargs):
         if select: 
             filtered.append(obj)
     return filtered
+
+
 
 def split_multiframe(filepath, description):
     """Splits a multi-frame instance into single frames"""
@@ -189,20 +264,27 @@ def scan_tree(directory):
 def _stack_arrays(arrays, align_left=False):
     """Stack a list of arrays of different shapes but same number of dimensions.
     
+    This generalises numpy.stack to arrays of different sizes.
     The stack has the size of the largest array.
     If an array is smaller it is zero-padded and centred on the middle.
     """
 
     # Get the dimensions of the stack
+    # For each dimension, look for the largest values across all arrays
     ndim = len(arrays[0].shape)
     dim = [0] * ndim
     for array in arrays:
         for i, d in enumerate(dim):
-            dim[i] = max((d, array.shape[i]))
+            dim[i] = max((d, array.shape[i])) # changing the variable we are iterating over!!
+    #    for i in range(ndim):
+    #        dim[i] = max((dim[i], array.shape[i]))
 
     # Create the stack
+    # Add one dimension corresponding to the size of the stack
     n = len(arrays)
-    stack = np.full([n] + dim, 0, dtype=arrays[0].dtype)
+    #stack = np.full([n] + dim, 0, dtype=arrays[0].dtype)
+    stack = np.full([n] + dim, None, dtype=arrays[0].dtype)
+
     for k, array in enumerate(arrays):
         index = [k]
         for i, d in enumerate(dim):
