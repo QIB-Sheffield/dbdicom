@@ -10,12 +10,12 @@ try:
         __doc__ = introduction
 except: # if there's no internet connection
     pass
-    
+
 # do not show in documentation
 __pdoc__ = {}
 __pdoc__["utilities"] = False 
 __pdoc__["external"] = False 
 __pdoc__["dicm"] = False 
 
-#from .folder import *
-#from .functions import *
+from .folder import *
+from .functions import *

@@ -19,7 +19,7 @@ class StatusBar():
         
 
 class Dialog():
-    """Class with the same interface as wewidgets.Dialog for commandline operation"""
+    """Class with the same interface as widgets.Dialog for commandline operation"""
 
     def information(self, message="Message in the box", title=""):
         """

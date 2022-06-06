@@ -4,7 +4,7 @@ import pydicom
 import numpy as np
 import pandas as pd
 from .. import utilities
-import weasel.dbdicom as db
+import dbdicom as db
 
 
 class Record():
