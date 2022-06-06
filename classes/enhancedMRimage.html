@@ -207,7 +207,7 @@ class EnhancedMRImage(MRImage):
 <dl>
 <dt id="dbdicom.classes.enhancedMRimage.EnhancedMRImage"><code class="flex name class">
 <span>class <span class="ident">EnhancedMRImage</span></span>
-<span>(</span><span>folder, UID=[])</span>
+<span>(</span><span>folder, UID=[], **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific methods for the SOPClass EnhancedMR Image Storage</p></div>
@@ -382,10 +382,37 @@ class EnhancedMRImage(MRImage):
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="dbdicom.classes.MRimage.MRImage" href="MRimage.html#dbdicom.classes.MRimage.MRImage">MRImage</a></li>
-<li><a title="dbdicom.classes.image.Image" href="image.html#dbdicom.classes.image.Image">Image</a></li>
+<li>dbdicom.classes.image.Image</li>
 <li><a title="dbdicom.classes.instance.Instance" href="instance.html#dbdicom.classes.instance.Instance">Instance</a></li>
 <li><a title="dbdicom.classes.record.Record" href="record.html#dbdicom.classes.record.Record">Record</a></li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="dbdicom.classes.enhancedMRimage.EnhancedMRImage.affine_matrix"><code class="name">var <span class="ident">affine_matrix</span></code></dt>
+<dd>
+<div class="desc"><p>Affine transformation matrix for a DICOM image</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def affine_matrix(self):
+
+    on_disk = self.on_disk()
+    if on_disk: self.read()
+    affineList = list()
+    for frame in self.ds.PerFrameFunctionalGroupsSequence:
+        affine = affine(
+            image_orientation = frame.PlaneOrientationSequence[0].ImageOrientationPatient, 
+            image_position = frame.PlanePositionSequence[0].ImagePositionPatient, 
+            pixel_spacing = frame.PixelMeasuresSequence[0].PixelSpacing, 
+            slice_spacing = frame.PixelMeasuresSequence[0].SpacingBetweenSlices)
+        affineList.append(affine)
+    if on_disk: self.clear()
+    return np.squeeze(np.array(affineList))</code></pre>
+</details>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="dbdicom.classes.enhancedMRimage.EnhancedMRImage.image_type"><code class="name flex">
@@ -476,30 +503,21 @@ class EnhancedMRImage(MRImage):
 <ul class="hlist">
 <li><code><b><a title="dbdicom.classes.MRimage.MRImage" href="MRimage.html#dbdicom.classes.MRimage.MRImage">MRImage</a></b></code>:
 <ul class="hlist">
-<li><code><a title="dbdicom.classes.MRimage.MRImage.affine_matrix" href="image.html#dbdicom.classes.image.Image.affine_matrix">affine_matrix</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.array" href="MRimage.html#dbdicom.classes.MRimage.MRImage.array">array</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.check" href="record.html#dbdicom.classes.record.Record.check">check</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.clear" href="instance.html#dbdicom.classes.instance.Instance.clear">clear</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.copy_to" href="instance.html#dbdicom.classes.instance.Instance.copy_to">copy_to</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.dataset" href="record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.export" href="instance.html#dbdicom.classes.instance.Instance.export">export</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.export_as_csv" href="image.html#dbdicom.classes.image.Image.export_as_csv">export_as_csv</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.export_as_nifti" href="image.html#dbdicom.classes.image.Image.export_as_nifti">export_as_nifti</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.export_as_png" href="image.html#dbdicom.classes.image.Image.export_as_png">export_as_png</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.file" href="instance.html#dbdicom.classes.instance.Instance.file">file</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.get_colormap" href="image.html#dbdicom.classes.image.Image.get_colormap">get_colormap</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.is_checked" href="record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.map_onto" href="image.html#dbdicom.classes.image.Image.map_onto">map_onto</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.move" href="record.html#dbdicom.classes.record.Record.move">move</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
+<li><code><a title="dbdicom.classes.MRimage.MRImage.new_cousin" href="record.html#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
@@ -508,15 +526,14 @@ class EnhancedMRImage(MRImage):
 <li><code><a title="dbdicom.classes.MRimage.MRImage.read" href="instance.html#dbdicom.classes.instance.Instance.read">read</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.restore" href="instance.html#dbdicom.classes.instance.Instance.restore">restore</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.save" href="instance.html#dbdicom.classes.instance.Instance.save">save</a></code></li>
+<li><code><a title="dbdicom.classes.MRimage.MRImage.restore" href="record.html#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.MRimage.MRImage.restore_OBSOLETE" href="instance.html#dbdicom.classes.instance.Instance.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
+<li><code><a title="dbdicom.classes.MRimage.MRImage.save" href="record.html#dbdicom.classes.record.Record.save">save</a></code></li>
+<li><code><a title="dbdicom.classes.MRimage.MRImage.save_OBSOLETE" href="instance.html#dbdicom.classes.instance.Instance.save_OBSOLETE">save_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.set_checked" href="record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.set_colormap" href="image.html#dbdicom.classes.image.Image.set_colormap">set_colormap</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.signal_type" href="MRimage.html#dbdicom.classes.MRimage.MRImage.signal_type">signal_type</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.MRimage.MRImage.uncheck" href="record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
 <li><code><a title="dbdicom.classes.MRimage.MRImage.write" href="instance.html#dbdicom.classes.instance.Instance.write">write</a></code></li>
 </ul>
 </li>
@@ -543,6 +560,7 @@ class EnhancedMRImage(MRImage):
 <ul class="">
 <li><code><a title="dbdicom.classes.enhancedMRimage.EnhancedMRImage.image_type" href="#dbdicom.classes.enhancedMRimage.EnhancedMRImage.image_type">image_type</a></code></li>
 <li><code><a title="dbdicom.classes.enhancedMRimage.EnhancedMRImage.window" href="#dbdicom.classes.enhancedMRimage.EnhancedMRImage.window">window</a></code></li>
+<li><code><a title="dbdicom.classes.enhancedMRimage.EnhancedMRImage.affine_matrix" href="#dbdicom.classes.enhancedMRimage.EnhancedMRImage.affine_matrix">affine_matrix</a></code></li>
 </ul>
 </li>
 </ul>

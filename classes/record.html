@@ -27,15 +27,17 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import os
-import math
+from copy import deepcopy
 import pydicom
 import numpy as np
+import pandas as pd
 from .. import utilities
+import dbdicom as db
 
 
 class Record():
 
-    def __init__(self, folder, UID=[], generation=0):
+    def __init__(self, folder, UID=[], generation=0, **attributes):
 
         objUID = [] + UID
 #        for i in range(generation-len(UID)):
@@ -49,6 +51,9 @@ class Record():
         self.__dict__[&#39;dialog&#39;] = folder.dialog
         self.__dict__[&#39;dicm&#39;] = folder.dicm
         self.__dict__[&#39;ds&#39;] = None
+        # placeholder DICOM attributes
+        # these will populate the dataset and dataframe when data are created
+        self.__dict__[&#39;attributes&#39;] = attributes
 
     @property
     def generation(self):
@@ -61,18 +66,26 @@ class Record():
         key = [&#39;PatientID&#39;, &#39;StudyInstanceUID&#39;, &#39;SeriesInstanceUID&#39;, &#39;SOPInstanceUID&#39;]
         return key[0:self.generation]
 
+    def new_uid(self):
+        
+        return pydicom.uid.generate_uid()
+
     def data(self):
-        &#34;&#34;&#34;Dataframe with current data - excluding those that were removed&#34;&#34;&#34;
+        &#34;&#34;&#34;Dataframe with current data - excluding those that were removed
+        &#34;&#34;&#34;
+
+        # Note: this returns a copy - could be a view instead using .loc?
 
         if self.folder.path is None:
             return self.folder.dataframe
         current = self.folder.dataframe.removed == False
         data = self.folder.dataframe[current]
-        if self.UID == []: return data       
+        if self.UID == []: 
+            return data       
         rows = data[self.key[-1]] == self.UID[-1]
         return data[rows]
 
-    def dataset(self, sortby=None): 
+    def dataset(self, sortby=None, status=True): 
         &#34;&#34;&#34;Sort instances by a list of attributes.
         
         Args:
@@ -85,20 +98,24 @@ class Record():
             df = self.data()
             return self._dataset_from_df(df)
         else:
-            df = utilities.dataframe(self.files, sortby, self.status)
-            df.sort_values(sortby, inplace=True)
-            return self._sorted_dataset_from_df(df, sortby)
+            if set(sortby) &lt;= set(self.folder.dataframe):
+                df = self.folder.dataframe.loc[self.data().index, sortby]
+            else:
+                df = utilities.dataframe(self.folder.path, self.files, sortby, self.status)
+            df.sort_values(sortby, inplace=True) 
+            return self._sorted_dataset_from_df(df, sortby, status=status)
 
-    def _sorted_dataset_from_df(self, df, sortby): 
+    def _sorted_dataset_from_df(self, df, sortby, status=True): 
 
         data = []
-        for c in df[sortby[0]].unique():
-            self.status.message(&#39;Reading &#39; + str(sortby[0]) + &#39; &#39; + str(c))
+        vals = df[sortby[0]].unique()
+        for i, c in enumerate(vals):
+            if status: self.status.progress(i, len(vals), message=&#39;Sorting..&#39;)
             dfc = df[df[sortby[0]] == c]
             if len(sortby) == 1:
                 datac = self._dataset_from_df(dfc)
             else:
-                datac = self._sorted_dataset_from_df(dfc, sortby[1:])
+                datac = self._sorted_dataset_from_df(dfc, sortby[1:], status=False)
             data.append(datac)
         return utilities._stack_arrays(data, align_left=True)
 
@@ -108,10 +125,10 @@ class Record():
         data = np.empty(df.shape[0], dtype=object)
         cnt = 0
         for file, _ in df.iterrows(): # just enumerate over df.index
-            self.status.progress(cnt, df.shape[0])
+            #self.status.progress(cnt, df.shape[0])
             data[cnt] = self.folder.instance(file)
             cnt += 1
-        self.status.hide()
+        #self.status.hide()
         return data
 
     def array(self, sortby=None, pixels_first=False): 
@@ -157,15 +174,48 @@ class Record():
             ```  
         &#34;&#34;&#34;
         dataset = self.dataset(sortby)
-        array = [instance.array() for instance in dataset.ravel()]
-        array = utilities._stack_arrays(array)
+        array = []
+        ds = dataset.ravel()
+        for i, im in enumerate(ds):
+            self.status.progress(i, len(ds), &#39;Reading pixel data..&#39;)
+            if im is None:
+                array.append(np.zeros((1,1)))
+            else:
+                array.append(im.array())
+        self.status.hide()
+        #array = [im.array() for im in dataset.ravel() if im is not None]
+        array = utilities._stack_arrays(array) #db.stack(array)
         array = array.reshape(dataset.shape + array.shape[1:])
         if pixels_first:
             array = np.moveaxis(array, -1, 0)
             array = np.moveaxis(array, -1, 0)
-        return array, dataset
+        return array, dataset # REPLACE BY DBARRAY
 
-    def set_array(self, array, dataset=None, pixels_first=False, inplace=True): 
+    def npy(self):
+
+        path = os.path.join(self.folder.path, &#34;dbdicom_npy&#34;)
+        if not os.path.isdir(path): os.mkdir(path)
+        file = os.path.join(path, self.UID[-1] + &#39;.npy&#39;) 
+        return file
+
+    def load_npy(self):
+
+        file = self.npy()
+        if not os.path.exists(file):
+            return
+        with open(file, &#39;rb&#39;) as f:
+            array = np.load(f)
+        return array
+
+    def save_npy(self, array=None, sortby=None, pixels_first=False):
+
+        if array is None:
+            array = self.array(sortby=sortby, pixels_first=pixels_first)
+        file = self.npy() 
+        with open(file, &#39;wb&#39;) as f:
+            np.save(f, array)
+
+    def set_array(self, array, dataset=None, pixels_first=False, inplace=False): 
         &#34;&#34;&#34;
         Set pixel values of a series from a numpy ndarray.
 
@@ -173,6 +223,7 @@ class Record():
         image such as geometry, or other metainformation,
         a dataset must be provided as well with the same 
         shape as the array except for the slice dimensions. 
+
         If a dataset is not provided, header info is 
         derived from existing instances in order.
 
@@ -239,24 +290,35 @@ class Record():
         if dataset is None:
             dataset = self.dataset()
         # Return with error message if dataset and array do not match.
-        nr_of_slices = math.prod(array.shape[:-2])
-        if nr_of_slices != math.prod(dataset.shape):
-            message = &#34;Array and dataset do not match&#34;
+        nr_of_slices = np.prod(array.shape[:-2])
+        if nr_of_slices != np.prod(dataset.shape):
+            message = &#39;Error in set_array(): array and dataset do not match&#39;
             message += &#39;\n Array has &#39; + str(nr_of_slices) + &#39; elements&#39;
-            message += &#39;\n dataset has &#39; + str(math.prod(dataset.shape)) + &#39; elements&#39;
+            message += &#39;\n dataset has &#39; + str(np.prod(dataset.shape)) + &#39; elements&#39;
+            message += &#39;\n Check if the keyword pixels_first is set correctly.&#39;
             self.dialog.error(message)
-            return self
+            raise ValueError(message)
         # If self is not a series, create a new series.
         if self.generation != 3:
             series = self.new_series()
         else:
             series = self
         # Reshape, copy instances and save slices.
-        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1]))
-        dataset = dataset.reshape(nr_of_slices)
+        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+        dataset = dataset.reshape(nr_of_slices) # shape (i,)
+
+        dataset = db.copy(dataset.tolist(), series, status=self.status)
         for i, instance in enumerate(dataset):
-            instance.copy_to(series).set_array(array[i,...])
-            if inplace: instance.remove()
+            self.status.progress(i, len(dataset), &#39;Writing array to file..&#39;)
+            instance.set_array(array[i,...])
+            if inplace: instance.remove() # delete?
+           
+        #for i, instance in enumerate(dataset):
+        #    self.status.progress(i, len(dataset), &#39;Saving data..&#39;)
+        #    instance.copy_to(series).set_array(array[i,...])
+            # instance.set_array(array[i,...])
+        #    if inplace: instance.remove() # delete?
+
         return series
 
 #    def write_array(self, array, dataset): 
@@ -279,28 +341,8 @@ class Record():
     def files(self):
         &#34;&#34;&#34;Returns the filepath to the instances in the object.&#34;&#34;&#34;
  
-        return self.data().index.tolist()
-
-    def check(self):
-        &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-        self.set_checked(True)
-
-    def uncheck(self):
-        &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-        self.set_checked(False)
-
-    def set_checked(self, checked):
-        &#34;&#34;&#34;Set the checkstate of all instances of the object.&#34;&#34;&#34;
-
-        files = self.files
-        self.folder.dataframe.at[files, &#39;checked&#39;] = checked
-
-    def is_checked(self):
-        &#34;&#34;&#34;Check if all instances of the object are checked.&#34;&#34;&#34;
-
-        return self.data().checked.all()
+        relpaths = self.data().index.tolist()
+        return [os.path.join(self.folder.path, p) for p in relpaths]
 
     def in_memory(self): # is_in_memory
         &#34;&#34;&#34;Check if the object has been read into memory&#34;&#34;&#34;
@@ -317,26 +359,21 @@ class Record():
 
         return self.dicm.parent(self)
         
-    def children(self, index=None, checked=None, **kwargs):
-        &#34;&#34;&#34;List of Patients&#34;&#34;&#34;
+    def children(self, index=None, **kwargs):
+        &#34;&#34;&#34;List of children&#34;&#34;&#34;
 
         if self.generation == 4: return []
         if self.in_memory():
             objects = utilities._filter(self.ds, **kwargs)
-            if checked is not None:
-                if checked:
-                    objects = [obj for obj in objects if obj.is_checked()]
-                else:
-                    objects = [obj for obj in objects if not obj.is_checked()]
             if index is not None:
                 if index &gt;= len(objects): 
                     return
                 else:
                     return objects[index]
             return objects
-        return self.records(generation=self.generation+1, index=index, checked=checked, **kwargs)
+        return self.records(generation=self.generation+1, index=index, **kwargs)
 
-    def records(self, generation=0, index=None, checked=None, **kwargs):
+    def records(self, generation=0, index=None, **kwargs):
         &#34;&#34;&#34;A list of all records of a given generation corresponding to the record.
 
         If generation is lower then that of the object, 
@@ -376,13 +413,6 @@ class Record():
                 rec_list = [rec_list[index]]
             for rec in rec_list:
                 rec_data = data[column == rec]
-                if checked is not None:
-                    if checked == True:
-                        if not rec_data.checked.all():
-                            continue
-                    elif checked == False:
-                        if rec_data.checked.all():
-                            continue
                 row = rec_data.iloc[0]
                 obj = self.dicm.object(self.folder, row, generation)
                 objects.append(obj)
@@ -390,7 +420,7 @@ class Record():
         if index is not None: return objects[0]
         return objects
 
-    def patients(self, index=None, checked=None, **kwargs):
+    def patients(self, index=None,  **kwargs):
         &#34;&#34;&#34;A list of patients of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -401,9 +431,9 @@ class Record():
             self.parent
         if self.generation==1:
             return
-        return self.children(index=index, checked=checked, **kwargs)
+        return self.children(index=index, **kwargs)
 
-    def studies(self, index=None, checked=None, **kwargs):
+    def studies(self, index=None, **kwargs):
         &#34;&#34;&#34;A list of studies of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -413,10 +443,10 @@ class Record():
         if self.generation==2:
             return
         if self.generation==1:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         objects = []
         for child in self.children():
-            inst = child.studies(checked=checked, **kwargs)
+            inst = child.studies(**kwargs)
             objects.extend(inst)
         if index is not None:
             if index &gt;= len(objects):
@@ -425,7 +455,7 @@ class Record():
                 return objects[index]
         return objects
 
-    def series(self, index=None, checked=None, **kwargs):
+    def series(self, index=None, **kwargs):
         &#34;&#34;&#34;A list of series of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -433,11 +463,11 @@ class Record():
         if self.generation==3:
             return
         if self.generation==2:
-            kids = self.children(index=index, checked=checked, **kwargs)
+            kids = self.children(index=index, **kwargs)
             return kids
         series = []
         for child in self.children():
-            inst = child.series(checked=checked, **kwargs)
+            inst = child.series(**kwargs)
             series.extend(inst)
         if index is not None:
             if index &gt;= len(series):
@@ -446,16 +476,16 @@ class Record():
                 return series[index]
         return series
 
-    def instances(self, index=None, checked=None, **kwargs): # VERY slow - needs optimizing
+    def instances(self, index=None, **kwargs): # VERY slow - needs optimizing
         &#34;&#34;&#34;A list of instances of the object&#34;&#34;&#34;
 
         if self.generation==4: 
             return
         if self.generation==3:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         instances = []
         for child in self.children():
-            inst = child.instances(checked=checked, **kwargs)
+            inst = child.instances(**kwargs)
             instances.extend(inst)
         if index is not None:
             if index &gt;= len(instances):
@@ -464,43 +494,52 @@ class Record():
                 return instances[index]
         return instances       
 
-    def new_child(self):
+    def new_child(self, **attributes):
         &#34;&#34;&#34;Creates a new child object&#34;&#34;&#34;
 
-        obj = self.dicm.new_child(self)
-        obj.read()
+        obj = self.dicm.new_child(self, **attributes)
+        obj.read() # Why??
         return obj
 
-    def new_sibling(self):
+    def new_sibling(self, **attributes):
         &#34;&#34;&#34;
         Creates a new sibling under the same parent.
         &#34;&#34;&#34;
         if self.generation == 0:
             return
         else:
-            return self.parent.new_child()
+            return self.parent.new_child(**attributes)
 
-    def new_pibling(self):
+    def new_pibling(self, **attributes):
         &#34;&#34;&#34;
         Creates a new sibling of parent.
         &#34;&#34;&#34;
         if self.generation &lt;= 1:
             return
         else:
-            return self.parent.new_sibling()
+            return self.parent.new_sibling(**attributes)
 
-    def new_series(self):
+    def new_cousin(self, **attributes):
+        &#34;&#34;&#34;
+        Creates a new sibling of parent.
+        &#34;&#34;&#34;
+        if self.generation &lt;= 1:
+            return
+        else:
+            return self.new_pibling().new_child(**attributes)
+
+    def new_series(self, **attributes):
         &#34;&#34;&#34;
         Creates a new series under the same parent
         &#34;&#34;&#34; 
         if self.generation &lt;= 1: 
-            return self.new_child().new_series()
+            return self.new_child().new_series(**attributes)
         if self.generation == 2:
-            return self.new_child()
+            return self.new_child(**attributes)
         if self.generation == 3:
-            return self.new_sibling()
+            return self.new_sibling(**attributes)
         if self.generation == 4:
-            return self.new_pibling() 
+            return self.new_pibling(**attributes) 
 
     def __getattr__(self, tag):
         &#34;&#34;&#34;Gets the value of the data element with given tag.
@@ -544,6 +583,7 @@ class Record():
     def __setitem__(self, tags, values):
         &#34;&#34;&#34;Sets the value of the data element with given tag.&#34;&#34;&#34;
 
+        # LAZY - SLOW
         instances = self.instances()
         self.status.message(&#39;Writing DICOM tags..&#39;)
         for i, instance in enumerate(instances):
@@ -557,7 +597,8 @@ class Record():
         files = self.files
         if files == []: 
             return
-        self.folder.dataframe.loc[self.files,&#39;removed&#39;] = True
+        self.folder.dataframe.loc[self.data().index,&#39;removed&#39;] = True
+
 
     def move_to(self, ancestor):
         &#34;&#34;&#34;move object to a new parent.
@@ -566,18 +607,17 @@ class Record():
             If the object is not a parent, the missing 
             intermediate generations are automatically created.
         &#34;&#34;&#34;
-#        self[ancestor.key] = ancestor.UID
         copy = self.copy_to(ancestor)
         self.remove()
-        self = copy
+        return copy
 
-    def move(self, child, ancestor):
-        &#34;&#34;&#34;Move a child object to a new parent&#34;&#34;&#34;
+#    def move(self, child, ancestor):
+#        &#34;&#34;&#34;Move a child object to a new parent&#34;&#34;&#34;
 
-        if self.in_memory():
-            if child in self.ds:
-                self.ds.remove(child)
-        child.move_to(ancestor)
+#        if self.in_memory():
+#            if child in self.ds:
+#                self.ds.remove(child)
+#        child = child.move_to(ancestor)
     
     def copy(self):
         &#34;&#34;&#34;Returns a copy in the same parent&#34;&#34;&#34;
@@ -586,7 +626,7 @@ class Record():
         if self.in_memory(): copy.read()
         return copy
 
-    def copy_to(self, ancestor, message=None):
+    def _copy_to_OBSOLETE(self, ancestor, message=None): # functional but slow
         &#34;&#34;&#34;copy object to a new ancestor.
         
         ancestor: Root, Patient or Study
@@ -607,8 +647,85 @@ class Record():
             child.copy_to(copy)
             self.status.progress(i, len(children))
         self.status.hide()
-
         return copy
+
+    def _initialize(self, ref=None):
+
+        if self.generation == 4:
+            self.ds = utilities.initialize(self.ds, UID=self.UID, ref=ref)
+        else:
+            for i, obj in enumerate(self.ds):
+                if ref is not None:
+                    obj._initialize(ref.ds[i])
+                else:
+                    obj._initialize()
+
+    def merge_with(self, obj, message=None): 
+
+        if self.generation == 0: return
+        if message is None:
+            message = &#34;Merging &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+        # replace by db.merge()
+        return self._merge_with(obj, obj.parent, message=message)
+
+    def copy_to(self, ancestor, message=None):
+
+        if self.generation == 0: return
+        if message is None:
+            message = &#34;Copying &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+        copy = self.__class__(self.folder, UID=ancestor.UID)
+        # replace by db.merge()
+        return self._merge_with(copy, ancestor, message=message)
+
+    def _merge_with(self, obj, ancestor, message=None): # obsolete - replace by db.merge()
+
+        if self.in_memory(): # Create the copy in memory
+            obj.__dict__[&#39;ds&#39;] = deepcopy(self.ds)
+            obj._initialize(self.ds)
+            if ancestor.in_memory():
+                if ancestor.generation == obj.generation-1:
+                    ancestor.ds.append(obj)
+            return obj
+
+        # Extend dataframe &amp; create new files
+        dfsource = self.data()
+        sourcefiles = [os.path.join(self.folder.path, p) for p in dfsource.index.tolist()]
+        df = dfsource.copy(deep=True)
+        df[&#39;files&#39;] = [self.folder.new_file() for _ in range(df.shape[0])]
+        df.set_index(&#39;files&#39;, inplace=True)
+        for key in self.folder._columns[self.generation:3]:
+            for id in df[key].unique():
+                uid = self.folder.new_uid()
+                rows = df[key] == id
+                df.loc[rows.index, key] = uid
+            #    for file in rows.index:
+            #        df.at[file, key] = uid
+        df.SOPInstanceUID = self.folder.new_uid(df.shape[0])
+        df.removed = False
+        df.created = True
+        copyfiles = df.index.tolist()
+
+        for i, file in enumerate(copyfiles):
+            self.status.progress(i, len(copyfiles), message=message)
+            df.loc[file, self.folder._columns[0:self.generation]] = obj.UID 
+            ds = pydicom.dcmread(sourcefiles[i])
+            ds = utilities._initialize(ds, UID=df.loc[file, self.folder._columns[:4]].values.tolist())
+            if obj.attributes is not None:
+                for key, value in obj.attributes.items():
+                    utilities._set_tags(ds, key, value)
+                    if key in self.folder._columns[4:]:
+                        df.at[file, key] = value  
+            ds.save_as(os.path.join(self.folder.path, file))
+
+        self.folder.__dict__[&#39;dataframe&#39;] = pd.concat([self.folder.dataframe, df])
+        self.status.hide()
+
+        if ancestor.in_memory():
+            if ancestor.generation == obj.generation-1:
+                obj.read() # unnecessary read - can be integrated in loop.
+                ancestor.ds.append(obj)
+
+        return obj
 
     def export(self, path):
         &#34;&#34;&#34;Export instances to an external folder.
@@ -629,9 +746,10 @@ class Record():
             self.status.progress(i,len(instances))
         self.status.hide()
 
-    def save(self):
-        &#34;&#34;&#34;Save all instances.&#34;&#34;&#34;
+    def save_OBSOLETE(self):
+        &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
 
+        # Slow - edit df directly
         self.status.message(&#34;Saving all current instances..&#34;)
         instances = self.instances() 
         for i, instance in enumerate(instances):
@@ -646,47 +764,104 @@ class Record():
             rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
             data = self.folder.dataframe[rows] 
         removed = data.removed[data.removed]
-        files = removed.index.tolist()
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
         for i, file in enumerate(files): 
             os.remove(file)
             self.status.progress(i, len(files))
         self.folder.dataframe.drop(removed.index, inplace=True)
         self.status.hide()
 
-    def restore(self, message = &#39;Restoring..&#39;):
+    def save(self, message = &#34;Saving changes..&#34;):
+        &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
+
+        self.status.message(message)
+        self.write()
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message=&#39;Deleting removed files..&#39;)
+            if os.path.exists(file): os.remove(file)
+        #self.status.message(&#39;Clearing rapid access storage..&#39;)
+        #npyfile = self.npy()
+        #if os.path.exists(npyfile): os.remove(npyfile)
+        self.status.message(&#39;Done saving..&#39;)
+        self.folder.dataframe.loc[created.index, &#39;created&#39;] = False
+        self.folder.dataframe.drop(removed.index, inplace=True)
+
+    def restore(self, message = &#34;Restoring saved state..&#34;):
+        &#34;&#34;&#34;
+        Restore all instances.
+        &#34;&#34;&#34;
+        self.status.message(message)
+
+        in_memory = self.in_memory() 
+        self.clear()
+
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in created.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message=&#39;Deleting new files..&#39;)
+            if os.path.exists(file): os.remove(file)
+        self.status.hide()
+        self.folder.dataframe.loc[removed.index, &#39;removed&#39;] = False
+        self.folder.dataframe.drop(created.index, inplace=True)
+
+        if in_memory: self.read()
+        return self
+        
+    def restore_OBSOLETE(self, message = &#39;Restoring..&#39;):
         &#34;&#34;&#34;
         Restore all instances.
         &#34;&#34;&#34;
         in_memory = self.in_memory() 
         self.clear()
+
         instances = self.instances()
         self.status.message(message)
         for i, instance in enumerate(instances):
             instance.restore()
             self.status.progress(i,len(instances))
         self.status.hide()
+
         if in_memory: self.read()
         return self
 
     def read_dataframe(self, tags):
 
-        return utilities.dataframe(self.files, tags, self.status)
+        return utilities.dataframe(self.folder.path, self.files, tags, self.status)
 
     def read(self, message = &#39;Reading..&#39;):
 
         self.status.message(message)
         self.__dict__[&#39;ds&#39;] = self.children()
         for i, child in enumerate(self.ds):
-            child.read()
             self.status.progress(i, len(self.ds))
+            child.read()
         self.status.hide()
 
     def write(self):
 
         if self.ds is None: 
             return
-        for child in self.ds:
+        for i, child in enumerate(self.ds):
+            self.status.progress(i, len(self.ds), message=&#39;Writing data..&#39;)
             child.write()
+        self.status.hide()
 
     def clear(self):
 
@@ -708,7 +883,7 @@ class Record():
 <dl>
 <dt id="dbdicom.classes.record.Record"><code class="flex name class">
 <span>class <span class="ident">Record</span></span>
-<span>(</span><span>folder, UID=[], generation=0)</span>
+<span>(</span><span>folder, UID=[], generation=0, **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -718,7 +893,7 @@ class Record():
 </summary>
 <pre><code class="python">class Record():
 
-    def __init__(self, folder, UID=[], generation=0):
+    def __init__(self, folder, UID=[], generation=0, **attributes):
 
         objUID = [] + UID
 #        for i in range(generation-len(UID)):
@@ -732,6 +907,9 @@ class Record():
         self.__dict__[&#39;dialog&#39;] = folder.dialog
         self.__dict__[&#39;dicm&#39;] = folder.dicm
         self.__dict__[&#39;ds&#39;] = None
+        # placeholder DICOM attributes
+        # these will populate the dataset and dataframe when data are created
+        self.__dict__[&#39;attributes&#39;] = attributes
 
     @property
     def generation(self):
@@ -744,18 +922,26 @@ class Record():
         key = [&#39;PatientID&#39;, &#39;StudyInstanceUID&#39;, &#39;SeriesInstanceUID&#39;, &#39;SOPInstanceUID&#39;]
         return key[0:self.generation]
 
+    def new_uid(self):
+        
+        return pydicom.uid.generate_uid()
+
     def data(self):
-        &#34;&#34;&#34;Dataframe with current data - excluding those that were removed&#34;&#34;&#34;
+        &#34;&#34;&#34;Dataframe with current data - excluding those that were removed
+        &#34;&#34;&#34;
+
+        # Note: this returns a copy - could be a view instead using .loc?
 
         if self.folder.path is None:
             return self.folder.dataframe
         current = self.folder.dataframe.removed == False
         data = self.folder.dataframe[current]
-        if self.UID == []: return data       
+        if self.UID == []: 
+            return data       
         rows = data[self.key[-1]] == self.UID[-1]
         return data[rows]
 
-    def dataset(self, sortby=None): 
+    def dataset(self, sortby=None, status=True): 
         &#34;&#34;&#34;Sort instances by a list of attributes.
         
         Args:
@@ -768,20 +954,24 @@ class Record():
             df = self.data()
             return self._dataset_from_df(df)
         else:
-            df = utilities.dataframe(self.files, sortby, self.status)
-            df.sort_values(sortby, inplace=True)
-            return self._sorted_dataset_from_df(df, sortby)
+            if set(sortby) &lt;= set(self.folder.dataframe):
+                df = self.folder.dataframe.loc[self.data().index, sortby]
+            else:
+                df = utilities.dataframe(self.folder.path, self.files, sortby, self.status)
+            df.sort_values(sortby, inplace=True) 
+            return self._sorted_dataset_from_df(df, sortby, status=status)
 
-    def _sorted_dataset_from_df(self, df, sortby): 
+    def _sorted_dataset_from_df(self, df, sortby, status=True): 
 
         data = []
-        for c in df[sortby[0]].unique():
-            self.status.message(&#39;Reading &#39; + str(sortby[0]) + &#39; &#39; + str(c))
+        vals = df[sortby[0]].unique()
+        for i, c in enumerate(vals):
+            if status: self.status.progress(i, len(vals), message=&#39;Sorting..&#39;)
             dfc = df[df[sortby[0]] == c]
             if len(sortby) == 1:
                 datac = self._dataset_from_df(dfc)
             else:
-                datac = self._sorted_dataset_from_df(dfc, sortby[1:])
+                datac = self._sorted_dataset_from_df(dfc, sortby[1:], status=False)
             data.append(datac)
         return utilities._stack_arrays(data, align_left=True)
 
@@ -791,10 +981,10 @@ class Record():
         data = np.empty(df.shape[0], dtype=object)
         cnt = 0
         for file, _ in df.iterrows(): # just enumerate over df.index
-            self.status.progress(cnt, df.shape[0])
+            #self.status.progress(cnt, df.shape[0])
             data[cnt] = self.folder.instance(file)
             cnt += 1
-        self.status.hide()
+        #self.status.hide()
         return data
 
     def array(self, sortby=None, pixels_first=False): 
@@ -840,15 +1030,48 @@ class Record():
             ```  
         &#34;&#34;&#34;
         dataset = self.dataset(sortby)
-        array = [instance.array() for instance in dataset.ravel()]
-        array = utilities._stack_arrays(array)
+        array = []
+        ds = dataset.ravel()
+        for i, im in enumerate(ds):
+            self.status.progress(i, len(ds), &#39;Reading pixel data..&#39;)
+            if im is None:
+                array.append(np.zeros((1,1)))
+            else:
+                array.append(im.array())
+        self.status.hide()
+        #array = [im.array() for im in dataset.ravel() if im is not None]
+        array = utilities._stack_arrays(array) #db.stack(array)
         array = array.reshape(dataset.shape + array.shape[1:])
         if pixels_first:
             array = np.moveaxis(array, -1, 0)
             array = np.moveaxis(array, -1, 0)
-        return array, dataset
+        return array, dataset # REPLACE BY DBARRAY
 
-    def set_array(self, array, dataset=None, pixels_first=False, inplace=True): 
+    def npy(self):
+
+        path = os.path.join(self.folder.path, &#34;dbdicom_npy&#34;)
+        if not os.path.isdir(path): os.mkdir(path)
+        file = os.path.join(path, self.UID[-1] + &#39;.npy&#39;) 
+        return file
+
+    def load_npy(self):
+
+        file = self.npy()
+        if not os.path.exists(file):
+            return
+        with open(file, &#39;rb&#39;) as f:
+            array = np.load(f)
+        return array
+
+    def save_npy(self, array=None, sortby=None, pixels_first=False):
+
+        if array is None:
+            array = self.array(sortby=sortby, pixels_first=pixels_first)
+        file = self.npy() 
+        with open(file, &#39;wb&#39;) as f:
+            np.save(f, array)
+
+    def set_array(self, array, dataset=None, pixels_first=False, inplace=False): 
         &#34;&#34;&#34;
         Set pixel values of a series from a numpy ndarray.
 
@@ -856,6 +1079,7 @@ class Record():
         image such as geometry, or other metainformation,
         a dataset must be provided as well with the same 
         shape as the array except for the slice dimensions. 
+
         If a dataset is not provided, header info is 
         derived from existing instances in order.
 
@@ -922,24 +1146,35 @@ class Record():
         if dataset is None:
             dataset = self.dataset()
         # Return with error message if dataset and array do not match.
-        nr_of_slices = math.prod(array.shape[:-2])
-        if nr_of_slices != math.prod(dataset.shape):
-            message = &#34;Array and dataset do not match&#34;
+        nr_of_slices = np.prod(array.shape[:-2])
+        if nr_of_slices != np.prod(dataset.shape):
+            message = &#39;Error in set_array(): array and dataset do not match&#39;
             message += &#39;\n Array has &#39; + str(nr_of_slices) + &#39; elements&#39;
-            message += &#39;\n dataset has &#39; + str(math.prod(dataset.shape)) + &#39; elements&#39;
+            message += &#39;\n dataset has &#39; + str(np.prod(dataset.shape)) + &#39; elements&#39;
+            message += &#39;\n Check if the keyword pixels_first is set correctly.&#39;
             self.dialog.error(message)
-            return self
+            raise ValueError(message)
         # If self is not a series, create a new series.
         if self.generation != 3:
             series = self.new_series()
         else:
             series = self
         # Reshape, copy instances and save slices.
-        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1]))
-        dataset = dataset.reshape(nr_of_slices)
+        array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+        dataset = dataset.reshape(nr_of_slices) # shape (i,)
+
+        dataset = db.copy(dataset.tolist(), series, status=self.status)
         for i, instance in enumerate(dataset):
-            instance.copy_to(series).set_array(array[i,...])
-            if inplace: instance.remove()
+            self.status.progress(i, len(dataset), &#39;Writing array to file..&#39;)
+            instance.set_array(array[i,...])
+            if inplace: instance.remove() # delete?
+           
+        #for i, instance in enumerate(dataset):
+        #    self.status.progress(i, len(dataset), &#39;Saving data..&#39;)
+        #    instance.copy_to(series).set_array(array[i,...])
+            # instance.set_array(array[i,...])
+        #    if inplace: instance.remove() # delete?
+
         return series
 
 #    def write_array(self, array, dataset): 
@@ -962,28 +1197,8 @@ class Record():
     def files(self):
         &#34;&#34;&#34;Returns the filepath to the instances in the object.&#34;&#34;&#34;
  
-        return self.data().index.tolist()
-
-    def check(self):
-        &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-        self.set_checked(True)
-
-    def uncheck(self):
-        &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-        self.set_checked(False)
-
-    def set_checked(self, checked):
-        &#34;&#34;&#34;Set the checkstate of all instances of the object.&#34;&#34;&#34;
-
-        files = self.files
-        self.folder.dataframe.at[files, &#39;checked&#39;] = checked
-
-    def is_checked(self):
-        &#34;&#34;&#34;Check if all instances of the object are checked.&#34;&#34;&#34;
-
-        return self.data().checked.all()
+        relpaths = self.data().index.tolist()
+        return [os.path.join(self.folder.path, p) for p in relpaths]
 
     def in_memory(self): # is_in_memory
         &#34;&#34;&#34;Check if the object has been read into memory&#34;&#34;&#34;
@@ -1000,26 +1215,21 @@ class Record():
 
         return self.dicm.parent(self)
         
-    def children(self, index=None, checked=None, **kwargs):
-        &#34;&#34;&#34;List of Patients&#34;&#34;&#34;
+    def children(self, index=None, **kwargs):
+        &#34;&#34;&#34;List of children&#34;&#34;&#34;
 
         if self.generation == 4: return []
         if self.in_memory():
             objects = utilities._filter(self.ds, **kwargs)
-            if checked is not None:
-                if checked:
-                    objects = [obj for obj in objects if obj.is_checked()]
-                else:
-                    objects = [obj for obj in objects if not obj.is_checked()]
             if index is not None:
                 if index &gt;= len(objects): 
                     return
                 else:
                     return objects[index]
             return objects
-        return self.records(generation=self.generation+1, index=index, checked=checked, **kwargs)
+        return self.records(generation=self.generation+1, index=index, **kwargs)
 
-    def records(self, generation=0, index=None, checked=None, **kwargs):
+    def records(self, generation=0, index=None, **kwargs):
         &#34;&#34;&#34;A list of all records of a given generation corresponding to the record.
 
         If generation is lower then that of the object, 
@@ -1059,13 +1269,6 @@ class Record():
                 rec_list = [rec_list[index]]
             for rec in rec_list:
                 rec_data = data[column == rec]
-                if checked is not None:
-                    if checked == True:
-                        if not rec_data.checked.all():
-                            continue
-                    elif checked == False:
-                        if rec_data.checked.all():
-                            continue
                 row = rec_data.iloc[0]
                 obj = self.dicm.object(self.folder, row, generation)
                 objects.append(obj)
@@ -1073,7 +1276,7 @@ class Record():
         if index is not None: return objects[0]
         return objects
 
-    def patients(self, index=None, checked=None, **kwargs):
+    def patients(self, index=None,  **kwargs):
         &#34;&#34;&#34;A list of patients of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -1084,9 +1287,9 @@ class Record():
             self.parent
         if self.generation==1:
             return
-        return self.children(index=index, checked=checked, **kwargs)
+        return self.children(index=index, **kwargs)
 
-    def studies(self, index=None, checked=None, **kwargs):
+    def studies(self, index=None, **kwargs):
         &#34;&#34;&#34;A list of studies of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -1096,10 +1299,10 @@ class Record():
         if self.generation==2:
             return
         if self.generation==1:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         objects = []
         for child in self.children():
-            inst = child.studies(checked=checked, **kwargs)
+            inst = child.studies(**kwargs)
             objects.extend(inst)
         if index is not None:
             if index &gt;= len(objects):
@@ -1108,7 +1311,7 @@ class Record():
                 return objects[index]
         return objects
 
-    def series(self, index=None, checked=None, **kwargs):
+    def series(self, index=None, **kwargs):
         &#34;&#34;&#34;A list of series of the object&#34;&#34;&#34;
 
         if self.generation==4: 
@@ -1116,11 +1319,11 @@ class Record():
         if self.generation==3:
             return
         if self.generation==2:
-            kids = self.children(index=index, checked=checked, **kwargs)
+            kids = self.children(index=index, **kwargs)
             return kids
         series = []
         for child in self.children():
-            inst = child.series(checked=checked, **kwargs)
+            inst = child.series(**kwargs)
             series.extend(inst)
         if index is not None:
             if index &gt;= len(series):
@@ -1129,16 +1332,16 @@ class Record():
                 return series[index]
         return series
 
-    def instances(self, index=None, checked=None, **kwargs): # VERY slow - needs optimizing
+    def instances(self, index=None, **kwargs): # VERY slow - needs optimizing
         &#34;&#34;&#34;A list of instances of the object&#34;&#34;&#34;
 
         if self.generation==4: 
             return
         if self.generation==3:
-            return self.children(index=index, checked=checked, **kwargs)
+            return self.children(index=index, **kwargs)
         instances = []
         for child in self.children():
-            inst = child.instances(checked=checked, **kwargs)
+            inst = child.instances(**kwargs)
             instances.extend(inst)
         if index is not None:
             if index &gt;= len(instances):
@@ -1147,43 +1350,52 @@ class Record():
                 return instances[index]
         return instances       
 
-    def new_child(self):
+    def new_child(self, **attributes):
         &#34;&#34;&#34;Creates a new child object&#34;&#34;&#34;
 
-        obj = self.dicm.new_child(self)
-        obj.read()
+        obj = self.dicm.new_child(self, **attributes)
+        obj.read() # Why??
         return obj
 
-    def new_sibling(self):
+    def new_sibling(self, **attributes):
         &#34;&#34;&#34;
         Creates a new sibling under the same parent.
         &#34;&#34;&#34;
         if self.generation == 0:
             return
         else:
-            return self.parent.new_child()
+            return self.parent.new_child(**attributes)
 
-    def new_pibling(self):
+    def new_pibling(self, **attributes):
         &#34;&#34;&#34;
         Creates a new sibling of parent.
         &#34;&#34;&#34;
         if self.generation &lt;= 1:
             return
         else:
-            return self.parent.new_sibling()
+            return self.parent.new_sibling(**attributes)
 
-    def new_series(self):
+    def new_cousin(self, **attributes):
+        &#34;&#34;&#34;
+        Creates a new sibling of parent.
+        &#34;&#34;&#34;
+        if self.generation &lt;= 1:
+            return
+        else:
+            return self.new_pibling().new_child(**attributes)
+
+    def new_series(self, **attributes):
         &#34;&#34;&#34;
         Creates a new series under the same parent
         &#34;&#34;&#34; 
         if self.generation &lt;= 1: 
-            return self.new_child().new_series()
+            return self.new_child().new_series(**attributes)
         if self.generation == 2:
-            return self.new_child()
+            return self.new_child(**attributes)
         if self.generation == 3:
-            return self.new_sibling()
+            return self.new_sibling(**attributes)
         if self.generation == 4:
-            return self.new_pibling() 
+            return self.new_pibling(**attributes) 
 
     def __getattr__(self, tag):
         &#34;&#34;&#34;Gets the value of the data element with given tag.
@@ -1227,6 +1439,7 @@ class Record():
     def __setitem__(self, tags, values):
         &#34;&#34;&#34;Sets the value of the data element with given tag.&#34;&#34;&#34;
 
+        # LAZY - SLOW
         instances = self.instances()
         self.status.message(&#39;Writing DICOM tags..&#39;)
         for i, instance in enumerate(instances):
@@ -1240,7 +1453,8 @@ class Record():
         files = self.files
         if files == []: 
             return
-        self.folder.dataframe.loc[self.files,&#39;removed&#39;] = True
+        self.folder.dataframe.loc[self.data().index,&#39;removed&#39;] = True
+
 
     def move_to(self, ancestor):
         &#34;&#34;&#34;move object to a new parent.
@@ -1249,18 +1463,17 @@ class Record():
             If the object is not a parent, the missing 
             intermediate generations are automatically created.
         &#34;&#34;&#34;
-#        self[ancestor.key] = ancestor.UID
         copy = self.copy_to(ancestor)
         self.remove()
-        self = copy
+        return copy
 
-    def move(self, child, ancestor):
-        &#34;&#34;&#34;Move a child object to a new parent&#34;&#34;&#34;
+#    def move(self, child, ancestor):
+#        &#34;&#34;&#34;Move a child object to a new parent&#34;&#34;&#34;
 
-        if self.in_memory():
-            if child in self.ds:
-                self.ds.remove(child)
-        child.move_to(ancestor)
+#        if self.in_memory():
+#            if child in self.ds:
+#                self.ds.remove(child)
+#        child = child.move_to(ancestor)
     
     def copy(self):
         &#34;&#34;&#34;Returns a copy in the same parent&#34;&#34;&#34;
@@ -1269,7 +1482,7 @@ class Record():
         if self.in_memory(): copy.read()
         return copy
 
-    def copy_to(self, ancestor, message=None):
+    def _copy_to_OBSOLETE(self, ancestor, message=None): # functional but slow
         &#34;&#34;&#34;copy object to a new ancestor.
         
         ancestor: Root, Patient or Study
@@ -1290,8 +1503,85 @@ class Record():
             child.copy_to(copy)
             self.status.progress(i, len(children))
         self.status.hide()
-
         return copy
+
+    def _initialize(self, ref=None):
+
+        if self.generation == 4:
+            self.ds = utilities.initialize(self.ds, UID=self.UID, ref=ref)
+        else:
+            for i, obj in enumerate(self.ds):
+                if ref is not None:
+                    obj._initialize(ref.ds[i])
+                else:
+                    obj._initialize()
+
+    def merge_with(self, obj, message=None): 
+
+        if self.generation == 0: return
+        if message is None:
+            message = &#34;Merging &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+        # replace by db.merge()
+        return self._merge_with(obj, obj.parent, message=message)
+
+    def copy_to(self, ancestor, message=None):
+
+        if self.generation == 0: return
+        if message is None:
+            message = &#34;Copying &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+        copy = self.__class__(self.folder, UID=ancestor.UID)
+        # replace by db.merge()
+        return self._merge_with(copy, ancestor, message=message)
+
+    def _merge_with(self, obj, ancestor, message=None): # obsolete - replace by db.merge()
+
+        if self.in_memory(): # Create the copy in memory
+            obj.__dict__[&#39;ds&#39;] = deepcopy(self.ds)
+            obj._initialize(self.ds)
+            if ancestor.in_memory():
+                if ancestor.generation == obj.generation-1:
+                    ancestor.ds.append(obj)
+            return obj
+
+        # Extend dataframe &amp; create new files
+        dfsource = self.data()
+        sourcefiles = [os.path.join(self.folder.path, p) for p in dfsource.index.tolist()]
+        df = dfsource.copy(deep=True)
+        df[&#39;files&#39;] = [self.folder.new_file() for _ in range(df.shape[0])]
+        df.set_index(&#39;files&#39;, inplace=True)
+        for key in self.folder._columns[self.generation:3]:
+            for id in df[key].unique():
+                uid = self.folder.new_uid()
+                rows = df[key] == id
+                df.loc[rows.index, key] = uid
+            #    for file in rows.index:
+            #        df.at[file, key] = uid
+        df.SOPInstanceUID = self.folder.new_uid(df.shape[0])
+        df.removed = False
+        df.created = True
+        copyfiles = df.index.tolist()
+
+        for i, file in enumerate(copyfiles):
+            self.status.progress(i, len(copyfiles), message=message)
+            df.loc[file, self.folder._columns[0:self.generation]] = obj.UID 
+            ds = pydicom.dcmread(sourcefiles[i])
+            ds = utilities._initialize(ds, UID=df.loc[file, self.folder._columns[:4]].values.tolist())
+            if obj.attributes is not None:
+                for key, value in obj.attributes.items():
+                    utilities._set_tags(ds, key, value)
+                    if key in self.folder._columns[4:]:
+                        df.at[file, key] = value  
+            ds.save_as(os.path.join(self.folder.path, file))
+
+        self.folder.__dict__[&#39;dataframe&#39;] = pd.concat([self.folder.dataframe, df])
+        self.status.hide()
+
+        if ancestor.in_memory():
+            if ancestor.generation == obj.generation-1:
+                obj.read() # unnecessary read - can be integrated in loop.
+                ancestor.ds.append(obj)
+
+        return obj
 
     def export(self, path):
         &#34;&#34;&#34;Export instances to an external folder.
@@ -1312,9 +1602,10 @@ class Record():
             self.status.progress(i,len(instances))
         self.status.hide()
 
-    def save(self):
-        &#34;&#34;&#34;Save all instances.&#34;&#34;&#34;
+    def save_OBSOLETE(self):
+        &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
 
+        # Slow - edit df directly
         self.status.message(&#34;Saving all current instances..&#34;)
         instances = self.instances() 
         for i, instance in enumerate(instances):
@@ -1329,47 +1620,104 @@ class Record():
             rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
             data = self.folder.dataframe[rows] 
         removed = data.removed[data.removed]
-        files = removed.index.tolist()
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
         for i, file in enumerate(files): 
             os.remove(file)
             self.status.progress(i, len(files))
         self.folder.dataframe.drop(removed.index, inplace=True)
         self.status.hide()
 
-    def restore(self, message = &#39;Restoring..&#39;):
+    def save(self, message = &#34;Saving changes..&#34;):
+        &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
+
+        self.status.message(message)
+        self.write()
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message=&#39;Deleting removed files..&#39;)
+            if os.path.exists(file): os.remove(file)
+        #self.status.message(&#39;Clearing rapid access storage..&#39;)
+        #npyfile = self.npy()
+        #if os.path.exists(npyfile): os.remove(npyfile)
+        self.status.message(&#39;Done saving..&#39;)
+        self.folder.dataframe.loc[created.index, &#39;created&#39;] = False
+        self.folder.dataframe.drop(removed.index, inplace=True)
+
+    def restore(self, message = &#34;Restoring saved state..&#34;):
+        &#34;&#34;&#34;
+        Restore all instances.
+        &#34;&#34;&#34;
+        self.status.message(message)
+
+        in_memory = self.in_memory() 
+        self.clear()
+
+        if self.generation == 0:
+            data = self.folder.dataframe
+        else:
+            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+            data = self.folder.dataframe[rows] 
+        created = data.created[data.created]   
+        removed = data.removed[data.removed]
+
+        files = [os.path.join(self.folder.path, p) for p in created.index.tolist()]
+        for i, file in enumerate(files): 
+            self.status.progress(i, len(files), message=&#39;Deleting new files..&#39;)
+            if os.path.exists(file): os.remove(file)
+        self.status.hide()
+        self.folder.dataframe.loc[removed.index, &#39;removed&#39;] = False
+        self.folder.dataframe.drop(created.index, inplace=True)
+
+        if in_memory: self.read()
+        return self
+        
+    def restore_OBSOLETE(self, message = &#39;Restoring..&#39;):
         &#34;&#34;&#34;
         Restore all instances.
         &#34;&#34;&#34;
         in_memory = self.in_memory() 
         self.clear()
+
         instances = self.instances()
         self.status.message(message)
         for i, instance in enumerate(instances):
             instance.restore()
             self.status.progress(i,len(instances))
         self.status.hide()
+
         if in_memory: self.read()
         return self
 
     def read_dataframe(self, tags):
 
-        return utilities.dataframe(self.files, tags, self.status)
+        return utilities.dataframe(self.folder.path, self.files, tags, self.status)
 
     def read(self, message = &#39;Reading..&#39;):
 
         self.status.message(message)
         self.__dict__[&#39;ds&#39;] = self.children()
         for i, child in enumerate(self.ds):
-            child.read()
             self.status.progress(i, len(self.ds))
+            child.read()
         self.status.hide()
 
     def write(self):
 
         if self.ds is None: 
             return
-        for child in self.ds:
+        for i, child in enumerate(self.ds):
+            self.status.progress(i, len(self.ds), message=&#39;Writing data..&#39;)
             child.write()
+        self.status.hide()
 
     def clear(self):
 
@@ -1427,7 +1775,8 @@ def key(self):
 def files(self):
     &#34;&#34;&#34;Returns the filepath to the instances in the object.&#34;&#34;&#34;
 
-    return self.data().index.tolist()</code></pre>
+    relpaths = self.data().index.tolist()
+    return [os.path.join(self.folder.path, p) for p in relpaths]</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.parent"><code class="name">var <span class="ident">parent</span></code></dt>
@@ -1447,6 +1796,20 @@ def parent(self):
 </dl>
 <h3>Methods</h3>
 <dl>
+<dt id="dbdicom.classes.record.Record.new_uid"><code class="name flex">
+<span>def <span class="ident">new_uid</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_uid(self):
+    
+    return pydicom.uid.generate_uid()</code></pre>
+</details>
+</dd>
 <dt id="dbdicom.classes.record.Record.data"><code class="name flex">
 <span>def <span class="ident">data</span></span>(<span>self)</span>
 </code></dt>
@@ -1457,19 +1820,23 @@ def parent(self):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def data(self):
-    &#34;&#34;&#34;Dataframe with current data - excluding those that were removed&#34;&#34;&#34;
+    &#34;&#34;&#34;Dataframe with current data - excluding those that were removed
+    &#34;&#34;&#34;
+
+    # Note: this returns a copy - could be a view instead using .loc?
 
     if self.folder.path is None:
         return self.folder.dataframe
     current = self.folder.dataframe.removed == False
     data = self.folder.dataframe[current]
-    if self.UID == []: return data       
+    if self.UID == []: 
+        return data       
     rows = data[self.key[-1]] == self.UID[-1]
     return data[rows]</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.dataset"><code class="name flex">
-<span>def <span class="ident">dataset</span></span>(<span>self, sortby=None)</span>
+<span>def <span class="ident">dataset</span></span>(<span>self, sortby=None, status=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Sort instances by a list of attributes.</p>
@@ -1484,7 +1851,7 @@ def parent(self):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def dataset(self, sortby=None): 
+<pre><code class="python">def dataset(self, sortby=None, status=True): 
     &#34;&#34;&#34;Sort instances by a list of attributes.
     
     Args:
@@ -1497,9 +1864,12 @@ def parent(self):
         df = self.data()
         return self._dataset_from_df(df)
     else:
-        df = utilities.dataframe(self.files, sortby, self.status)
-        df.sort_values(sortby, inplace=True)
-        return self._sorted_dataset_from_df(df, sortby)</code></pre>
+        if set(sortby) &lt;= set(self.folder.dataframe):
+            df = self.folder.dataframe.loc[self.data().index, sortby]
+        else:
+            df = utilities.dataframe(self.folder.path, self.files, sortby, self.status)
+        df.sort_values(sortby, inplace=True) 
+        return self._sorted_dataset_from_df(df, sortby, status=status)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.array"><code class="name flex">
@@ -1590,25 +1960,88 @@ TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
         ```  
     &#34;&#34;&#34;
     dataset = self.dataset(sortby)
-    array = [instance.array() for instance in dataset.ravel()]
-    array = utilities._stack_arrays(array)
+    array = []
+    ds = dataset.ravel()
+    for i, im in enumerate(ds):
+        self.status.progress(i, len(ds), &#39;Reading pixel data..&#39;)
+        if im is None:
+            array.append(np.zeros((1,1)))
+        else:
+            array.append(im.array())
+    self.status.hide()
+    #array = [im.array() for im in dataset.ravel() if im is not None]
+    array = utilities._stack_arrays(array) #db.stack(array)
     array = array.reshape(dataset.shape + array.shape[1:])
     if pixels_first:
         array = np.moveaxis(array, -1, 0)
         array = np.moveaxis(array, -1, 0)
-    return array, dataset</code></pre>
+    return array, dataset # REPLACE BY DBARRAY</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.npy"><code class="name flex">
+<span>def <span class="ident">npy</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def npy(self):
+
+    path = os.path.join(self.folder.path, &#34;dbdicom_npy&#34;)
+    if not os.path.isdir(path): os.mkdir(path)
+    file = os.path.join(path, self.UID[-1] + &#39;.npy&#39;) 
+    return file</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.load_npy"><code class="name flex">
+<span>def <span class="ident">load_npy</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_npy(self):
+
+    file = self.npy()
+    if not os.path.exists(file):
+        return
+    with open(file, &#39;rb&#39;) as f:
+        array = np.load(f)
+    return array</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.save_npy"><code class="name flex">
+<span>def <span class="ident">save_npy</span></span>(<span>self, array=None, sortby=None, pixels_first=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save_npy(self, array=None, sortby=None, pixels_first=False):
+
+    if array is None:
+        array = self.array(sortby=sortby, pixels_first=pixels_first)
+    file = self.npy() 
+    with open(file, &#39;wb&#39;) as f:
+        np.save(f, array)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.set_array"><code class="name flex">
-<span>def <span class="ident">set_array</span></span>(<span>self, array, dataset=None, pixels_first=False, inplace=True)</span>
+<span>def <span class="ident">set_array</span></span>(<span>self, array, dataset=None, pixels_first=False, inplace=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Set pixel values of a series from a numpy ndarray.</p>
 <p>Since the pixel data do not hold any information about the
 image such as geometry, or other metainformation,
 a dataset must be provided as well with the same
-shape as the array except for the slice dimensions.
-If a dataset is not provided, header info is
+shape as the array except for the slice dimensions. </p>
+<p>If a dataset is not provided, header info is
 derived from existing instances in order.</p>
 <h2 id="args">Args</h2>
 <dl>
@@ -1670,7 +2103,7 @@ series.set_array(array, data)
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def set_array(self, array, dataset=None, pixels_first=False, inplace=True): 
+<pre><code class="python">def set_array(self, array, dataset=None, pixels_first=False, inplace=False): 
     &#34;&#34;&#34;
     Set pixel values of a series from a numpy ndarray.
 
@@ -1678,6 +2111,7 @@ series.set_array(array, data)
     image such as geometry, or other metainformation,
     a dataset must be provided as well with the same 
     shape as the array except for the slice dimensions. 
+
     If a dataset is not provided, header info is 
     derived from existing instances in order.
 
@@ -1744,86 +2178,36 @@ series.set_array(array, data)
     if dataset is None:
         dataset = self.dataset()
     # Return with error message if dataset and array do not match.
-    nr_of_slices = math.prod(array.shape[:-2])
-    if nr_of_slices != math.prod(dataset.shape):
-        message = &#34;Array and dataset do not match&#34;
+    nr_of_slices = np.prod(array.shape[:-2])
+    if nr_of_slices != np.prod(dataset.shape):
+        message = &#39;Error in set_array(): array and dataset do not match&#39;
         message += &#39;\n Array has &#39; + str(nr_of_slices) + &#39; elements&#39;
-        message += &#39;\n dataset has &#39; + str(math.prod(dataset.shape)) + &#39; elements&#39;
+        message += &#39;\n dataset has &#39; + str(np.prod(dataset.shape)) + &#39; elements&#39;
+        message += &#39;\n Check if the keyword pixels_first is set correctly.&#39;
         self.dialog.error(message)
-        return self
+        raise ValueError(message)
     # If self is not a series, create a new series.
     if self.generation != 3:
         series = self.new_series()
     else:
         series = self
     # Reshape, copy instances and save slices.
-    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1]))
-    dataset = dataset.reshape(nr_of_slices)
+    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+    dataset = dataset.reshape(nr_of_slices) # shape (i,)
+
+    dataset = db.copy(dataset.tolist(), series, status=self.status)
     for i, instance in enumerate(dataset):
-        instance.copy_to(series).set_array(array[i,...])
-        if inplace: instance.remove()
+        self.status.progress(i, len(dataset), &#39;Writing array to file..&#39;)
+        instance.set_array(array[i,...])
+        if inplace: instance.remove() # delete?
+       
+    #for i, instance in enumerate(dataset):
+    #    self.status.progress(i, len(dataset), &#39;Saving data..&#39;)
+    #    instance.copy_to(series).set_array(array[i,...])
+        # instance.set_array(array[i,...])
+    #    if inplace: instance.remove() # delete?
+
     return series</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.record.Record.check"><code class="name flex">
-<span>def <span class="ident">check</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Check all instances of the object.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def check(self):
-    &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-    self.set_checked(True)</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.record.Record.uncheck"><code class="name flex">
-<span>def <span class="ident">uncheck</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Check all instances of the object.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def uncheck(self):
-    &#34;&#34;&#34;Check all instances of the object.&#34;&#34;&#34;
-
-    self.set_checked(False)</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.record.Record.set_checked"><code class="name flex">
-<span>def <span class="ident">set_checked</span></span>(<span>self, checked)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Set the checkstate of all instances of the object.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_checked(self, checked):
-    &#34;&#34;&#34;Set the checkstate of all instances of the object.&#34;&#34;&#34;
-
-    files = self.files
-    self.folder.dataframe.at[files, &#39;checked&#39;] = checked</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.record.Record.is_checked"><code class="name flex">
-<span>def <span class="ident">is_checked</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Check if all instances of the object are checked.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def is_checked(self):
-    &#34;&#34;&#34;Check if all instances of the object are checked.&#34;&#34;&#34;
-
-    return self.data().checked.all()</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.in_memory"><code class="name flex">
@@ -1856,36 +2240,31 @@ series.set_array(array, data)
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.children"><code class="name flex">
-<span>def <span class="ident">children</span></span>(<span>self, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">children</span></span>(<span>self, index=None, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>List of Patients</p></div>
+<div class="desc"><p>List of children</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def children(self, index=None, checked=None, **kwargs):
-    &#34;&#34;&#34;List of Patients&#34;&#34;&#34;
+<pre><code class="python">def children(self, index=None, **kwargs):
+    &#34;&#34;&#34;List of children&#34;&#34;&#34;
 
     if self.generation == 4: return []
     if self.in_memory():
         objects = utilities._filter(self.ds, **kwargs)
-        if checked is not None:
-            if checked:
-                objects = [obj for obj in objects if obj.is_checked()]
-            else:
-                objects = [obj for obj in objects if not obj.is_checked()]
         if index is not None:
             if index &gt;= len(objects): 
                 return
             else:
                 return objects[index]
         return objects
-    return self.records(generation=self.generation+1, index=index, checked=checked, **kwargs)</code></pre>
+    return self.records(generation=self.generation+1, index=index, **kwargs)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.records"><code class="name flex">
-<span>def <span class="ident">records</span></span>(<span>self, generation=0, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">records</span></span>(<span>self, generation=0, index=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A list of all records of a given generation corresponding to the record.</p>
@@ -1909,7 +2288,7 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def records(self, generation=0, index=None, checked=None, **kwargs):
+<pre><code class="python">def records(self, generation=0, index=None, **kwargs):
     &#34;&#34;&#34;A list of all records of a given generation corresponding to the record.
 
     If generation is lower then that of the object, 
@@ -1949,13 +2328,6 @@ a returned that fulfill all criteria.</p>
             rec_list = [rec_list[index]]
         for rec in rec_list:
             rec_data = data[column == rec]
-            if checked is not None:
-                if checked == True:
-                    if not rec_data.checked.all():
-                        continue
-                elif checked == False:
-                    if rec_data.checked.all():
-                        continue
             row = rec_data.iloc[0]
             obj = self.dicm.object(self.folder, row, generation)
             objects.append(obj)
@@ -1965,7 +2337,7 @@ a returned that fulfill all criteria.</p>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.patients"><code class="name flex">
-<span>def <span class="ident">patients</span></span>(<span>self, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">patients</span></span>(<span>self, index=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A list of patients of the object</p></div>
@@ -1973,7 +2345,7 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def patients(self, index=None, checked=None, **kwargs):
+<pre><code class="python">def patients(self, index=None,  **kwargs):
     &#34;&#34;&#34;A list of patients of the object&#34;&#34;&#34;
 
     if self.generation==4: 
@@ -1984,11 +2356,11 @@ a returned that fulfill all criteria.</p>
         self.parent
     if self.generation==1:
         return
-    return self.children(index=index, checked=checked, **kwargs)</code></pre>
+    return self.children(index=index, **kwargs)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.studies"><code class="name flex">
-<span>def <span class="ident">studies</span></span>(<span>self, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">studies</span></span>(<span>self, index=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A list of studies of the object</p></div>
@@ -1996,7 +2368,7 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def studies(self, index=None, checked=None, **kwargs):
+<pre><code class="python">def studies(self, index=None, **kwargs):
     &#34;&#34;&#34;A list of studies of the object&#34;&#34;&#34;
 
     if self.generation==4: 
@@ -2006,10 +2378,10 @@ a returned that fulfill all criteria.</p>
     if self.generation==2:
         return
     if self.generation==1:
-        return self.children(index=index, checked=checked, **kwargs)
+        return self.children(index=index, **kwargs)
     objects = []
     for child in self.children():
-        inst = child.studies(checked=checked, **kwargs)
+        inst = child.studies(**kwargs)
         objects.extend(inst)
     if index is not None:
         if index &gt;= len(objects):
@@ -2020,7 +2392,7 @@ a returned that fulfill all criteria.</p>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.series"><code class="name flex">
-<span>def <span class="ident">series</span></span>(<span>self, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">series</span></span>(<span>self, index=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A list of series of the object</p></div>
@@ -2028,7 +2400,7 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def series(self, index=None, checked=None, **kwargs):
+<pre><code class="python">def series(self, index=None, **kwargs):
     &#34;&#34;&#34;A list of series of the object&#34;&#34;&#34;
 
     if self.generation==4: 
@@ -2036,11 +2408,11 @@ a returned that fulfill all criteria.</p>
     if self.generation==3:
         return
     if self.generation==2:
-        kids = self.children(index=index, checked=checked, **kwargs)
+        kids = self.children(index=index, **kwargs)
         return kids
     series = []
     for child in self.children():
-        inst = child.series(checked=checked, **kwargs)
+        inst = child.series(**kwargs)
         series.extend(inst)
     if index is not None:
         if index &gt;= len(series):
@@ -2051,7 +2423,7 @@ a returned that fulfill all criteria.</p>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.instances"><code class="name flex">
-<span>def <span class="ident">instances</span></span>(<span>self, index=None, checked=None, **kwargs)</span>
+<span>def <span class="ident">instances</span></span>(<span>self, index=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A list of instances of the object</p></div>
@@ -2059,16 +2431,16 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def instances(self, index=None, checked=None, **kwargs): # VERY slow - needs optimizing
+<pre><code class="python">def instances(self, index=None, **kwargs): # VERY slow - needs optimizing
     &#34;&#34;&#34;A list of instances of the object&#34;&#34;&#34;
 
     if self.generation==4: 
         return
     if self.generation==3:
-        return self.children(index=index, checked=checked, **kwargs)
+        return self.children(index=index, **kwargs)
     instances = []
     for child in self.children():
-        inst = child.instances(checked=checked, **kwargs)
+        inst = child.instances(**kwargs)
         instances.extend(inst)
     if index is not None:
         if index &gt;= len(instances):
@@ -2079,7 +2451,7 @@ a returned that fulfill all criteria.</p>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.new_child"><code class="name flex">
-<span>def <span class="ident">new_child</span></span>(<span>self)</span>
+<span>def <span class="ident">new_child</span></span>(<span>self, **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new child object</p></div>
@@ -2087,16 +2459,16 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def new_child(self):
+<pre><code class="python">def new_child(self, **attributes):
     &#34;&#34;&#34;Creates a new child object&#34;&#34;&#34;
 
-    obj = self.dicm.new_child(self)
-    obj.read()
+    obj = self.dicm.new_child(self, **attributes)
+    obj.read() # Why??
     return obj</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.new_sibling"><code class="name flex">
-<span>def <span class="ident">new_sibling</span></span>(<span>self)</span>
+<span>def <span class="ident">new_sibling</span></span>(<span>self, **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new sibling under the same parent.</p></div>
@@ -2104,18 +2476,18 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def new_sibling(self):
+<pre><code class="python">def new_sibling(self, **attributes):
     &#34;&#34;&#34;
     Creates a new sibling under the same parent.
     &#34;&#34;&#34;
     if self.generation == 0:
         return
     else:
-        return self.parent.new_child()</code></pre>
+        return self.parent.new_child(**attributes)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.new_pibling"><code class="name flex">
-<span>def <span class="ident">new_pibling</span></span>(<span>self)</span>
+<span>def <span class="ident">new_pibling</span></span>(<span>self, **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new sibling of parent.</p></div>
@@ -2123,18 +2495,37 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def new_pibling(self):
+<pre><code class="python">def new_pibling(self, **attributes):
     &#34;&#34;&#34;
     Creates a new sibling of parent.
     &#34;&#34;&#34;
     if self.generation &lt;= 1:
         return
     else:
-        return self.parent.new_sibling()</code></pre>
+        return self.parent.new_sibling(**attributes)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.new_cousin"><code class="name flex">
+<span>def <span class="ident">new_cousin</span></span>(<span>self, **attributes)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Creates a new sibling of parent.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_cousin(self, **attributes):
+    &#34;&#34;&#34;
+    Creates a new sibling of parent.
+    &#34;&#34;&#34;
+    if self.generation &lt;= 1:
+        return
+    else:
+        return self.new_pibling().new_child(**attributes)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.new_series"><code class="name flex">
-<span>def <span class="ident">new_series</span></span>(<span>self)</span>
+<span>def <span class="ident">new_series</span></span>(<span>self, **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Creates a new series under the same parent</p></div>
@@ -2142,18 +2533,18 @@ a returned that fulfill all criteria.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def new_series(self):
+<pre><code class="python">def new_series(self, **attributes):
     &#34;&#34;&#34;
     Creates a new series under the same parent
     &#34;&#34;&#34; 
     if self.generation &lt;= 1: 
-        return self.new_child().new_series()
+        return self.new_child().new_series(**attributes)
     if self.generation == 2:
-        return self.new_child()
+        return self.new_child(**attributes)
     if self.generation == 3:
-        return self.new_sibling()
+        return self.new_sibling(**attributes)
     if self.generation == 4:
-        return self.new_pibling() </code></pre>
+        return self.new_pibling(**attributes) </code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.remove"><code class="name flex">
@@ -2171,7 +2562,7 @@ a returned that fulfill all criteria.</p>
     files = self.files
     if files == []: 
         return
-    self.folder.dataframe.loc[self.files,&#39;removed&#39;] = True</code></pre>
+    self.folder.dataframe.loc[self.data().index,&#39;removed&#39;] = True</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.move_to"><code class="name flex">
@@ -2186,35 +2577,16 @@ intermediate generations are automatically created.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">    def move_to(self, ancestor):
-        &#34;&#34;&#34;move object to a new parent.
-        
-        ancestor:any DICOM Class
-            If the object is not a parent, the missing 
-            intermediate generations are automatically created.
-        &#34;&#34;&#34;
-#        self[ancestor.key] = ancestor.UID
-        copy = self.copy_to(ancestor)
-        self.remove()
-        self = copy</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.record.Record.move"><code class="name flex">
-<span>def <span class="ident">move</span></span>(<span>self, child, ancestor)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Move a child object to a new parent</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def move(self, child, ancestor):
-    &#34;&#34;&#34;Move a child object to a new parent&#34;&#34;&#34;
-
-    if self.in_memory():
-        if child in self.ds:
-            self.ds.remove(child)
-    child.move_to(ancestor)</code></pre>
+<pre><code class="python">def move_to(self, ancestor):
+    &#34;&#34;&#34;move object to a new parent.
+    
+    ancestor:any DICOM Class
+        If the object is not a parent, the missing 
+        intermediate generations are automatically created.
+    &#34;&#34;&#34;
+    copy = self.copy_to(ancestor)
+    self.remove()
+    return copy</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.copy"><code class="name flex">
@@ -2234,41 +2606,41 @@ intermediate generations are automatically created.</p></div>
     return copy</code></pre>
 </details>
 </dd>
-<dt id="dbdicom.classes.record.Record.copy_to"><code class="name flex">
-<span>def <span class="ident">copy_to</span></span>(<span>self, ancestor, message=None)</span>
+<dt id="dbdicom.classes.record.Record.merge_with"><code class="name flex">
+<span>def <span class="ident">merge_with</span></span>(<span>self, obj, message=None)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>copy object to a new ancestor.</p>
-<p>ancestor: Root, Patient or Study
-If the object is not a study, the missing
-intermediate generations are automatically created.</p></div>
+<div class="desc"></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">    def copy_to(self, ancestor, message=None):
-        &#34;&#34;&#34;copy object to a new ancestor.
-        
-        ancestor: Root, Patient or Study
-        If the object is not a study, the missing 
-        intermediate generations are automatically created.
-        &#34;&#34;&#34;
-        if self.generation == 0: return
-#        if ancestor.generation == 0: return
-        copy = self.__class__(self.folder, UID=ancestor.UID)
-        if ancestor.in_memory():
-            copy.read()
-            ancestor.ds.append(copy)
-        children = self.children()
-        if message is None:
-            message = &#34;Copying &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
-        self.status.message(message)
-        for i, child in enumerate(children):
-            child.copy_to(copy)
-            self.status.progress(i, len(children))
-        self.status.hide()
+<pre><code class="python">def merge_with(self, obj, message=None): 
 
-        return copy</code></pre>
+    if self.generation == 0: return
+    if message is None:
+        message = &#34;Merging &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+    # replace by db.merge()
+    return self._merge_with(obj, obj.parent, message=message)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.copy_to"><code class="name flex">
+<span>def <span class="ident">copy_to</span></span>(<span>self, ancestor, message=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def copy_to(self, ancestor, message=None):
+
+    if self.generation == 0: return
+    if message is None:
+        message = &#34;Copying &#34; + self.__class__.__name__ + &#39; &#39; + self.label()
+    copy = self.__class__(self.folder, UID=ancestor.UID)
+    # replace by db.merge()
+    return self._merge_with(copy, ancestor, message=message)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.export"><code class="name flex">
@@ -2308,18 +2680,19 @@ a window will prompt the user to select one.</dd>
     self.status.hide()</code></pre>
 </details>
 </dd>
-<dt id="dbdicom.classes.record.Record.save"><code class="name flex">
-<span>def <span class="ident">save</span></span>(<span>self)</span>
+<dt id="dbdicom.classes.record.Record.save_OBSOLETE"><code class="name flex">
+<span>def <span class="ident">save_OBSOLETE</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Save all instances.</p></div>
+<div class="desc"><p>Save all instances of the record.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def save(self):
-    &#34;&#34;&#34;Save all instances.&#34;&#34;&#34;
+<pre><code class="python">def save_OBSOLETE(self):
+    &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
 
+    # Slow - edit df directly
     self.status.message(&#34;Saving all current instances..&#34;)
     instances = self.instances() 
     for i, instance in enumerate(instances):
@@ -2334,7 +2707,7 @@ a window will prompt the user to select one.</dd>
         rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
         data = self.folder.dataframe[rows] 
     removed = data.removed[data.removed]
-    files = removed.index.tolist()
+    files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
     for i, file in enumerate(files): 
         os.remove(file)
         self.status.progress(i, len(files))
@@ -2342,8 +2715,43 @@ a window will prompt the user to select one.</dd>
     self.status.hide()</code></pre>
 </details>
 </dd>
+<dt id="dbdicom.classes.record.Record.save"><code class="name flex">
+<span>def <span class="ident">save</span></span>(<span>self, message='Saving changes..')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Save all instances of the record.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save(self, message = &#34;Saving changes..&#34;):
+    &#34;&#34;&#34;Save all instances of the record.&#34;&#34;&#34;
+
+    self.status.message(message)
+    self.write()
+    if self.generation == 0:
+        data = self.folder.dataframe
+    else:
+        rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+        data = self.folder.dataframe[rows] 
+
+    created = data.created[data.created]   
+    removed = data.removed[data.removed]
+
+    files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
+    for i, file in enumerate(files): 
+        self.status.progress(i, len(files), message=&#39;Deleting removed files..&#39;)
+        if os.path.exists(file): os.remove(file)
+    #self.status.message(&#39;Clearing rapid access storage..&#39;)
+    #npyfile = self.npy()
+    #if os.path.exists(npyfile): os.remove(npyfile)
+    self.status.message(&#39;Done saving..&#39;)
+    self.folder.dataframe.loc[created.index, &#39;created&#39;] = False
+    self.folder.dataframe.drop(removed.index, inplace=True)</code></pre>
+</details>
+</dd>
 <dt id="dbdicom.classes.record.Record.restore"><code class="name flex">
-<span>def <span class="ident">restore</span></span>(<span>self, message='Restoring..')</span>
+<span>def <span class="ident">restore</span></span>(<span>self, message='Restoring saved state..')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Restore all instances.</p></div>
@@ -2351,18 +2759,58 @@ a window will prompt the user to select one.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def restore(self, message = &#39;Restoring..&#39;):
+<pre><code class="python">def restore(self, message = &#34;Restoring saved state..&#34;):
+    &#34;&#34;&#34;
+    Restore all instances.
+    &#34;&#34;&#34;
+    self.status.message(message)
+
+    in_memory = self.in_memory() 
+    self.clear()
+
+    if self.generation == 0:
+        data = self.folder.dataframe
+    else:
+        rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
+        data = self.folder.dataframe[rows] 
+    created = data.created[data.created]   
+    removed = data.removed[data.removed]
+
+    files = [os.path.join(self.folder.path, p) for p in created.index.tolist()]
+    for i, file in enumerate(files): 
+        self.status.progress(i, len(files), message=&#39;Deleting new files..&#39;)
+        if os.path.exists(file): os.remove(file)
+    self.status.hide()
+    self.folder.dataframe.loc[removed.index, &#39;removed&#39;] = False
+    self.folder.dataframe.drop(created.index, inplace=True)
+
+    if in_memory: self.read()
+    return self</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.classes.record.Record.restore_OBSOLETE"><code class="name flex">
+<span>def <span class="ident">restore_OBSOLETE</span></span>(<span>self, message='Restoring..')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Restore all instances.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def restore_OBSOLETE(self, message = &#39;Restoring..&#39;):
     &#34;&#34;&#34;
     Restore all instances.
     &#34;&#34;&#34;
     in_memory = self.in_memory() 
     self.clear()
+
     instances = self.instances()
     self.status.message(message)
     for i, instance in enumerate(instances):
         instance.restore()
         self.status.progress(i,len(instances))
     self.status.hide()
+
     if in_memory: self.read()
     return self</code></pre>
 </details>
@@ -2378,7 +2826,7 @@ a window will prompt the user to select one.</dd>
 </summary>
 <pre><code class="python">def read_dataframe(self, tags):
 
-    return utilities.dataframe(self.files, tags, self.status)</code></pre>
+    return utilities.dataframe(self.folder.path, self.files, tags, self.status)</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.read"><code class="name flex">
@@ -2395,8 +2843,8 @@ a window will prompt the user to select one.</dd>
     self.status.message(message)
     self.__dict__[&#39;ds&#39;] = self.children()
     for i, child in enumerate(self.ds):
-        child.read()
         self.status.progress(i, len(self.ds))
+        child.read()
     self.status.hide()</code></pre>
 </details>
 </dd>
@@ -2413,8 +2861,10 @@ a window will prompt the user to select one.</dd>
 
     if self.ds is None: 
         return
-    for child in self.ds:
-        child.write()</code></pre>
+    for i, child in enumerate(self.ds):
+        self.status.progress(i, len(self.ds), message=&#39;Writing data..&#39;)
+        child.write()
+    self.status.hide()</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.classes.record.Record.clear"><code class="name flex">
@@ -2456,14 +2906,14 @@ a window will prompt the user to select one.</dd>
 <li>
 <h4><code><a title="dbdicom.classes.record.Record" href="#dbdicom.classes.record.Record">Record</a></code></h4>
 <ul class="two-column">
+<li><code><a title="dbdicom.classes.record.Record.new_uid" href="#dbdicom.classes.record.Record.new_uid">new_uid</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.data" href="#dbdicom.classes.record.Record.data">data</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.dataset" href="#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.array" href="#dbdicom.classes.record.Record.array">array</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.npy" href="#dbdicom.classes.record.Record.npy">npy</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.load_npy" href="#dbdicom.classes.record.Record.load_npy">load_npy</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.save_npy" href="#dbdicom.classes.record.Record.save_npy">save_npy</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.set_array" href="#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.check" href="#dbdicom.classes.record.Record.check">check</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.uncheck" href="#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.set_checked" href="#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.is_checked" href="#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.in_memory" href="#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.on_disk" href="#dbdicom.classes.record.Record.on_disk">on_disk</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.children" href="#dbdicom.classes.record.Record.children">children</a></code></li>
@@ -2475,15 +2925,18 @@ a window will prompt the user to select one.</dd>
 <li><code><a title="dbdicom.classes.record.Record.new_child" href="#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_sibling" href="#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_pibling" href="#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.new_cousin" href="#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_series" href="#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.remove" href="#dbdicom.classes.record.Record.remove">remove</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.move_to" href="#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.move" href="#dbdicom.classes.record.Record.move">move</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.copy" href="#dbdicom.classes.record.Record.copy">copy</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.merge_with" href="#dbdicom.classes.record.Record.merge_with">merge_with</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.copy_to" href="#dbdicom.classes.record.Record.copy_to">copy_to</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.export" href="#dbdicom.classes.record.Record.export">export</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.save_OBSOLETE" href="#dbdicom.classes.record.Record.save_OBSOLETE">save_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.save" href="#dbdicom.classes.record.Record.save">save</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.restore" href="#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.restore_OBSOLETE" href="#dbdicom.classes.record.Record.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.read_dataframe" href="#dbdicom.classes.record.Record.read_dataframe">read_dataframe</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.read" href="#dbdicom.classes.record.Record.read">read</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.write" href="#dbdicom.classes.record.Record.write">write</a></code></li>

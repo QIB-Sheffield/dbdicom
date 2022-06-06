@@ -60,18 +60,18 @@ from . import dicm, utilities
 from .message import StatusBar, Dialog
 from .classes.database import Database
 
-
-class Folder(Database):
+class Folder(Database): 
+    # This really needs to be Database() with Folder as an attribute. 
     &#34;&#34;&#34;Programming interface for reading and writing a DICOM folder.&#34;&#34;&#34;
 
-    
-    _columns = [    # The column labels of the dataframe
+    # The column labels of the dataframe as required by dbdicom
+    required = [    
         &#39;PatientID&#39;, &#39;StudyInstanceUID&#39;, &#39;SeriesInstanceUID&#39;, &#39;SOPInstanceUID&#39;, 
         &#39;SOPClassUID&#39;,&#39;NumberOfFrames&#39;, 
         &#39;PatientName&#39;, 
         &#39;StudyDescription&#39;, &#39;StudyDate&#39;, 
         &#39;SeriesDescription&#39;, &#39;SeriesNumber&#39;,
-        &#39;InstanceNumber&#39;
+        &#39;InstanceNumber&#39;, &#39;AcquisitionTime&#39;, 
     ]
 
     def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
@@ -80,6 +80,11 @@ class Folder(Database):
         When used inside a GUI, status and dialog should be instances of the status bar and 
         dialog class defined in `weasel`.
         &#34;&#34;&#34;
+        # A list of optional dicom attributes that are not used by dbdicom 
+        # but can be included for faster access in other applications. 
+        # The list can be changed or extended by applications.
+        self.__dict__[&#39;attributes&#39;] = [&#39;SliceLocation&#39;]
+        
         self.__dict__[&#39;dataframe&#39;] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__[&#39;path&#39;] = path
         self.__dict__[&#39;status&#39;] = status
@@ -88,7 +93,29 @@ class Folder(Database):
 
         super().__init__(self)
 
-    def open(self, path=None):
+    @property
+    def _columns(self):
+
+        return self.required + self.__dict__[&#39;attributes&#39;]
+
+    def set_attributes(self, attributes, scan=True):
+        &#34;&#34;&#34;DICOM attributes that are NOT used by dbdicom.
+        
+        Can be set by applications for fast access to key DICOM attributes such
+        as those used for sorting series data.
+
+        Args:
+            attributes: list of DICOM attributes.
+        &#34;&#34;&#34;
+        # Make sure all columns are unique
+        attr = []
+        for a in attributes:
+            if a not in self.required:
+                attr.append(a)
+        self.__dict__[&#39;attributes&#39;] = attr
+        if scan: self.scan()
+
+    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
         &#34;&#34;&#34;Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -111,25 +138,36 @@ class Folder(Database):
             self.dialog.information(message)
             return self
         if os.path.exists(self._csv):
-            self.status.message(&#34;Reading..&#34;)
+            self.status.message(&#34;Reading register..&#34;)
             self._read_csv()
+            # If the saved register does not have all required attributes
+            # then scan the folder again and create a new register
+            labels = self._columns + [&#39;removed&#39;,&#39;created&#39;]
+            if labels != list(self.dataframe.columns):
+#            for attribute in self.__dict__[&#39;attributes&#39;]:
+#                if attribute not in self.dataframe:
+                self.scan(message=message)
+                self.status.hide()
+                return self
             self.status.hide()
         else:
-            self.scan()
+            self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self):
-        &#34;&#34;&#34;Reads the folder again.
-
-        Use this function after opening the folder if the files on the folder 
-        may have been corrputed or modified by another application.
+    def scan(self, message=&#39;Scanning..&#39;, unzip=True):
         &#34;&#34;&#34;
-        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()] 
-        self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(files, self._columns, self.status)
-        self.dataframe[&#39;checked&#39;] = [False] * self.dataframe.shape[0]
+        Reads all files in the folder and summarises key attributes in a table for faster access.
+        &#34;&#34;&#34;
+        if unzip:
+            self.status.message(&#39;Extracting compressed folders..&#39;)
+            utilities._unzip_files(self.path, self.status)
+        self.status.message(&#39;Finding all files..&#39;)
+        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()]
+        self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(self.path, files, self._columns, self.status, message=message)
         self.dataframe[&#39;removed&#39;] = [False] * self.dataframe.shape[0]
         self.dataframe[&#39;created&#39;] = [False] * self.dataframe.shape[0]
         self._multiframe_to_singleframe()
+        self._write_csv()
         return self
 
     def close(self):
@@ -167,6 +205,15 @@ class Folder(Database):
 
         return True
 
+    def save(self):
+
+        self.status.message(&#34;Saving..&#34;)
+        if self.is_saved():
+            self._write_csv()
+        else:
+            super().save()
+        self.status.hide()
+
     def is_saved(self):
         &#34;&#34;&#34;Check if the folder is saved.
         
@@ -184,6 +231,11 @@ class Folder(Database):
             True if the folder is open and False otherwise.
         &#34;&#34;&#34;
         return self.path is not None
+
+    def sortby(self, sortby):
+        
+        self.dataframe.sort_values(sortby, inplace=True)
+        return self
 
     def object(self, row, generation=4):
         &#34;&#34;&#34;Create a new dicom object from a row in the dataframe.
@@ -238,7 +290,50 @@ class Folder(Database):
         filename = os.path.basename(os.path.normpath(self.path)) + &#34;.csv&#34;
         return os.path.join(self.path, filename) 
 
-    def _append(self, ds, checked=False):
+    def label(self, row, type):
+
+        if type == &#39;Patient&#39;:
+            name = row.PatientName
+            id = row.PatientID
+            label = str(name)
+            label += &#39; [&#39; + str(id) + &#39;]&#39;
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Study&#39;:
+            descr = row.StudyDescription
+            date = row.StudyDate
+            label = str(descr)
+            label += &#39; [&#39; + str(date) + &#39;]&#39;
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Series&#39;:
+            descr = row.SeriesDescription
+            nr = row.SeriesNumber
+            label = &#39;[&#39; + str(nr).zfill(3) + &#39;] &#39; 
+            label += str(descr)
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Instance&#39;:
+            nr = row.InstanceNumber
+            label = str(nr).zfill(6)
+            return type + &#34; - {}&#34;.format(label)
+
+    def new_uid(self, n=1):
+        
+        if n == 1:
+            return pydicom.uid.generate_uid()
+        uid = []
+        for _ in range(n):
+            uid.append(pydicom.uid.generate_uid())
+        return uid
+
+    def new_file(self):
+
+        # Generate a new filename
+        path = os.path.join(self.path, &#34;dbdicom&#34;)
+        if not os.path.isdir(path): os.mkdir(path)
+        #file = os.path.join(path, self.new_uid() + &#39;.dcm&#39;) 
+        file = os.path.join(&#34;dbdicom&#34;, self.new_uid() + &#39;.dcm&#39;) 
+        return file
+
+    def _append(self, ds):
         &#34;&#34;&#34;Append a new row to the dataframe from a pydicom dataset.
         
         Args:
@@ -246,17 +341,23 @@ class Folder(Database):
         &#34;&#34;&#34;
 
         # Generate a new filename
-        path = os.path.join(self.path, &#34;Weasel&#34;)
-        if not os.path.isdir(path): os.mkdir(path)
-        file = os.path.join(path, pydicom.uid.generate_uid() + &#39;.dcm&#39;) 
+        file = self.new_file()
+#        path = os.path.join(self.path, &#34;Weasel&#34;)
+#        if not os.path.isdir(path): os.mkdir(path)
+#        file = os.path.join(path, pydicom.uid.generate_uid() + &#39;.dcm&#39;) 
 
-        # Add a new row in the dataframe
-        labels = self._columns + [&#39;checked&#39;,&#39;removed&#39;,&#39;created&#39;]
-        row = pd.Series(data=[&#39;&#39;]*len(labels), index=labels, name=file)
-        row[&#39;checked&#39;] = checked
+        row = pd.DataFrame([]*len(self._columns), index=[file], columns=self._columns)
         row[&#39;removed&#39;] = False
         row[&#39;created&#39;] = True
-        self.__dict__[&#39;dataframe&#39;] = self.dataframe.append(row) # REPLACE BY CONCAT
+        self.__dict__[&#39;dataframe&#39;] = pd.concat([self.dataframe, row]) 
+        
+        # REPLACED BY CONCAT on 03 june 2022
+        # labels = self._columns + [&#39;removed&#39;,&#39;created&#39;]
+        #row = pd.Series(data=[&#39;&#39;]*len(labels), index=labels, name=file)
+        #row[&#39;removed&#39;] = False
+        #row[&#39;created&#39;] = True
+        #self.__dict__[&#39;dataframe&#39;] = self.dataframe.append(row) # REPLACE BY CONCAT
+
         self._update(file, ds)
 
     def _update(self, file, ds):
@@ -268,7 +369,8 @@ class Folder(Database):
         &#34;&#34;&#34;
         for tag in self._columns:
             if tag in ds:
-                self.dataframe.loc[file, tag] = utilities._read_tags(ds, tag)
+                value = utilities._read_tags(ds, tag)
+                self.dataframe.loc[file, tag] = value
                 #self.dataframe.loc[file, tag] = ds[tag].value
 
     def _multiframe_to_singleframe(self):
@@ -293,8 +395,7 @@ class Folder(Database):
                 singleframe_files = utilities.split_multiframe(filepath, str(instance.SeriesInstanceUID))
                 if singleframe_files != []:                    
                     # add the single frame files to the dataframe
-                    df = utilities.dataframe(singleframe_files, self._columns)
-                    df[&#39;checked&#39;] = [False] * df.shape[0]
+                    df = utilities.dataframe(self.path, singleframe_files, self._columns)
                     df[&#39;removed&#39;] = [False] * df.shape[0]
                     df[&#39;created&#39;] = [False] * df.shape[0]
                     self.__dict__[&#39;dataframe&#39;] = pd.concat([self.dataframe, df])
@@ -328,17 +429,18 @@ dialog class defined in <code>weasel</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Folder(Database):
+<pre><code class="python">class Folder(Database): 
+    # This really needs to be Database() with Folder as an attribute. 
     &#34;&#34;&#34;Programming interface for reading and writing a DICOM folder.&#34;&#34;&#34;
 
-    
-    _columns = [    # The column labels of the dataframe
+    # The column labels of the dataframe as required by dbdicom
+    required = [    
         &#39;PatientID&#39;, &#39;StudyInstanceUID&#39;, &#39;SeriesInstanceUID&#39;, &#39;SOPInstanceUID&#39;, 
         &#39;SOPClassUID&#39;,&#39;NumberOfFrames&#39;, 
         &#39;PatientName&#39;, 
         &#39;StudyDescription&#39;, &#39;StudyDate&#39;, 
         &#39;SeriesDescription&#39;, &#39;SeriesNumber&#39;,
-        &#39;InstanceNumber&#39;
+        &#39;InstanceNumber&#39;, &#39;AcquisitionTime&#39;, 
     ]
 
     def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
@@ -347,6 +449,11 @@ dialog class defined in <code>weasel</code>.</p></div>
         When used inside a GUI, status and dialog should be instances of the status bar and 
         dialog class defined in `weasel`.
         &#34;&#34;&#34;
+        # A list of optional dicom attributes that are not used by dbdicom 
+        # but can be included for faster access in other applications. 
+        # The list can be changed or extended by applications.
+        self.__dict__[&#39;attributes&#39;] = [&#39;SliceLocation&#39;]
+        
         self.__dict__[&#39;dataframe&#39;] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__[&#39;path&#39;] = path
         self.__dict__[&#39;status&#39;] = status
@@ -355,7 +462,29 @@ dialog class defined in <code>weasel</code>.</p></div>
 
         super().__init__(self)
 
-    def open(self, path=None):
+    @property
+    def _columns(self):
+
+        return self.required + self.__dict__[&#39;attributes&#39;]
+
+    def set_attributes(self, attributes, scan=True):
+        &#34;&#34;&#34;DICOM attributes that are NOT used by dbdicom.
+        
+        Can be set by applications for fast access to key DICOM attributes such
+        as those used for sorting series data.
+
+        Args:
+            attributes: list of DICOM attributes.
+        &#34;&#34;&#34;
+        # Make sure all columns are unique
+        attr = []
+        for a in attributes:
+            if a not in self.required:
+                attr.append(a)
+        self.__dict__[&#39;attributes&#39;] = attr
+        if scan: self.scan()
+
+    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
         &#34;&#34;&#34;Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -378,25 +507,36 @@ dialog class defined in <code>weasel</code>.</p></div>
             self.dialog.information(message)
             return self
         if os.path.exists(self._csv):
-            self.status.message(&#34;Reading..&#34;)
+            self.status.message(&#34;Reading register..&#34;)
             self._read_csv()
+            # If the saved register does not have all required attributes
+            # then scan the folder again and create a new register
+            labels = self._columns + [&#39;removed&#39;,&#39;created&#39;]
+            if labels != list(self.dataframe.columns):
+#            for attribute in self.__dict__[&#39;attributes&#39;]:
+#                if attribute not in self.dataframe:
+                self.scan(message=message)
+                self.status.hide()
+                return self
             self.status.hide()
         else:
-            self.scan()
+            self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self):
-        &#34;&#34;&#34;Reads the folder again.
-
-        Use this function after opening the folder if the files on the folder 
-        may have been corrputed or modified by another application.
+    def scan(self, message=&#39;Scanning..&#39;, unzip=True):
         &#34;&#34;&#34;
-        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()] 
-        self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(files, self._columns, self.status)
-        self.dataframe[&#39;checked&#39;] = [False] * self.dataframe.shape[0]
+        Reads all files in the folder and summarises key attributes in a table for faster access.
+        &#34;&#34;&#34;
+        if unzip:
+            self.status.message(&#39;Extracting compressed folders..&#39;)
+            utilities._unzip_files(self.path, self.status)
+        self.status.message(&#39;Finding all files..&#39;)
+        files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()]
+        self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(self.path, files, self._columns, self.status, message=message)
         self.dataframe[&#39;removed&#39;] = [False] * self.dataframe.shape[0]
         self.dataframe[&#39;created&#39;] = [False] * self.dataframe.shape[0]
         self._multiframe_to_singleframe()
+        self._write_csv()
         return self
 
     def close(self):
@@ -434,6 +574,15 @@ dialog class defined in <code>weasel</code>.</p></div>
 
         return True
 
+    def save(self):
+
+        self.status.message(&#34;Saving..&#34;)
+        if self.is_saved():
+            self._write_csv()
+        else:
+            super().save()
+        self.status.hide()
+
     def is_saved(self):
         &#34;&#34;&#34;Check if the folder is saved.
         
@@ -451,6 +600,11 @@ dialog class defined in <code>weasel</code>.</p></div>
             True if the folder is open and False otherwise.
         &#34;&#34;&#34;
         return self.path is not None
+
+    def sortby(self, sortby):
+        
+        self.dataframe.sort_values(sortby, inplace=True)
+        return self
 
     def object(self, row, generation=4):
         &#34;&#34;&#34;Create a new dicom object from a row in the dataframe.
@@ -505,7 +659,50 @@ dialog class defined in <code>weasel</code>.</p></div>
         filename = os.path.basename(os.path.normpath(self.path)) + &#34;.csv&#34;
         return os.path.join(self.path, filename) 
 
-    def _append(self, ds, checked=False):
+    def label(self, row, type):
+
+        if type == &#39;Patient&#39;:
+            name = row.PatientName
+            id = row.PatientID
+            label = str(name)
+            label += &#39; [&#39; + str(id) + &#39;]&#39;
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Study&#39;:
+            descr = row.StudyDescription
+            date = row.StudyDate
+            label = str(descr)
+            label += &#39; [&#39; + str(date) + &#39;]&#39;
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Series&#39;:
+            descr = row.SeriesDescription
+            nr = row.SeriesNumber
+            label = &#39;[&#39; + str(nr).zfill(3) + &#39;] &#39; 
+            label += str(descr)
+            return type + &#34; - {}&#34;.format(label)
+        if type == &#39;Instance&#39;:
+            nr = row.InstanceNumber
+            label = str(nr).zfill(6)
+            return type + &#34; - {}&#34;.format(label)
+
+    def new_uid(self, n=1):
+        
+        if n == 1:
+            return pydicom.uid.generate_uid()
+        uid = []
+        for _ in range(n):
+            uid.append(pydicom.uid.generate_uid())
+        return uid
+
+    def new_file(self):
+
+        # Generate a new filename
+        path = os.path.join(self.path, &#34;dbdicom&#34;)
+        if not os.path.isdir(path): os.mkdir(path)
+        #file = os.path.join(path, self.new_uid() + &#39;.dcm&#39;) 
+        file = os.path.join(&#34;dbdicom&#34;, self.new_uid() + &#39;.dcm&#39;) 
+        return file
+
+    def _append(self, ds):
         &#34;&#34;&#34;Append a new row to the dataframe from a pydicom dataset.
         
         Args:
@@ -513,17 +710,23 @@ dialog class defined in <code>weasel</code>.</p></div>
         &#34;&#34;&#34;
 
         # Generate a new filename
-        path = os.path.join(self.path, &#34;Weasel&#34;)
-        if not os.path.isdir(path): os.mkdir(path)
-        file = os.path.join(path, pydicom.uid.generate_uid() + &#39;.dcm&#39;) 
+        file = self.new_file()
+#        path = os.path.join(self.path, &#34;Weasel&#34;)
+#        if not os.path.isdir(path): os.mkdir(path)
+#        file = os.path.join(path, pydicom.uid.generate_uid() + &#39;.dcm&#39;) 
 
-        # Add a new row in the dataframe
-        labels = self._columns + [&#39;checked&#39;,&#39;removed&#39;,&#39;created&#39;]
-        row = pd.Series(data=[&#39;&#39;]*len(labels), index=labels, name=file)
-        row[&#39;checked&#39;] = checked
+        row = pd.DataFrame([]*len(self._columns), index=[file], columns=self._columns)
         row[&#39;removed&#39;] = False
         row[&#39;created&#39;] = True
-        self.__dict__[&#39;dataframe&#39;] = self.dataframe.append(row) # REPLACE BY CONCAT
+        self.__dict__[&#39;dataframe&#39;] = pd.concat([self.dataframe, row]) 
+        
+        # REPLACED BY CONCAT on 03 june 2022
+        # labels = self._columns + [&#39;removed&#39;,&#39;created&#39;]
+        #row = pd.Series(data=[&#39;&#39;]*len(labels), index=labels, name=file)
+        #row[&#39;removed&#39;] = False
+        #row[&#39;created&#39;] = True
+        #self.__dict__[&#39;dataframe&#39;] = self.dataframe.append(row) # REPLACE BY CONCAT
+
         self._update(file, ds)
 
     def _update(self, file, ds):
@@ -535,7 +738,8 @@ dialog class defined in <code>weasel</code>.</p></div>
         &#34;&#34;&#34;
         for tag in self._columns:
             if tag in ds:
-                self.dataframe.loc[file, tag] = utilities._read_tags(ds, tag)
+                value = utilities._read_tags(ds, tag)
+                self.dataframe.loc[file, tag] = value
                 #self.dataframe.loc[file, tag] = ds[tag].value
 
     def _multiframe_to_singleframe(self):
@@ -560,8 +764,7 @@ dialog class defined in <code>weasel</code>.</p></div>
                 singleframe_files = utilities.split_multiframe(filepath, str(instance.SeriesInstanceUID))
                 if singleframe_files != []:                    
                     # add the single frame files to the dataframe
-                    df = utilities.dataframe(singleframe_files, self._columns)
-                    df[&#39;checked&#39;] = [False] * df.shape[0]
+                    df = utilities.dataframe(self.path, singleframe_files, self._columns)
                     df[&#39;removed&#39;] = [False] * df.shape[0]
                     df[&#39;created&#39;] = [False] * df.shape[0]
                     self.__dict__[&#39;dataframe&#39;] = pd.concat([self.dataframe, df])
@@ -577,10 +780,51 @@ dialog class defined in <code>weasel</code>.</p></div>
 <li><a title="dbdicom.classes.database.Database" href="classes/database.html#dbdicom.classes.database.Database">Database</a></li>
 <li><a title="dbdicom.classes.record.Record" href="classes/record.html#dbdicom.classes.record.Record">Record</a></li>
 </ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="dbdicom.folder.Folder.required"><code class="name">var <span class="ident">required</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
+<dt id="dbdicom.folder.Folder.set_attributes"><code class="name flex">
+<span>def <span class="ident">set_attributes</span></span>(<span>self, attributes, scan=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>DICOM attributes that are NOT used by dbdicom.</p>
+<p>Can be set by applications for fast access to key DICOM attributes such
+as those used for sorting series data.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>attributes</code></strong></dt>
+<dd>list of DICOM attributes.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_attributes(self, attributes, scan=True):
+    &#34;&#34;&#34;DICOM attributes that are NOT used by dbdicom.
+    
+    Can be set by applications for fast access to key DICOM attributes such
+    as those used for sorting series data.
+
+    Args:
+        attributes: list of DICOM attributes.
+    &#34;&#34;&#34;
+    # Make sure all columns are unique
+    attr = []
+    for a in attributes:
+        if a not in self.required:
+            attr.append(a)
+    self.__dict__[&#39;attributes&#39;] = attr
+    if scan: self.scan()</code></pre>
+</details>
+</dd>
 <dt id="dbdicom.folder.Folder.open"><code class="name flex">
-<span>def <span class="ident">open</span></span>(<span>self, path=None)</span>
+<span>def <span class="ident">open</span></span>(<span>self, path=None, message='Opening folder..', unzip=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Opens a DICOM folder for read and write.</p>
@@ -600,60 +844,69 @@ piping notation as in <code>inst = folder.open().instances()</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def open(self, path=None):
-    &#34;&#34;&#34;Opens a DICOM folder for read and write.
-    
-    Reads the contents of the folder and summarises all DICOM files
-    in a dataframe for faster access next time. The dataframe is saved 
-    as a csv file when the folder is closed with `folder.close()`. 
-    All non-DICOM files in the folder are ignored.
-    
-    Args:
-        path: The full path to the directory that is to be opened.
+<pre><code class="python">    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
+        &#34;&#34;&#34;Opens a DICOM folder for read and write.
+        
+        Reads the contents of the folder and summarises all DICOM files
+        in a dataframe for faster access next time. The dataframe is saved 
+        as a csv file when the folder is closed with `folder.close()`. 
+        All non-DICOM files in the folder are ignored.
+        
+        Args:
+            path: The full path to the directory that is to be opened.
 
-    Returns:
-        The folder instance. This allows using the open() method in a 
-        piping notation as in `inst = folder.open().instances()`.
-    &#34;&#34;&#34;
-    if path is not None: 
-        self.__dict__[&#39;path&#39;] = path
-    if self.path is None:
-        message = &#34;please set a path before opening.&#34;
-        message += &#34;\n Use folder.open(path_to_dicom_folder).&#34;
-        self.dialog.information(message)
-        return self
-    if os.path.exists(self._csv):
-        self.status.message(&#34;Reading..&#34;)
-        self._read_csv()
-        self.status.hide()
-    else:
-        self.scan()
-    return self</code></pre>
+        Returns:
+            The folder instance. This allows using the open() method in a 
+            piping notation as in `inst = folder.open().instances()`.
+        &#34;&#34;&#34;
+        if path is not None: 
+            self.__dict__[&#39;path&#39;] = path
+        if self.path is None:
+            message = &#34;please set a path before opening.&#34;
+            message += &#34;\n Use folder.open(path_to_dicom_folder).&#34;
+            self.dialog.information(message)
+            return self
+        if os.path.exists(self._csv):
+            self.status.message(&#34;Reading register..&#34;)
+            self._read_csv()
+            # If the saved register does not have all required attributes
+            # then scan the folder again and create a new register
+            labels = self._columns + [&#39;removed&#39;,&#39;created&#39;]
+            if labels != list(self.dataframe.columns):
+#            for attribute in self.__dict__[&#39;attributes&#39;]:
+#                if attribute not in self.dataframe:
+                self.scan(message=message)
+                self.status.hide()
+                return self
+            self.status.hide()
+        else:
+            self.scan(message=message, unzip=unzip)
+        return self</code></pre>
 </details>
 </dd>
 <dt id="dbdicom.folder.Folder.scan"><code class="name flex">
-<span>def <span class="ident">scan</span></span>(<span>self)</span>
+<span>def <span class="ident">scan</span></span>(<span>self, message='Scanning..', unzip=True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Reads the folder again.</p>
-<p>Use this function after opening the folder if the files on the folder
-may have been corrputed or modified by another application.</p></div>
+<div class="desc"><p>Reads all files in the folder and summarises key attributes in a table for faster access.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def scan(self):
-    &#34;&#34;&#34;Reads the folder again.
-
-    Use this function after opening the folder if the files on the folder 
-    may have been corrputed or modified by another application.
+<pre><code class="python">def scan(self, message=&#39;Scanning..&#39;, unzip=True):
     &#34;&#34;&#34;
-    files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()] 
-    self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(files, self._columns, self.status)
-    self.dataframe[&#39;checked&#39;] = [False] * self.dataframe.shape[0]
+    Reads all files in the folder and summarises key attributes in a table for faster access.
+    &#34;&#34;&#34;
+    if unzip:
+        self.status.message(&#39;Extracting compressed folders..&#39;)
+        utilities._unzip_files(self.path, self.status)
+    self.status.message(&#39;Finding all files..&#39;)
+    files = [item.path for item in utilities.scan_tree(self.path) if item.is_file()]
+    self.__dict__[&#39;dataframe&#39;] = utilities.dataframe(self.path, files, self._columns, self.status, message=message)
     self.dataframe[&#39;removed&#39;] = [False] * self.dataframe.shape[0]
     self.dataframe[&#39;created&#39;] = [False] * self.dataframe.shape[0]
     self._multiframe_to_singleframe()
+    self._write_csv()
     return self</code></pre>
 </details>
 </dd>
@@ -752,6 +1005,21 @@ True if the folder is open and False otherwise.</p></div>
     return self.path is not None</code></pre>
 </details>
 </dd>
+<dt id="dbdicom.folder.Folder.sortby"><code class="name flex">
+<span>def <span class="ident">sortby</span></span>(<span>self, sortby)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sortby(self, sortby):
+    
+    self.dataframe.sort_values(sortby, inplace=True)
+    return self</code></pre>
+</details>
+</dd>
 <dt id="dbdicom.folder.Folder.object"><code class="name flex">
 <span>def <span class="ident">object</span></span>(<span>self, row, generation=4)</span>
 </code></dt>
@@ -831,27 +1099,97 @@ or instance (generation=4, default).</dd>
                 print(&#39;                Nr of instances: &#39; + str(len(series.children()))) </code></pre>
 </details>
 </dd>
+<dt id="dbdicom.folder.Folder.label"><code class="name flex">
+<span>def <span class="ident">label</span></span>(<span>self, row, type)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def label(self, row, type):
+
+    if type == &#39;Patient&#39;:
+        name = row.PatientName
+        id = row.PatientID
+        label = str(name)
+        label += &#39; [&#39; + str(id) + &#39;]&#39;
+        return type + &#34; - {}&#34;.format(label)
+    if type == &#39;Study&#39;:
+        descr = row.StudyDescription
+        date = row.StudyDate
+        label = str(descr)
+        label += &#39; [&#39; + str(date) + &#39;]&#39;
+        return type + &#34; - {}&#34;.format(label)
+    if type == &#39;Series&#39;:
+        descr = row.SeriesDescription
+        nr = row.SeriesNumber
+        label = &#39;[&#39; + str(nr).zfill(3) + &#39;] &#39; 
+        label += str(descr)
+        return type + &#34; - {}&#34;.format(label)
+    if type == &#39;Instance&#39;:
+        nr = row.InstanceNumber
+        label = str(nr).zfill(6)
+        return type + &#34; - {}&#34;.format(label)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.folder.Folder.new_uid"><code class="name flex">
+<span>def <span class="ident">new_uid</span></span>(<span>self, n=1)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_uid(self, n=1):
+    
+    if n == 1:
+        return pydicom.uid.generate_uid()
+    uid = []
+    for _ in range(n):
+        uid.append(pydicom.uid.generate_uid())
+    return uid</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.folder.Folder.new_file"><code class="name flex">
+<span>def <span class="ident">new_file</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_file(self):
+
+    # Generate a new filename
+    path = os.path.join(self.path, &#34;dbdicom&#34;)
+    if not os.path.isdir(path): os.mkdir(path)
+    #file = os.path.join(path, self.new_uid() + &#39;.dcm&#39;) 
+    file = os.path.join(&#34;dbdicom&#34;, self.new_uid() + &#39;.dcm&#39;) 
+    return file</code></pre>
+</details>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="dbdicom.classes.database.Database" href="classes/database.html#dbdicom.classes.database.Database">Database</a></b></code>:
 <ul class="hlist">
 <li><code><a title="dbdicom.classes.database.Database.array" href="classes/record.html#dbdicom.classes.record.Record.array">array</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.check" href="classes/record.html#dbdicom.classes.record.Record.check">check</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.children" href="classes/record.html#dbdicom.classes.record.Record.children">children</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.copy" href="classes/record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.copy_to" href="classes/record.html#dbdicom.classes.record.Record.copy_to">copy_to</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.data" href="classes/record.html#dbdicom.classes.record.Record.data">data</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.dataset" href="classes/record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.export" href="classes/record.html#dbdicom.classes.record.Record.export">export</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.files" href="classes/record.html#dbdicom.classes.record.Record.files">files</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.in_memory" href="classes/record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.instances" href="classes/record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.is_checked" href="classes/record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.key" href="classes/record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.move" href="classes/record.html#dbdicom.classes.record.Record.move">move</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.move_to" href="classes/record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.new_child" href="classes/record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
+<li><code><a title="dbdicom.classes.database.Database.new_cousin" href="classes/record.html#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.new_pibling" href="classes/record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.new_series" href="classes/record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.new_sibling" href="classes/record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
@@ -860,12 +1198,12 @@ or instance (generation=4, default).</dd>
 <li><code><a title="dbdicom.classes.database.Database.records" href="classes/record.html#dbdicom.classes.record.Record.records">records</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.remove" href="classes/record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.restore" href="classes/record.html#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.database.Database.restore_OBSOLETE" href="classes/record.html#dbdicom.classes.record.Record.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.save" href="classes/record.html#dbdicom.classes.record.Record.save">save</a></code></li>
+<li><code><a title="dbdicom.classes.database.Database.save_OBSOLETE" href="classes/record.html#dbdicom.classes.record.Record.save_OBSOLETE">save_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.series" href="classes/record.html#dbdicom.classes.record.Record.series">series</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.set_array" href="classes/record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.set_checked" href="classes/record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
 <li><code><a title="dbdicom.classes.database.Database.studies" href="classes/record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.database.Database.uncheck" href="classes/record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
 </ul>
 </li>
 </ul>
@@ -889,14 +1227,20 @@ or instance (generation=4, default).</dd>
 <li>
 <h4><code><a title="dbdicom.folder.Folder" href="#dbdicom.folder.Folder">Folder</a></code></h4>
 <ul class="two-column">
+<li><code><a title="dbdicom.folder.Folder.set_attributes" href="#dbdicom.folder.Folder.set_attributes">set_attributes</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.open" href="#dbdicom.folder.Folder.open">open</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.scan" href="#dbdicom.folder.Folder.scan">scan</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.close" href="#dbdicom.folder.Folder.close">close</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.is_saved" href="#dbdicom.folder.Folder.is_saved">is_saved</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.is_open" href="#dbdicom.folder.Folder.is_open">is_open</a></code></li>
+<li><code><a title="dbdicom.folder.Folder.sortby" href="#dbdicom.folder.Folder.sortby">sortby</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.object" href="#dbdicom.folder.Folder.object">object</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.instance" href="#dbdicom.folder.Folder.instance">instance</a></code></li>
 <li><code><a title="dbdicom.folder.Folder.print" href="#dbdicom.folder.Folder.print">print</a></code></li>
+<li><code><a title="dbdicom.folder.Folder.label" href="#dbdicom.folder.Folder.label">label</a></code></li>
+<li><code><a title="dbdicom.folder.Folder.new_uid" href="#dbdicom.folder.Folder.new_uid">new_uid</a></code></li>
+<li><code><a title="dbdicom.folder.Folder.new_file" href="#dbdicom.folder.Folder.new_file">new_file</a></code></li>
+<li><code><a title="dbdicom.folder.Folder.required" href="#dbdicom.folder.Folder.required">required</a></code></li>
 </ul>
 </li>
 </ul>

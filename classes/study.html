@@ -30,9 +30,9 @@
 
 class Study(Record):
 
-    def __init__(self, folder, UID=[]):
+    def __init__(self, folder, UID=[], **attributes):
         
-        super().__init__(folder, UID, generation=2)
+        super().__init__(folder, UID, generation=2, **attributes)
 
     def label(self, row=None):
 
@@ -62,7 +62,7 @@ class Study(Record):
 <dl>
 <dt id="dbdicom.classes.study.Study"><code class="flex name class">
 <span>class <span class="ident">Study</span></span>
-<span>(</span><span>folder, UID=[])</span>
+<span>(</span><span>folder, UID=[], **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -72,9 +72,9 @@ class Study(Record):
 </summary>
 <pre><code class="python">class Study(Record):
 
-    def __init__(self, folder, UID=[]):
+    def __init__(self, folder, UID=[], **attributes):
         
-        super().__init__(folder, UID, generation=2)
+        super().__init__(folder, UID, generation=2, **attributes)
 
     def label(self, row=None):
 
@@ -130,21 +130,18 @@ class Study(Record):
 <li><code><b><a title="dbdicom.classes.record.Record" href="record.html#dbdicom.classes.record.Record">Record</a></b></code>:
 <ul class="hlist">
 <li><code><a title="dbdicom.classes.record.Record.array" href="record.html#dbdicom.classes.record.Record.array">array</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.check" href="record.html#dbdicom.classes.record.Record.check">check</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.copy_to" href="record.html#dbdicom.classes.record.Record.copy_to">copy_to</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.dataset" href="record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.export" href="record.html#dbdicom.classes.record.Record.export">export</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.is_checked" href="record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.move" href="record.html#dbdicom.classes.record.Record.move">move</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.new_cousin" href="record.html#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
@@ -153,12 +150,12 @@ class Study(Record):
 <li><code><a title="dbdicom.classes.record.Record.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.restore" href="record.html#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.restore_OBSOLETE" href="record.html#dbdicom.classes.record.Record.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.save" href="record.html#dbdicom.classes.record.Record.save">save</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.save_OBSOLETE" href="record.html#dbdicom.classes.record.Record.save_OBSOLETE">save_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.set_checked" href="record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.uncheck" href="record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
 </ul>
 </li>
 </ul>

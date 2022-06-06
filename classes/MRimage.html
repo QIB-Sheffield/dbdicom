@@ -39,12 +39,12 @@ class MRImage(Image):
         on_disk = self.on_disk()
         if on_disk: self.read()
         if [0x2005, 0x100E] in self.ds: # &#39;Philips Rescale Slope&#39;
-            pixelArray = self.ds.pixel_array.astype(np.float32)
+            array = self.ds.pixel_array.astype(np.float32)
             slope = self.ds[(0x2005, 0x100E)].value
             intercept = self.ds[(0x2005, 0x100D)].value
-            pixelArray = (pixelArray - intercept) / slope
-            pixelArray = np.transpose(pixelArray)
-            array = pixelArray
+            array -= intercept
+            array /= slope
+            array = np.transpose(array)
         else:
             array = super().array()
         if on_disk: self.clear()
@@ -54,10 +54,13 @@ class MRImage(Image):
 
         on_disk = self.on_disk()
         if on_disk: self.read()
+        if self.ds is None:
+            # TODO: Handle this by creating new dataset from scratch
+            raise RuntimeError(&#39;Cannot set array: no dataset defined on disk or in memory&#39;)
         if (0x2005, 0x100E) in self.ds: del self.ds[0x2005, 0x100E]  # Delete &#39;Philips Rescale Slope&#39;
         if (0x2005, 0x100D) in self.ds: del self.ds[0x2005, 0x100D]
         super().set_array(pixelArray, value_range=value_range)
-        self.write()
+        #self.write()
         if on_disk: 
             self.write()
             self.clear()
@@ -123,7 +126,7 @@ class MRImage(Image):
 <dl>
 <dt id="dbdicom.classes.MRimage.MRImage"><code class="flex name class">
 <span>class <span class="ident">MRImage</span></span>
-<span>(</span><span>folder, UID=[])</span>
+<span>(</span><span>folder, UID=[], **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specific methods for the SOPClass MR Image Storage</p></div>
@@ -140,12 +143,12 @@ class MRImage(Image):
         on_disk = self.on_disk()
         if on_disk: self.read()
         if [0x2005, 0x100E] in self.ds: # &#39;Philips Rescale Slope&#39;
-            pixelArray = self.ds.pixel_array.astype(np.float32)
+            array = self.ds.pixel_array.astype(np.float32)
             slope = self.ds[(0x2005, 0x100E)].value
             intercept = self.ds[(0x2005, 0x100D)].value
-            pixelArray = (pixelArray - intercept) / slope
-            pixelArray = np.transpose(pixelArray)
-            array = pixelArray
+            array -= intercept
+            array /= slope
+            array = np.transpose(array)
         else:
             array = super().array()
         if on_disk: self.clear()
@@ -155,10 +158,13 @@ class MRImage(Image):
 
         on_disk = self.on_disk()
         if on_disk: self.read()
+        if self.ds is None:
+            # TODO: Handle this by creating new dataset from scratch
+            raise RuntimeError(&#39;Cannot set array: no dataset defined on disk or in memory&#39;)
         if (0x2005, 0x100E) in self.ds: del self.ds[0x2005, 0x100E]  # Delete &#39;Philips Rescale Slope&#39;
         if (0x2005, 0x100D) in self.ds: del self.ds[0x2005, 0x100D]
         super().set_array(pixelArray, value_range=value_range)
-        self.write()
+        #self.write()
         if on_disk: 
             self.write()
             self.clear()
@@ -214,7 +220,7 @@ class MRImage(Image):
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="dbdicom.classes.image.Image" href="image.html#dbdicom.classes.image.Image">Image</a></li>
+<li>dbdicom.classes.image.Image</li>
 <li><a title="dbdicom.classes.instance.Instance" href="instance.html#dbdicom.classes.instance.Instance">Instance</a></li>
 <li><a title="dbdicom.classes.record.Record" href="record.html#dbdicom.classes.record.Record">Record</a></li>
 </ul>
@@ -239,12 +245,12 @@ class MRImage(Image):
     on_disk = self.on_disk()
     if on_disk: self.read()
     if [0x2005, 0x100E] in self.ds: # &#39;Philips Rescale Slope&#39;
-        pixelArray = self.ds.pixel_array.astype(np.float32)
+        array = self.ds.pixel_array.astype(np.float32)
         slope = self.ds[(0x2005, 0x100E)].value
         intercept = self.ds[(0x2005, 0x100D)].value
-        pixelArray = (pixelArray - intercept) / slope
-        pixelArray = np.transpose(pixelArray)
-        array = pixelArray
+        array -= intercept
+        array /= slope
+        array = np.transpose(array)
     else:
         array = super().array()
     if on_disk: self.clear()
@@ -323,49 +329,38 @@ class MRImage(Image):
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="dbdicom.classes.image.Image" href="image.html#dbdicom.classes.image.Image">Image</a></b></code>:
+<li><code><b><a title="dbdicom.classes.instance.Instance" href="instance.html#dbdicom.classes.instance.Instance">Instance</a></b></code>:
 <ul class="hlist">
-<li><code><a title="dbdicom.classes.image.Image.affine_matrix" href="image.html#dbdicom.classes.image.Image.affine_matrix">affine_matrix</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.check" href="record.html#dbdicom.classes.record.Record.check">check</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.clear" href="instance.html#dbdicom.classes.instance.Instance.clear">clear</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.copy_to" href="instance.html#dbdicom.classes.instance.Instance.copy_to">copy_to</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.dataset" href="record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export" href="instance.html#dbdicom.classes.instance.Instance.export">export</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_csv" href="image.html#dbdicom.classes.image.Image.export_as_csv">export_as_csv</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_nifti" href="image.html#dbdicom.classes.image.Image.export_as_nifti">export_as_nifti</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_png" href="image.html#dbdicom.classes.image.Image.export_as_png">export_as_png</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.file" href="instance.html#dbdicom.classes.instance.Instance.file">file</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.get_colormap" href="image.html#dbdicom.classes.image.Image.get_colormap">get_colormap</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.is_checked" href="record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.map_onto" href="image.html#dbdicom.classes.image.Image.map_onto">map_onto</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.move" href="record.html#dbdicom.classes.record.Record.move">move</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.parent" href="record.html#dbdicom.classes.record.Record.parent">parent</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.patients" href="record.html#dbdicom.classes.record.Record.patients">patients</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.read" href="instance.html#dbdicom.classes.instance.Instance.read">read</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.restore" href="instance.html#dbdicom.classes.instance.Instance.restore">restore</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.save" href="instance.html#dbdicom.classes.instance.Instance.save">save</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.set_checked" href="record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.set_colormap" href="image.html#dbdicom.classes.image.Image.set_colormap">set_colormap</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.uncheck" href="record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.window" href="image.html#dbdicom.classes.image.Image.window">window</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.write" href="instance.html#dbdicom.classes.instance.Instance.write">write</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.clear" href="instance.html#dbdicom.classes.instance.Instance.clear">clear</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.dataset" href="record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.export" href="instance.html#dbdicom.classes.instance.Instance.export">export</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.file" href="instance.html#dbdicom.classes.instance.Instance.file">file</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.new_cousin" href="record.html#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.parent" href="record.html#dbdicom.classes.record.Record.parent">parent</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.patients" href="record.html#dbdicom.classes.record.Record.patients">patients</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.read" href="instance.html#dbdicom.classes.instance.Instance.read">read</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.restore" href="record.html#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.restore_OBSOLETE" href="instance.html#dbdicom.classes.instance.Instance.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.save" href="record.html#dbdicom.classes.record.Record.save">save</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.save_OBSOLETE" href="instance.html#dbdicom.classes.instance.Instance.save_OBSOLETE">save_OBSOLETE</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.write" href="instance.html#dbdicom.classes.instance.Instance.write">write</a></code></li>
 </ul>
 </li>
 </ul>

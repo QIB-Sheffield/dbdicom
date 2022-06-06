@@ -40,8 +40,8 @@ from .. import utilities
 
 class Instance(Record):
 
-    def __init__(self, folder, UID=[]):
-        super().__init__(folder, UID, generation=4)
+    def __init__(self, folder, UID=[], **attributes):
+        super().__init__(folder, UID, generation=4, **attributes)
 
     def label(self, row=None):
 
@@ -111,13 +111,13 @@ class Instance(Record):
             ds.SOPInstanceUID = pydicom.uid.generate_uid()    
 
         df = self.data()
-        if df.empty: # Data exist in memory only
-            self.folder._append(ds, checked=True)
+        if df.empty: # Data exist in memory only.
+            self.folder._append(ds)
         else: 
             file = df.index[0] 
             if not df.loc[file,&#39;created&#39;]:  # This is the first change 
                 self.folder.dataframe.loc[file,&#39;removed&#39;] = True
-                self.folder._append(ds, checked=df.loc[file,&#39;checked&#39;])
+                self.folder._append(ds)
             else:   # Update values in dataframe row
                 self.folder._update(file, ds)
 
@@ -154,7 +154,7 @@ class Instance(Record):
             self.dialog.information(message)            
         return self.ds # return self instead so read can be piped: series.read().copy_to(parent)
 
-    def copy_to(self, ancestor):
+    def _copy_to_OBSOLETE(self, ancestor): # Replaced by copy_to in record
         &#34;&#34;&#34;copy instance to a new ancestor.
         
         dicom_object: Root, Patient, Study, or Series
@@ -173,7 +173,7 @@ class Instance(Record):
             self.read()
             copy.__dict__[&#39;ds&#39;] = self.ds
             copy._initialize(self.ds)
-            copy.folder._append(copy.ds, checked=self.is_checked())
+            copy.folder._append(copy.ds)
             copy._save_ds()
             self.clear()
             if ancestor.in_memory():
@@ -183,7 +183,7 @@ class Instance(Record):
             
         return copy
 
-    def save(self):
+    def save_OBSOLETE(self):
         &#34;&#34;&#34;
         Saves all changes made in the instance
         &#34;&#34;&#34;
@@ -223,7 +223,7 @@ class Instance(Record):
         elif not created.empty: # instance has been newly created
             self.folder.dataframe.loc[created.index, &#39;created&#39;] = False
 
-    def restore(self):
+    def restore_OBSOLETE(self):
         &#34;&#34;&#34;
         Reverses all changes made since the last save.
         &#34;&#34;&#34;
@@ -264,6 +264,9 @@ class Instance(Record):
 
     def _initialize(self, ref_ds=None):
         &#34;&#34;&#34;Initialize the attributes relevant for the Images&#34;&#34;&#34;
+
+        self.ds = utilities._initialize(self.ds, UID=self.UID, ref=ref_ds)
+        return
 
         # overwrite UIDs
         self.ds.PatientID = self.UID[0]
@@ -313,7 +316,7 @@ class Instance(Record):
 <dl>
 <dt id="dbdicom.classes.instance.Instance"><code class="flex name class">
 <span>class <span class="ident">Instance</span></span>
-<span>(</span><span>folder, UID=[])</span>
+<span>(</span><span>folder, UID=[], **attributes)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -323,8 +326,8 @@ class Instance(Record):
 </summary>
 <pre><code class="python">class Instance(Record):
 
-    def __init__(self, folder, UID=[]):
-        super().__init__(folder, UID, generation=4)
+    def __init__(self, folder, UID=[], **attributes):
+        super().__init__(folder, UID, generation=4, **attributes)
 
     def label(self, row=None):
 
@@ -394,13 +397,13 @@ class Instance(Record):
             ds.SOPInstanceUID = pydicom.uid.generate_uid()    
 
         df = self.data()
-        if df.empty: # Data exist in memory only
-            self.folder._append(ds, checked=True)
+        if df.empty: # Data exist in memory only.
+            self.folder._append(ds)
         else: 
             file = df.index[0] 
             if not df.loc[file,&#39;created&#39;]:  # This is the first change 
                 self.folder.dataframe.loc[file,&#39;removed&#39;] = True
-                self.folder._append(ds, checked=df.loc[file,&#39;checked&#39;])
+                self.folder._append(ds)
             else:   # Update values in dataframe row
                 self.folder._update(file, ds)
 
@@ -437,7 +440,7 @@ class Instance(Record):
             self.dialog.information(message)            
         return self.ds # return self instead so read can be piped: series.read().copy_to(parent)
 
-    def copy_to(self, ancestor):
+    def _copy_to_OBSOLETE(self, ancestor): # Replaced by copy_to in record
         &#34;&#34;&#34;copy instance to a new ancestor.
         
         dicom_object: Root, Patient, Study, or Series
@@ -456,7 +459,7 @@ class Instance(Record):
             self.read()
             copy.__dict__[&#39;ds&#39;] = self.ds
             copy._initialize(self.ds)
-            copy.folder._append(copy.ds, checked=self.is_checked())
+            copy.folder._append(copy.ds)
             copy._save_ds()
             self.clear()
             if ancestor.in_memory():
@@ -466,7 +469,7 @@ class Instance(Record):
             
         return copy
 
-    def save(self):
+    def save_OBSOLETE(self):
         &#34;&#34;&#34;
         Saves all changes made in the instance
         &#34;&#34;&#34;
@@ -506,7 +509,7 @@ class Instance(Record):
         elif not created.empty: # instance has been newly created
             self.folder.dataframe.loc[created.index, &#39;created&#39;] = False
 
-    def restore(self):
+    def restore_OBSOLETE(self):
         &#34;&#34;&#34;
         Reverses all changes made since the last save.
         &#34;&#34;&#34;
@@ -547,6 +550,9 @@ class Instance(Record):
 
     def _initialize(self, ref_ds=None):
         &#34;&#34;&#34;Initialize the attributes relevant for the Images&#34;&#34;&#34;
+
+        self.ds = utilities._initialize(self.ds, UID=self.UID, ref=ref_ds)
+        return
 
         # overwrite UIDs
         self.ds.PatientID = self.UID[0]
@@ -590,7 +596,7 @@ class Instance(Record):
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="dbdicom.classes.image.Image" href="image.html#dbdicom.classes.image.Image">Image</a></li>
+<li>dbdicom.classes.image.Image</li>
 </ul>
 <h3>Instance variables</h3>
 <dl>
@@ -661,13 +667,13 @@ def file(self):
         ds.SOPInstanceUID = pydicom.uid.generate_uid()    
 
     df = self.data()
-    if df.empty: # Data exist in memory only
-        self.folder._append(ds, checked=True)
+    if df.empty: # Data exist in memory only.
+        self.folder._append(ds)
     else: 
         file = df.index[0] 
         if not df.loc[file,&#39;created&#39;]:  # This is the first change 
             self.folder.dataframe.loc[file,&#39;removed&#39;] = True
-            self.folder._append(ds, checked=df.loc[file,&#39;checked&#39;])
+            self.folder._append(ds)
         else:   # Update values in dataframe row
             self.folder._update(file, ds)
 
@@ -713,50 +719,8 @@ def file(self):
     return self.ds # return self instead so read can be piped: series.read().copy_to(parent)</code></pre>
 </details>
 </dd>
-<dt id="dbdicom.classes.instance.Instance.copy_to"><code class="name flex">
-<span>def <span class="ident">copy_to</span></span>(<span>self, ancestor)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>copy instance to a new ancestor.</p>
-<p>dicom_object: Root, Patient, Study, or Series
-If the object is not a series, the missing
-intermediate generations are automatically created.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def copy_to(self, ancestor):
-    &#34;&#34;&#34;copy instance to a new ancestor.
-    
-    dicom_object: Root, Patient, Study, or Series
-        If the object is not a series, the missing 
-        intermediate generations are automatically created.
-    &#34;&#34;&#34;
-    # Generate new instance
-    copy = self.__class__(self.folder, UID=ancestor.UID)
-
-    if self.in_memory(): # Create the copy in memory
-        copy.__dict__[&#39;ds&#39;] = deepcopy(self.ds)
-        copy._initialize(self.ds)
-        if ancestor.in_memory():
-            ancestor.ds.append(copy)
-    else: # Create copy on disk
-        self.read()
-        copy.__dict__[&#39;ds&#39;] = self.ds
-        copy._initialize(self.ds)
-        copy.folder._append(copy.ds, checked=self.is_checked())
-        copy._save_ds()
-        self.clear()
-        if ancestor.in_memory():
-            ancestor.ds.append(copy) 
-        else:       
-            copy.clear()
-        
-    return copy</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.instance.Instance.save"><code class="name flex">
-<span>def <span class="ident">save</span></span>(<span>self)</span>
+<dt id="dbdicom.classes.instance.Instance.save_OBSOLETE"><code class="name flex">
+<span>def <span class="ident">save_OBSOLETE</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Saves all changes made in the instance</p></div>
@@ -764,7 +728,7 @@ intermediate generations are automatically created.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def save(self):
+<pre><code class="python">def save_OBSOLETE(self):
     &#34;&#34;&#34;
     Saves all changes made in the instance
     &#34;&#34;&#34;
@@ -805,8 +769,8 @@ intermediate generations are automatically created.</p></div>
         self.folder.dataframe.loc[created.index, &#39;created&#39;] = False</code></pre>
 </details>
 </dd>
-<dt id="dbdicom.classes.instance.Instance.restore"><code class="name flex">
-<span>def <span class="ident">restore</span></span>(<span>self)</span>
+<dt id="dbdicom.classes.instance.Instance.restore_OBSOLETE"><code class="name flex">
+<span>def <span class="ident">restore_OBSOLETE</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Reverses all changes made since the last save.</p></div>
@@ -814,7 +778,7 @@ intermediate generations are automatically created.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def restore(self):
+<pre><code class="python">def restore_OBSOLETE(self):
     &#34;&#34;&#34;
     Reverses all changes made since the last save.
     &#34;&#34;&#34;
@@ -878,7 +842,6 @@ Instead a copy of the file will be copied to the external folder.</p>
 <li><code><b><a title="dbdicom.classes.record.Record" href="record.html#dbdicom.classes.record.Record">Record</a></b></code>:
 <ul class="hlist">
 <li><code><a title="dbdicom.classes.record.Record.array" href="record.html#dbdicom.classes.record.Record.array">array</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.check" href="record.html#dbdicom.classes.record.Record.check">check</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
@@ -886,11 +849,10 @@ Instead a copy of the file will be copied to the external folder.</p>
 <li><code><a title="dbdicom.classes.record.Record.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.is_checked" href="record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.move" href="record.html#dbdicom.classes.record.Record.move">move</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.new_cousin" href="record.html#dbdicom.classes.record.Record.new_cousin">new_cousin</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
@@ -898,11 +860,11 @@ Instead a copy of the file will be copied to the external folder.</p>
 <li><code><a title="dbdicom.classes.record.Record.patients" href="record.html#dbdicom.classes.record.Record.patients">patients</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.restore" href="record.html#dbdicom.classes.record.Record.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.record.Record.save" href="record.html#dbdicom.classes.record.Record.save">save</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.set_checked" href="record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
 <li><code><a title="dbdicom.classes.record.Record.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.record.Record.uncheck" href="record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
 </ul>
 </li>
 </ul>
@@ -930,9 +892,8 @@ Instead a copy of the file will be copied to the external folder.</p>
 <li><code><a title="dbdicom.classes.instance.Instance.write" href="#dbdicom.classes.instance.Instance.write">write</a></code></li>
 <li><code><a title="dbdicom.classes.instance.Instance.clear" href="#dbdicom.classes.instance.Instance.clear">clear</a></code></li>
 <li><code><a title="dbdicom.classes.instance.Instance.read" href="#dbdicom.classes.instance.Instance.read">read</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.copy_to" href="#dbdicom.classes.instance.Instance.copy_to">copy_to</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.save" href="#dbdicom.classes.instance.Instance.save">save</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.restore" href="#dbdicom.classes.instance.Instance.restore">restore</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.save_OBSOLETE" href="#dbdicom.classes.instance.Instance.save_OBSOLETE">save_OBSOLETE</a></code></li>
+<li><code><a title="dbdicom.classes.instance.Instance.restore_OBSOLETE" href="#dbdicom.classes.instance.Instance.restore_OBSOLETE">restore_OBSOLETE</a></code></li>
 <li><code><a title="dbdicom.classes.instance.Instance.export" href="#dbdicom.classes.instance.Instance.export">export</a></code></li>
 <li><code><a title="dbdicom.classes.instance.Instance.file" href="#dbdicom.classes.instance.Instance.file">file</a></code></li>
 </ul>

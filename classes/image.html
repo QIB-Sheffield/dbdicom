@@ -26,7 +26,9 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import os
+<pre><code class="python">__all__ = [&#39;QImage&#39;]
+
+import os
 import struct
 import numpy as np
 import pandas as pd
@@ -57,7 +59,9 @@ class Image(Instance):
         array = self.ds.pixel_array.astype(np.float32)
         slope = float(getattr(self.ds, &#39;RescaleSlope&#39;, 1)) 
         intercept = float(getattr(self.ds, &#39;RescaleIntercept&#39;, 0)) 
-        array = array * slope + intercept
+        #array = array * slope + intercept
+        array *= slope
+        array += intercept
         array = np.transpose(array)
         if on_disk: self.clear()
         return array
@@ -358,16 +362,26 @@ class Image(Instance):
 
     def QImage(self):
 
-        width = self.WindowWidth
-        center = self.WindowCenter
-        imgData, alpha = _makeARGB(
-            data = self.array(), 
-            levels = [center-width/2, center+width/2],
-        )
-        return _makeQImage(imgData, alpha)
+        array = self.array()
+        return QImage(array, width=self.WindowWidth, center=self.WindowCenter)
 
 
-# HELPER FUNCTIONS ADAPTED FROM ???
+def QImage(array, width=None, center=None):
+
+    if (width is None) or (center is None):
+        max = np.amax(array)
+        min = np.amin(array)
+    if width is None: width = max-min
+    if center is None: center = (max-min)/2
+
+    imgData, alpha = _makeARGB(
+        data = array, 
+        levels = [center-width/2, center+width/2],
+    )
+    return _makeQImage(imgData, alpha)
+
+
+# HELPER FUNCTIONS ADAPTED FROM pyQtGraph
 
 
 def _makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False): 
@@ -639,386 +653,10 @@ def _rescaleData(data, scale, offset, dtype=None, clip=None):
 <section>
 </section>
 <section>
-</section>
-<section>
-<h2 class="section-title" id="header-classes">Classes</h2>
+<h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="dbdicom.classes.image.Image"><code class="flex name class">
-<span>class <span class="ident">Image</span></span>
-<span>(</span><span>folder, UID=[])</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Specific methods for the SOPClass MR Image Storage</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Image(Instance):
-    &#34;&#34;&#34;Specific methods for the SOPClass MR Image Storage&#34;&#34;&#34;
-
-    def _initialize(self, ref_ds=None):
-        &#34;&#34;&#34;Initialize the attributes relevant for the Images&#34;&#34;&#34;
-
-        super()._initialize(ref_ds)
-        
-        self.ImageType.insert(0, &#34;DERIVED&#34;)
-
-    def array(self):
-        &#34;&#34;&#34;Read the pixel array from an image&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if self.ds is None: return
-        array = self.ds.pixel_array.astype(np.float32)
-        slope = float(getattr(self.ds, &#39;RescaleSlope&#39;, 1)) 
-        intercept = float(getattr(self.ds, &#39;RescaleIntercept&#39;, 0)) 
-        array = array * slope + intercept
-        array = np.transpose(array)
-        if on_disk: self.clear()
-        return array
-
-    def set_array(self, array, value_range=None):
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        
-        if array.ndim &gt;= 3: # remove spurious dimensions of 1
-            array = np.squeeze(array) 
-        array = self.clip(array, value_range=value_range)
-        array, slope, intercept = self.scale_to_range(array, self.ds.BitsAllocated)
-        array = np.transpose(array)
-
-        maximum = np.amax(array)
-        minimum = np.amin(array)
-        shape = np.shape(array)
-
-        self.ds.PixelRepresentation = 0
-        self.ds.SmallestImagePixelValue = int(maximum)
-        self.ds.LargestImagePixelValue = int(minimum)
-        self.ds.RescaleSlope = 1 / slope
-        self.ds.RescaleIntercept = - intercept / slope
-#        self.ds.WindowCenter = (maximum + minimum) / 2
-#        self.ds.WindowWidth = maximum - minimum
-        self.ds.Rows = shape[0]
-        self.ds.Columns = shape[1]
-        self.ds.PixelData = array.tobytes()
-        if on_disk: 
-            self.write()
-            self.clear()
-
-#    def write_array(self, pixelArray, value_range=None): # obsolete - remove
-#        &#34;&#34;&#34;Write the pixel array to disk&#34;&#34;&#34;
-#        self.set_array(pixelArray, value_range=value_range)
-#        self.write()
-
-    def clip(self, array, value_range = None):
-
-        array[np.isnan(array)] = 0
-        if value_range is None:
-            finite = array[np.isfinite(array)]
-            value_range = [np.amin(finite), np.amax(finite)]
-        return np.clip(array, value_range[0], value_range[1])
-
-    def scale_to_range(self, array, bits_allocated):
-            
-    #    target = np.power(2, bits_allocated) - 1
-        target = 2.0**bits_allocated - 1
-        maximum = np.amax(array)
-        minimum = np.amin(array)
-        if maximum == minimum:
-            slope = 1
-        else:
-            slope = target / (maximum - minimum)
-        intercept = -slope * minimum
-        # array = slope * (array - minimum)
-        array = slope * array + intercept
-
-        if bits_allocated == 8:
-            return array.astype(np.uint8), slope, intercept
-        if bits_allocated == 16:
-            return array.astype(np.uint16), slope, intercept
-        if bits_allocated == 32:
-            return array.astype(np.uint32), slope, intercept
-        if bits_allocated == 64:
-            return array.astype(np.uint64), slope, intercept
-
-    def zeros(self):
-
-        array = np.zeros((self.Rows, self.Columns))
-        new = self.copy()
-    #    new.write_array(array)
-        new.set_array(array)
-        new.write()
-        return new
-
-    def map_onto(self, target):
-        &#34;&#34;&#34;Map non-zero image pixels onto a target image.
-        
-        Overwrite pixel values in the target&#34;&#34;&#34;
-
-        # Create a coordinate array of non-zero pixels
-        coords = np.transpose(np.where(self.array() != 0)) 
-        coords = [[coord[0], coord[1], 0] for coord in coords] 
-        coords = np.array(coords)
-
-        # Determine coordinate transformation matrix
-        affineSource = self.affine_matrix()
-        affineTarget = target.affine_matrix()
-        sourceToTarget = np.linalg.inv(affineTarget).dot(affineSource)
-
-        # Apply coordinate transformation
-        coords = apply_affine(sourceToTarget, coords)
-        coords = np.round(coords, 3).astype(int)
-        x = tuple([coord[0] for coord in coords if coord[2] == 0])
-        y = tuple([coord[1] for coord in coords if coord[2] == 0])
-
-        # Set values in the target image
-        # Note - replace by actual values rather than 1 &amp; 0.
-        result = target.zeros()
-        in_memory = self.in_memory()
-        if in_memory: result.read()
-        pixelArray = result.array()
-        pixelArray[(x, y)] = 1.0
-        result.set_array(pixelArray)
-        if not in_memory: 
-            result.write()
-            result.clear()
-
-        return result
-
-    def affine_matrix(self):
-        &#34;&#34;&#34;Affine transformation matrix for a DICOM image&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-
-        image_orientation = self.ds.ImageOrientationPatient
-        image_position = self.ds.ImagePositionPatient
-        pixel_spacing = self.ds.PixelSpacing
-        slice_spacing = self.ds.SliceThickness            
-
-        row_spacing = pixel_spacing[0]
-        column_spacing = pixel_spacing[1]
-
-        row_cosine = np.array(image_orientation[:3])
-        column_cosine = np.array(image_orientation[3:])
-        slice_cosine = np.cross(row_cosine, column_cosine)
-
-        affine = np.identity(4, dtype=np.float32)
-        affine[:3, 0] = row_cosine * column_spacing
-        affine[:3, 1] = column_cosine * row_spacing
-        affine[:3, 2] = slice_cosine * slice_spacing
-        affine[:3, 3] = image_position
-
-        if on_disk: self.clear()
-
-        return affine
-
-    def get_colormap(self):
-        &#34;&#34;&#34;Returns the colormap if there is any.&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
-
-        lut = None
-        if hasattr(ds, &#39;ContentLabel&#39;):
-            if ds.PhotometricInterpretation == &#39;PALETTE COLOR&#39;:
-                colormap = ds.ContentLabel
-            elif &#39;MONOCHROME&#39; in ds.PhotometricInterpretation:
-                colormap = &#39;gray&#39;
-        elif len(ds.dir(&#34;PaletteColor&#34;))&gt;=3 and ds.PhotometricInterpretation == &#39;PALETTE COLOR&#39;:
-            colormap = &#39;custom&#39;
-            lut = self.get_lut()
-        else:
-            colormap = &#39;gray&#39; # default
-
-        if on_disk: self.clear()
-        return colormap, lut  
-
-    def get_lut(self):
-        
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
-
-        redColour = list(ds.RedPaletteColorLookupTableData)
-        greenColour = list(ds.GreenPaletteColorLookupTableData)
-        blueColour = list(ds.BluePaletteColorLookupTableData)
-        redLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
-        greenLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
-        blueLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
-        colours = np.transpose([redLut, greenLut, blueLut])
-        normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
-        # Fast ColourTable loading
-        colourTable = np.around(colours/normaliseFactor, decimals = 2)
-        indexes = np.unique(colourTable, axis=0, return_index=True)[1]
-        lut = [colourTable[index].tolist() for index in sorted(indexes)]
-        # Full / Complete Colourmap - takes 20 seconds to load each image
-        # lut = (colours/normaliseFactor).tolist()   
-        if on_disk: self.clear()
-        return lut      
-
-    def set_colormap(self, colormap=None, levels=None):
-        &#34;&#34;&#34;Set the colour table of the image.&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
-
-        #and (colormap != &#39;gray&#39;) removed from If statement below, so as to save gray colour tables
-        if (colormap == &#39;gray&#39;):
-            ds.PhotometricInterpretation = &#39;MONOCHROME2&#39;
-            ds.ContentLabel = &#39;&#39;
-            if hasattr(ds, &#39;RedPaletteColorLookupTableData&#39;):
-                del (ds.RGBLUTTransferFunction, ds.RedPaletteColorLookupTableData,
-                    ds.GreenPaletteColorLookupTableData, ds.BluePaletteColorLookupTableData,
-                    ds.RedPaletteColorLookupTableDescriptor, ds.GreenPaletteColorLookupTableDescriptor,
-                    ds.BluePaletteColorLookupTableDescriptor)
-        if ((colormap is not None)  and (colormap != &#39;custom&#39;) and (colormap != &#39;gray&#39;) 
-            and (colormap != &#39;default&#39;) and isinstance(colormap, str)):
-            ds.PhotometricInterpretation = &#39;PALETTE COLOR&#39;
-            ds.RGBLUTTransferFunction = &#39;TABLE&#39;
-            ds.ContentLabel = colormap
-            stringType = &#39;US&#39; # (&#39;SS&#39; if minValue &lt; 0 else &#39;US&#39;)
-            ds.PixelRepresentation = 0 # (1 if minValue &lt; 0 else 0)
-            pixelArray = ds.pixel_array
-            minValue = int(np.amin(pixelArray))
-            maxValue = int(np.amax(pixelArray))
-            numberOfValues = int(maxValue - minValue)
-            arrayForRGB = np.arange(0, numberOfValues)
-            colorsList = cm.ScalarMappable(cmap=colormap).to_rgba(np.array(arrayForRGB), bytes=False)
-            totalBytes = ds.BitsAllocated
-            ds.add_new(&#39;0x00281101&#39;, stringType, [numberOfValues, minValue, totalBytes])
-            ds.add_new(&#39;0x00281102&#39;, stringType, [numberOfValues, minValue, totalBytes])
-            ds.add_new(&#39;0x00281103&#39;, stringType, [numberOfValues, minValue, totalBytes])
-            ds.RedPaletteColorLookupTableData = bytes(np.array([int((np.power(
-                2, totalBytes) - 1) * value) for value in colorsList[:, 0].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-            ds.GreenPaletteColorLookupTableData = bytes(np.array([int((np.power(
-                2, totalBytes) - 1) * value) for value in colorsList[:, 1].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-            ds.BluePaletteColorLookupTableData = bytes(np.array([int((np.power(
-                2, totalBytes) - 1) * value) for value in colorsList[:, 2].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-        if levels is not None:
-            ds.WindowCenter = levels[0]
-            ds.WindowWidth = levels[1]
-        if on_disk: self.clear()
-
-    def export_as_nifti(self, directory=None, filename=None):
-        &#34;&#34;&#34;Export 2D pixel Array in nifty format&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
-        if directory is None: 
-            directory = self.directory(message=&#39;Please select a folder for the nifty data&#39;)
-        if filename is None:
-            filename = self.SeriesDescription
-        dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
-        niftiObj = nib.Nifti1Instance(np.flipud(np.rot90(np.transpose(self.array()))), affine=self.affine)
-        # The transpose is necessary in this case to be in line with the rest of WEASEL.
-        niftiObj.header.extensions.append(dicomHeader)
-        nib.save(niftiObj, directory + &#39;/&#39; + filename + &#39;.nii.gz&#39;)
-        if on_disk: self.clear()
-
-    def export_as_csv(self, directory=None, filename=None, columnHeaders=None):
-        &#34;&#34;&#34;Export 2D pixel Array in csv format&#34;&#34;&#34;
-
-        if directory is None: 
-            directory = self.directory(message=&#39;Please select a folder for the csv data&#39;)
-        if filename is None:
-            filename = self.SeriesDescription
-        filename = os.path.join(directory, filename + &#39;.csv&#39;)
-        table = self.array()
-        if columnHeaders is None:
-            columnHeaders = []
-            counter = 0
-            for _ in table:
-                counter += 1
-                columnHeaders.append(&#34;Column&#34; + str(counter))
-        df = pd.DataFrame(np.transpose(table), columns=columnHeaders)
-        df.to_csv(filename, index=False) 
-
-    def export_as_png(self, fileName):
-        &#34;&#34;&#34;Export image in png format.&#34;&#34;&#34;
-
-        colourTable, _ = self.get_colormap()
-        pixelArray = np.transpose(self.array())
-        centre, width = self.window()
-        minValue = centre - width/2
-        maxValue = centre + width/2
-        cmap = plt.get_cmap(colourTable)
-        plt.imshow(pixelArray, cmap=cmap)
-        plt.clim(int(minValue), int(maxValue))
-        cBar = plt.colorbar()
-        cBar.minorticks_on()
-        plt.savefig(fname=fileName + &#39;_&#39; + self.label() + &#39;.png&#39;)
-        plt.close()
-
-    def window(self):
-        &#34;&#34;&#34;Centre and width of the pixel data after applying rescale slope and intercept&#34;&#34;&#34;
-
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if &#39;WindowCenter&#39; in self.ds: centre = self.ds.WindowCenter
-        if &#39;WindowWidth&#39; in self.ds: width = self.ds.WindowWidth
-        if centre is None or width is None:
-            array = self.array()
-        if centre is None: 
-            centre = np.median(array)
-        if width is None: 
-            p = np.percentile(array, [25, 75])
-            width = p[1] - p[0]
-        if on_disk: self.clear()
-        return centre, width
-
-    def QImage(self):
-
-        width = self.WindowWidth
-        center = self.WindowCenter
-        imgData, alpha = _makeARGB(
-            data = self.array(), 
-            levels = [center-width/2, center+width/2],
-        )
-        return _makeQImage(imgData, alpha)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="dbdicom.classes.instance.Instance" href="instance.html#dbdicom.classes.instance.Instance">Instance</a></li>
-<li><a title="dbdicom.classes.record.Record" href="record.html#dbdicom.classes.record.Record">Record</a></li>
-</ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="dbdicom.classes.MRimage.MRImage" href="MRimage.html#dbdicom.classes.MRimage.MRImage">MRImage</a></li>
-<li><a title="dbdicom.classes.secondary_capture_image.SecondaryCaptureImage" href="secondary_capture_image.html#dbdicom.classes.secondary_capture_image.SecondaryCaptureImage">SecondaryCaptureImage</a></li>
-</ul>
-<h3>Methods</h3>
-<dl>
-<dt id="dbdicom.classes.image.Image.array"><code class="name flex">
-<span>def <span class="ident">array</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Read the pixel array from an image</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def array(self):
-    &#34;&#34;&#34;Read the pixel array from an image&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    if self.ds is None: return
-    array = self.ds.pixel_array.astype(np.float32)
-    slope = float(getattr(self.ds, &#39;RescaleSlope&#39;, 1)) 
-    intercept = float(getattr(self.ds, &#39;RescaleIntercept&#39;, 0)) 
-    array = array * slope + intercept
-    array = np.transpose(array)
-    if on_disk: self.clear()
-    return array</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.clip"><code class="name flex">
-<span>def <span class="ident">clip</span></span>(<span>self, array, value_range=None)</span>
+<dt id="dbdicom.classes.image.QImage"><code class="name flex">
+<span>def <span class="ident">QImage</span></span>(<span>array, width=None, center=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1026,441 +664,24 @@ def _rescaleData(data, scale, offset, dtype=None, clip=None):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clip(self, array, value_range = None):
+<pre><code class="python">def QImage(array, width=None, center=None):
 
-    array[np.isnan(array)] = 0
-    if value_range is None:
-        finite = array[np.isfinite(array)]
-        value_range = [np.amin(finite), np.amax(finite)]
-    return np.clip(array, value_range[0], value_range[1])</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.scale_to_range"><code class="name flex">
-<span>def <span class="ident">scale_to_range</span></span>(<span>self, array, bits_allocated)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def scale_to_range(self, array, bits_allocated):
-        
-#    target = np.power(2, bits_allocated) - 1
-    target = 2.0**bits_allocated - 1
-    maximum = np.amax(array)
-    minimum = np.amin(array)
-    if maximum == minimum:
-        slope = 1
-    else:
-        slope = target / (maximum - minimum)
-    intercept = -slope * minimum
-    # array = slope * (array - minimum)
-    array = slope * array + intercept
+    if (width is None) or (center is None):
+        max = np.amax(array)
+        min = np.amin(array)
+    if width is None: width = max-min
+    if center is None: center = (max-min)/2
 
-    if bits_allocated == 8:
-        return array.astype(np.uint8), slope, intercept
-    if bits_allocated == 16:
-        return array.astype(np.uint16), slope, intercept
-    if bits_allocated == 32:
-        return array.astype(np.uint32), slope, intercept
-    if bits_allocated == 64:
-        return array.astype(np.uint64), slope, intercept</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.zeros"><code class="name flex">
-<span>def <span class="ident">zeros</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def zeros(self):
-
-    array = np.zeros((self.Rows, self.Columns))
-    new = self.copy()
-#    new.write_array(array)
-    new.set_array(array)
-    new.write()
-    return new</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.map_onto"><code class="name flex">
-<span>def <span class="ident">map_onto</span></span>(<span>self, target)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Map non-zero image pixels onto a target image.</p>
-<p>Overwrite pixel values in the target</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def map_onto(self, target):
-    &#34;&#34;&#34;Map non-zero image pixels onto a target image.
-    
-    Overwrite pixel values in the target&#34;&#34;&#34;
-
-    # Create a coordinate array of non-zero pixels
-    coords = np.transpose(np.where(self.array() != 0)) 
-    coords = [[coord[0], coord[1], 0] for coord in coords] 
-    coords = np.array(coords)
-
-    # Determine coordinate transformation matrix
-    affineSource = self.affine_matrix()
-    affineTarget = target.affine_matrix()
-    sourceToTarget = np.linalg.inv(affineTarget).dot(affineSource)
-
-    # Apply coordinate transformation
-    coords = apply_affine(sourceToTarget, coords)
-    coords = np.round(coords, 3).astype(int)
-    x = tuple([coord[0] for coord in coords if coord[2] == 0])
-    y = tuple([coord[1] for coord in coords if coord[2] == 0])
-
-    # Set values in the target image
-    # Note - replace by actual values rather than 1 &amp; 0.
-    result = target.zeros()
-    in_memory = self.in_memory()
-    if in_memory: result.read()
-    pixelArray = result.array()
-    pixelArray[(x, y)] = 1.0
-    result.set_array(pixelArray)
-    if not in_memory: 
-        result.write()
-        result.clear()
-
-    return result</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.affine_matrix"><code class="name flex">
-<span>def <span class="ident">affine_matrix</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Affine transformation matrix for a DICOM image</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def affine_matrix(self):
-    &#34;&#34;&#34;Affine transformation matrix for a DICOM image&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-
-    image_orientation = self.ds.ImageOrientationPatient
-    image_position = self.ds.ImagePositionPatient
-    pixel_spacing = self.ds.PixelSpacing
-    slice_spacing = self.ds.SliceThickness            
-
-    row_spacing = pixel_spacing[0]
-    column_spacing = pixel_spacing[1]
-
-    row_cosine = np.array(image_orientation[:3])
-    column_cosine = np.array(image_orientation[3:])
-    slice_cosine = np.cross(row_cosine, column_cosine)
-
-    affine = np.identity(4, dtype=np.float32)
-    affine[:3, 0] = row_cosine * column_spacing
-    affine[:3, 1] = column_cosine * row_spacing
-    affine[:3, 2] = slice_cosine * slice_spacing
-    affine[:3, 3] = image_position
-
-    if on_disk: self.clear()
-
-    return affine</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.get_colormap"><code class="name flex">
-<span>def <span class="ident">get_colormap</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns the colormap if there is any.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_colormap(self):
-    &#34;&#34;&#34;Returns the colormap if there is any.&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    ds = self.ds
-
-    lut = None
-    if hasattr(ds, &#39;ContentLabel&#39;):
-        if ds.PhotometricInterpretation == &#39;PALETTE COLOR&#39;:
-            colormap = ds.ContentLabel
-        elif &#39;MONOCHROME&#39; in ds.PhotometricInterpretation:
-            colormap = &#39;gray&#39;
-    elif len(ds.dir(&#34;PaletteColor&#34;))&gt;=3 and ds.PhotometricInterpretation == &#39;PALETTE COLOR&#39;:
-        colormap = &#39;custom&#39;
-        lut = self.get_lut()
-    else:
-        colormap = &#39;gray&#39; # default
-
-    if on_disk: self.clear()
-    return colormap, lut  </code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.get_lut"><code class="name flex">
-<span>def <span class="ident">get_lut</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_lut(self):
-    
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    ds = self.ds
-
-    redColour = list(ds.RedPaletteColorLookupTableData)
-    greenColour = list(ds.GreenPaletteColorLookupTableData)
-    blueColour = list(ds.BluePaletteColorLookupTableData)
-    redLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
-    greenLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
-    blueLut = list(struct.unpack(&#39;&lt;&#39; + (&#39;H&#39; * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
-    colours = np.transpose([redLut, greenLut, blueLut])
-    normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
-    # Fast ColourTable loading
-    colourTable = np.around(colours/normaliseFactor, decimals = 2)
-    indexes = np.unique(colourTable, axis=0, return_index=True)[1]
-    lut = [colourTable[index].tolist() for index in sorted(indexes)]
-    # Full / Complete Colourmap - takes 20 seconds to load each image
-    # lut = (colours/normaliseFactor).tolist()   
-    if on_disk: self.clear()
-    return lut      </code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.set_colormap"><code class="name flex">
-<span>def <span class="ident">set_colormap</span></span>(<span>self, colormap=None, levels=None)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Set the colour table of the image.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def set_colormap(self, colormap=None, levels=None):
-    &#34;&#34;&#34;Set the colour table of the image.&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    ds = self.ds
-
-    #and (colormap != &#39;gray&#39;) removed from If statement below, so as to save gray colour tables
-    if (colormap == &#39;gray&#39;):
-        ds.PhotometricInterpretation = &#39;MONOCHROME2&#39;
-        ds.ContentLabel = &#39;&#39;
-        if hasattr(ds, &#39;RedPaletteColorLookupTableData&#39;):
-            del (ds.RGBLUTTransferFunction, ds.RedPaletteColorLookupTableData,
-                ds.GreenPaletteColorLookupTableData, ds.BluePaletteColorLookupTableData,
-                ds.RedPaletteColorLookupTableDescriptor, ds.GreenPaletteColorLookupTableDescriptor,
-                ds.BluePaletteColorLookupTableDescriptor)
-    if ((colormap is not None)  and (colormap != &#39;custom&#39;) and (colormap != &#39;gray&#39;) 
-        and (colormap != &#39;default&#39;) and isinstance(colormap, str)):
-        ds.PhotometricInterpretation = &#39;PALETTE COLOR&#39;
-        ds.RGBLUTTransferFunction = &#39;TABLE&#39;
-        ds.ContentLabel = colormap
-        stringType = &#39;US&#39; # (&#39;SS&#39; if minValue &lt; 0 else &#39;US&#39;)
-        ds.PixelRepresentation = 0 # (1 if minValue &lt; 0 else 0)
-        pixelArray = ds.pixel_array
-        minValue = int(np.amin(pixelArray))
-        maxValue = int(np.amax(pixelArray))
-        numberOfValues = int(maxValue - minValue)
-        arrayForRGB = np.arange(0, numberOfValues)
-        colorsList = cm.ScalarMappable(cmap=colormap).to_rgba(np.array(arrayForRGB), bytes=False)
-        totalBytes = ds.BitsAllocated
-        ds.add_new(&#39;0x00281101&#39;, stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new(&#39;0x00281102&#39;, stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new(&#39;0x00281103&#39;, stringType, [numberOfValues, minValue, totalBytes])
-        ds.RedPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 0].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-        ds.GreenPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 1].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-        ds.BluePaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 2].flatten()]).astype(&#39;uint&#39;+str(totalBytes)))
-    if levels is not None:
-        ds.WindowCenter = levels[0]
-        ds.WindowWidth = levels[1]
-    if on_disk: self.clear()</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.export_as_nifti"><code class="name flex">
-<span>def <span class="ident">export_as_nifti</span></span>(<span>self, directory=None, filename=None)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Export 2D pixel Array in nifty format</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def export_as_nifti(self, directory=None, filename=None):
-    &#34;&#34;&#34;Export 2D pixel Array in nifty format&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    ds = self.ds
-    if directory is None: 
-        directory = self.directory(message=&#39;Please select a folder for the nifty data&#39;)
-    if filename is None:
-        filename = self.SeriesDescription
-    dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
-    niftiObj = nib.Nifti1Instance(np.flipud(np.rot90(np.transpose(self.array()))), affine=self.affine)
-    # The transpose is necessary in this case to be in line with the rest of WEASEL.
-    niftiObj.header.extensions.append(dicomHeader)
-    nib.save(niftiObj, directory + &#39;/&#39; + filename + &#39;.nii.gz&#39;)
-    if on_disk: self.clear()</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.export_as_csv"><code class="name flex">
-<span>def <span class="ident">export_as_csv</span></span>(<span>self, directory=None, filename=None, columnHeaders=None)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Export 2D pixel Array in csv format</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def export_as_csv(self, directory=None, filename=None, columnHeaders=None):
-    &#34;&#34;&#34;Export 2D pixel Array in csv format&#34;&#34;&#34;
-
-    if directory is None: 
-        directory = self.directory(message=&#39;Please select a folder for the csv data&#39;)
-    if filename is None:
-        filename = self.SeriesDescription
-    filename = os.path.join(directory, filename + &#39;.csv&#39;)
-    table = self.array()
-    if columnHeaders is None:
-        columnHeaders = []
-        counter = 0
-        for _ in table:
-            counter += 1
-            columnHeaders.append(&#34;Column&#34; + str(counter))
-    df = pd.DataFrame(np.transpose(table), columns=columnHeaders)
-    df.to_csv(filename, index=False) </code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.export_as_png"><code class="name flex">
-<span>def <span class="ident">export_as_png</span></span>(<span>self, fileName)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Export image in png format.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def export_as_png(self, fileName):
-    &#34;&#34;&#34;Export image in png format.&#34;&#34;&#34;
-
-    colourTable, _ = self.get_colormap()
-    pixelArray = np.transpose(self.array())
-    centre, width = self.window()
-    minValue = centre - width/2
-    maxValue = centre + width/2
-    cmap = plt.get_cmap(colourTable)
-    plt.imshow(pixelArray, cmap=cmap)
-    plt.clim(int(minValue), int(maxValue))
-    cBar = plt.colorbar()
-    cBar.minorticks_on()
-    plt.savefig(fname=fileName + &#39;_&#39; + self.label() + &#39;.png&#39;)
-    plt.close()</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.window"><code class="name flex">
-<span>def <span class="ident">window</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Centre and width of the pixel data after applying rescale slope and intercept</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def window(self):
-    &#34;&#34;&#34;Centre and width of the pixel data after applying rescale slope and intercept&#34;&#34;&#34;
-
-    on_disk = self.on_disk()
-    if on_disk: self.read()
-    if &#39;WindowCenter&#39; in self.ds: centre = self.ds.WindowCenter
-    if &#39;WindowWidth&#39; in self.ds: width = self.ds.WindowWidth
-    if centre is None or width is None:
-        array = self.array()
-    if centre is None: 
-        centre = np.median(array)
-    if width is None: 
-        p = np.percentile(array, [25, 75])
-        width = p[1] - p[0]
-    if on_disk: self.clear()
-    return centre, width</code></pre>
-</details>
-</dd>
-<dt id="dbdicom.classes.image.Image.QImage"><code class="name flex">
-<span>def <span class="ident">QImage</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def QImage(self):
-
-    width = self.WindowWidth
-    center = self.WindowCenter
     imgData, alpha = _makeARGB(
-        data = self.array(), 
+        data = array, 
         levels = [center-width/2, center+width/2],
     )
     return _makeQImage(imgData, alpha)</code></pre>
 </details>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="dbdicom.classes.instance.Instance" href="instance.html#dbdicom.classes.instance.Instance">Instance</a></b></code>:
-<ul class="hlist">
-<li><code><a title="dbdicom.classes.instance.Instance.check" href="record.html#dbdicom.classes.record.Record.check">check</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.children" href="record.html#dbdicom.classes.record.Record.children">children</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.clear" href="instance.html#dbdicom.classes.instance.Instance.clear">clear</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.copy" href="record.html#dbdicom.classes.record.Record.copy">copy</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.copy_to" href="instance.html#dbdicom.classes.instance.Instance.copy_to">copy_to</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.data" href="record.html#dbdicom.classes.record.Record.data">data</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.dataset" href="record.html#dbdicom.classes.record.Record.dataset">dataset</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.export" href="instance.html#dbdicom.classes.instance.Instance.export">export</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.file" href="instance.html#dbdicom.classes.instance.Instance.file">file</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.files" href="record.html#dbdicom.classes.record.Record.files">files</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.in_memory" href="record.html#dbdicom.classes.record.Record.in_memory">in_memory</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.instances" href="record.html#dbdicom.classes.record.Record.instances">instances</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.is_checked" href="record.html#dbdicom.classes.record.Record.is_checked">is_checked</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.key" href="record.html#dbdicom.classes.record.Record.key">key</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.move" href="record.html#dbdicom.classes.record.Record.move">move</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.move_to" href="record.html#dbdicom.classes.record.Record.move_to">move_to</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.new_child" href="record.html#dbdicom.classes.record.Record.new_child">new_child</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.new_pibling" href="record.html#dbdicom.classes.record.Record.new_pibling">new_pibling</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.new_series" href="record.html#dbdicom.classes.record.Record.new_series">new_series</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.new_sibling" href="record.html#dbdicom.classes.record.Record.new_sibling">new_sibling</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.parent" href="record.html#dbdicom.classes.record.Record.parent">parent</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.patients" href="record.html#dbdicom.classes.record.Record.patients">patients</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.read" href="instance.html#dbdicom.classes.instance.Instance.read">read</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.records" href="record.html#dbdicom.classes.record.Record.records">records</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.remove" href="record.html#dbdicom.classes.record.Record.remove">remove</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.restore" href="instance.html#dbdicom.classes.instance.Instance.restore">restore</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.save" href="instance.html#dbdicom.classes.instance.Instance.save">save</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.series" href="record.html#dbdicom.classes.record.Record.series">series</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.set_array" href="record.html#dbdicom.classes.record.Record.set_array">set_array</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.set_checked" href="record.html#dbdicom.classes.record.Record.set_checked">set_checked</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.studies" href="record.html#dbdicom.classes.record.Record.studies">studies</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.uncheck" href="record.html#dbdicom.classes.record.Record.uncheck">uncheck</a></code></li>
-<li><code><a title="dbdicom.classes.instance.Instance.write" href="instance.html#dbdicom.classes.instance.Instance.write">write</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-</dl>
+</section>
+<section>
 </section>
 </article>
 <nav id="sidebar">
@@ -1474,27 +695,9 @@ def _rescaleData(data, scale, offset, dtype=None, clip=None):
 <li><code><a title="dbdicom.classes" href="index.html">dbdicom.classes</a></code></li>
 </ul>
 </li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="dbdicom.classes.image.Image" href="#dbdicom.classes.image.Image">Image</a></code></h4>
-<ul class="two-column">
-<li><code><a title="dbdicom.classes.image.Image.array" href="#dbdicom.classes.image.Image.array">array</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.clip" href="#dbdicom.classes.image.Image.clip">clip</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.scale_to_range" href="#dbdicom.classes.image.Image.scale_to_range">scale_to_range</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.zeros" href="#dbdicom.classes.image.Image.zeros">zeros</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.map_onto" href="#dbdicom.classes.image.Image.map_onto">map_onto</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.affine_matrix" href="#dbdicom.classes.image.Image.affine_matrix">affine_matrix</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.get_colormap" href="#dbdicom.classes.image.Image.get_colormap">get_colormap</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.get_lut" href="#dbdicom.classes.image.Image.get_lut">get_lut</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.set_colormap" href="#dbdicom.classes.image.Image.set_colormap">set_colormap</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_nifti" href="#dbdicom.classes.image.Image.export_as_nifti">export_as_nifti</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_csv" href="#dbdicom.classes.image.Image.export_as_csv">export_as_csv</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.export_as_png" href="#dbdicom.classes.image.Image.export_as_png">export_as_png</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.window" href="#dbdicom.classes.image.Image.window">window</a></code></li>
-<li><code><a title="dbdicom.classes.image.Image.QImage" href="#dbdicom.classes.image.Image.QImage">QImage</a></code></li>
-</ul>
-</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="dbdicom.classes.image.QImage" href="#dbdicom.classes.image.QImage">QImage</a></code></li>
 </ul>
 </li>
 </ul>
