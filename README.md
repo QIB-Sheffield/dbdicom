@@ -30,14 +30,14 @@ Use `scan()` to force a rereading of the folder. This may
 be of use when files have become corrupted, 
 or have been removed/modified by external applications:
 
-```ruby
+```python
 folder.scan()
 ```
 
 After making changes to the DICOM data, the folder should be closed 
 properly so any changes can be either saved or rolled back as needed:
 
-```ruby
+```python
 folder.close()
 ```
 
@@ -57,7 +57,7 @@ a physical reference object, or a digital reference object.
 
 To return a list of all patients, studies, series or instances in the folder: 
 
-```ruby
+```python
 instances = folder.instances()
 series = folder.series()
 studies = folder.studies()
@@ -68,19 +68,19 @@ The same functions can be used to retrieve the children of
 a certain parent object. For instance, 
 to get all studies of a patient:
 
-```ruby
+```python
 studies = patient.studies()
 ```
 
 Or all series under the first of those studies:
 
-```ruby
+```python
 series = studies[0].series()
 ```
 
 Or all instances of a study:
 
-```ruby
+```python
 instances = study.instances()
 ```
 
@@ -88,21 +88,21 @@ And so on for all other levels in the hierarchy.
 Individual objects can also be access directly using 
 indices. For instance to retrieve the first instance in the folder:
 
-```ruby
+```python
 instance = folder.instances(0)
 ```
 
 These can be chained together for convencience, 
 e.g. to get all instances instance of series 5 in study 1 of patient 2:
 
-```ruby
+```python
 instance = folder.patients(2).studies(1).series(5).instances()
 ```
 
 These functions also work to find objects higher up in the hierarchy. 
 For instance, to find the patient of a given series:
 
-```ruby
+```python
 patient = series.patients()
 ```
 
@@ -119,14 +119,14 @@ Each known attribute is identified most easily by a keyword,
 which has a capitalised notation. Objects in the folder 
 can be can also be listed by searching on any DICOM tag:
 
-```ruby
+```python
 instances = folder.instances(PatientName = 'John Dory')
 ```
 
 This will only return the instances for patient John Dory. 
 Objects can also be searched on multiple DICOM tags:
 
-```ruby
+```python
 series = folder.instances(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
@@ -137,7 +137,7 @@ In this case objects are only returned if both conditions are fullfilled.
 Any arbitrary number of conditions can be entered, and 
 higher order objects can be found in the same way:
 
-```ruby
+```python
 studies = folder.studies(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
@@ -146,7 +146,7 @@ studies = folder.studies(
 
 *TO DO* In addition to filtering, the results can also be sorted by attribute:
 
-```ruby
+```python
 studies = folder.studies(
     sortby = 'StudyDate', 
     PatientName = 'John Dory', 
@@ -156,7 +156,7 @@ studies = folder.studies(
 In this case the resulting studies will appear in the list in order of Study Date. 
 Sorting can also be done based on two or more attributes:
 
-```ruby
+```python
 studies = folder.studies(
     sortby = ['PatientName', 'StudyDate', 'StudyDescription']
 )
@@ -165,14 +165,14 @@ studies = folder.studies(
 In this case the result will be a 3-dimensional list. 
 For instance to access all studies of patient 3 do:
 
-```ruby
+```python
 studies[3][:][:]
 ```
 
 As an alternative to calling explicit object types, 
 you can call `children()` and `parent` to move through the hierarchy:
 
-```ruby
+```python
 studies = patient.children()
 patient = studies[0].parent
 ```
@@ -180,7 +180,7 @@ patient = studies[0].parent
 The same convenience functions are available, 
 such as using an index or searching by keywords:
 
-```ruby
+```python
 studies = patient.children(ReferringPhysicianName = 'Dr. No')
 study = patient.children(0)
 ```
@@ -189,7 +189,7 @@ study = patient.children(0)
 
 To remove an object from the folder, call `remove()` on the object:
 
-```ruby
+```python
 study.remove()
 instance.remove()
 ```
@@ -199,7 +199,7 @@ remove() can  be called on Patient, Study, Series or Instances.
 Moving an object to another parent can be done with `move_to()`
 For instance to move a study from one patient to another:
 
-```ruby
+```python
 study = folder.patients(0).studies(0)
 new_parent = folder.patients(1)
 study.move_to(new_parent)
@@ -208,7 +208,7 @@ study.move_to(new_parent)
 Objects can also be moved to objects higher up in the hierarchy.
 Any missing parents will be automatically created. For instance:
 
-```ruby
+```python
 instance = folder.instances(0)
 study = folder.studies(1)
 instance.move_to(study)
@@ -223,7 +223,7 @@ a new series will be created under *study* and used as a parent for *instance*.
 
 A DICOM object can be copied by calling `copy()`: 
 
-```ruby
+```python
 study = folder.patients(0).studies(0)
 new_study = study.copy()
 ```
@@ -232,7 +232,7 @@ This will create a copy of the object in the same parent object,
 i.e. `study.copy()` in the example above has created a new study in patient 0.
 This can be used for instance to copy-paste a study from one patient to another: 
 
-```ruby
+```python
 study = folder.patients(0).studies(0)
 new_parent = folder.patients(1)
 study.copy().move_to(new_parent)
@@ -240,13 +240,13 @@ study.copy().move_to(new_parent)
 
 This is equivalent to using `copy_to()`:
 
-```ruby
+```python
 study.copy_to(new_parent)   
 ```
 
 To create a new object, call `new_child()` on the parent:
 
-```ruby
+```python
 series = study.new_child()
 ```
 
@@ -258,7 +258,7 @@ series = study.new_child()
 To export an object out of the folder to an external folder, 
 call `export()` on any dicom object with the export path as argument:
 
-```ruby
+```python
 series.export(path)
 ```
 
@@ -267,7 +267,7 @@ If no path is given then the user will be asked to select one.
 *TO DO* Equivalently to import DICOM files from an external folder,
 call `import()` with a list of files:
 
-```ruby
+```python
 folder.import(files)
 ```
 
@@ -281,20 +281,20 @@ folder.import(files)
 
 An object's DICOM attributes can be read by using the DICOM keyword of the attribute:
 
-```ruby
+```python
 dimensions = [instance.Rows, instance.Columns]
 ```
 
 All attributes can also be accessed at series, study, patient or folder level. 
 In this case they will return a single value taken from their first instance.
 
-```ruby
+```python
 rows = folder.patient(0).series(0).Rows
 ```
 
 To print the Rows for all instances in the series, iterate over them:
 
-```ruby
+```python
 for instance in series.instances():
     print(instance.Rows)
 ```
@@ -302,14 +302,14 @@ for instance in series.instances():
 DICOM attributes can also be accessed using the list notation, 
 using either the keyword as a string or a (group, element) pair.
 
-```ruby
+```python
 columns = instance['Columns']
 columns = instance[(0x0028, 0x0010)]
 ```
 
 The tags can also be accessed as a list, for instance:
 
-```ruby
+```python
 dimensions = ['Rows', (0x0028, 0x0010)]
 dimensions = instance[dimensions] 
 ```
@@ -318,7 +318,7 @@ This will return a list with two items. As shown in the example,
 the items in the list can be either KeyWord strings or (group, element) pairs. 
 This also works on higher-level objects:
 
-```ruby
+```python
 dimensions = ['Rows', (0x0028, 0x0010)]
 dimensions = patient[dimensions] 
 ```
@@ -332,25 +332,25 @@ taken from the first instance of the patient.
 
 DICOM tags can be modified using the same notations:
 
-```ruby
+```python
 instance.EchoTime = 23.0
 ```
 
 or also:
 
-```ruby
+```python
 instance['EchoTime'] = 23.0
 ```
 
 or also:
 
-```ruby
+```python
 instance[(0x0018, 0x0081)] = 23.0
 ```
 
 Multiple tags can be inserted in the same line:
 
-```ruby
+```python
 shape = ['Rows', 'Columns']
 instance[shape] = [128, 192]
 ```
@@ -359,13 +359,13 @@ When setting values in a series, study or patient,
 all the instances in the object will be modified. 
 For instance, to set all the Rows in all instances of a series to 128:
 
-```ruby
+```python
 series.Rows = 128
 ```
 
 This is shorthand for:
 
-```ruby
+```python
 for instance in series.instances():
      instance.Rows = 128
 ```
@@ -377,7 +377,7 @@ for instance in series.instances():
 By default all changes to a DICOM object are made on disk. 
 For instance if a DICOM attribute is changed
 
-```ruby
+```python
 instance.Rows = 128
 ```
 
@@ -391,7 +391,7 @@ For many applications reading and writing from disk is too slow.
 For faster access at the cost of some memory usage, the data
 can be read into memory before performing any manipulations:
 
-```ruby
+```python
 series.read()
 ```
 
@@ -399,14 +399,14 @@ After this all changes are made in memory *only*.
 At any point the changes can be written out again 
 by calling `write()`:
 
-```ruby
+```python
 series.write()
 ```
 
 This will still retain the data in memory for an further editing.
 In order to delete them from memory and free up the space, call `clear()`:
 
-```ruby
+```python
 series.clear()
 ```
 
@@ -419,7 +419,7 @@ These operations can be called on patients, studies, series or instances.
 All changes made in a DICOM folder are reversible until they are saved.
 To save all changes, use `save()`:
 
-```ruby
+```python
 folder.save()
 ```
 
@@ -428,13 +428,13 @@ Changes that are only made in memory will *not* be saved in this way.
 In order to save all changes including this that are made in memory, 
 make sure to call `write()` first. These commands can also be piped for convenience:
 
-```ruby
+```python
 folder.write().save()
 ```
 
 In order to reverse any changes made, use `restore()` to revert back to the last saved state:
 
-```ruby
+```python
 folder.restore()
 ```
 
@@ -442,21 +442,21 @@ This will roll back all changes on disk to the last changed state.
 As for `save()`, changes made in memory alone will not be reversed. 
 In order to restore all changes in memory as well, read the data again after restoring:
 
-```ruby
+```python
 folder.restore().read()
 ```
 
 This will read the entire folder in meomory, which is not usually appropriate. 
 However, `save()` and `restore()` can also be called at the level of individual objects:
 
-```ruby
+```python
 series.restore()
 ```
 
 will reverse all changes made since the last save, but only for this series. 
 Equivalently:
 
-```ruby
+```python
 series.save()
 ```
 
@@ -473,7 +473,7 @@ in an easily searchable manner.
 In `dbdicom` such DICOM classes are represented by a separate python class. 
 When an instance or list of instances are generated, for instance through: 
 
-```ruby
+```python
 instances = series.instances()
 ```
 
@@ -484,7 +484,7 @@ inherits functionality from a more general "Image" class.
 This means `instance[0]` automatically has access to functionality relevant for images, 
 such as:
 
-```ruby
+```python
 array = instances[0].array()
 ```
 
@@ -503,7 +503,7 @@ but this will be extended over time as needs arise in ongoing projects.
 *TO DO* DICOM data can be created from scratch by instantiating one of the 
 DICOM classes: 
 
-```ruby
+```python
 new_image = MRImage()
 ```
 
@@ -512,7 +512,7 @@ provide, defaults will be automatically created. At this point
 the image will only exist in memory but can be edited in the usual way. 
 For instance to assign pixel data based on an empty numpy array:
 
-```ruby
+```python
 array = numpy.zeros(128, 128)
 new_image.set_array(array)
 ```
@@ -520,25 +520,25 @@ new_image.set_array(array)
 In order to save the image to disk an instance of the folder class needs to be provided. 
 This can point to an empty folder, or to an existing DICOM database where the new data will be added:
 
-```ruby
+```python
 new_image.folder = Folder('C:\\Users\\MyName\\MyData\\New Folder')
 ```
 
 After setting a folder, the image can be written to disk:
 
-```ruby
+```python
 new_image.write()
 ```
 
 An instance can also be read from a single file:
 
-```ruby
+```python
 image = MRImage('C:\\Users\\steve\\Data\\my_dicom_file.ima')
 ```
 
 Changes to the file can then be made as usual:
 
-```ruby
+```python
 image.PatientName = 'John Dory'
 image.array = numpy.zeros((128,128)
 ```
@@ -557,7 +557,7 @@ dialog and status attributes are available to the folder class, and to any DICOM
 
 The status attribute is used to send messages to the user, or update on progress of a calculation:
 
-```ruby
+```python
 series.status.message("Starting calculation...")
 ```
 
@@ -565,7 +565,7 @@ When operating in command line mode this will simply print the message to the te
 If `dbdicom` is used in a GUI, this will print the same message to the status bar.
 Equivalently, the user can be updated on the progress of a calculation via:
 
-```ruby
+```python
 series.status.message("Calculating..")
 for i in range(length):
     series.status.progress(i, length)
@@ -575,7 +575,7 @@ This will print the message with a percentage progress at each iteraion.
 When used in a GUI, this will update the porgress bar of the GUI. For use in a GUI,
 it is required to reset the progress bar after exiting the loop:
 
-```ruby
+```python
 series.status.hide()
 ```
 
@@ -588,7 +588,7 @@ has performed the appropriate action, such as hitting enter or entering a value.
 In command line operator or scripts the user will be prompted for input at the terminal. 
 When using in a GUI, the user will be prompted via a pop-up. Example:
 
-```ruby
+```python
 series.dialog.question("Do you wish to proceed?", cancel=True)
 ```
 
