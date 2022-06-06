@@ -555,6 +555,11 @@ class Record():
     def __setitem__(self, tags, values):
         """Sets the value of the data element with given tag."""
 
+        # FASTER but needs testing
+        # This also means __setitem__ can be removed from instance class
+        #
+        # db.set_value(self.instances(), dict(zip(tags, values)))
+        
         # LAZY - SLOW
         instances = self.instances()
         self.status.message('Writing DICOM tags..')
