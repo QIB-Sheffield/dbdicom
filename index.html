@@ -24,6 +24,7 @@
 <section id="section-intro">
 <h1 id="dbdicom">dbdicom</h1>
 <p><code><a title="dbdicom" href="#dbdicom">dbdicom</a></code> is a Python interface for reading and writing DICOM databases. </p>
+<p><strong><em>CAUTION: dbdicom is developed in public but is work in progress and backwards compatibility is not guaranteed. It is very likely there WILL be breaking changes in future versions</em></strong></p>
 <h2 id="installation">Installation</h2>
 <p>Run <code>pip install <a title="dbdicom" href="#dbdicom">dbdicom</a></code>.</p>
 <h1 id="browsing-a-dicom-folder">Browsing a DICOM folder</h1>
@@ -116,22 +117,6 @@ higher order objects can be found in the same way:</p>
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
-</code></pre>
-<p><em>TO DO</em> In addition to filtering, the results can also be sorted by attribute:</p>
-<pre><code class="language-python">studies = folder.studies(
-    sortby = 'StudyDate', 
-    PatientName = 'John Dory', 
-)
-</code></pre>
-<p>In this case the resulting studies will appear in the list in order of Study Date.
-Sorting can also be done based on two or more attributes:</p>
-<pre><code class="language-python">studies = folder.studies(
-    sortby = ['PatientName', 'StudyDate', 'StudyDescription']
-)
-</code></pre>
-<p>In this case the result will be a 3-dimensional list.
-For instance to access all studies of patient 3 do:</p>
-<pre><code class="language-python">studies[3][:][:]
 </code></pre>
 <p>As an alternative to calling explicit object types,
 you can call <code>children()</code> and <code>parent</code> to move through the hierarchy:</p>
