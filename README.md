@@ -2,6 +2,8 @@
 
 `dbdicom` is a Python interface for reading and writing DICOM databases. 
 
+***CAUTION: dbdicom is developed in public but is work in progress and backwards compatibility is not guaranteed. It is very likely there WILL be breaking changes in future versions***
+
 ## Installation
 Run `pip install dbdicom`.
 
@@ -142,31 +144,6 @@ studies = folder.studies(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
-```
-
-*TO DO* In addition to filtering, the results can also be sorted by attribute:
-
-```python
-studies = folder.studies(
-    sortby = 'StudyDate', 
-    PatientName = 'John Dory', 
-)
-```
-
-In this case the resulting studies will appear in the list in order of Study Date. 
-Sorting can also be done based on two or more attributes:
-
-```python
-studies = folder.studies(
-    sortby = ['PatientName', 'StudyDate', 'StudyDescription']
-)
-```
-
-In this case the result will be a 3-dimensional list. 
-For instance to access all studies of patient 3 do:
-
-```python
-studies[3][:][:]
 ```
 
 As an alternative to calling explicit object types, 
