@@ -3,6 +3,7 @@ __all__ = ['set_value', 'merge', 'write', 'read', 'find_series', 'move', 'copy']
 import os
 from copy import deepcopy
 import pandas as pd
+import numpy as np
 import pydicom
 from . import utilities
 
@@ -105,9 +106,12 @@ def set_value(instances, status=None, **kwargs):
 
 def copy(instances, series=None, status=None):
 
-    if not isinstance(instances, list):
+    if isinstance(instances, list):
+        pass
+    elif isinstance(instances, np.ndarray):
+        instances = instances.ravel()
+    else:   # scalar value
         instances = [instances]
-    #instances = [deepcopy(i) for i in instances if i is not None]
     instances = [i.__class__(i.folder, UID=i.UID) for i in instances if i is not None]
     if instances == []:
         return []
