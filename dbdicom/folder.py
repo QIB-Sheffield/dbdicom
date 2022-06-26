@@ -36,7 +36,7 @@ class Folder(Database):
         'InstanceNumber', 'AcquisitionTime', 
     ]
 
-    def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
+    def __init__(self, path=None, attributes=None, message='Opening folder..', status=StatusBar(), dialog=Dialog()):
         """Initialise the folder with a path and objects to message to the user.
         
         When used inside a GUI, status and dialog should be instances of the status bar and 
@@ -46,14 +46,20 @@ class Folder(Database):
         # but can be included for faster access in other applications. 
         # The list can be changed or extended by applications.
         self.__dict__['attributes'] = ['SliceLocation']
-        
         self.__dict__['dataframe'] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__['path'] = path
         self.__dict__['status'] = status
         self.__dict__['dialog'] = dialog
         self.__dict__['dicm'] = dicm
 
-        super().__init__(self)
+        # These are anomalies - folder should not inherit DataBase
+        self.__dict__['UID'] = []       
+        self.__dict__['folder'] = self
+        self.__dict__['ds'] = None
+
+        self.set_attributes(attributes, scan=False)
+        self.open(message=message)
+
 
     @property
     def _columns(self):
@@ -69,6 +75,8 @@ class Folder(Database):
         Args:
             attributes: list of DICOM attributes.
         """
+        if attributes is None:
+            return
         # Make sure all columns are unique
         attr = []
         for a in attributes:
@@ -77,7 +85,7 @@ class Folder(Database):
         self.__dict__['attributes'] = attr
         if scan: self.scan()
 
-    def open(self, path=None, message='Opening folder..', unzip=True):
+    def open(self, path=None, message='Opening folder..', unzip=False):
         """Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -116,7 +124,7 @@ class Folder(Database):
             self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self, message='Scanning..', unzip=True):
+    def scan(self, message='Scanning..', unzip=False):
         """
         Reads all files in the folder and summarises key attributes in a table for faster access.
         """
