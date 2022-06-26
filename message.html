@@ -41,7 +41,9 @@
         self._message = message
         print(message)
         
-    def progress(self, value, maximum):
+    def progress(self, value, maximum, message=None):
+        if message is not None:
+            self.message(message)
         perc = str(100*value/maximum)
         print(self._message + &#39; (&#39; + perc + &#39; %)&#39;)
         
@@ -157,7 +159,9 @@ class Dialog():
         self._message = message
         print(message)
         
-    def progress(self, value, maximum):
+    def progress(self, value, maximum, message=None):
+        if message is not None:
+            self.message(message)
         perc = str(100*value/maximum)
         print(self._message + &#39; (&#39; + perc + &#39; %)&#39;)</code></pre>
 </details>
@@ -191,7 +195,7 @@ class Dialog():
 </details>
 </dd>
 <dt id="dbdicom.message.StatusBar.progress"><code class="name flex">
-<span>def <span class="ident">progress</span></span>(<span>self, value, maximum)</span>
+<span>def <span class="ident">progress</span></span>(<span>self, value, maximum, message=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -199,7 +203,9 @@ class Dialog():
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def progress(self, value, maximum):
+<pre><code class="python">def progress(self, value, maximum, message=None):
+    if message is not None:
+        self.message(message)
     perc = str(100*value/maximum)
     print(self._message + &#39; (&#39; + perc + &#39; %)&#39;)</code></pre>
 </details>

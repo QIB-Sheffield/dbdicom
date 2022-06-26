@@ -1,0 +1,1394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>dbdicom.examples API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>dbdicom.examples</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+
+from .folder import Folder
+
+test_folder = &#39;C:\\Users\\steve\\Dropbox\\Data\\WeaselDevSmallBrain&#39;
+test_folder2 = &#39;C:\\Users\\steve\\Dropbox\\Data\\WeaselDevSmallKid&#39;
+test_export_folder = &#39;C:\\Users\\steve\\Dropbox\\Data\\Tmp&#39;
+
+
+def test_df():
+
+    columns = [&#39;Bool&#39;, &#39;Name&#39;, &#39;Age&#39;, &#39;Stream&#39;, &#39;Percentage&#39;]
+    record = {
+        &#39;Bool&#39; : [True, True, False, True, False, True] , 
+        &#39;Name&#39;: [&#39;Ankit&#39;, &#39;Amit&#39;, &#39;Aishwarya&#39;, &#39;Priyanka&#39;, &#39;Priya&#39;, &#39;Shaurya&#39; ],
+        &#39;Age&#39;: [21, 19, 20, 18, 17, 21],
+        &#39;Stream&#39;: [&#39;Math&#39;, &#39;Commerce&#39;, &#39;Science&#39;, &#39;Math&#39;, &#39;Math&#39;, &#39;Science&#39;],
+        &#39;Percentage&#39;: [88, 92, 95, 70, 65, 78] } 
+    df = pd.DataFrame(record, 
+        columns = columns, 
+        index = [&#39;A&#39;,&#39;A&#39;,&#39;C&#39;,None,&#39;E&#39;,&#39;F&#39;])
+    print(df)
+
+def test_set_array_mip():
+    pass
+
+def test_set_slice_array_invert():
+
+    folder = Folder(test_folder2).open() # enhancement: open automatically on init
+    instance = folder.series(12).instances(0)
+    array = instance.array()
+    instance.set_array(-array)
+    array_invert = instance.array()
+
+    print(&#39;These should be equal: &#39;, np.sum(np.square(array)), np.sum(np.square(array_invert)))
+    print(&#39;This should be zero: &#39;, np.sum(np.square(array + array_invert)))
+
+    col = 3
+    fig = plt.figure(figsize=(16,16))
+    i=0
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array)
+    plt.colorbar()
+    i=1
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array_invert)
+    plt.colorbar()
+    i=2
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array+array_invert)
+    plt.colorbar()
+    plt.show()
+    folder.restore()
+
+def test_set_array_invert():
+
+    folder = Folder(test_folder2).open() # enhancement: open automatically on init
+    series = folder.series(12) # T1-MOLLI multi-TI
+    array, _ = series.array()
+    invert = series.copy().set_array(-array)
+    array_invert, _ = invert.array()
+    print(&#39;Round-off error (%): &#39;, 100*np.sum(np.square(array + array_invert))/np.sum(np.square(array)))
+    col = 3
+    fig = plt.figure(figsize=(16,16))
+    i=0
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array[0,:,:])
+    plt.colorbar()
+    i=1
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array_invert[0,:,:])
+    plt.colorbar()
+    i=2
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array[0,:,:]+array_invert[0,:,:])
+    plt.colorbar()
+    plt.show()
+
+    folder.restore()
+
+def test_sort_series():
+
+    folder = Folder(test_folder2).open()
+    series = folder.series(12) # T1-MOLLI multi-TI
+#    data = series.sort([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;])
+    data = series.dataset([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;])
+    print(data[0,0,0,0].__class__.__name__)
+    print(data.shape)
+    print(data[0,0,0,0].SliceLocation)
+    print(data[0,0,0,0].InversionTime)
+    print(data[0,0,0,0].PatientName)
+    loc = [data[z,0,0,0].SliceLocation for z in range(data.shape[0])]
+    print(loc)
+
+def test_read_series_array():
+
+    folder = Folder(test_folder2).open()
+    series = folder.series(12) # T1-MOLLI multi-TI
+    array, data = series.array([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;], pixels_first=True)
+    print(array.shape)
+    print(data.shape)
+    print([data[0,0,0,0].SliceLocation, data[0,0,0,0].InversionTime, data[0,0,0,0].PatientName])
+
+def test_read_and_open():
+
+    folder = Folder(path = test_folder)
+    folder.scan()
+    folder.print()
+    folder.open()
+    folder.print()
+
+def test_retrieve():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    print(&#39;Printing SeriesDescription of all series in the folder&#39;)
+    for series in folder.series():
+        print(series.SeriesDescription)
+    print(&#39;Printing Rows for first series in the folder&#39;)
+    for instance in folder.series(0).instances():
+        print(instance.Rows)
+    print(&#39;Printing PatientName of all patients in the folder&#39;)
+    for patient in folder.patients():
+        print(patient.PatientName)
+    print(&#39;ID of the first patient in the folder&#39;)
+    print(folder.patients(0).PatientID)
+    print(&#39;Description of the second series for the first patient&#39;)
+    print(folder.patients(0).series(1).SeriesDescription)
+    print(&#39;Description of the first series of the first study of the first patient&#39;)
+    print(folder.patients(0).studies(0).series(0).SeriesDescription)
+
+def test_find():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    print(&#39;Find series with series description ax 15 flip and given PatientID&#39;)
+    series = folder.patients(0).series(SeriesDescription=&#34;ax 15 flip&#34;, PatientID=&#39;RIDER Neuro MRI-5244517593&#39;)
+    for s in series: print(s.SeriesDescription) 
+
+def test_read_item_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    tags = [&#39;SeriesDescription&#39;, (0x0010, 0x0020), (0x0010, 0x0020), &#39;PatientID&#39;, (0x0011, 0x0020)]
+    instance = folder.instances(0)
+    print(instance.PatientID)
+    print(instance[tags])
+
+def test_read_item():
+
+    folder = Folder(path = test_folder)  
+    folder.scan()
+    tags = [&#39;SeriesDescription&#39;, (0x0010, 0x0020), (0x0010, 0x0020), &#39;PatientID&#39;, (0x0011, 0x0020)]
+    series = folder.series(0)
+    print(series.PatientID)
+    print(series[tags])
+    patient = folder.patients(0)
+    print(patient[tags])
+
+def test_set_attr_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+
+    slice_loc = instance.SliceLocation
+    print(&#39;Original Slice location: &#39; + str(slice_loc))
+    instance.SliceLocation = slice_loc + 100
+    slice_loc = instance.SliceLocation
+    print(&#39;New Slice location: &#39; + str(slice_loc))
+
+    acq_time = instance.AcquisitionTime
+    print(&#39;Original Acquisition Time: &#39; + str(acq_time))
+    instance.AcquisitionTime = &#39;00.00.00&#39;
+    acq_time = instance.AcquisitionTime
+    print(&#39;New Acquisition location: &#39; + str(acq_time))
+
+    folder.restore()
+
+def test_set_item_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+
+    tags = [&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;, (0x0012, 0x0010)]
+    values = instance[tags]
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    instance[tags] = [0.0, &#39;00:00:00&#39;, &#39;University of Sheffield&#39;]
+    values = instance[tags]
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    folder.restore()
+
+def test_set_item():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    series = folder.series(0)
+    instance = series.instances(1)
+
+    tags = [&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;, (0x0012, 0x0010)]
+    values = series[tags]
+    print(&#39;SERIES&#39;)
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+    values = instance[tags]
+    print(&#39;2nd IMAGE&#39;)
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    series[tags] = [0.0, &#39;00:00:00&#39;, &#39;University of Sheffield&#39;]
+    values = series[tags]
+    print(&#39;SERIES&#39;)
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))
+    values = instance[tags]
+    print(&#39;2nd IMAGE&#39;)
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))    
+
+    folder.restore()
+
+def test_copy_remove_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print()
+    
+    print(&#39;****************************************&#39;)
+    print(&#39;MOVE AND COPY FROM ONE SERIES TO ANOTHER&#39;)
+    print(&#39;****************************************&#39;)
+    
+    parent = folder.patients(0).studies(0).series(7)
+    instance = parent.instances(0)
+    new_parent = folder.patients(0).studies(0).series(6)
+
+    # copy the instance to the new parent and remove the original
+    copy = instance.copy_to(new_parent)
+    instance.remove()
+    folder.print()
+
+    # move the copy back to the original parent
+    # this should restore the situation
+    copy.move_to(parent)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;MOVE AND COPY FROM ONE STUDY TO ANOTHER&#39;)
+    print(&#39;***************************************&#39;)
+
+    # take an instance from the first study
+    # and create a new study for the copies
+    parent = folder.patients(0).studies(0)
+    instance = parent.series(7).instances(0)
+    new_parent = folder.patients(0).new_child()
+
+    # copy the instance to the new parent and remove the original
+    # this is the same as instance.move_to(new_parent) but slower
+    copy = instance.copy_to(new_parent)
+    instance.remove()
+    folder.print()
+
+    # move the copy back to the original parent
+    # this restores the original situation
+    copy.move_to(instance.parent)
+    folder.print()
+
+    folder.restore()
+
+def test_create():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()  
+    patient = folder.new_child()
+    study = patient.new_child()
+    series = study.new_child()
+    instance = series.new_child()
+    print(instance.UID)
+
+def test_copy_remove():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print() 
+    # create a new study and copy the first series to it.
+    study = folder.patients(0).new_child()
+    folder.series(0).copy_to(study)
+    folder.print()
+    folder.restore()
+
+def test_merge():
+
+
+
+    # first create two new patients
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            CREATE 2 NEW PATIENTS      &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient1 = folder.new_child()
+    patient2 = folder.new_child()
+    folder.patients(0).series(0).copy_to(patient1)
+    folder.patients(0).series(1).copy_to(patient2)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE 2 PATIENTS           &#39;)
+    print(&#39;***************************************&#39;)
+
+    # then merge the two new patients into a third
+    patients_to_merge = [patient1, patient2]
+    patient3 = folder.new_child()
+    for patient in patients_to_merge:
+        for study in patient.studies():
+            study.copy_to(patient3)
+    folder.print()
+
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE ALL STUDIES          &#39;)
+    print(&#39;***************************************&#39;)
+
+    # now merge all studies of the new patient 
+    # into a new study of the same patient.
+    studies_to_merge = patient3.studies()
+    new_study = patient3.new_child()
+    for study in studies_to_merge:
+        for series in study.series():
+            series.copy_to(new_study)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE ALL SERIES          &#39;)
+    print(&#39;***************************************&#39;)
+
+    # now merge all series of the new patient into
+    # a new series in a new study of the same patient
+    series_to_merge = patient3.series()
+    new_study = patient3.new_child()
+    new_series = new_study.new_child()
+    for series in series_to_merge:
+        for instance in series.instances():
+            instance.copy_to(new_series)
+    folder.print()
+
+    folder.restore()
+
+
+def test_save_restore():
+
+    print(&#39;***************************************&#39;)
+    print(&#39;            ORIGINAL FOLDER            &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print()
+
+    # copy the first series into a new patient
+
+    print(&#39;***************************************&#39;)
+    print(&#39;        NEW PATIENT CREATED            &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient = folder.new_child()
+    folder.series(0).copy_to(patient)
+    folder.print()
+
+    # restore and print again
+
+    print(&#39;***************************************&#39;)
+    print(&#39;       ORIGINAL FOLDER RESTORED        &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder.restore()
+    folder.print()
+
+    # copy the first series into a new patient
+
+    print(&#39;***************************************&#39;)
+    print(&#39;       NEW PATIENT CREATED AGAIN       &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient = folder.new_child()
+    folder.series(0).copy_to(patient)
+    folder.print()
+
+    # save and print again
+
+    print(&#39;***************************************&#39;)
+    print(&#39;          NEW PATIENT SAVED            &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder.save()
+    folder.print()
+
+def test_read_write_dataset():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    instance = folder.instances(0)
+    ds = instance.read() # work from memory
+    print(&#39;Original rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+
+    ds.Rows = ds.Rows * 2
+    ds.Columns = ds.Columns * 2
+    print(&#39;Modified rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+
+    matrix = [&#39;Rows&#39;,&#39;Columns&#39;]
+    d = instance[matrix]
+    instance[matrix] = [int(d[0]*2), int(d[1]*2)]
+    print(&#39;Modified rows and columns again&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+    
+    ds = instance.read() # read original values from disk again
+    print(&#39;Original rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+    ds.Rows = ds.Rows * 2
+    ds.Columns = ds.Columns * 2
+    instance.write()
+    instance.clear()
+
+    instance.read() # read original values from disk again
+    print(&#39;Modified rows and columns&#39;)
+    print(instance.Rows)
+    print(instance.Columns)
+    instance.clear()
+
+    print(&#39;Modified rows and columns&#39;) #  read from disk
+    print(instance.Rows)
+    print(instance.Columns)
+
+    folder.restore()    
+
+def test_export():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+    instance.export(test_export_folder)
+    series = folder.series(0)
+    series.export(test_export_folder)
+
+def test_SOPClass():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    for instance in folder.instances():
+        print(instance.__class__.__name__)
+
+
+def test_checking():
+
+    folder = Folder(path = test_folder) 
+    folder.open()
+    folder.check()
+    folder.uncheck()
+    series = folder.series(1)
+    print(&#39;The second series in the folder&#39;)
+    print(series.label())
+    series.check()
+    folder.series(0).check()
+    folder.save()
+    print(&#39;The second checked series in the folder&#39;)
+    series = folder.series(checked=True)
+    print(series[1].label())
+    print(&#39;The second of the checked series&#39;)
+    series = folder.series(1, checked=True)
+    print(series.label())
+    instance = series.instances(0)
+    instance.uncheck()
+    series = folder.series(checked=True)
+    print(&#39;Nr of checked series after unchecking an instance&#39;)
+    print(len(series))
+
+
+def test_all():
+
+    test_read_and_open()
+    test_retrieve()
+    test_find()
+    test_read_item_instance()
+    test_read_item()
+    test_set_attr_instance()
+    test_set_item_instance()
+    test_set_item()
+    test_create()
+    test_copy_remove_instance()
+    test_copy_remove()
+    test_merge()
+    test_save_restore()
+    test_read_write_dataset()
+    test_export()
+    test_SOPClass() 
+    test_checking()
+    
+
+
+# For development purposes
+# test_tmp()
+# test_df()
+
+# test_all()
+
+# test_read_and_open()
+# test_retrieve()
+# test_find()
+# test_read_item_instance()
+# test_read_item()
+# test_set_attr_instance()
+# test_set_item_instance()
+# test_set_item()
+# test_copy_remove_instance()
+# test_create()
+# test_copy_remove()
+# test_merge()
+# test_save_restore()
+# test_read_write_dataset()
+# test_export()
+# test_SOPClass()
+# test_checking()
+# test_read_series_array()
+# test_sort_series()
+# test_set_slice_array_invert()
+# test_set_array_invert()
+# test_set_array_mip()</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="dbdicom.examples.test_df"><code class="name flex">
+<span>def <span class="ident">test_df</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_df():
+
+    columns = [&#39;Bool&#39;, &#39;Name&#39;, &#39;Age&#39;, &#39;Stream&#39;, &#39;Percentage&#39;]
+    record = {
+        &#39;Bool&#39; : [True, True, False, True, False, True] , 
+        &#39;Name&#39;: [&#39;Ankit&#39;, &#39;Amit&#39;, &#39;Aishwarya&#39;, &#39;Priyanka&#39;, &#39;Priya&#39;, &#39;Shaurya&#39; ],
+        &#39;Age&#39;: [21, 19, 20, 18, 17, 21],
+        &#39;Stream&#39;: [&#39;Math&#39;, &#39;Commerce&#39;, &#39;Science&#39;, &#39;Math&#39;, &#39;Math&#39;, &#39;Science&#39;],
+        &#39;Percentage&#39;: [88, 92, 95, 70, 65, 78] } 
+    df = pd.DataFrame(record, 
+        columns = columns, 
+        index = [&#39;A&#39;,&#39;A&#39;,&#39;C&#39;,None,&#39;E&#39;,&#39;F&#39;])
+    print(df)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_array_mip"><code class="name flex">
+<span>def <span class="ident">test_set_array_mip</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_array_mip():
+    pass</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_slice_array_invert"><code class="name flex">
+<span>def <span class="ident">test_set_slice_array_invert</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_slice_array_invert():
+
+    folder = Folder(test_folder2).open() # enhancement: open automatically on init
+    instance = folder.series(12).instances(0)
+    array = instance.array()
+    instance.set_array(-array)
+    array_invert = instance.array()
+
+    print(&#39;These should be equal: &#39;, np.sum(np.square(array)), np.sum(np.square(array_invert)))
+    print(&#39;This should be zero: &#39;, np.sum(np.square(array + array_invert)))
+
+    col = 3
+    fig = plt.figure(figsize=(16,16))
+    i=0
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array)
+    plt.colorbar()
+    i=1
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array_invert)
+    plt.colorbar()
+    i=2
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array+array_invert)
+    plt.colorbar()
+    plt.show()
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_array_invert"><code class="name flex">
+<span>def <span class="ident">test_set_array_invert</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_array_invert():
+
+    folder = Folder(test_folder2).open() # enhancement: open automatically on init
+    series = folder.series(12) # T1-MOLLI multi-TI
+    array, _ = series.array()
+    invert = series.copy().set_array(-array)
+    array_invert, _ = invert.array()
+    print(&#39;Round-off error (%): &#39;, 100*np.sum(np.square(array + array_invert))/np.sum(np.square(array)))
+    col = 3
+    fig = plt.figure(figsize=(16,16))
+    i=0
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array[0,:,:])
+    plt.colorbar()
+    i=1
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array_invert[0,:,:])
+    plt.colorbar()
+    i=2
+    fig.add_subplot(1,col,i+1)
+    plt.imshow(array[0,:,:]+array_invert[0,:,:])
+    plt.colorbar()
+    plt.show()
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_sort_series"><code class="name flex">
+<span>def <span class="ident">test_sort_series</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_sort_series():
+
+    folder = Folder(test_folder2).open()
+    series = folder.series(12) # T1-MOLLI multi-TI
+#    data = series.sort([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;])
+    data = series.dataset([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;])
+    print(data[0,0,0,0].__class__.__name__)
+    print(data.shape)
+    print(data[0,0,0,0].SliceLocation)
+    print(data[0,0,0,0].InversionTime)
+    print(data[0,0,0,0].PatientName)
+    loc = [data[z,0,0,0].SliceLocation for z in range(data.shape[0])]
+    print(loc)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_read_series_array"><code class="name flex">
+<span>def <span class="ident">test_read_series_array</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_read_series_array():
+
+    folder = Folder(test_folder2).open()
+    series = folder.series(12) # T1-MOLLI multi-TI
+    array, data = series.array([&#39;SliceLocation&#39;,&#39;InversionTime&#39;, &#39;PatientName&#39;], pixels_first=True)
+    print(array.shape)
+    print(data.shape)
+    print([data[0,0,0,0].SliceLocation, data[0,0,0,0].InversionTime, data[0,0,0,0].PatientName])</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_read_and_open"><code class="name flex">
+<span>def <span class="ident">test_read_and_open</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_read_and_open():
+
+    folder = Folder(path = test_folder)
+    folder.scan()
+    folder.print()
+    folder.open()
+    folder.print()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_retrieve"><code class="name flex">
+<span>def <span class="ident">test_retrieve</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_retrieve():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    print(&#39;Printing SeriesDescription of all series in the folder&#39;)
+    for series in folder.series():
+        print(series.SeriesDescription)
+    print(&#39;Printing Rows for first series in the folder&#39;)
+    for instance in folder.series(0).instances():
+        print(instance.Rows)
+    print(&#39;Printing PatientName of all patients in the folder&#39;)
+    for patient in folder.patients():
+        print(patient.PatientName)
+    print(&#39;ID of the first patient in the folder&#39;)
+    print(folder.patients(0).PatientID)
+    print(&#39;Description of the second series for the first patient&#39;)
+    print(folder.patients(0).series(1).SeriesDescription)
+    print(&#39;Description of the first series of the first study of the first patient&#39;)
+    print(folder.patients(0).studies(0).series(0).SeriesDescription)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_find"><code class="name flex">
+<span>def <span class="ident">test_find</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_find():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    print(&#39;Find series with series description ax 15 flip and given PatientID&#39;)
+    series = folder.patients(0).series(SeriesDescription=&#34;ax 15 flip&#34;, PatientID=&#39;RIDER Neuro MRI-5244517593&#39;)
+    for s in series: print(s.SeriesDescription) </code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_read_item_instance"><code class="name flex">
+<span>def <span class="ident">test_read_item_instance</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_read_item_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    tags = [&#39;SeriesDescription&#39;, (0x0010, 0x0020), (0x0010, 0x0020), &#39;PatientID&#39;, (0x0011, 0x0020)]
+    instance = folder.instances(0)
+    print(instance.PatientID)
+    print(instance[tags])</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_read_item"><code class="name flex">
+<span>def <span class="ident">test_read_item</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_read_item():
+
+    folder = Folder(path = test_folder)  
+    folder.scan()
+    tags = [&#39;SeriesDescription&#39;, (0x0010, 0x0020), (0x0010, 0x0020), &#39;PatientID&#39;, (0x0011, 0x0020)]
+    series = folder.series(0)
+    print(series.PatientID)
+    print(series[tags])
+    patient = folder.patients(0)
+    print(patient[tags])</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_attr_instance"><code class="name flex">
+<span>def <span class="ident">test_set_attr_instance</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_attr_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+
+    slice_loc = instance.SliceLocation
+    print(&#39;Original Slice location: &#39; + str(slice_loc))
+    instance.SliceLocation = slice_loc + 100
+    slice_loc = instance.SliceLocation
+    print(&#39;New Slice location: &#39; + str(slice_loc))
+
+    acq_time = instance.AcquisitionTime
+    print(&#39;Original Acquisition Time: &#39; + str(acq_time))
+    instance.AcquisitionTime = &#39;00.00.00&#39;
+    acq_time = instance.AcquisitionTime
+    print(&#39;New Acquisition location: &#39; + str(acq_time))
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_item_instance"><code class="name flex">
+<span>def <span class="ident">test_set_item_instance</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_item_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+
+    tags = [&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;, (0x0012, 0x0010)]
+    values = instance[tags]
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    instance[tags] = [0.0, &#39;00:00:00&#39;, &#39;University of Sheffield&#39;]
+    values = instance[tags]
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_set_item"><code class="name flex">
+<span>def <span class="ident">test_set_item</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_set_item():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    series = folder.series(0)
+    instance = series.instances(1)
+
+    tags = [&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;, (0x0012, 0x0010)]
+    values = series[tags]
+    print(&#39;SERIES&#39;)
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+    values = instance[tags]
+    print(&#39;2nd IMAGE&#39;)
+    print(&#39;Original Slice location: &#39; + str(values[0]))
+    print(&#39;Original Acquisition Time: &#39; + str(values[1]))
+    print(&#39;Original Clinical Trial Sponsor: &#39; + str(values[2]))
+
+    series[tags] = [0.0, &#39;00:00:00&#39;, &#39;University of Sheffield&#39;]
+    values = series[tags]
+    print(&#39;SERIES&#39;)
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))
+    values = instance[tags]
+    print(&#39;2nd IMAGE&#39;)
+    print(&#39;New Slice location: &#39; + str(values[0]))
+    print(&#39;New Acquisition Time: &#39; + str(values[1]))
+    print(&#39;New Clinical Trial Sponsor: &#39; + str(values[2]))    
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_copy_remove_instance"><code class="name flex">
+<span>def <span class="ident">test_copy_remove_instance</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_copy_remove_instance():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print()
+    
+    print(&#39;****************************************&#39;)
+    print(&#39;MOVE AND COPY FROM ONE SERIES TO ANOTHER&#39;)
+    print(&#39;****************************************&#39;)
+    
+    parent = folder.patients(0).studies(0).series(7)
+    instance = parent.instances(0)
+    new_parent = folder.patients(0).studies(0).series(6)
+
+    # copy the instance to the new parent and remove the original
+    copy = instance.copy_to(new_parent)
+    instance.remove()
+    folder.print()
+
+    # move the copy back to the original parent
+    # this should restore the situation
+    copy.move_to(parent)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;MOVE AND COPY FROM ONE STUDY TO ANOTHER&#39;)
+    print(&#39;***************************************&#39;)
+
+    # take an instance from the first study
+    # and create a new study for the copies
+    parent = folder.patients(0).studies(0)
+    instance = parent.series(7).instances(0)
+    new_parent = folder.patients(0).new_child()
+
+    # copy the instance to the new parent and remove the original
+    # this is the same as instance.move_to(new_parent) but slower
+    copy = instance.copy_to(new_parent)
+    instance.remove()
+    folder.print()
+
+    # move the copy back to the original parent
+    # this restores the original situation
+    copy.move_to(instance.parent)
+    folder.print()
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_create"><code class="name flex">
+<span>def <span class="ident">test_create</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_create():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()  
+    patient = folder.new_child()
+    study = patient.new_child()
+    series = study.new_child()
+    instance = series.new_child()
+    print(instance.UID)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_copy_remove"><code class="name flex">
+<span>def <span class="ident">test_copy_remove</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_copy_remove():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print() 
+    # create a new study and copy the first series to it.
+    study = folder.patients(0).new_child()
+    folder.series(0).copy_to(study)
+    folder.print()
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_merge"><code class="name flex">
+<span>def <span class="ident">test_merge</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_merge():
+
+
+
+    # first create two new patients
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            CREATE 2 NEW PATIENTS      &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient1 = folder.new_child()
+    patient2 = folder.new_child()
+    folder.patients(0).series(0).copy_to(patient1)
+    folder.patients(0).series(1).copy_to(patient2)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE 2 PATIENTS           &#39;)
+    print(&#39;***************************************&#39;)
+
+    # then merge the two new patients into a third
+    patients_to_merge = [patient1, patient2]
+    patient3 = folder.new_child()
+    for patient in patients_to_merge:
+        for study in patient.studies():
+            study.copy_to(patient3)
+    folder.print()
+
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE ALL STUDIES          &#39;)
+    print(&#39;***************************************&#39;)
+
+    # now merge all studies of the new patient 
+    # into a new study of the same patient.
+    studies_to_merge = patient3.studies()
+    new_study = patient3.new_child()
+    for study in studies_to_merge:
+        for series in study.series():
+            series.copy_to(new_study)
+    folder.print()
+
+    print(&#39;&#39;)
+    print(&#39;***************************************&#39;)
+    print(&#39;            MERGE ALL SERIES          &#39;)
+    print(&#39;***************************************&#39;)
+
+    # now merge all series of the new patient into
+    # a new series in a new study of the same patient
+    series_to_merge = patient3.series()
+    new_study = patient3.new_child()
+    new_series = new_study.new_child()
+    for series in series_to_merge:
+        for instance in series.instances():
+            instance.copy_to(new_series)
+    folder.print()
+
+    folder.restore()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_save_restore"><code class="name flex">
+<span>def <span class="ident">test_save_restore</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_save_restore():
+
+    print(&#39;***************************************&#39;)
+    print(&#39;            ORIGINAL FOLDER            &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    folder.print()
+
+    # copy the first series into a new patient
+
+    print(&#39;***************************************&#39;)
+    print(&#39;        NEW PATIENT CREATED            &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient = folder.new_child()
+    folder.series(0).copy_to(patient)
+    folder.print()
+
+    # restore and print again
+
+    print(&#39;***************************************&#39;)
+    print(&#39;       ORIGINAL FOLDER RESTORED        &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder.restore()
+    folder.print()
+
+    # copy the first series into a new patient
+
+    print(&#39;***************************************&#39;)
+    print(&#39;       NEW PATIENT CREATED AGAIN       &#39;)
+    print(&#39;***************************************&#39;)
+
+    patient = folder.new_child()
+    folder.series(0).copy_to(patient)
+    folder.print()
+
+    # save and print again
+
+    print(&#39;***************************************&#39;)
+    print(&#39;          NEW PATIENT SAVED            &#39;)
+    print(&#39;***************************************&#39;)
+
+    folder.save()
+    folder.print()</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_read_write_dataset"><code class="name flex">
+<span>def <span class="ident">test_read_write_dataset</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_read_write_dataset():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+
+    instance = folder.instances(0)
+    ds = instance.read() # work from memory
+    print(&#39;Original rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+
+    ds.Rows = ds.Rows * 2
+    ds.Columns = ds.Columns * 2
+    print(&#39;Modified rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+
+    matrix = [&#39;Rows&#39;,&#39;Columns&#39;]
+    d = instance[matrix]
+    instance[matrix] = [int(d[0]*2), int(d[1]*2)]
+    print(&#39;Modified rows and columns again&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+    
+    ds = instance.read() # read original values from disk again
+    print(&#39;Original rows and columns&#39;)
+    print(ds.Rows)
+    print(ds.Columns)
+    ds.Rows = ds.Rows * 2
+    ds.Columns = ds.Columns * 2
+    instance.write()
+    instance.clear()
+
+    instance.read() # read original values from disk again
+    print(&#39;Modified rows and columns&#39;)
+    print(instance.Rows)
+    print(instance.Columns)
+    instance.clear()
+
+    print(&#39;Modified rows and columns&#39;) #  read from disk
+    print(instance.Rows)
+    print(instance.Columns)
+
+    folder.restore()    </code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_export"><code class="name flex">
+<span>def <span class="ident">test_export</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_export():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    instance = folder.instances(0)
+    instance.export(test_export_folder)
+    series = folder.series(0)
+    series.export(test_export_folder)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_SOPClass"><code class="name flex">
+<span>def <span class="ident">test_SOPClass</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_SOPClass():
+
+    folder = Folder(path = test_folder) 
+    folder.scan()
+    for instance in folder.instances():
+        print(instance.__class__.__name__)</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_checking"><code class="name flex">
+<span>def <span class="ident">test_checking</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_checking():
+
+    folder = Folder(path = test_folder) 
+    folder.open()
+    folder.check()
+    folder.uncheck()
+    series = folder.series(1)
+    print(&#39;The second series in the folder&#39;)
+    print(series.label())
+    series.check()
+    folder.series(0).check()
+    folder.save()
+    print(&#39;The second checked series in the folder&#39;)
+    series = folder.series(checked=True)
+    print(series[1].label())
+    print(&#39;The second of the checked series&#39;)
+    series = folder.series(1, checked=True)
+    print(series.label())
+    instance = series.instances(0)
+    instance.uncheck()
+    series = folder.series(checked=True)
+    print(&#39;Nr of checked series after unchecking an instance&#39;)
+    print(len(series))</code></pre>
+</details>
+</dd>
+<dt id="dbdicom.examples.test_all"><code class="name flex">
+<span>def <span class="ident">test_all</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_all():
+
+    test_read_and_open()
+    test_retrieve()
+    test_find()
+    test_read_item_instance()
+    test_read_item()
+    test_set_attr_instance()
+    test_set_item_instance()
+    test_set_item()
+    test_create()
+    test_copy_remove_instance()
+    test_copy_remove()
+    test_merge()
+    test_save_restore()
+    test_read_write_dataset()
+    test_export()
+    test_SOPClass() 
+    test_checking()</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="dbdicom" href="index.html">dbdicom</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="dbdicom.examples.test_df" href="#dbdicom.examples.test_df">test_df</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_array_mip" href="#dbdicom.examples.test_set_array_mip">test_set_array_mip</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_slice_array_invert" href="#dbdicom.examples.test_set_slice_array_invert">test_set_slice_array_invert</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_array_invert" href="#dbdicom.examples.test_set_array_invert">test_set_array_invert</a></code></li>
+<li><code><a title="dbdicom.examples.test_sort_series" href="#dbdicom.examples.test_sort_series">test_sort_series</a></code></li>
+<li><code><a title="dbdicom.examples.test_read_series_array" href="#dbdicom.examples.test_read_series_array">test_read_series_array</a></code></li>
+<li><code><a title="dbdicom.examples.test_read_and_open" href="#dbdicom.examples.test_read_and_open">test_read_and_open</a></code></li>
+<li><code><a title="dbdicom.examples.test_retrieve" href="#dbdicom.examples.test_retrieve">test_retrieve</a></code></li>
+<li><code><a title="dbdicom.examples.test_find" href="#dbdicom.examples.test_find">test_find</a></code></li>
+<li><code><a title="dbdicom.examples.test_read_item_instance" href="#dbdicom.examples.test_read_item_instance">test_read_item_instance</a></code></li>
+<li><code><a title="dbdicom.examples.test_read_item" href="#dbdicom.examples.test_read_item">test_read_item</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_attr_instance" href="#dbdicom.examples.test_set_attr_instance">test_set_attr_instance</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_item_instance" href="#dbdicom.examples.test_set_item_instance">test_set_item_instance</a></code></li>
+<li><code><a title="dbdicom.examples.test_set_item" href="#dbdicom.examples.test_set_item">test_set_item</a></code></li>
+<li><code><a title="dbdicom.examples.test_copy_remove_instance" href="#dbdicom.examples.test_copy_remove_instance">test_copy_remove_instance</a></code></li>
+<li><code><a title="dbdicom.examples.test_create" href="#dbdicom.examples.test_create">test_create</a></code></li>
+<li><code><a title="dbdicom.examples.test_copy_remove" href="#dbdicom.examples.test_copy_remove">test_copy_remove</a></code></li>
+<li><code><a title="dbdicom.examples.test_merge" href="#dbdicom.examples.test_merge">test_merge</a></code></li>
+<li><code><a title="dbdicom.examples.test_save_restore" href="#dbdicom.examples.test_save_restore">test_save_restore</a></code></li>
+<li><code><a title="dbdicom.examples.test_read_write_dataset" href="#dbdicom.examples.test_read_write_dataset">test_read_write_dataset</a></code></li>
+<li><code><a title="dbdicom.examples.test_export" href="#dbdicom.examples.test_export">test_export</a></code></li>
+<li><code><a title="dbdicom.examples.test_SOPClass" href="#dbdicom.examples.test_SOPClass">test_SOPClass</a></code></li>
+<li><code><a title="dbdicom.examples.test_checking" href="#dbdicom.examples.test_checking">test_checking</a></code></li>
+<li><code><a title="dbdicom.examples.test_all" href="#dbdicom.examples.test_all">test_all</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

@@ -74,7 +74,7 @@ class Folder(Database):
         &#39;InstanceNumber&#39;, &#39;AcquisitionTime&#39;, 
     ]
 
-    def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
+    def __init__(self, path=None, attributes=None, message=&#39;Opening folder..&#39;, status=StatusBar(), dialog=Dialog()):
         &#34;&#34;&#34;Initialise the folder with a path and objects to message to the user.
         
         When used inside a GUI, status and dialog should be instances of the status bar and 
@@ -84,14 +84,20 @@ class Folder(Database):
         # but can be included for faster access in other applications. 
         # The list can be changed or extended by applications.
         self.__dict__[&#39;attributes&#39;] = [&#39;SliceLocation&#39;]
-        
         self.__dict__[&#39;dataframe&#39;] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__[&#39;path&#39;] = path
         self.__dict__[&#39;status&#39;] = status
         self.__dict__[&#39;dialog&#39;] = dialog
         self.__dict__[&#39;dicm&#39;] = dicm
 
-        super().__init__(self)
+        # These are anomalies - folder should not inherit DataBase
+        self.__dict__[&#39;UID&#39;] = []       
+        self.__dict__[&#39;folder&#39;] = self
+        self.__dict__[&#39;ds&#39;] = None
+
+        self.set_attributes(attributes, scan=False)
+        self.open(message=message)
+
 
     @property
     def _columns(self):
@@ -107,6 +113,8 @@ class Folder(Database):
         Args:
             attributes: list of DICOM attributes.
         &#34;&#34;&#34;
+        if attributes is None:
+            return
         # Make sure all columns are unique
         attr = []
         for a in attributes:
@@ -115,7 +123,7 @@ class Folder(Database):
         self.__dict__[&#39;attributes&#39;] = attr
         if scan: self.scan()
 
-    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
+    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=False):
         &#34;&#34;&#34;Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -154,7 +162,7 @@ class Folder(Database):
             self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self, message=&#39;Scanning..&#39;, unzip=True):
+    def scan(self, message=&#39;Scanning..&#39;, unzip=False):
         &#34;&#34;&#34;
         Reads all files in the folder and summarises key attributes in a table for faster access.
         &#34;&#34;&#34;
@@ -418,7 +426,7 @@ class Folder(Database):
 <dl>
 <dt id="dbdicom.folder.Folder"><code class="flex name class">
 <span>class <span class="ident">Folder</span></span>
-<span>(</span><span>path=None, status=&lt;dbdicom.message.StatusBar object&gt;, dialog=&lt;dbdicom.message.Dialog object&gt;)</span>
+<span>(</span><span>path=None, attributes=None, message='Opening folder..', status=&lt;dbdicom.message.StatusBar object&gt;, dialog=&lt;dbdicom.message.Dialog object&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Programming interface for reading and writing a DICOM folder.</p>
@@ -443,7 +451,7 @@ dialog class defined in <code>weasel</code>.</p></div>
         &#39;InstanceNumber&#39;, &#39;AcquisitionTime&#39;, 
     ]
 
-    def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
+    def __init__(self, path=None, attributes=None, message=&#39;Opening folder..&#39;, status=StatusBar(), dialog=Dialog()):
         &#34;&#34;&#34;Initialise the folder with a path and objects to message to the user.
         
         When used inside a GUI, status and dialog should be instances of the status bar and 
@@ -453,14 +461,20 @@ dialog class defined in <code>weasel</code>.</p></div>
         # but can be included for faster access in other applications. 
         # The list can be changed or extended by applications.
         self.__dict__[&#39;attributes&#39;] = [&#39;SliceLocation&#39;]
-        
         self.__dict__[&#39;dataframe&#39;] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
         self.__dict__[&#39;path&#39;] = path
         self.__dict__[&#39;status&#39;] = status
         self.__dict__[&#39;dialog&#39;] = dialog
         self.__dict__[&#39;dicm&#39;] = dicm
 
-        super().__init__(self)
+        # These are anomalies - folder should not inherit DataBase
+        self.__dict__[&#39;UID&#39;] = []       
+        self.__dict__[&#39;folder&#39;] = self
+        self.__dict__[&#39;ds&#39;] = None
+
+        self.set_attributes(attributes, scan=False)
+        self.open(message=message)
+
 
     @property
     def _columns(self):
@@ -476,6 +490,8 @@ dialog class defined in <code>weasel</code>.</p></div>
         Args:
             attributes: list of DICOM attributes.
         &#34;&#34;&#34;
+        if attributes is None:
+            return
         # Make sure all columns are unique
         attr = []
         for a in attributes:
@@ -484,7 +500,7 @@ dialog class defined in <code>weasel</code>.</p></div>
         self.__dict__[&#39;attributes&#39;] = attr
         if scan: self.scan()
 
-    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
+    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=False):
         &#34;&#34;&#34;Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -523,7 +539,7 @@ dialog class defined in <code>weasel</code>.</p></div>
             self.scan(message=message, unzip=unzip)
         return self
 
-    def scan(self, message=&#39;Scanning..&#39;, unzip=True):
+    def scan(self, message=&#39;Scanning..&#39;, unzip=False):
         &#34;&#34;&#34;
         Reads all files in the folder and summarises key attributes in a table for faster access.
         &#34;&#34;&#34;
@@ -814,6 +830,8 @@ as those used for sorting series data.</p>
     Args:
         attributes: list of DICOM attributes.
     &#34;&#34;&#34;
+    if attributes is None:
+        return
     # Make sure all columns are unique
     attr = []
     for a in attributes:
@@ -824,7 +842,7 @@ as those used for sorting series data.</p>
 </details>
 </dd>
 <dt id="dbdicom.folder.Folder.open"><code class="name flex">
-<span>def <span class="ident">open</span></span>(<span>self, path=None, message='Opening folder..', unzip=True)</span>
+<span>def <span class="ident">open</span></span>(<span>self, path=None, message='Opening folder..', unzip=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Opens a DICOM folder for read and write.</p>
@@ -844,7 +862,7 @@ piping notation as in <code>inst = folder.open().instances()</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=True):
+<pre><code class="python">    def open(self, path=None, message=&#39;Opening folder..&#39;, unzip=False):
         &#34;&#34;&#34;Opens a DICOM folder for read and write.
         
         Reads the contents of the folder and summarises all DICOM files
@@ -885,7 +903,7 @@ piping notation as in <code>inst = folder.open().instances()</code>.</p></div>
 </details>
 </dd>
 <dt id="dbdicom.folder.Folder.scan"><code class="name flex">
-<span>def <span class="ident">scan</span></span>(<span>self, message='Scanning..', unzip=True)</span>
+<span>def <span class="ident">scan</span></span>(<span>self, message='Scanning..', unzip=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Reads all files in the folder and summarises key attributes in a table for faster access.</p></div>
@@ -893,7 +911,7 @@ piping notation as in <code>inst = folder.open().instances()</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def scan(self, message=&#39;Scanning..&#39;, unzip=True):
+<pre><code class="python">def scan(self, message=&#39;Scanning..&#39;, unzip=False):
     &#34;&#34;&#34;
     Reads all files in the folder and summarises key attributes in a table for faster access.
     &#34;&#34;&#34;
