@@ -102,7 +102,7 @@ def _unzip_files(path, status):
     files = [entry.path for entry in os.scandir(path) if entry.is_file()]
     zipfiles = []
     for i, file in enumerate(files):
-        status.progress(i, len(files), 'Searching for zipped folders..')
+        status.progress(i, len(files), message='Searching for zipped folders..')
         if zipfile.is_zipfile(file):
             zipfiles.append(file)
     if zipfiles == []:

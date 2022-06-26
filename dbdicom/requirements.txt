@@ -1,0 +1,6 @@
+PyQt5
+matplotlib
+nibabel
+pandas
+pydicom
+pdoc3

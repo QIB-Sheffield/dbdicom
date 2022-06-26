@@ -8,7 +8,6 @@ import json
 # Use README.md as the long description
 with open('README.md', encoding='utf-8') as f:
     long_description = f.read()
-    print(long_description)
 
 with open('requirements.txt', encoding='utf-8') as f:
     required = f.read().splitlines()
