@@ -1,0 +1,60 @@
+
+# minimal required information
+
+[project]
+name = "dbdicom"
+version = "0.0.8"
+dependencies = [
+    "PyQt5", 
+    "matplotlib",
+    "nibabel",
+    "numpy",
+    "pandas",
+    "pydicom",
+    "requests",
+    "base64", 
+]
+
+# optional information
+
+description = "Reading and writing DICOM databases"
+readme = "README.md"
+authors = [
+  { name = "Joao Almeida e Sousa", email = "j.g.sousa@sheffield.ac.uk" }, 
+  { name = "Steven Sourbron", email = "s.sourbron@sheffield.ac.uk" }
+  ]
+license = { file = "LICENSE" }
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  'Development Status :: 3 - Alpha',
+
+  # Indicate who your project is intended for
+  'Intended Audience :: Developers',
+  'Intended Audience :: Science/Research',
+  'Topic :: Scientific/Engineering',
+  'Environment :: Console',
+  'Operating System :: OS Independent',
+
+  'License :: OSI Approved :: Apache Software License',
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3"
+]
+keywords = ['python', "medical imaging", "DICOM"]
+
+requires-python = ">=3.6"
+
+[project.urls]
+"Homepage" = "https://github.com/QIB-Sheffield/dbdicom"
+
+[project.optional-dependencies]
+dev = ["pdoc3"]
+
+
+
+
+
+
+
