@@ -4,5 +4,3 @@ nibabel
 numpy
 pandas
 pydicom
-pdoc3
-requests

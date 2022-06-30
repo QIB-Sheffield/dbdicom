@@ -3,16 +3,14 @@
 
 [project]
 name = "dbdicom"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
     "PyQt5", 
     "matplotlib",
     "nibabel",
     "numpy",
     "pandas",
-    "pydicom",
-    "requests",
-    "base64", 
+    "pydicom", 
 ]
 
 # optional information
@@ -48,9 +46,6 @@ requires-python = ">=3.6"
 
 [project.urls]
 "Homepage" = "https://github.com/QIB-Sheffield/dbdicom"
-
-[project.optional-dependencies]
-dev = ["pdoc3"]
 
 
 
