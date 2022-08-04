@@ -8,34 +8,35 @@ class MRImage(Image):
     def array(self):
         """Read the pixel array from an MR image"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if [0x2005, 0x100E] in self.ds: # 'Philips Rescale Slope'
-            array = self.ds.pixel_array.astype(np.float32)
-            slope = self.ds[(0x2005, 0x100E)].value
-            intercept = self.ds[(0x2005, 0x100D)].value
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
+        if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
+            array = ds.to_pydicom().pixel_array.astype(np.float32)
+            slope = ds[(0x2005, 0x100E)].value
+            intercept = ds[(0x2005, 0x100D)].value
             array -= intercept
             array /= slope
             array = np.transpose(array)
         else:
             array = super().array()
-        if on_disk: self.clear()
+        
         return array
         
     def set_array(self, pixelArray, value_range=None):
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if self.ds is None:
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
+        if ds is None:
             # TODO: Handle this by creating new dataset from scratch
             raise RuntimeError('Cannot set array: no dataset defined on disk or in memory')
-        if (0x2005, 0x100E) in self.ds: del self.ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-        if (0x2005, 0x100D) in self.ds: del self.ds[0x2005, 0x100D]
-        super().set_array(pixelArray, value_range=value_range)
-        #self.write()
-        if on_disk: 
-            self.write()
-            self.clear()
+        ds_pydicom = ds.to_pydicom() # DataSet needs to inherit this functionality
+        if (0x2005, 0x100E) in ds_pydicom: del ds_pydicom[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
+        if (0x2005, 0x100D) in ds_pydicom: del ds_pydicom[0x2005, 0x100D]
+        ds.set_pydicom(ds_pydicom) 
+        if self.__class__.__name__ == 'Record':
+            self.write(ds)
+        super().set_array(pixelArray, value_range=value_range) # not ideal - reads ds twice
+
 
     def image_type(self):
         """Determine if an image is Magnitude, Phase, Real or Imaginary image or None"""

@@ -25,47 +25,45 @@ class Image(Instance):
     def array(self):
         """Read the pixel array from an image"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if self.ds is None: return
-        array = self.ds.pixel_array.astype(np.float32)
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
+        array = ds.to_pydicom().pixel_array.astype(np.float32)
         slope = float(getattr(self.ds, 'RescaleSlope', 1)) 
         intercept = float(getattr(self.ds, 'RescaleIntercept', 0)) 
         #array = array * slope + intercept
         array *= slope
         array += intercept
         array = np.transpose(array)
-        if on_disk: self.clear()
+        
         return array
 
     def set_array(self, array, value_range=None):
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
         
         if array.ndim >= 3: # remove spurious dimensions of 1
             array = np.squeeze(array) 
         array = self.clip(array, value_range=value_range)
-        array, slope, intercept = self.scale_to_range(array, self.ds.BitsAllocated)
+        array, slope, intercept = self.scale_to_range(array, ds.BitsAllocated)
         array = np.transpose(array)
 
         maximum = np.amax(array)
         minimum = np.amin(array)
         shape = np.shape(array)
 
-        self.ds.PixelRepresentation = 0
-        self.ds.SmallestImagePixelValue = int(maximum)
-        self.ds.LargestImagePixelValue = int(minimum)
-        self.ds.RescaleSlope = 1 / slope
-        self.ds.RescaleIntercept = - intercept / slope
-#        self.ds.WindowCenter = (maximum + minimum) / 2
-#        self.ds.WindowWidth = maximum - minimum
-        self.ds.Rows = shape[0]
-        self.ds.Columns = shape[1]
-        self.ds.PixelData = array.tobytes()
-        if on_disk: 
-            self.write()
-            self.clear()
+        ds.PixelRepresentation = 0
+        ds.SmallestImagePixelValue = int(maximum)
+        ds.LargestImagePixelValue = int(minimum)
+        ds.RescaleSlope = 1 / slope
+        ds.RescaleIntercept = - intercept / slope
+#        ds.WindowCenter = (maximum + minimum) / 2
+#        ds.WindowWidth = maximum - minimum
+        ds.Rows = shape[0]
+        ds.Columns = shape[1]
+        ds.PixelData = array.tobytes()
+        if self.__class__.__name__ == 'Record':
+            self.write(ds)
 
 #    def write_array(self, pixelArray, value_range=None): # obsolete - remove
 #        """Write the pixel array to disk"""
@@ -107,9 +105,7 @@ class Image(Instance):
 
         array = np.zeros((self.Rows, self.Columns))
         new = self.copy()
-    #    new.write_array(array)
         new.set_array(array)
-        new.write()
         return new
 
     def map_onto(self, target):
@@ -136,27 +132,22 @@ class Image(Instance):
         # Set values in the target image
         # Note - replace by actual values rather than 1 & 0.
         result = target.zeros()
-        in_memory = self.in_memory()
-        if in_memory: result.read()
         pixelArray = result.array()
         pixelArray[(x, y)] = 1.0
         result.set_array(pixelArray)
-        if not in_memory: 
-            result.write()
-            result.clear()
 
         return result
 
     def affine_matrix(self):
         """Affine transformation matrix for a DICOM image"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
 
-        image_orientation = self.ds.ImageOrientationPatient
-        image_position = self.ds.ImagePositionPatient
-        pixel_spacing = self.ds.PixelSpacing
-        slice_spacing = self.ds.SliceThickness            
+        image_orientation = ds.ImageOrientationPatient
+        image_position = ds.ImagePositionPatient
+        pixel_spacing = ds.PixelSpacing
+        slice_spacing = ds.SliceThickness            
 
         row_spacing = pixel_spacing[0]
         column_spacing = pixel_spacing[1]
@@ -171,16 +162,13 @@ class Image(Instance):
         affine[:3, 2] = slice_cosine * slice_spacing
         affine[:3, 3] = image_position
 
-        if on_disk: self.clear()
-
         return affine
 
     def get_colormap(self):
         """Returns the colormap if there is any."""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
 
         lut = None
         if hasattr(ds, 'ContentLabel'):
@@ -194,14 +182,12 @@ class Image(Instance):
         else:
             colormap = 'gray' # default
 
-        if on_disk: self.clear()
         return colormap, lut  
 
     def get_lut(self):
         
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
 
         redColour = list(ds.RedPaletteColorLookupTableData)
         greenColour = list(ds.GreenPaletteColorLookupTableData)
@@ -217,15 +203,14 @@ class Image(Instance):
         lut = [colourTable[index].tolist() for index in sorted(indexes)]
         # Full / Complete Colourmap - takes 20 seconds to load each image
         # lut = (colours/normaliseFactor).tolist()   
-        if on_disk: self.clear()
+        
         return lut      
 
     def set_colormap(self, colormap=None, levels=None):
         """Set the colour table of the image."""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
 
         #and (colormap != 'gray') removed from If statement below, so as to save gray colour tables
         if (colormap == 'gray'):
@@ -262,14 +247,16 @@ class Image(Instance):
         if levels is not None:
             ds.WindowCenter = levels[0]
             ds.WindowWidth = levels[1]
-        if on_disk: self.clear()
+
+        if self.__class__.__name__ == 'Record':
+            self.write(ds)
 
     def export_as_nifti(self, directory=None, filename=None):
         """Export 2D pixel Array in nifty format"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        ds = self.ds
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
+        
         if directory is None: 
             directory = self.directory(message='Please select a folder for the nifty data')
         if filename is None:
@@ -279,7 +266,6 @@ class Image(Instance):
         # The transpose is necessary in this case to be in line with the rest of WEASEL.
         niftiObj.header.extensions.append(dicomHeader)
         nib.save(niftiObj, directory + '/' + filename + '.nii.gz')
-        if on_disk: self.clear()
 
     def export_as_csv(self, directory=None, filename=None, columnHeaders=None):
         """Export 2D pixel Array in csv format"""
@@ -318,10 +304,10 @@ class Image(Instance):
     def window(self):
         """Centre and width of the pixel data after applying rescale slope and intercept"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if 'WindowCenter' in self.ds: centre = self.ds.WindowCenter
-        if 'WindowWidth' in self.ds: width = self.ds.WindowWidth
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
+        if 'WindowCenter' in ds: centre = self.ds.WindowCenter
+        if 'WindowWidth' in ds: width = self.ds.WindowWidth
         if centre is None or width is None:
             array = self.array()
         if centre is None: 
@@ -329,7 +315,7 @@ class Image(Instance):
         if width is None: 
             p = np.percentile(array, [25, 75])
             width = p[1] - p[0]
-        if on_disk: self.clear()
+        
         return centre, width
 
     def QImage(self):

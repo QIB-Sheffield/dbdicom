@@ -8,14 +8,14 @@ class EnhancedMRImage(MRImage):
 
     def array(self):
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        pixelArray = self.ds.pixel_array.astype(np.float32)
-        frames = self.ds.PerFrameFunctionalGroupsSequence
+        if self.__class__.__name__ == 'Record':
+            ds = self.read() # only for records, not datasets
+        pixelArray = ds.to_pydicom().pixel_array.astype(np.float32)
+        frames = ds.PerFrameFunctionalGroupsSequence
         for index, frame in enumerate(frames):
             slice = np.squeeze(pixelArray[index, ...])
-            if [0x2005, 0x100E] in self.ds: # 'Philips Rescale Slope'
-                slope = self.ds[(0x2005, 0x100E)].value
+            if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
+                slope = ds[(0x2005, 0x100E)].value
                 intercept = ds[(0x2005, 0x100D)].value
                 slice = (slice - intercept) / slope
             else:
@@ -24,53 +24,51 @@ class EnhancedMRImage(MRImage):
                 intercept = float(getattr(transform, 'RescaleIntercept', 0)) 
                 slice = slice * slope + intercept
             pixelArray[index, ...] = np.transpose(slice)
-        if on_disk: self.clear()
+        
         return pixelArray
 
     def set_array(self, pixelArray, value_range=None):
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
         pixelArray = self.clip(pixelArray, value_range=value_range)
-        pixelArray, slope, intercept = self.scale_to_range(pixelArray, self.ds.BitsAllocated)
+        pixelArray, slope, intercept = self.scale_to_range(pixelArray, ds.BitsAllocated)
         pixelArray = np.transpose(pixelArray, (0, 2, 1))
 
         maximum = np.amax(pixelArray)
         minimum = np.amin(pixelArray)
         shape = np.shape(pixelArray)
 
-        self.ds.NumberOfFrames = np.shape(pixelArray)[0]
-        del self.ds.PerFrameFunctionalGroupsSequence[self.ds.NumberOfFrames:]
+        ds.NumberOfFrames = np.shape(pixelArray)[0]
+        del ds.PerFrameFunctionalGroupsSequence[ds.NumberOfFrames:]
 
-        del self.ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-        del self.ds[0x2005, 0x100D]
-        self.ds.PixelRepresentation = 0
-        self.ds.SmallestImagePixelValue = int(maximum)
-        self.ds.LargestImagePixelValue = int(minimum)
-        self.ds.RescaleSlope = 1 / slope
-        self.ds.RescaleIntercept = - intercept / slope
-        self.ds.WindowCenter = (maximum + minimum) / 2
-        self.ds.WindowWidth = maximum - minimum
-        self.ds.Rows = shape[0]
-        self.ds.Columns = shape[1]
-        self.ds.PixelData = pixelArray.tobytes()
+        del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
+        del ds[0x2005, 0x100D]
+        ds.PixelRepresentation = 0
+        ds.SmallestImagePixelValue = int(maximum)
+        ds.LargestImagePixelValue = int(minimum)
+        ds.RescaleSlope = 1 / slope
+        ds.RescaleIntercept = - intercept / slope
+        ds.WindowCenter = (maximum + minimum) / 2
+        ds.WindowWidth = maximum - minimum
+        ds.Rows = shape[0]
+        ds.Columns = shape[1]
+        ds.PixelData = pixelArray.tobytes()
 
-        if on_disk: 
-            self.write()
-            self.clear()
+        if self.__class__.__name__ == 'Record':
+            self.write(ds) 
 
     def signal_type(self):
         """Determine if an image is Water, Fat, In-Phase, Out-phase image or None"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
+        if self.__class__.__name__ == 'Record':
+            ds = self.read()
 
         flagWater = False
         flagFat = False
         flagInPhase = False
         flagOutPhase = False
-        type = self.ds.MRImageFrameTypeSequence[0]
+        type = ds.MRImageFrameTypeSequence[0]
         if hasattr(type, 'FrameType'):
             type = set(type.FrameType)
         elif hasattr(type, 'ComplexImageComponent'):
@@ -86,7 +84,6 @@ class EnhancedMRImage(MRImage):
         elif set(['OP', 'OUT_PHASE']).intersection(type):
             flagOutPhase = True
 
-        if on_disk: self.clear()
         return flagWater, flagFat, flagInPhase, flagOutPhase
 
     def image_type(self):

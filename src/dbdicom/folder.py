@@ -18,7 +18,7 @@ import pydicom
 import pandas as pd
 
 #from dbdicom import dicm, utilities
-from . import dicm, utilities
+from . import dicm, utilities, functions
 from .message import StatusBar, Dialog
 from .classes.database import Database
 
@@ -55,7 +55,6 @@ class Folder(Database):
         # These are anomalies - folder should not inherit DataBase
         self.__dict__['UID'] = []       
         self.__dict__['folder'] = self
-        self.__dict__['ds'] = None
 
         self.set_attributes(attributes, scan=False)
         self.open(message=message)
@@ -302,6 +301,70 @@ class Folder(Database):
         #file = os.path.join(path, self.new_uid() + '.dcm') 
         file = os.path.join("dbdicom", self.new_uid() + '.dcm') 
         return file
+
+    def _new_index(self, instances):
+        """Create a new index for a list of instances (DataSet or Record)"""
+
+        data = []
+        for instance in instances:
+            row = utilities._read_tags(instance, self._columns)
+            data.append(row)
+        new_files = [self.new_file() for _ in instances]
+        df = pd.DataFrame(data, index=[new_files], columns=self._columns)
+        df['removed'] = False
+        df['created'] = True
+        return df
+
+    def _add(self, instances): # instances is a list of instance DataSets
+
+        df = self.dataframe[self.dataframe.removed == False]
+
+        # Find existing datasets that are changing for the first time 
+        # and existing datasets that have changed before
+        uids = [i.SOPInstanceUID for i in instances]
+        df_first_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == False)]
+        df_prevs_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == True)]
+        uids_first_change = df_first_change.SOPInstanceUID.values
+        uids_prevs_change = df_prevs_change.SOPInstanceUID.values
+        uids_all = df.SOPInstanceUID.values
+
+        # Create new dataframe for those that are changing for the first time
+        first_change = [i for i in instances if i.SOPInstanceUID in uids_first_change]
+        df_created = self._new_index(first_change)
+
+        # Update the dataframe values for those that have changed before
+        prevs_change = [i for i in instances if i.SOPInstanceUID in uids_prevs_change]
+        self._update(prevs_change)
+
+        # Find datasets that are new to the database and create a dataframe for them
+        new = [i for i in instances if i.SOPInstanceUID not in uids_all]
+        df_new = self._new_index(new)
+ 
+        # Extend the dataframe with new rows
+        self.dataframe.loc[df_first_change.index, 'removed'] = True
+        self.__dict__['dataframe'] = pd.concat([self.dataframe, df_created, df_new])
+        
+        # Write all instances to disk.
+        self._write(instances)
+
+    def _update(self, instances): # instances is a list of DataSets or Records
+
+        df = self.dataframe[self.dataframe.removed == False]
+        for instance in instances:
+            uid = instance.SOPInstanceUID
+            filename = df.index[df.SOPInstanceUID == uid].tolist()[0]
+            values = utilities._read_tags(instance, self._columns)
+            self.dataframe.loc[filename, self._columns] = values
+        
+    def _write(self, instances): # instances is a list of DataSets
+
+        df = self.dataframe[self.dataframe.removed == False]
+        for cnt, instance in enumerate(instances):
+            self.status.progress(cnt, len(instances), 'Writing files to disk..')
+            uid = instance.SOPInstanceUID
+            filename = df.index[df.SOPInstanceUID == uid].tolist()[0]
+            file = os.path.join(self.path, filename)
+            functions.write(instance._ds, file, self.dialog)
 
     def _append(self, ds):
         """Append a new row to the dataframe from a pydicom dataset.

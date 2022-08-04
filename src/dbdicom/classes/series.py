@@ -58,13 +58,11 @@ class Series(Record):
     def map_onto(self, target):
         """Map non-zero pixels onto another series"""
 
-        in_memory = self.in_memory()
         source_images = self.children()
-        mapped_series = self.parent.new_child()
-        if in_memory: mapped_series.read()
+        mapped_series = self.new_sibling()
+        
         target_images = target.children() # create record.images() to return children of type image
         for i, target_image in enumerate(target_images):
-            target_image.read()
             self.status.progress(i, len(target_images))
             pixel_array = np.zeros((target_image.Rows, target_image.Columns), dtype=np.bool) 
             for j, source_image in enumerate(source_images):
@@ -74,14 +72,12 @@ class Series(Record):
                     ' to image ' + str(i) + 
                     ' of ' + target.SeriesDescription )
                 self.status.message(message)
-                if not in_memory: source_image.read()
                 array = source_image.map_onto(target_image).array().astype(np.bool)
                 np.logical_or(pixel_array, array, out=pixel_array)
             if pixel_array.any():
                 mapped_image = target_image.copy_to(mapped_series)
                 mapped_image.set_array(pixel_array.astype(np.float32))
                 mapped_image.SeriesDescription = self.SeriesDescription
-                if not in_memory: mapped_image.write()
         self.status.hide()
         return mapped_series
 
@@ -134,7 +130,7 @@ class Series(Record):
     def _extractImageType(self, type):
         """Extract subseries with images of given imageType"""
 
-        series = self.parent.new_child()
+        series = self.new_sibling()
         for instance in self.instances():
             if instance.image_type() == type:
                 instance.copy_to(series)

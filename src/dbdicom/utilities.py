@@ -49,7 +49,7 @@ def dataframe(path, files, tags, status=None, message='Reading DICOM folder..'):
     if status is not None: status.hide()
     return pd.DataFrame(array, index = dicom_files, columns = tags)
 
-def _initialize(ds, UID=None, ref=None):
+def _initialize(ds, UID=None, ref=None): # ds is pydicom dataset
 
     # Date and Time of Creation
     dt = datetime.now()
@@ -117,7 +117,7 @@ def _unzip_files(path, status):
         os.remove(file)
 
 def _read_tags(ds, tags):
-    """Helper function return a list of values"""
+    """Helper function - return a list of values for a pydicom dataset ds"""
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 

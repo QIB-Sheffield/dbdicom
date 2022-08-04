@@ -7,7 +7,7 @@ import numpy as np
 import pydicom
 from . import utilities
 
-def write(ds, file, dialog=None):
+def write(ds, file, dialog=None): # ds is a pydicom dataset
 
     try:
         ds.save_as(file) 

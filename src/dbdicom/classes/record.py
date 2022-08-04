@@ -7,7 +7,126 @@ from .. import utilities
 import dbdicom as db
 
 
-class Record():
+class DbDicm():
+    """Abstract base class for methods that are shared between records and datasets"""
+
+    def instances(self, index=None, **kwargs): 
+        """A list of instances of the object"""
+
+        if self.generation == 4: 
+            return
+        if self.generation == 3:
+            return self.children(index=index, **kwargs)
+        instances = []
+        for child in self.children():
+            inst = child.instances(**kwargs)
+            instances.extend(inst)
+        if index is not None:
+            if index >= len(instances):
+                return
+            else:
+                return instances[index]
+        return instances 
+
+
+class DataSet(DbDicm):
+
+    def __init__(self, parent=None):
+
+        # For Database, Patient, Study or Series: list of dbdicom DataSet instances
+        # For Instance: pydicom DataSet instance
+        self.parent = parent
+        self._ds = None 
+
+    @property
+    def generation(self):
+        if self._ds is None:
+            return
+        if self.is_an_instance():
+            return 4
+        else:
+            return self._ds[0].generation - 1
+
+    def is_an_instance(self):
+
+        if isinstance(self._ds, list):
+            return False
+        else:
+            return True
+
+    def to_pydicom(self): # instances only
+
+        if self.is_an_instance():
+            return self._ds
+
+    def set_pydicom(self, ds):
+        
+        if self.is_an_instance():
+            self._ds = ds
+
+    def empty(self):
+        return self._ds is None
+
+    def __getattr__(self, tag):
+        """Gets the value of the data element with given tag.
+        
+        Arguments
+        ---------
+        tag : str
+            DICOM KeyWord String
+
+        Returns
+        -------
+        Value of the corresponding DICOM data element
+        """
+        return self[tag]
+
+    def __getitem__(self, tags):
+        """Gets the value of the data elements with specified tags.
+        
+        Arguments
+        ---------
+        tags : a string, hexadecimal tuple, or a list of strings and hexadecimal tuples
+
+        Returns
+        -------
+        A value or a list of values
+        """
+        if self.empty():
+            return None
+        if self.is_an_instance():
+            return utilities._read_tags(self._ds[0], tags)
+        else:
+            return self._ds[0][tags]
+
+    def __setattr__(self, tag, value):
+        """Sets the value of the data element with given tag."""
+
+        self[tag] = value
+
+    def __setitem__(self, tags, values):
+        """Sets the value of the data element with given tag."""
+
+        for instance in self.instances():
+            utilities._set_tags(instance, tags, values)
+
+    def children(self, index=None, **kwargs):
+        """List of children"""
+
+        if self.is_an_instance(): 
+            return []
+        objects = utilities._filter(self._ds, **kwargs)
+        if index is not None:
+            if index >= len(objects): 
+                return []
+            else:
+                return objects[index]
+        return objects
+
+  
+
+
+class Record(DbDicm):
 
     def __init__(self, folder, UID=[], generation=0, **attributes):
 
@@ -22,10 +141,166 @@ class Record():
         self.__dict__['status'] = folder.status
         self.__dict__['dialog'] = folder.dialog
         self.__dict__['dicm'] = folder.dicm
-        self.__dict__['ds'] = None
         # placeholder DICOM attributes
         # these will populate the dataset and dataframe when data are created
         self.__dict__['attributes'] = attributes
+
+    def is_an_instance(self):
+        return self.generation == 4
+
+    def __getattr__(self, tag):
+        """Gets the value of the data element with given tag.
+        
+        Arguments
+        ---------
+        tag : str
+            DICOM KeyWord String
+
+        Returns
+        -------
+        Value of the corresponding DICOM data element
+        """
+        return self[tag]
+
+    def __getitem__(self, tags):
+        """Gets the value of the data elements with specified tags.
+        
+        Arguments
+        ---------
+        tags : a string, hexadecimal tuple, or a list of strings and hexadecimal tuples
+
+        Returns
+        -------
+        A value or a list of values
+        """
+        instance = self.instances(0)
+        if instance is not None:
+            ds = instance.read()
+            return utilities._read_tags(ds, tags)
+
+    def __setattr__(self, tag, value):
+        """Sets the value of the data element with given tag."""
+
+        if tag == 'folder':
+            self.__dict__['folder'] = value
+        else:
+            self[tag] = value
+
+    def __setitem__(self, tags, values):
+        """Sets the value of the data element with given tag."""
+
+        # FASTER but needs testing
+        # This also means __setitem__ can be removed from instance class
+        #
+        # db.set_value(self.instances(), dict(zip(tags, values)))
+        
+        # LAZY - SLOW
+        instances = self.instances()
+        self.status.message('Writing DICOM tags..')
+        for i, instance in enumerate(instances):
+            ds = instance.read()
+            utilities._set_tags(ds, tags, values)
+            instance.write(ds)
+            self.status.progress(i, len(instances))
+        self.status.hide()
+
+    def read(self, message = 'Reading..'):
+
+        self.status.message(message)
+        if self.is_an_instance():
+            return self._read_instance()
+        dataset = DataSet()
+        children = self.children()
+        if len(children) == 0:
+            return dataset
+        dataset._ds = []
+        for i, child in enumerate(children):
+            self.status.progress(i, len(children))
+            child_dataset = child.read()
+            child_dataset.parent = self
+            dataset._ds.append(child_dataset)
+        self.status.hide()
+        return dataset
+
+    def _read_instance(self):
+        """Reads the dataset into memory."""
+
+        dataset = DataSet()
+        file = self.file
+        if file is None: 
+            return dataset
+        try:
+            ds = pydicom.dcmread(file)
+        except:
+            message = "Failed to read " + file
+            message += "\n Please read the DICOM folder again via File->Read."
+            self.dialog.information(message)         
+            return dataset
+        dataset._ds = ds
+        return dataset 
+
+    def write(self, dataset): # ds is a DataSet instance
+
+        instances = dataset.instances()
+        for cnt, instance in enumerate(instances):
+            self.status.progress(cnt, len(instances), message='Writing data..')
+            self._copy_attributes(instance)
+        self.status.message('Updating database..')
+        self.folder._add(instances)
+        self.status.hide()
+
+    def _copy_attributes(self, dataset): # ds is a DataSet instance
+        """Writes a pydicom dataset to disk"""
+
+        ds = dataset._ds #pydicom dataset
+
+        if self.generation == 0:
+            pass
+        elif self.generation == 1:
+            ds.PatientID = self.UID[0]
+        elif self.generation == 2:
+            ds.PatientID = self.UID[0]
+            ds.StudyInstanceUID = self.UID[1]
+        elif self.generation == 3:
+            ds.PatientID = self.UID[0]
+            ds.StudyInstanceUID = self.UID[1]
+            ds.SeriesInstanceUID = self.UID[2]   
+        elif self.generation == 4:
+            ds.PatientID = self.UID[0]
+            ds.StudyInstanceUID = self.UID[1]
+            ds.SeriesInstanceUID = self.UID[2]   
+            ds.SOPInstanceUID = self.UID[3]  
+
+        utilities._set_tags(ds, self.attributes.keys(), self.attributes.values())
+
+    def _save_ds(self, ds=None, file=None): # ds = pydicom dataset
+
+        if file is None: 
+            file = self.file
+        if ds is None:
+            ds = self.read()
+        try:
+            ds.save_as(file) 
+        except:
+            message = "Failed to write to " + file
+            message += "\n The file is open in another application, or is being synchronised by a cloud service."
+            message += "\n Please close the file or pause the synchronisation and try again."
+            self.dialog.information(message) 
+
+    def children(self, index=None, **kwargs):
+        """List of children"""
+
+        if self.generation == 4: 
+            return []
+        return self.records(generation=self.generation+1, index=index, **kwargs) 
+
+    def remove(self):
+        """Deletes the object. """ 
+
+        files = self.files
+        if files == []: 
+            return
+        self.folder.dataframe.loc[self.data().index,'removed'] = True 
 
     @property
     def generation(self):
@@ -38,7 +313,7 @@ class Record():
         key = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
         return key[0:self.generation]
 
-    def new_uid(self):
+    def new_uid(self): # to utilities
         
         return pydicom.uid.generate_uid()
 
@@ -316,14 +591,13 @@ class Record():
         relpaths = self.data().index.tolist()
         return [os.path.join(self.folder.path, p) for p in relpaths]
 
-    def in_memory(self): # is_in_memory
-        """Check if the object has been read into memory"""
-
-        return self.ds is not None
-
-    def on_disk(self): # is_on_disk
-
-        return self.ds is None
+    @property
+    def file(self):
+        """Returns the filepath to the first file."""
+ 
+        files = self.files
+        if len(files) != 0:  
+            return files[0]
 
     @property
     def parent(self):
@@ -331,20 +605,6 @@ class Record():
 
         return self.dicm.parent(self)
         
-    def children(self, index=None, **kwargs):
-        """List of children"""
-
-        if self.generation == 4: return []
-        if self.in_memory():
-            objects = utilities._filter(self.ds, **kwargs)
-            if index is not None:
-                if index >= len(objects): 
-                    return
-                else:
-                    return objects[index]
-            return objects
-        return self.records(generation=self.generation+1, index=index, **kwargs)
-
     def records(self, generation=0, index=None, **kwargs):
         """A list of all records of a given generation corresponding to the record.
 
@@ -448,29 +708,10 @@ class Record():
                 return series[index]
         return series
 
-    def instances(self, index=None, **kwargs): # VERY slow - needs optimizing
-        """A list of instances of the object"""
-
-        if self.generation==4: 
-            return
-        if self.generation==3:
-            return self.children(index=index, **kwargs)
-        instances = []
-        for child in self.children():
-            inst = child.instances(**kwargs)
-            instances.extend(inst)
-        if index is not None:
-            if index >= len(instances):
-                return
-            else:
-                return instances[index]
-        return instances       
-
     def new_child(self, **attributes):
         """Creates a new child object"""
 
         obj = self.dicm.new_child(self, **attributes)
-        obj.read() # Why??
         return obj
 
     def new_sibling(self, **attributes):
@@ -513,61 +754,6 @@ class Record():
         if self.generation == 4:
             return self.new_pibling(**attributes) 
 
-    def __getattr__(self, tag):
-        """Gets the value of the data element with given tag.
-        
-        Arguments
-        ---------
-        tag : str
-            DICOM KeyWord String
-
-        Returns
-        -------
-        Value of the corresponding DICOM data element
-        """
-        return self[tag]
-
-    def __setattr__(self, tag, value):
-        """Sets the value of the data element with given tag."""
-
-        if tag == 'folder':
-            self.__dict__['folder'] = value
-        elif tag == 'ds':
-            self.__dict__['ds'] = value
-        else:
-            self[tag] = value
-
-    def __getitem__(self, tags):
-        """Gets the value of the data elements with specified tags.
-        
-        Arguments
-        ---------
-        tags : a string, hexadecimal tuple, or a list of strings and hexadecimal tuples
-
-        Returns
-        -------
-        A value or a list of values
-        """
-        instance = self.instances(0)
-        if instance is not None:
-            return instance[tags]
-
-    def __setitem__(self, tags, values):
-        """Sets the value of the data element with given tag."""
-
-        # FASTER but needs testing
-        # This also means __setitem__ can be removed from instance class
-        #
-        # db.set_value(self.instances(), dict(zip(tags, values)))
-        
-        # LAZY - SLOW
-        instances = self.instances()
-        self.status.message('Writing DICOM tags..')
-        for i, instance in enumerate(instances):
-            instance[tags] = values
-            self.status.progress(i, len(instances))
-        self.status.hide()
-
     def remove(self):
         """Deletes the object. """ 
 
@@ -575,7 +761,6 @@ class Record():
         if files == []: 
             return
         self.folder.dataframe.loc[self.data().index,'removed'] = True
-
 
     def move_to(self, ancestor):
         """move object to a new parent.
@@ -600,7 +785,6 @@ class Record():
         """Returns a copy in the same parent"""
 
         copy = self.copy_to(self.parent)
-        if self.in_memory(): copy.read()
         return copy
 
     def _copy_to_OBSOLETE(self, ancestor, message=None): # functional but slow
@@ -613,9 +797,6 @@ class Record():
         if self.generation == 0: return
 #        if ancestor.generation == 0: return
         copy = self.__class__(self.folder, UID=ancestor.UID)
-        if ancestor.in_memory():
-            copy.read()
-            ancestor.ds.append(copy)
         children = self.children()
         if message is None:
             message = "Copying " + self.__class__.__name__ + ' ' + self.label()
@@ -626,14 +807,14 @@ class Record():
         self.status.hide()
         return copy
 
-    def _initialize(self, ref=None):
+    def _initialize(self, ds, ref=None): # ds is a pydicom dataset
 
         if self.generation == 4:
-            self.ds = utilities.initialize(self.ds, UID=self.UID, ref=ref)
+            ds = utilities.initialize(ds, UID=self.UID, ref=ref)
         else:
-            for i, obj in enumerate(self.ds):
+            for i, obj in enumerate(ds):
                 if ref is not None:
-                    obj._initialize(ref.ds[i])
+                    obj._initialize(ds[i])
                 else:
                     obj._initialize()
 
@@ -643,7 +824,7 @@ class Record():
         if message is None:
             message = "Merging " + self.__class__.__name__ + ' ' + self.label()
         # replace by db.merge()
-        return self._merge_with(obj, obj.parent, message=message)
+        return self._merge_with(obj, message=message)
 
     def copy_to(self, ancestor, message=None):
 
@@ -652,17 +833,9 @@ class Record():
             message = "Copying " + self.__class__.__name__ + ' ' + self.label()
         copy = self.__class__(self.folder, UID=ancestor.UID)
         # replace by db.merge()
-        return self._merge_with(copy, ancestor, message=message)
+        return self._merge_with(copy, message=message)
 
-    def _merge_with(self, obj, ancestor, message=None): # obsolete - replace by db.merge()
-
-        if self.in_memory(): # Create the copy in memory
-            obj.__dict__['ds'] = deepcopy(self.ds)
-            obj._initialize(self.ds)
-            if ancestor.in_memory():
-                if ancestor.generation == obj.generation-1:
-                    ancestor.ds.append(obj)
-            return obj
+    def _merge_with(self, obj, message=None): # obsolete - replace by db.merge()
 
         # Extend dataframe & create new files
         dfsource = self.data()
@@ -697,11 +870,6 @@ class Record():
         self.folder.__dict__['dataframe'] = pd.concat([self.folder.dataframe, df])
         self.status.hide()
 
-        if ancestor.in_memory():
-            if ancestor.generation == obj.generation-1:
-                obj.read() # unnecessary read - can be integrated in loop.
-                ancestor.ds.append(obj)
-
         return obj
 
     def export(self, path):
@@ -719,40 +887,16 @@ class Record():
         instances = self.instances()
         self.status.message('Exporting..')
         for i, instance in enumerate(instances):
-            instance.export(path)
+            filename = os.path.basename(instance.file)
+            destination = os.path.join(path, filename)
+            instance._save_ds(destination)
             self.status.progress(i,len(instances))
-        self.status.hide()
-
-    def save_OBSOLETE(self):
-        """Save all instances of the record."""
-
-        # Slow - edit df directly
-        self.status.message("Saving all current instances..")
-        instances = self.instances() 
-        for i, instance in enumerate(instances):
-            instance.save()
-            self.status.progress(i, len(instances))
-        self.status.hide()
-
-        self.status.message("Deleting all removed instances..")
-        if self.__class__.__name__ == 'Folder':
-            data = self.folder.dataframe
-        else:
-            rows = self.folder.dataframe[self.key[-1]] == self.UID[-1]
-            data = self.folder.dataframe[rows] 
-        removed = data.removed[data.removed]
-        files = [os.path.join(self.folder.path, p) for p in removed.index.tolist()]
-        for i, file in enumerate(files): 
-            os.remove(file)
-            self.status.progress(i, len(files))
-        self.folder.dataframe.drop(removed.index, inplace=True)
         self.status.hide()
 
     def save(self, message = "Saving changes.."):
         """Save all instances of the record."""
 
         self.status.message(message)
-        self.write()
         if self.generation == 0:
             data = self.folder.dataframe
         else:
@@ -779,9 +923,6 @@ class Record():
         """
         self.status.message(message)
 
-        in_memory = self.in_memory() 
-        self.clear()
-
         if self.generation == 0:
             data = self.folder.dataframe
         else:
@@ -798,15 +939,12 @@ class Record():
         self.folder.dataframe.loc[removed.index, 'removed'] = False
         self.folder.dataframe.drop(created.index, inplace=True)
 
-        if in_memory: self.read()
         return self
         
     def restore_OBSOLETE(self, message = 'Restoring..'):
         """
         Restore all instances.
         """
-        in_memory = self.in_memory() 
-        self.clear()
 
         instances = self.instances()
         self.status.message(message)
@@ -815,35 +953,9 @@ class Record():
             self.status.progress(i,len(instances))
         self.status.hide()
 
-        if in_memory: self.read()
         return self
 
     def read_dataframe(self, tags):
 
         return utilities.dataframe(self.folder.path, self.files, tags, self.status)
 
-    def read(self, message = 'Reading..'):
-
-        self.status.message(message)
-        self.__dict__['ds'] = self.children()
-        for i, child in enumerate(self.ds):
-            self.status.progress(i, len(self.ds))
-            child.read()
-        self.status.hide()
-
-    def write(self):
-
-        if self.ds is None: 
-            return
-        for i, child in enumerate(self.ds):
-            self.status.progress(i, len(self.ds), message='Writing data..')
-            child.write()
-        self.status.hide()
-
-    def clear(self):
-
-        if self.ds is None: 
-            return
-        for child in self.ds:
-            child.clear()
-        self.ds = None
