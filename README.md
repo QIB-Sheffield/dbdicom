@@ -12,14 +12,13 @@ Run `pip install dbdicom`.
 ### Reading and opening a DICOM folder
 
 Open a DICOM database in a given folder, 
-read it and print a summary of the content:
+and print a summary of the content:
 
 ```python
-from dbdicom import Folder
+import dbdicom as db
 
-folder = Folder('C:\\Users\\MyName\\MyData\\DICOMtestData')
-folder.open()
-folder.print()
+database = db.open('C:\\Users\\MyName\\MyData\\DICOMtestData')
+database.print()
 ```
 
 The first time the folder is read this will be relatively slow. 
@@ -33,14 +32,14 @@ be of use when files have become corrupted,
 or have been removed/modified by external applications:
 
 ```python
-folder.scan()
+database.scan()
 ```
 
 After making changes to the DICOM data, the folder should be closed 
 properly so any changes can be either saved or rolled back as needed:
 
 ```python
-folder.close()
+database.close()
 ```
 
 If unsaved changes exist, `close()` will prompt the user to either save or restore to 
@@ -49,6 +48,27 @@ the last saved state.
 ### Retrieving objects from the folder
 
 A DICOM database has a hierarchical structure. 
+
+```
+database/
+|
+|---- Patient 1/
+|    |
+|    |---- Study 1/
+|    |     |
+|    |     |---- Series 1/
+|    |     |    |----Instance 1
+|    |     |    |----Instance 2
+|    |     |    |----Instance 3
+|    |     |    
+|    |     |----Series 2/
+|    |    
+|    |---- Study 2/
+|
+|---- Patient 2/  
+| 
+```
+
 The files are *instances* of a specific DICOM class and correspond to real-world 
 objects such as images or regions-of-interest. Instances are grouped into a *series*, 
 and multiple series are grouped into *studies*. Typically a study consist of all the data 
@@ -60,10 +80,10 @@ a physical reference object, or a digital reference object.
 To return a list of all patients, studies, series or instances in the folder: 
 
 ```python
-instances = folder.instances()
-series = folder.series()
-studies = folder.studies()
-patients = folder.patients()
+instances = database.instances()
+series = database.series()
+studies = database.studies()
+patients = database.patients()
 ```
 
 The same functions can be used to retrieve the children of 
@@ -77,7 +97,7 @@ studies = patient.studies()
 Or all series under the first of those studies:
 
 ```python
-series = studies[0].series()
+series = studies(0).series()
 ```
 
 Or all instances of a study:
@@ -91,14 +111,14 @@ Individual objects can also be access directly using
 indices. For instance to retrieve the first instance in the folder:
 
 ```python
-instance = folder.instances(0)
+instance = database.instances(0)
 ```
 
 These can be chained together for convencience, 
 e.g. to get all instances instance of series 5 in study 1 of patient 2:
 
 ```python
-instance = folder.patients(2).studies(1).series(5).instances()
+instance = database.patients(2).studies(1).series(5).instances()
 ```
 
 These functions also work to find objects higher up in the hierarchy. 
@@ -114,22 +134,22 @@ In this case the function will return a single object rather than a list.
 
 Each DICOM file has a number of attributes describing the properties
 of the object. Examples are PatientName, StudyDate, etc. 
-A full list of attributes for specific objects can be found here: 
-https://dicom.innolitics.com/. 
+A convenient list of attributes for specific objects can be found [here]: 
+(https://dicom.innolitics.com/). 
 
 Each known attribute is identified most easily by a keyword, 
 which has a capitalised notation. Objects in the folder 
 can be can also be listed by searching on any DICOM tag:
 
 ```python
-instances = folder.instances(PatientName = 'John Dory')
+instances = database.instances(PatientName = 'John Dory')
 ```
 
 This will only return the instances for patient John Dory. 
 Objects can also be searched on multiple DICOM tags:
 
 ```python
-series = folder.instances(
+series = database.instances(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
@@ -140,7 +160,7 @@ Any arbitrary number of conditions can be entered, and
 higher order objects can be found in the same way:
 
 ```python
-studies = folder.studies(
+studies = database.studies(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
@@ -266,7 +286,7 @@ All attributes can also be accessed at series, study, patient or folder level.
 In this case they will return a single value taken from their first instance.
 
 ```python
-rows = folder.patient(0).series(0).Rows
+rows = database.patient(0).series(0).Rows
 ```
 
 To print the Rows for all instances in the series, iterate over them:

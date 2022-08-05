@@ -117,7 +117,10 @@ def _unzip_files(path, status):
         os.remove(file)
 
 def _read_tags(ds, tags):
-    """Helper function - return a list of values for a pydicom dataset ds"""
+    """Helper function - return a list of values for a dataset ds"""
+
+    if ds.__class__.__name__  == "DataSet":
+        ds = ds.to_pydicom()
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 
@@ -138,17 +141,14 @@ def _read_tags(ds, tags):
     return row
 
 def _convert_attribute_type(value):
-    """Convert pyidcom datatypes to the python datatypes used to set the parameter.
-    
-    While this removes some functionality, this aligns with the principle 
-    of `dbdicom` to remove DICOM-native langauge from the API.
+    """Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
 
     if value.__class__.__name__ == 'PersonName':
         return str(value)
     if value.__class__.__name__ == 'Sequence':
         return [ds for ds in value]
-    if value.__class__.__name__ == 'TM': # This can probably do with some formatting
+    if value.__class__.__name__ == 'TM': 
         return str(value) 
     if value.__class__.__name__ == 'UID': 
         return str(value) 
@@ -167,6 +167,11 @@ def _convert_attribute_type(value):
 
 def _set_tags(ds, tags, values):
     """Sets DICOM tags in the dataset in memory"""
+
+    if ds.__class__.__name__  == "DataSet":
+        ds = ds.to_pydicom()
+
+    # TODO: Automatically convert datatypes to the correct ones required by pydicom for setting (above)
 
     if not isinstance(tags, list): 
         tags = [tags]

@@ -3,11 +3,11 @@ from copy import deepcopy
 import pydicom
 import numpy as np
 import pandas as pd
-from .. import utilities
+from .. import utilities, functions
 import dbdicom as db
 
 
-class DbDicm():
+class DbDicom():
     """Abstract base class for methods that are shared between records and datasets"""
 
     def instances(self, index=None, **kwargs): 
@@ -29,13 +29,13 @@ class DbDicm():
         return instances 
 
 
-class DataSet(DbDicm):
+class DataSet(DbDicom):
 
     def __init__(self, parent=None):
 
+        self.parent = parent
         # For Database, Patient, Study or Series: list of dbdicom DataSet instances
         # For Instance: pydicom DataSet instance
-        self.parent = parent
         self._ds = None 
 
     @property
@@ -95,20 +95,28 @@ class DataSet(DbDicm):
         if self.empty():
             return None
         if self.is_an_instance():
-            return utilities._read_tags(self._ds[0], tags)
+            return utilities._read_tags(self, tags)
         else:
             return self._ds[0][tags]
+
+
 
     def __setattr__(self, tag, value):
         """Sets the value of the data element with given tag."""
 
-        self[tag] = value
+        if tag in ['parent', '_ds']:
+            self.__dict__[tag] = value
+        else:
+            self[tag] = value
 
     def __setitem__(self, tags, values):
         """Sets the value of the data element with given tag."""
 
-        for instance in self.instances():
-            utilities._set_tags(instance, tags, values)
+        if self.is_an_instance():
+            utilities._set_tags(self, tags, values)
+        else:
+            for instance in self.instances():
+                utilities._set_tags(instance, tags, values)
 
     def children(self, index=None, **kwargs):
         """List of children"""
@@ -125,8 +133,7 @@ class DataSet(DbDicm):
 
   
 
-
-class Record(DbDicm):
+class Record(DbDicom):
 
     def __init__(self, folder, UID=[], generation=0, **attributes):
 
@@ -136,17 +143,22 @@ class Record(DbDicm):
             newUID = pydicom.uid.generate_uid()
             objUID.append(newUID)    
 
-        self.__dict__['UID'] = objUID
-        self.__dict__['folder'] = folder
-        self.__dict__['status'] = folder.status
-        self.__dict__['dialog'] = folder.dialog
-        self.__dict__['dicm'] = folder.dicm
+        self.UID = objUID
+        self.folder = folder
+        self.status = folder.status
+        self.dialog = folder.dialog
+        self.dicm = folder.dicm
         # placeholder DICOM attributes
         # these will populate the dataset and dataframe when data are created
-        self.__dict__['attributes'] = attributes
+        self.attributes = attributes
 
     def is_an_instance(self):
         return self.generation == 4
+
+    def to_pydicom(self): # instances only
+
+        if self.is_an_instance():
+            return self.read().to_pydicom()
 
     def __getattr__(self, tag):
         """Gets the value of the data element with given tag.
@@ -173,16 +185,37 @@ class Record(DbDicm):
         -------
         A value or a list of values
         """
-        instance = self.instances(0)
-        if instance is not None:
-            ds = instance.read()
+        if self.is_an_instance():
+            ds = self.read()
             return utilities._read_tags(ds, tags)
+        instances = self.instances()
+        if instances == []:
+            return
+        if not isinstance(tags, list):
+            values = []
+            for instance in instances:
+                ds = instance.read()
+                v = utilities._read_tags(ds, tags)
+                values.append(v)
+            return list(set(values))
+
+        # For each tag, get a list of values, one for each instance
+        # Return a list of unique items per tag
+        values = [[] for _ in range(len(tags))]
+        for instance in instances:
+            ds = instance.read()
+            v = utilities._read_tags(ds, tags)
+            for t in range(len(tags)):
+                values[t].append(v[t])
+        for v, value in enumerate(values):
+            values[v] = list(set(value))
+        return values
 
     def __setattr__(self, tag, value):
         """Sets the value of the data element with given tag."""
 
-        if tag == 'folder':
-            self.__dict__['folder'] = value
+        if tag in ['UID', 'folder', 'status', 'dialog', 'dicm', 'attributes']:
+            self.__dict__[tag] = value
         else:
             self[tag] = value
 
@@ -195,8 +228,10 @@ class Record(DbDicm):
         # db.set_value(self.instances(), dict(zip(tags, values)))
         
         # LAZY - SLOW
-        instances = self.instances()
-        self.status.message('Writing DICOM tags..')
+        if self.is_an_instance():
+            instances = [self]
+        else:
+            instances = self.instances()
         for i, instance in enumerate(instances):
             ds = instance.read()
             utilities._set_tags(ds, tags, values)
@@ -206,7 +241,6 @@ class Record(DbDicm):
 
     def read(self, message = 'Reading..'):
 
-        self.status.message(message)
         if self.is_an_instance():
             return self._read_instance()
         dataset = DataSet()
@@ -215,7 +249,7 @@ class Record(DbDicm):
             return dataset
         dataset._ds = []
         for i, child in enumerate(children):
-            self.status.progress(i, len(children))
+            self.status.progress(i, len(children), 'Reading data..')
             child_dataset = child.read()
             child_dataset.parent = self
             dataset._ds.append(child_dataset)
@@ -239,20 +273,21 @@ class Record(DbDicm):
         dataset._ds = ds
         return dataset 
 
-    def write(self, dataset): # ds is a DataSet instance
+    def write(self, dataset): # ds is a DataSet
 
-        instances = dataset.instances()
-        for cnt, instance in enumerate(instances):
-            self.status.progress(cnt, len(instances), message='Writing data..')
-            self._copy_attributes(instance)
+        if dataset.is_an_instance():
+            instances = [dataset]
+        else:
+            instances = dataset.instances()
+        for instance in instances:
+            self._copy_attributes_to(instance)
         self.status.message('Updating database..')
         self.folder._add(instances)
         self.status.hide()
 
-    def _copy_attributes(self, dataset): # ds is a DataSet instance
-        """Writes a pydicom dataset to disk"""
+    def _copy_attributes_to(self, dataset): # ds is an instance DataSet
 
-        ds = dataset._ds #pydicom dataset
+        ds = dataset.to_pydicom() 
 
         if self.generation == 0:
             pass
@@ -271,21 +306,7 @@ class Record(DbDicm):
             ds.SeriesInstanceUID = self.UID[2]   
             ds.SOPInstanceUID = self.UID[3]  
 
-        utilities._set_tags(ds, self.attributes.keys(), self.attributes.values())
-
-    def _save_ds(self, ds=None, file=None): # ds = pydicom dataset
-
-        if file is None: 
-            file = self.file
-        if ds is None:
-            ds = self.read()
-        try:
-            ds.save_as(file) 
-        except:
-            message = "Failed to write to " + file
-            message += "\n The file is open in another application, or is being synchronised by a cloud service."
-            message += "\n Please close the file or pause the synchronisation and try again."
-            self.dialog.information(message) 
+        utilities._set_tags(ds, list(self.attributes.keys()), list(self.attributes.values()))
 
     def children(self, index=None, **kwargs):
         """List of children"""
@@ -772,14 +793,6 @@ class Record(DbDicm):
         copy = self.copy_to(ancestor)
         self.remove()
         return copy
-
-#    def move(self, child, ancestor):
-#        """Move a child object to a new parent"""
-
-#        if self.in_memory():
-#            if child in self.ds:
-#                self.ds.remove(child)
-#        child = child.move_to(ancestor)
     
     def copy(self):
         """Returns a copy in the same parent"""
@@ -884,15 +897,20 @@ class Record(DbDicm):
             path to an external folder. If not provided,
             a window will prompt the user to select one.
         """
-        instances = self.instances()
-        self.status.message('Exporting..')
+        if self.is_an_instance():
+            instances = [self]
+        else:
+            instances = self.instances()
+        
         for i, instance in enumerate(instances):
             filename = os.path.basename(instance.file)
             destination = os.path.join(path, filename)
-            instance._save_ds(destination)
-            self.status.progress(i,len(instances))
+            ds = instance.read().to_pydicom()
+            functions.write(ds, destination, self.dialog)
+            self.status.progress(i,len(instances), message='Exporting..')
         self.status.hide()
 
+        
     def save(self, message = "Saving changes.."):
         """Save all instances of the record."""
 
@@ -941,19 +959,6 @@ class Record(DbDicm):
 
         return self
         
-    def restore_OBSOLETE(self, message = 'Restoring..'):
-        """
-        Restore all instances.
-        """
-
-        instances = self.instances()
-        self.status.message(message)
-        for i, instance in enumerate(instances):
-            instance.restore()
-            self.status.progress(i,len(instances))
-        self.status.hide()
-
-        return self
 
     def read_dataframe(self, tags):
 

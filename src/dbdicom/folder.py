@@ -5,13 +5,13 @@ for opening, closing and manipulating a folder with DICOM files.
 
     # Example: Get a 3D numpy array from the first series in a folder.
 
-    from dbdicom import Folder
+    from dbdicom import db
 
-    folder = Folder('C:\\Users\\MyName\\MyData\\DICOMtestData')
-    array = folder.open().series(0).array()
+    database = db.open('C:\\Users\\MyName\\MyData\\DICOMtestData')
+    array = database.series(0).array()
 """
 
-__all__ = ['Folder']
+__all__ = ['open']
 
 import os
 import pydicom
@@ -21,6 +21,13 @@ import pandas as pd
 from . import dicm, utilities, functions
 from .message import StatusBar, Dialog
 from .classes.database import Database
+
+
+def open(path):
+
+    folder = Folder(path)
+    return folder
+
 
 class Folder(Database): 
     # This really needs to be Database() with Folder as an attribute. 
@@ -45,25 +52,33 @@ class Folder(Database):
         # A list of optional dicom attributes that are not used by dbdicom 
         # but can be included for faster access in other applications. 
         # The list can be changed or extended by applications.
-        self.__dict__['attributes'] = ['SliceLocation']
-        self.__dict__['dataframe'] = pd.DataFrame([]*len(self._columns), columns=self._columns)            
-        self.__dict__['path'] = path
-        self.__dict__['status'] = status
-        self.__dict__['dialog'] = dialog
-        self.__dict__['dicm'] = dicm
+        self.attributes = ['SliceLocation']         
+        self.status = status
+        self.dialog = dialog
+        self.dicm = dicm
+        self.UID = []       
+        self.folder = self
 
-        # These are anomalies - folder should not inherit DataBase
-        self.__dict__['UID'] = []       
-        self.__dict__['folder'] = self
-
+        self.path = path
+        self.dataframe = pd.DataFrame([]*len(self._columns), columns=self._columns)
+         
         self.set_attributes(attributes, scan=False)
         self.open(message=message)
+
+
+    def __setattr__(self, tag, value):
+        """Sets the value of the data element with given tag."""
+
+        if tag in ['required', 'path', 'dataframe', 'UID', 'folder', 'status', 'dialog', 'dicm', 'attributes']:
+            self.__dict__[tag] = value
+        else:
+            super().__setattr__(tag, value)
 
 
     @property
     def _columns(self):
 
-        return self.required + self.__dict__['attributes']
+        return self.required + self.attributes
 
     def set_attributes(self, attributes, scan=True):
         """DICOM attributes that are NOT used by dbdicom.
@@ -107,7 +122,6 @@ class Folder(Database):
             self.dialog.information(message)
             return self
         if os.path.exists(self._csv):
-            self.status.message("Reading register..")
             self._read_csv()
             # If the saved register does not have all required attributes
             # then scan the folder again and create a new register
@@ -310,12 +324,23 @@ class Folder(Database):
             row = utilities._read_tags(instance, self._columns)
             data.append(row)
         new_files = [self.new_file() for _ in instances]
-        df = pd.DataFrame(data, index=[new_files], columns=self._columns)
+        df = pd.DataFrame(data, index=new_files, columns=self._columns)
         df['removed'] = False
         df['created'] = True
         return df
 
+    def _update_index(self, instances): # instances is a list of DataSets or Records
+
+        df = self.dataframe[self.dataframe.removed == False]
+        for instance in instances:
+            uid = instance.SOPInstanceUID
+            filename = df.index[df.SOPInstanceUID == uid].tolist()[0]
+            values = utilities._read_tags(instance, self._columns)
+            self.dataframe.loc[filename, self._columns] = values
+
     def _add(self, instances): # instances is a list of instance DataSets
+        
+        # TODO speed up if instances has just one element
 
         df = self.dataframe[self.dataframe.removed == False]
 
@@ -334,7 +359,7 @@ class Folder(Database):
 
         # Update the dataframe values for those that have changed before
         prevs_change = [i for i in instances if i.SOPInstanceUID in uids_prevs_change]
-        self._update(prevs_change)
+        self._update_index(prevs_change)
 
         # Find datasets that are new to the database and create a dataframe for them
         new = [i for i in instances if i.SOPInstanceUID not in uids_all]
@@ -347,15 +372,6 @@ class Folder(Database):
         # Write all instances to disk.
         self._write(instances)
 
-    def _update(self, instances): # instances is a list of DataSets or Records
-
-        df = self.dataframe[self.dataframe.removed == False]
-        for instance in instances:
-            uid = instance.SOPInstanceUID
-            filename = df.index[df.SOPInstanceUID == uid].tolist()[0]
-            values = utilities._read_tags(instance, self._columns)
-            self.dataframe.loc[filename, self._columns] = values
-        
     def _write(self, instances): # instances is a list of DataSets
 
         df = self.dataframe[self.dataframe.removed == False]
