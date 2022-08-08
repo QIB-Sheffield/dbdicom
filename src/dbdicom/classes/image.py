@@ -25,11 +25,10 @@ class Image(Instance):
     def array(self):
         """Read the pixel array from an image"""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read().to_pydicom()
         array = ds.to_pydicom().pixel_array.astype(np.float32)
-        slope = float(getattr(self.ds, 'RescaleSlope', 1)) 
-        intercept = float(getattr(self.ds, 'RescaleIntercept', 0)) 
+        slope = float(getattr(ds, 'RescaleSlope', 1)) 
+        intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
         #array = array * slope + intercept
         array *= slope
         array += intercept
@@ -39,8 +38,7 @@ class Image(Instance):
 
     def set_array(self, array, value_range=None):
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
         
         if array.ndim >= 3: # remove spurious dimensions of 1
             array = np.squeeze(array) 
@@ -62,8 +60,8 @@ class Image(Instance):
         ds.Rows = shape[0]
         ds.Columns = shape[1]
         ds.PixelData = array.tobytes()
-        if self.__class__.__name__ == 'Record':
-            self.write(ds)
+        
+        self.write(ds)
 
 #    def write_array(self, pixelArray, value_range=None): # obsolete - remove
 #        """Write the pixel array to disk"""
@@ -141,8 +139,7 @@ class Image(Instance):
     def affine_matrix(self):
         """Affine transformation matrix for a DICOM image"""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
 
         image_orientation = ds.ImageOrientationPatient
         image_position = ds.ImagePositionPatient
@@ -167,8 +164,7 @@ class Image(Instance):
     def get_colormap(self):
         """Returns the colormap if there is any."""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
 
         lut = None
         if hasattr(ds, 'ContentLabel'):
@@ -186,8 +182,7 @@ class Image(Instance):
 
     def get_lut(self):
         
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
 
         redColour = list(ds.RedPaletteColorLookupTableData)
         greenColour = list(ds.GreenPaletteColorLookupTableData)
@@ -209,8 +204,7 @@ class Image(Instance):
     def set_colormap(self, colormap=None, levels=None):
         """Set the colour table of the image."""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
 
         #and (colormap != 'gray') removed from If statement below, so as to save gray colour tables
         if (colormap == 'gray'):
@@ -248,14 +242,12 @@ class Image(Instance):
             ds.WindowCenter = levels[0]
             ds.WindowWidth = levels[1]
 
-        if self.__class__.__name__ == 'Record':
-            self.write(ds)
+        self.write(ds)
 
     def export_as_nifti(self, directory=None, filename=None):
         """Export 2D pixel Array in nifty format"""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read()
         
         if directory is None: 
             directory = self.directory(message='Please select a folder for the nifty data')
@@ -304,10 +296,9 @@ class Image(Instance):
     def window(self):
         """Centre and width of the pixel data after applying rescale slope and intercept"""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
-        if 'WindowCenter' in ds: centre = self.ds.WindowCenter
-        if 'WindowWidth' in ds: width = self.ds.WindowWidth
+        ds = self.read()
+        if 'WindowCenter' in ds: centre = ds.WindowCenter
+        if 'WindowWidth' in ds: width = ds.WindowWidth
         if centre is None or width is None:
             array = self.array()
         if centre is None: 

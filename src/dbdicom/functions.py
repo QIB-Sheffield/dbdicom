@@ -10,6 +10,10 @@ from . import utilities
 def write(ds, file, dialog=None): # ds is a pydicom dataset (should take DataSet)
 
     try:
+        # check if directory exists and create it if not
+        dir = os.path.dirname(file)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         ds.save_as(file) 
     except:
         message = "Failed to write to " + file

@@ -7,171 +7,34 @@ from .. import utilities, functions
 import dbdicom as db
 
 
-class DbDicom():
-    """Abstract base class for methods that are shared between records and datasets"""
+class DbObject():
 
-    def instances(self, index=None, **kwargs): 
-        """A list of instances of the object"""
-
-        if self.generation == 4: 
-            return
-        if self.generation == 3:
-            return self.children(index=index, **kwargs)
-        instances = []
-        for child in self.children():
-            inst = child.instances(**kwargs)
-            instances.extend(inst)
-        if index is not None:
-            if index >= len(instances):
-                return
-            else:
-                return instances[index]
-        return instances 
-
-
-class DataSet(DbDicom):
-
-    def __init__(self, parent=None):
-
-        self.parent = parent
-        # For Database, Patient, Study or Series: list of dbdicom DataSet instances
-        # For Instance: pydicom DataSet instance
-        self._ds = None 
-
-    @property
-    def generation(self):
-        if self._ds is None:
-            return
-        if self.is_an_instance():
-            return 4
-        else:
-            return self._ds[0].generation - 1
-
-    def is_an_instance(self):
-
-        if isinstance(self._ds, list):
-            return False
-        else:
-            return True
-
-    def to_pydicom(self): # instances only
-
-        if self.is_an_instance():
-            return self._ds
-
-    def set_pydicom(self, ds):
-        
-        if self.is_an_instance():
-            self._ds = ds
-
-    def empty(self):
-        return self._ds is None
-
-    def __getattr__(self, tag):
-        """Gets the value of the data element with given tag.
-        
-        Arguments
-        ---------
-        tag : str
-            DICOM KeyWord String
-
-        Returns
-        -------
-        Value of the corresponding DICOM data element
-        """
-        return self[tag]
-
-    def __getitem__(self, tags):
-        """Gets the value of the data elements with specified tags.
-        
-        Arguments
-        ---------
-        tags : a string, hexadecimal tuple, or a list of strings and hexadecimal tuples
-
-        Returns
-        -------
-        A value or a list of values
-        """
-        if self.empty():
-            return None
-        if self.is_an_instance():
-            return utilities._read_tags(self, tags)
-        else:
-            return self._ds[0][tags]
-
-
-
-    def __setattr__(self, tag, value):
-        """Sets the value of the data element with given tag."""
-
-        if tag in ['parent', '_ds']:
-            self.__dict__[tag] = value
-        else:
-            self[tag] = value
-
-    def __setitem__(self, tags, values):
-        """Sets the value of the data element with given tag."""
-
-        if self.is_an_instance():
-            utilities._set_tags(self, tags, values)
-        else:
-            for instance in self.instances():
-                utilities._set_tags(instance, tags, values)
-
-    def children(self, index=None, **kwargs):
-        """List of children"""
-
-        if self.is_an_instance(): 
-            return []
-        objects = utilities._filter(self._ds, **kwargs)
-        if index is not None:
-            if index >= len(objects): 
-                return []
-            else:
-                return objects[index]
-        return objects
-
-  
-
-class Record(DbDicom):
-
-    def __init__(self, folder, UID=[], generation=0, **attributes):
+    def __init__(self, UID=[], generation=0, **attributes):
 
         objUID = [] + UID
-#        for i in range(generation-len(UID)):
         while generation > len(objUID):
             newUID = pydicom.uid.generate_uid()
             objUID.append(newUID)    
 
         self.UID = objUID
-        self.folder = folder
-        self.status = folder.status
-        self.dialog = folder.dialog
-        self.dicm = folder.dicm
-        # placeholder DICOM attributes
-        # these will populate the dataset and dataframe when data are created
         self.attributes = attributes
 
-    def is_an_instance(self):
-        return self.generation == 4
+    @property
+    def generation(self):
+        return len(self.UID)
 
-    def to_pydicom(self): # instances only
+    @property
+    def key(self):
+        """The keywords describing the UID of the object"""
 
-        if self.is_an_instance():
-            return self.read().to_pydicom()
+        key = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
+        return key[0:self.generation]
+
+    def new_uid(self): # to utilities
+        
+        return pydicom.uid.generate_uid()
 
     def __getattr__(self, tag):
-        """Gets the value of the data element with given tag.
-        
-        Arguments
-        ---------
-        tag : str
-            DICOM KeyWord String
-
-        Returns
-        -------
-        Value of the corresponding DICOM data element
-        """
         return self[tag]
 
     def __getitem__(self, tags):
@@ -185,6 +48,12 @@ class Record(DbDicom):
         -------
         A value or a list of values
         """
+        # Read from self.UID, self.attributes or dataframe
+        # if not isinstance(tags, list):
+        #     tags = [tags]
+        # key_tags = [t for t in tags if t in self.key]
+        # save_tags = [t for t in tags if t not in self.key]
+        
         if self.is_an_instance():
             ds = self.read()
             return utilities._read_tags(ds, tags)
@@ -211,10 +80,266 @@ class Record(DbDicom):
             values[v] = list(set(value))
         return values
 
+    def is_an_instance(self):
+        return self.generation == 4
+
+    def instances(self, index=None, **kwargs): 
+        """A list of instances of the object"""
+
+        if self.generation == 4: 
+            return [self]
+        if self.generation == 3:
+            return self.children(index=index, **kwargs)
+        if self.generation < 3:
+            objects = []
+            for child in self.children():
+                o = child.instances(**kwargs)
+                objects.extend(o)
+            if index is not None:
+                if index >= len(objects):
+                    return None
+                else:
+                    return objects[index]
+            return objects
+        
+    def series(self, index=None, **kwargs): 
+        """A list of series of the object"""
+
+        if self.generation == 4:
+            if self.parent is None:
+                return None
+            elif index is None:
+                return [self.parent]
+            elif index == 0:
+                return self.parent
+            else:
+                return None
+        if self.generation == 3: 
+            return [self]
+        if self.generation == 2:
+            return self.children(index=index, **kwargs)
+        if self.generation < 2:
+            objects = []
+            for child in self.children():
+                o = child.series(**kwargs)
+                objects.extend(o)
+            if index is not None:
+                if index >= len(objects):
+                    return None
+                else:
+                    return objects[index]
+            return objects
+
+    def studies(self, index=None, **kwargs): 
+        """A list of studies of the object"""
+
+        if self.generation == 4:
+            if self.parent is None:
+                return None
+            else:
+                return self.parent.studies(index=index)
+        if self.generation == 3:
+            if self.parent is None:
+                return None
+            elif index is None:
+                return [self.parent]
+            elif index == 0:
+                return self.parent
+            else:
+                return None
+        if self.generation == 2: 
+            return [self]
+        if self.generation == 1:
+            return self.children(index=index, **kwargs)
+        if self.generation < 1:
+            objects = []
+            for child in self.children():
+                o = child.studies(**kwargs)
+                objects.extend(o)
+            if index is not None:
+                if index >= len(objects):
+                    return None
+                else:
+                    return objects[index]
+            return objects
+
+    def patients(self, index=None, **kwargs): 
+        """A list of patients of the object"""
+
+        if self.generation >= 3:
+            if self.parent is None:
+                return None
+            else:
+                return self.parent.patients(index=index)
+        if self.generation == 2:
+            if self.parent is None:
+                return None
+            elif index is None:
+                return [self.parent]
+            elif index == 0:
+                return self.parent
+            else:
+                return None
+        if self.generation == 1: 
+            return [self]
+        if self.generation == 0:
+            return self.children(index=index, **kwargs)
+
+    # Not yet implemented because returns DbObject rather than Folder
+    # Awaits restructure with Folder as attribute to Database
+    # def database(self): 
+    #     if self.generation >= 2:
+    #         if self.parent is None:
+    #             return None
+    #         else:
+    #             return self.parent.database()
+    #     if self.generation == 1:
+    #         if self.parent is None:
+    #             return None
+    #         else:
+    #             return self.parent
+    #     if self.generation == 0: 
+    #         return self
+
+    def new_sibling(self, **attributes):
+        """
+        Creates a new sibling under the same parent.
+        """
+        if self.generation == 0:
+            return
+        else:
+            return self.parent.new_child(**attributes)
+
+    def new_pibling(self, **attributes):
+        """
+        Creates a new sibling of parent.
+        """
+        if self.generation <= 1:
+            return
+        else:
+            return self.parent.new_sibling(**attributes)
+
+    def new_cousin(self, **attributes):
+        """
+        Creates a new sibling of parent.
+        """
+        if self.generation <= 1:
+            return
+        else:
+            return self.new_pibling().new_child(**attributes)
+
+    def new_series(self, **attributes):
+        """
+        Creates a new series under the same parent
+        """ 
+        if self.generation <= 1: 
+            return self.new_child().new_series(**attributes)
+        if self.generation == 2:
+            return self.new_child(**attributes)
+        if self.generation == 3:
+            return self.new_sibling(**attributes)
+        if self.generation == 4:
+            return self.new_pibling(**attributes) 
+
+
+class DataSet(DbObject):
+
+    def __init__(self, parent=None, UID=[], generation=0, **attributes):
+
+        super().__init__(UID, generation, **attributes)
+
+        self.parent = parent
+        # For Database, Patient, Study or Series: list of dbdicom DataSet instances
+        # For Instance: pydicom DataSet instance
+        self._ds = None 
+
+    def read(self):
+        """Convenience function - return the object itself"""
+        return self
+
+    def write(self, ds):
+        """Convenience function - do nothing"""
+        pass
+
+    def to_pydicom(self): # instances only
+
+        if self.is_an_instance():
+            return self._ds
+
+    def set_pydicom(self, ds):
+        
+        if self.is_an_instance():
+            self._ds = ds
+
+    def empty(self):
+        return self._ds is None
+
+    def __setattr__(self, tag, value):
+        """Sets the value of the data element with given tag."""
+
+        if tag in ['UID', 'attributes', 'parent', '_ds']:
+            self.__dict__[tag] = value
+        else:
+            self[tag] = value
+
+    def __setitem__(self, tags, values):
+        """Sets the value of the data element with given tag."""
+
+        # Raise an error if the tag is one of the UIDs
+
+        if self.is_an_instance():
+            utilities._set_tags(self, tags, values)
+        else:
+            for instance in self.instances():
+                utilities._set_tags(instance, tags, values)
+
+    def children(self, index=None, **kwargs):
+        """List of children"""
+
+        if self.is_an_instance(): 
+            return []
+        objects = utilities._filter(self._ds, **kwargs)
+        if index is not None:
+            if index >= len(objects): 
+                return []
+            else:
+                return objects[index]
+        return objects
+
+    def new_child(self, **attributes):
+        """Creates a new child object"""
+
+        if self.generation == 4: 
+            return None
+        else:
+            child = DataSet(parent=self, UID=self.UID, generation=self.generation+1, **attributes)
+            if self._ds is None:
+                self._ds = [child]
+            else:
+                self._ds.append(child)
+            return child
+
+
+class Record(DbObject):
+
+    def __init__(self, folder, UID=[], generation=0, **attributes):
+        super().__init__(UID, generation, **attributes)
+
+        self.folder = folder
+        self.status = folder.status
+        self.dialog = folder.dialog
+        self.dicm = folder.dicm
+
+    def to_pydicom(self): # instances only
+
+        if self.is_an_instance():
+            return self.read().to_pydicom()
+
     def __setattr__(self, tag, value):
         """Sets the value of the data element with given tag."""
 
         if tag in ['UID', 'folder', 'status', 'dialog', 'dicm', 'attributes']:
+        #if tag in self.__dict__: # does this work?
             self.__dict__[tag] = value
         else:
             self[tag] = value
@@ -233,6 +358,7 @@ class Record(DbDicom):
         else:
             instances = self.instances()
         for i, instance in enumerate(instances):
+            # excludes tags in self.UID and attributes
             ds = instance.read()
             utilities._set_tags(ds, tags, values)
             instance.write(ds)
@@ -243,7 +369,7 @@ class Record(DbDicom):
 
         if self.is_an_instance():
             return self._read_instance()
-        dataset = DataSet()
+        dataset = DataSet(UID=self.UID, generation=self.generation, attributes=self.attributes)
         children = self.children()
         if len(children) == 0:
             return dataset
@@ -259,7 +385,7 @@ class Record(DbDicom):
     def _read_instance(self):
         """Reads the dataset into memory."""
 
-        dataset = DataSet()
+        dataset = DataSet(UID=self.UID, generation=self.generation, attributes=self.attributes)
         file = self.file
         if file is None: 
             return dataset
@@ -323,26 +449,12 @@ class Record(DbDicom):
             return
         self.folder.dataframe.loc[self.data().index,'removed'] = True 
 
-    @property
-    def generation(self):
-        return len(self.UID)
-
-    @property
-    def key(self):
-        """The keywords describing the UID of the record"""
-
-        key = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
-        return key[0:self.generation]
-
-    def new_uid(self): # to utilities
-        
-        return pydicom.uid.generate_uid()
 
     def data(self):
         """Dataframe with current data - excluding those that were removed
         """
 
-        # Note: this returns a copy - could be a view instead using .loc?
+        # Note: this returns a copy - could be a view instead?
 
         if self.folder.path is None:
             return self.folder.dataframe
@@ -352,6 +464,9 @@ class Record(DbDicom):
             return data       
         rows = data[self.key[-1]] == self.UID[-1]
         return data[rows]
+
+    def empty(self):
+        return self.data().empty
 
     def dataset(self, sortby=None, status=True): 
         """Sort instances by a list of attributes.
@@ -378,7 +493,8 @@ class Record(DbDicom):
         data = []
         vals = df[sortby[0]].unique()
         for i, c in enumerate(vals):
-            if status: self.status.progress(i, len(vals), message='Sorting..')
+            if status: 
+                self.status.progress(i, len(vals), message='Sorting..')
             dfc = df[df[sortby[0]] == c]
             if len(sortby) == 1:
                 datac = self._dataset_from_df(dfc)
@@ -589,14 +705,6 @@ class Record(DbDicom):
 
         return series
 
-#    def write_array(self, array, dataset): 
-#        """
-#        Set and array and write it to disk.
-#        """
-#        series = self.set_array(array, dataset)
-#        series.write()
-#        return series
-
     @property
     def _SOPClassUID(self):
         """The SOP Class UID of the first instance"""
@@ -673,107 +781,11 @@ class Record(DbDicom):
         if index is not None: return objects[0]
         return objects
 
-    def patients(self, index=None,  **kwargs):
-        """A list of patients of the object"""
-
-        if self.generation==4: 
-            return self.parent.parent.parent
-        if self.generation==3:
-            return self.parent.parent
-        if self.generation==2:
-            self.parent
-        if self.generation==1:
-            return
-        return self.children(index=index, **kwargs)
-
-    def studies(self, index=None, **kwargs):
-        """A list of studies of the object"""
-
-        if self.generation==4: 
-            return self.parent.parent
-        if self.generation==3:
-            return self.parent
-        if self.generation==2:
-            return
-        if self.generation==1:
-            return self.children(index=index, **kwargs)
-        objects = []
-        for child in self.children():
-            inst = child.studies(**kwargs)
-            objects.extend(inst)
-        if index is not None:
-            if index >= len(objects):
-                return
-            else:
-                return objects[index]
-        return objects
-
-    def series(self, index=None, **kwargs):
-        """A list of series of the object"""
-
-        if self.generation==4: 
-            return self.parent
-        if self.generation==3:
-            return
-        if self.generation==2:
-            kids = self.children(index=index, **kwargs)
-            return kids
-        series = []
-        for child in self.children():
-            inst = child.series(**kwargs)
-            series.extend(inst)
-        if index is not None:
-            if index >= len(series):
-                return
-            else:
-                return series[index]
-        return series
-
     def new_child(self, **attributes):
         """Creates a new child object"""
 
         obj = self.dicm.new_child(self, **attributes)
         return obj
-
-    def new_sibling(self, **attributes):
-        """
-        Creates a new sibling under the same parent.
-        """
-        if self.generation == 0:
-            return
-        else:
-            return self.parent.new_child(**attributes)
-
-    def new_pibling(self, **attributes):
-        """
-        Creates a new sibling of parent.
-        """
-        if self.generation <= 1:
-            return
-        else:
-            return self.parent.new_sibling(**attributes)
-
-    def new_cousin(self, **attributes):
-        """
-        Creates a new sibling of parent.
-        """
-        if self.generation <= 1:
-            return
-        else:
-            return self.new_pibling().new_child(**attributes)
-
-    def new_series(self, **attributes):
-        """
-        Creates a new series under the same parent
-        """ 
-        if self.generation <= 1: 
-            return self.new_child().new_series(**attributes)
-        if self.generation == 2:
-            return self.new_child(**attributes)
-        if self.generation == 3:
-            return self.new_sibling(**attributes)
-        if self.generation == 4:
-            return self.new_pibling(**attributes) 
 
     def remove(self):
         """Deletes the object. """ 
@@ -790,6 +802,7 @@ class Record(DbDicom):
             If the object is not a parent, the missing 
             intermediate generations are automatically created.
         """
+        # This edits the dataframe twice
         copy = self.copy_to(ancestor)
         self.remove()
         return copy
@@ -903,14 +916,14 @@ class Record(DbDicom):
             instances = self.instances()
         
         for i, instance in enumerate(instances):
-            filename = os.path.basename(instance.file)
-            destination = os.path.join(path, filename)
+            relpath = instance.data().index.tolist()[0]
+            destination = os.path.join(path, relpath)
             ds = instance.read().to_pydicom()
             functions.write(ds, destination, self.dialog)
             self.status.progress(i,len(instances), message='Exporting..')
         self.status.hide()
 
-        
+
     def save(self, message = "Saving changes.."):
         """Save all instances of the record."""
 

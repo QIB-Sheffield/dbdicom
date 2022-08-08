@@ -8,51 +8,71 @@ class MRImage(Image):
     def array(self):
         """Read the pixel array from an MR image"""
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
+        ds = self.read().to_pydicom()
+        array = ds.pixel_array.astype(np.float32)
         if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
-            array = ds.to_pydicom().pixel_array.astype(np.float32)
             slope = ds[(0x2005, 0x100E)].value
             intercept = ds[(0x2005, 0x100D)].value
             array -= intercept
             array /= slope
-            array = np.transpose(array)
         else:
-            array = super().array()
+            slope = float(getattr(ds, 'RescaleSlope', 1)) 
+            intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
+            #array = array * slope + intercept
+            array *= slope
+            array += intercept
         
-        return array
+        return np.transpose(array)
         
-    def set_array(self, pixelArray, value_range=None):
+    def set_array(self, array, value_range=None):
 
-        if self.__class__.__name__ == 'Record':
-            ds = self.read()
-        if ds is None:
+        dataset = self.read()
+        if dataset is None:
             # TODO: Handle this by creating new dataset from scratch
             raise RuntimeError('Cannot set array: no dataset defined on disk or in memory')
-        ds_pydicom = ds.to_pydicom() # DataSet needs to inherit this functionality
-        if (0x2005, 0x100E) in ds_pydicom: del ds_pydicom[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-        if (0x2005, 0x100D) in ds_pydicom: del ds_pydicom[0x2005, 0x100D]
-        ds.set_pydicom(ds_pydicom) 
-        if self.__class__.__name__ == 'Record':
-            self.write(ds)
-        super().set_array(pixelArray, value_range=value_range) # not ideal - reads ds twice
+        ds = dataset.to_pydicom() # DataSet needs to inherit this functionality
+        if (0x2005, 0x100E) in ds: del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
+        if (0x2005, 0x100D) in ds: del ds[0x2005, 0x100D]
+        
+        if array.ndim >= 3: # remove spurious dimensions of 1
+            array = np.squeeze(array) 
+        array = self.clip(array, value_range=value_range)
+        array, slope, intercept = self.scale_to_range(array, ds.BitsAllocated)
+        array = np.transpose(array)
+
+        maximum = np.amax(array)
+        minimum = np.amin(array)
+        shape = np.shape(array)
+
+        ds.PixelRepresentation = 0
+        ds.SmallestImagePixelValue = int(maximum)
+        ds.LargestImagePixelValue = int(minimum)
+        ds.RescaleSlope = 1 / slope
+        ds.RescaleIntercept = - intercept / slope
+#        ds.WindowCenter = (maximum + minimum) / 2
+#        ds.WindowWidth = maximum - minimum
+        ds.Rows = shape[0]
+        ds.Columns = shape[1]
+        ds.PixelData = array.tobytes()
+
+        #dataset.set_pydicom(ds)
+        self.write(dataset)
 
 
     def image_type(self):
         """Determine if an image is Magnitude, Phase, Real or Imaginary image or None"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
-        if (0x0043, 0x102f) in self.ds:
-            private_ge = self.ds[0x0043, 0x102f]
+        ds = self.read()
+        if (0x0043, 0x102f) in ds:
+            private_ge = ds[0x0043, 0x102f]
             try: value = struct.unpack('h', private_ge.value)[0]
             except: value = private_ge.value
             if value == 0: return 'MAGNITUDE'
             if value == 1: return 'PHASE'
             if value == 2: return 'REAL'
             if value == 3: return 'IMAGINARY'
-        if 'ImageType' in self.ds:
-            type = set(self.ds.ImageType)
+        if 'ImageType' in ds:
+            type = set(ds.ImageType)
             if set(['M', 'MAGNITUDE']).intersection(type):
                 return 'MAGNITUDE'
             if set(['P', 'PHASE']).intersection(type):
@@ -61,21 +81,20 @@ class MRImage(Image):
                 return 'REAL'
             if set(['I', 'IMAGINARY']).intersection(type):
                 return 'IMAGINARY'
-        if 'ComplexImageComponent' in self.ds:
-            return self.ds.ComplexImageComponent
-        if on_disk: self.clear()
+        if 'ComplexImageComponent' in ds:
+            return ds.ComplexImageComponent
+
 
     def signal_type(self):
         """Determine if an image is Water, Fat, In-Phase, Out-phase image or None"""
 
-        on_disk = self.on_disk()
-        if on_disk: self.read()
+        ds = self.read()
         flagWater = False
         flagFat = False
         flagInPhase = False
         flagOutPhase = False
-        if hasattr(self.ds, 'ImageType'):
-            type = set(self.ds.ImageType)
+        if hasattr(ds, 'ImageType'):
+            type = set(ds.ImageType)
             if set(['W', 'WATER']).intersection(type):
                 flagWater = True
             elif set(['F', 'FAT']).intersection(type):# or ('B0' in dataset.ImageType) or ('FIELD_MAP' in dataset.ImageType):
@@ -84,7 +103,7 @@ class MRImage(Image):
                 flagInPhase = True
             elif set(['OP', 'OUT_PHASE']).intersection(type):
                 flagOutPhase = True
-        if on_disk: self.clear()
+       
         return flagWater, flagFat, flagInPhase, flagOutPhase
 
 

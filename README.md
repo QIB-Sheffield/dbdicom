@@ -69,13 +69,7 @@ database/
 | 
 ```
 
-The files are *instances* of a specific DICOM class and correspond to real-world 
-objects such as images or regions-of-interest. Instances are grouped into a *series*, 
-and multiple series are grouped into *studies*. Typically a study consist of all the data 
-derived in a single examination of a subject. Studies are grouped into *patients*, 
-which correspond to the subjects the study is performed upon. 
-A *patient* can be an actual patient, but can also be a healthy volunteer, an animal,
-a physical reference object, or a digital reference object.
+The files are *instances* of a specific DICOM class and correspond to real-world objects such as images or regions-of-interest. Instances are grouped into a *series*, and multiple series are grouped into *studies*. Typically a study consist of all the data derived in a single examination of a subject. Studies are grouped into *patients*, which correspond to the subjects the study is performed upon. A *patient* can be an actual patient but can also be a healthy volunteer, an animal, a physical reference object, or a digital reference object.
 
 To return a list of all patients, studies, series or instances in the folder: 
 
@@ -106,9 +100,7 @@ Or all instances of a study:
 instances = study.instances()
 ```
 
-And so on for all other levels in the hierarchy. 
-Individual objects can also be access directly using 
-indices. For instance to retrieve the first instance in the folder:
+And so on for all other levels in the hierarchy. Individual objects can also be accessed directly using indices. For instance to retrieve the first instance in the folder:
 
 ```python
 instance = database.instances(0)
@@ -128,7 +120,7 @@ For instance, to find the patient of a given series:
 patient = series.patients()
 ```
 
-In this case the function will return a single object rather than a list.
+In this case the function will return a list with a single item.
 
 ### Finding DICOM objects in the folder
 
@@ -272,8 +264,6 @@ folder.import(files)
 
 # Creating and modifying DICOM files
 
-
-
 ### Reading DICOM attributes
 
 An object's DICOM attributes can be read by using the DICOM keyword of the attribute:
@@ -282,11 +272,10 @@ An object's DICOM attributes can be read by using the DICOM keyword of the attri
 dimensions = [instance.Rows, instance.Columns]
 ```
 
-All attributes can also be accessed at series, study, patient or folder level. 
-In this case they will return a single value taken from their first instance.
+All attributes can also be accessed at series, study, patient or folder level. In this case they will return a list of unique values. For instance to return a list with all distinct series descriptions in a study:
 
 ```python
-rows = database.patient(0).series(0).Rows
+desc = database.study(0).SeriesDescription
 ```
 
 To print the Rows for all instances in the series, iterate over them:
@@ -312,16 +301,12 @@ dimensions = instance[dimensions]
 ```
 
 This will return a list with two items. As shown in the example,
-the items in the list can be either KeyWord strings or (group, element) pairs. 
-This also works on higher-level objects:
+the items in the list can be either KeyWord strings or (group, element) pairs. This also works on higher-level objects:
 
 ```python
 dimensions = ['Rows', (0x0028, 0x0010)]
 dimensions = patient[dimensions] 
 ```
-
-As for single KeyWord attributes this will return one list
-taken from the first instance of the patient.
 
 
 ### Editing attributes
@@ -360,7 +345,7 @@ For instance, to set all the Rows in all instances of a series to 128:
 series.Rows = 128
 ```
 
-This is shorthand for:
+Iteratingover instances will produce the same result, but will be slower:
 
 ```python
 for instance in series.instances():
