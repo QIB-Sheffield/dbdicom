@@ -1,3 +1,5 @@
+"""Remnant code from old version - saved here for now"""
+
 from pydicom.dataset import Dataset
 import numpy as np
 import datetime

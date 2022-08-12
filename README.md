@@ -503,7 +503,7 @@ In order to save the image to disk an instance of the folder class needs to be p
 This can point to an empty folder, or to an existing DICOM database where the new data will be added:
 
 ```python
-new_image.folder = Folder('C:\\Users\\MyName\\MyData\\New Folder')
+new_image.dbindex = DbIndex('C:\\Users\\MyName\\MyData\\New DbIndex')
 ```
 
 After setting a folder, the image can be written to disk:

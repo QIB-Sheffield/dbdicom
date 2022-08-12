@@ -4,7 +4,7 @@ import numpy as np
 
 import dbdicom as db
 
-datapath = os.path.join(os.path.dirname(__file__), 'fixtures')
+datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
 
 
 # Helper functions
@@ -433,7 +433,7 @@ def test_create_records():
     series = study.new_child()
     instance = series.new_child()
 
-    # considering specifying a _ds attribute in Record as well
+    # considering specifying a _ds attribute in DbRecord as well
     # so that you can travers the hierarchy even if no data are saved
 
     # assert instance.patients(0).UID == patient.UID 

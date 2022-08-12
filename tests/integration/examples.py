@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-import dbdicom as db
-from dbdicom.folder import Folder
+
+from dbdicom.dbindex import DbIndex
 
 
 test_folder = os.path.join(os.path.dirname(__file__), 'data')
@@ -32,7 +32,7 @@ def test_set_array_mip():
 
 def test_set_array_invert():
 
-    folder = Folder(test_folder2).open() # enhancement: open automatically on init
+    folder = DbIndex(test_folder2).open() # enhancement: open automatically on init
     series = folder.series(12) # T1-MOLLI multi-TI
     array, _ = series.array()
     invert = series.copy().set_array(-array)
@@ -58,10 +58,10 @@ def test_set_array_invert():
 
 def test_sort_series():
 
-    folder = Folder(test_folder2).open()
+    folder = DbIndex(test_folder2).open()
     series = folder.series(12) # T1-MOLLI multi-TI
 #    data = series.sort(['SliceLocation','InversionTime', 'PatientName'])
-    data = series.dataset(['SliceLocation','InversionTime', 'PatientName'])
+    data = series.sort(['SliceLocation','InversionTime', 'PatientName'])
     print(data[0,0,0,0].__class__.__name__)
     print(data.shape)
     print(data[0,0,0,0].SliceLocation)
@@ -72,7 +72,7 @@ def test_sort_series():
 
 def test_read_series_array():
 
-    folder = Folder(test_folder2).open()
+    folder = DbIndex(test_folder2).open()
     series = folder.series(12) # T1-MOLLI multi-TI
     array, data = series.array(['SliceLocation','InversionTime', 'PatientName'], pixels_first=True)
     print(array.shape)

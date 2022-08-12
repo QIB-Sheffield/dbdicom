@@ -15,9 +15,9 @@ class StatusBar():
         
     def progress(self, value, maximum, message=None):
         if message is not None:
-            self.message(message)
-        perc = str(100*value/maximum)
-        print(self._message + ' (' + perc + ' %)')
+            self._message = message
+        perc = str(round(100*value/maximum))
+        print(self._message + ' [' + perc + ' %]')
         
 
 class Dialog():
