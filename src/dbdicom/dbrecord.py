@@ -38,7 +38,7 @@ class DbData(DbObject):
         
         This will throw an exception if the dataset exists in memory only.
         """
-        self._ds = {}
+        self.ds = {}
         files, relpaths = self.dbindex.files()
         for i, file in enumerate(files):
             if message is not None:

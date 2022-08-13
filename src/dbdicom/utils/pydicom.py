@@ -9,6 +9,18 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 import dbdicom.utils.image as image
 
+
+def SOPClass(SOPClassUID):
+
+    if SOPClassUID == '1.2.840.10008.5.1.4.1.1.4':
+        return 'MRImage'
+    if SOPClassUID == '1.2.840.10008.5.1.4.1.1.4.1':
+        return 'EnhancedMRImage'
+    if SOPClassUID == '1.2.840.10008.5.1.4.1.1.7':
+        return 'SecondaryCaptureImage'
+    return 'Instance'
+
+
 def read(file, dialog=None):
 
     try:
@@ -195,16 +207,7 @@ def new_uid(n=1):
         uid.append(pydicom.uid.generate_uid())
     return uid
 
-def SOPClass(ds):
 
-    if ds.SOPClassUID == '1.2.840.10008.5.1.4.1.1.4':
-        return 'MRImage'
-    if ds.SOPClassUID == '1.2.840.10008.5.1.4.1.1.4.1':
-        return 'EnhancedMRImage'
-    if ds.SOPClassUID == '1.2.840.10008.5.1.4.1.1.7':
-        return 'SecondaryCaptureImage'
-
-    return 'Instance'
 
 
 def _image_array(ds):

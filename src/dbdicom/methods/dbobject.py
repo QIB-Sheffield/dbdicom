@@ -14,13 +14,8 @@ def type(dbobject):
         return 'Study'
     if dbobject.generation == 3:
         return 'Series'
-    if dbobject._SOPClassUID == '1.2.840.10008.5.1.4.1.1.4':
-        return 'MRImage'
-    if dbobject._SOPClassUID == '1.2.840.10008.5.1.4.1.1.4.1':
-        return 'EnhancedMRImage'
-    if dbobject._SOPClassUID == '1.2.840.10008.5.1.4.1.1.7':
-        return 'SecondaryCaptureImage'
-    return 'Instance'
+    if dbobject.generation == 4:
+        return pydcm.SOPClass(dbobject._SOPClassUID)
 
 def _filter(objects, **kwargs):
     # Note also works on pydicom ds's
