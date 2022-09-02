@@ -10,6 +10,151 @@ from pydicom.sequence import Sequence
 import dbdicom.utils.image as image
 
 
+def module_patient():
+
+    return [
+        'ReferencedPatientSequence',
+        'PatientName',
+        'PatientID',
+        'IssuerOfPatientID',
+        'TypeOfPatientID',
+        'IssuerOfPatientIDQualifiersSequence',
+        'SourcePatientGroupIdentificationSequence',
+        'GroupOfPatientsIdentificationSequence',
+        'PatientBirthDate',
+        'PatientBirthTime',
+        'PatientBirthDateInAlternativeCalendar',
+        'PatientDeathDateInAlternativeCalendar',
+        'PatientAlternativeCalendar',
+        'PatientSex',
+        'QualityControlSubject',
+        'StrainDescription',
+        'StrainNomenclature',
+        'StrainStockSequence',
+        'StrainAdditionalInformation',
+        'StrainCodeSequence',
+        'GeneticModificationsSequence',
+        'OtherPatientNames',
+        'OtherPatientIDsSequence',
+        'ReferencedPatientPhotoSequence',
+        'EthnicGroup',
+        'PatientSpeciesDescription',
+        'PatientSpeciesCodeSequence',
+        'PatientBreedDescription',
+        'PatientBreedCodeSequence',
+        'BreedRegistrationSequence',
+        'ResponsiblePerson',
+        'ResponsiblePersonRole',
+        'ResponsibleOrganization',
+        'PatientComments',
+        'PatientIdentityRemoved',
+        'DeidentificationMethod',
+        'DeidentificationMethodCodeSequence',
+        'ClinicalTrialSponsorName',
+        'ClinicalTrialProtocolID',
+        'ClinicalTrialProtocolName',
+        'ClinicalTrialSiteID',
+        'ClinicalTrialSiteName',
+        'ClinicalTrialSubjectID',
+        'ClinicalTrialSubjectReadingID',
+        'ClinicalTrialProtocolEthicsCommitteeName',
+        'ClinicalTrialProtocolEthicsCommitteeApprovalNumber',
+    ]
+
+def module_study():
+
+    return [
+        'StudyDate',
+        'StudyTime',
+        'AccessionNumber',
+        'IssuerOfAccessionNumberSequence',
+        'ReferringPhysicianName',
+        'ReferringPhysicianIdentificationSequence',
+        'ConsultingPhysicianName',
+        'ConsultingPhysicianIdentificationSequence',
+        'StudyDescription',
+        'ProcedureCodeSequence',
+        'PhysiciansOfRecord',
+        'PhysiciansOfRecordIdentificationSequence',
+        'NameOfPhysiciansReadingStudy',
+        'PhysiciansReadingStudyIdentificationSequence',
+        'ReferencedStudySequence',
+        'StudyInstanceUID',
+        'StudyID',
+        'RequestingService',
+        'RequestingServiceCodeSequence',
+        'ReasonForPerformedProcedureCodeSequence',
+        'AdmittingDiagnosesDescription',
+        'AdmittingDiagnosesCodeSequence',
+        'PatientAge',
+        'PatientSize',
+        'PatientSizeCodeSequence',
+        'PatientBodyMassIndex',
+        'MeasuredAPDimension',
+        'MeasuredLateralDimension',
+        'PatientWeight',
+        'MedicalAlerts',
+        'Allergies',
+        'Occupation',
+        'SmokingStatus',
+        'AdditionalPatientHistory',
+        'PregnancyStatus',
+        'LastMenstrualDate',
+        'PatientSexNeutered',
+        'ReasonForVisit',
+        'ReasonForVisitCodeSequence',
+        'AdmissionID',
+        'IssuerOfAdmissionIDSequence',
+        'ServiceEpisodeID',
+        'ServiceEpisodeDescription',
+        'IssuerOfServiceEpisodeIDSequence',
+        'PatientState',
+        'ClinicalTrialTimePointID',
+        'ClinicalTrialTimePointDescription',
+        'LongitudinalTemporalOffsetFromEvent',
+        'LongitudinalTemporalEventType',
+        'ConsentForClinicalTrialUseSequence',
+    ]   
+
+def module_series():
+
+    return [
+        'SeriesDate',
+        'SeriesTime',
+        'Modality',
+        'SeriesDescription',
+        'SeriesDescriptionCodeSequence',
+        'PerformingPhysicianName',
+        'PerformingPhysicianIdentificationSequence',
+        'OperatorsName',
+        'OperatorIdentificationSequence',
+        'ReferencedPerformedProcedureStepSequence',
+        'RelatedSeriesSequence',
+        'AnatomicalOrientationType',
+        'BodyPartExamined',
+        'ProtocolName',
+        'PatientPosition',
+        'ReferencedDefinedProtocolSequence',
+        'ReferencedPerformedProtocolSequence',
+        'SeriesInstanceUID',
+        'SeriesNumber',
+        'Laterality',
+        'SmallestPixelValueInSeries',
+        'LargestPixelValueInSeries',
+        'PerformedProcedureStepStartDate',
+        'PerformedProcedureStepStartTime',
+        'PerformedProcedureStepEndDate',
+        'PerformedProcedureStepEndTime',
+        'PerformedProcedureStepID',
+        'PerformedProcedureStepDescription',
+        'PerformedProtocolCodeSequence',
+        'RequestAttributesSequence',
+        'CommentsOnThePerformedProcedureStep',
+        'ClinicalTrialCoordinatingCenterName',
+        'ClinicalTrialSeriesID',
+        'ClinicalTrialSeriesDescription',
+    ]
+
 def SOPClass(SOPClassUID):
 
     if SOPClassUID == '1.2.840.10008.5.1.4.1.1.4':
@@ -20,15 +165,14 @@ def SOPClass(SOPClassUID):
         return 'SecondaryCaptureImage'
     return 'Instance'
 
-
 def read(file, dialog=None):
 
     try:
         return pydicom.dcmread(file)
     except:
         message = "Failed to read " + file
-        message += "\n The file may be open in another application, or is being synchronised by a cloud service."
-        message += "\n Please close the file or pause the synchronisation and try again."
+        message += "\n The file may be opened or deleted by another application."
+        message += "\n Please close the file and try again."
         if dialog is not None:
             dialog.information(message) 
         else:
@@ -107,16 +251,20 @@ def set_values(ds, tags, values):
         tags = [tags]
         values = [values]
     for i, tag in enumerate(tags):
-        if tag in ds:
-            ds[tag].value = values[i]
+        if values[i] is None:
+            if tag in ds:
+                del ds[tag]
         else:
-            if not isinstance(tag, pydicom.tag.BaseTag):
-                tag = pydicom.tag.Tag(tag)
-            if not tag.is_private: # Add a new data element
-                VR = pydicom.datadict.dictionary_VR(tag)
-                ds.add_new(tag, VR, values[i])
+            if tag in ds:
+                ds[tag].value = values[i]
             else:
-                pass # for now
+                if not isinstance(tag, pydicom.tag.BaseTag):
+                    tag = pydicom.tag.Tag(tag)
+                if not tag.is_private: # Add a new data element
+                    VR = pydicom.datadict.dictionary_VR(tag)
+                    ds.add_new(tag, VR, values[i])
+                else:
+                    pass # for now
     return ds
 
 def read_dataframe(path, files, tags, status=None, message='Reading DICOM folder..'):

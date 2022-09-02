@@ -1,6 +1,8 @@
 import os
 import zipfile
 
+def all_files(path):
+    return [item.path for item in scan_tree(path) if item.is_file()]
 
 def _unzip_files(path, status):
     """
