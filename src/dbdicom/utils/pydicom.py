@@ -4,10 +4,22 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from matplotlib import cm
+
 import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
+from pydicom.util.codify import code_file
+
 import dbdicom.utils.image as image
+
+
+
+def codify(source_file, save_file, **kwargs):
+    
+    str = code_file(source_file, **kwargs)
+    file = open(save_file, "w")
+    file.write(str)
+    file.close()
 
 
 def module_patient():
@@ -171,12 +183,9 @@ def read(file, dialog=None):
         return pydicom.dcmread(file)
     except:
         message = "Failed to read " + file
-        message += "\n The file may be opened or deleted by another application."
-        message += "\n Please close the file and try again."
         if dialog is not None:
-            dialog.information(message) 
-        else:
-            print(message)  
+            dialog.information(message)  
+        raise FileNotFoundError(message)
 
 def write(ds, file, dialog=None): # ds is a pydicom dataset
 
@@ -267,7 +276,7 @@ def set_values(ds, tags, values):
                     pass # for now
     return ds
 
-def read_dataframe(path, files, tags, status=None, message='Reading DICOM folder..'):
+def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
     """Reads a list of tags in a list of files.
 
     Arguments
@@ -298,8 +307,11 @@ def read_dataframe(path, files, tags, status=None, message='Reading DICOM folder
             if 'TransferSyntaxUID' in ds.file_meta:
                 row = get_values(ds, tags)
                 array.append(row)
-                relpath = os.path.relpath(file, path)
-                dicom_files.append(relpath) 
+                if path is None:
+                    index = file
+                else:
+                    index = os.path.relpath(file, path)
+                dicom_files.append(index) 
         if status is not None: 
             status.progress(i+1, len(files), message)
     if status is not None: 
@@ -342,19 +354,12 @@ def get_dataframe(datasets, tags):
     return pd.DataFrame(array, index=indices, columns=tags)
 
 
-
-
-
-
-def new_uid(n=1):
+def new_uid(n=None):
     
-    if n == 1:
+    if n is None:
         return pydicom.uid.generate_uid()
-    uid = []
-    for _ in range(n):
-        uid.append(pydicom.uid.generate_uid())
-    return uid
-
+    else:
+        return [pydicom.uid.generate_uid() for _ in range(n)]
 
 
 

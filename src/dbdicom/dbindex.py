@@ -7,10 +7,13 @@ import copy
 import pandas as pd
 import numpy as np
 
+import pydicom
+
 from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.pydicom as pydcm
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
+from dbdicom.templates.MRImage import rider
 
 class DbIndex(): 
     """Programming interface for reading and writing a DICOM folder."""
@@ -47,8 +50,9 @@ class DbIndex():
         """
         if self.path is None:
             raise ValueError('Cant read dataframe - index manages a database in memory')
-        files = [item.path for item in filetools.scan_tree(self.path) if item.is_file()]
-        self.dataframe = pydcm.read_dataframe(self.path, files, self.columns, self.status, message=message)
+        #files = [item.path for item in filetools.scan_tree(self.path) if item.is_file()]
+        files = filetools.all_files(self.path)
+        self.dataframe = pydcm.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
         self.dataframe['removed'] = False
         self.dataframe['created'] = False
 
@@ -123,7 +127,7 @@ class DbIndex():
                 singleframe_files = dcm4che.split_multiframe(filepath)
                 if singleframe_files != []:                    
                     # add the single frame files to the dataframe
-                    df = pydcm.read_dataframe(self.path, singleframe_files, self.columns)
+                    df = pydcm.read_dataframe(singleframe_files, self.columns, path=self.path)
                     df['removed'] = False
                     df['created'] = False
                     self.dataframe = pd.concat([self.dataframe, df])
@@ -181,7 +185,7 @@ class DbIndex():
         patient = None,
         study = None,
         series = None,
-        dataset = None):
+        dataset = None): # Replace dataset by instance
         """Return a list of indices for all dicom datasets managed by the index.
         
         These indices are strings with unique relative paths 
@@ -262,54 +266,82 @@ class DbIndex():
         else:
             return row[i-1]
 
-    def children(self, uid=None):
+    def filter(self, uids, **kwargs):
+        """Filter a list by attributes"""
+
+        if not kwargs:
+            return uids
+
+        vals = list(kwargs.values())
+        attr = list(kwargs.keys())
+        return [id for id in uids if self.get_values(id, attr) == vals]
+
+    def children(self, uid=None, **kwargs):
         """Returns the UIDs of the children"""
 
         if isinstance(uid, list):
             children = []
             for i in uid:
-                children += self.children(i)
+                children += self.children(i, **kwargs)
             return children
 
         if uid is None:
             return []
 
+        # Get all children
         keys = self.keys(uid)
         if uid == 'Database':
-            return list(set(self.value(keys, 'PatientID')))
-
-        row = self.dataframe.loc[keys[0]].values.tolist()
-        i = row.index(uid)
-        if self.columns[i] == 'SOPInstanceUID':
-            return []
+            children = list(set(self.value(keys, 'PatientID')))
         else:
-            values = self.dataframe.loc[keys,self.columns[i+1]].values
-            values = np.unique(values).tolist()
-            return [v for v in values if v is not None]
+            row = self.dataframe.loc[keys[0]].values.tolist()
+            i = row.index(uid)
+            if self.columns[i] == 'SOPInstanceUID':
+                return []
+            else:
+                values = self.dataframe.loc[keys,self.columns[i+1]].values
+                values = values[values != np.array(None)]
+                children = np.unique(values).tolist()
 
-    def instances(self, uid=None):
+        return self.filter(children, **kwargs)
+
+    def siblings(self, uid=None, **kwargs):
+
+        if uid is None:
+            return None
+        if uid == 'Database':
+            return None
+        parent = self.parent(uid)
+        children = self.children(parent)
+        children.remove(uid)
+        return self.filter(children, **kwargs)
+
+    def instances(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(self.value(keys, 'SOPInstanceUID'))
-        return [v for v in values if v is not None]
+        values = [v for v in values if v is not None]
+        return self.filter(values, **kwargs)
 
-    def series(self, uid=None):
+    def series(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'SeriesInstanceUID')))
-        return [v for v in values if v is not None]
+        values = [v for v in values if v is not None]
+        return self.filter(values, **kwargs)
 
-    def studies(self, uid=None):
+    def studies(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'StudyInstanceUID')))
-        return [v for v in values if v is not None]
+        values = [v for v in values if v is not None]
+        return self.filter(values, **kwargs)
 
-    def patients(self, uid=None):
+    def patients(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'PatientID')))
-        return [v for v in values if v is not None]
+        values = [v for v in values if v is not None]
+        return self.filter(values, **kwargs)
           
     def label(self, uid):
         """Return a label to describe a row as Patient, Study, Series or Instance"""
@@ -475,11 +507,11 @@ class DbIndex():
             return self._datasets[key]
         else:
             # If not in memory, read from disk
-            # Raise an exception if the database is in memory only.
-            try:
-                file = self.filepath(key)
-            except:
-                raise ValueError('Dataset ' + key + ' does not exist.')
+            file = self.filepath(key)
+            if file is None: # Database exists in memory only
+                return None
+            elif not os.path.exists(file):  # New series, study or patient 
+                return None 
             else:
                 return pydcm.read(file, self.dialog)       
 
@@ -513,22 +545,31 @@ class DbIndex():
 
         return os.path.join('dbdicom', pydcm.new_uid() + '.dcm') 
 
+
     def copy_to_series(self, uid, target):
         """Copy instances to another series"""
 
-        attributes = list(set(
-            pydcm.module_patient() + 
-            pydcm.module_study() + 
-            pydcm.module_series() ))
         target_keys = self.keys(series=target)
         ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
-        max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
-
+        if ds is None:
+            attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
+            values = self.value(target_keys[0], attributes).tolist()
+            max_number = 0
+        else:
+            attributes = list(set(
+                pydcm.module_patient() + 
+                pydcm.module_study() + 
+                pydcm.module_series() ))
+            values = pydcm.get_values(ds, attributes)
+            max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
+            
+        
         copy_data = []
         copy_keys = []
 
         keys = self.keys(uid)
+        new_instances = pydcm.new_uid(len(keys))
+
         for i, key in enumerate(keys):
 
             self.status.progress(i+1, len(keys), message='Copying..')
@@ -543,7 +584,7 @@ class DbIndex():
                 self._datasets[new_key] = ds
             pydcm.set_values(ds, 
                 attributes + ['SOPInstanceUID', 'InstanceNumber'], 
-                values + [pydcm.new_uid(), i+1+max_number])
+                values + [new_instances[i], i+1+max_number])
             if not key in self._datasets:
                 pydcm.write(ds, self.filepath(new_key), self.dialog)
 
@@ -558,28 +599,36 @@ class DbIndex():
         df['created'] = True
         self.dataframe = pd.concat([self.dataframe, df])
 
-        return copy_keys
-
+        if len(new_instances) == 1:
+            return new_instances[0]
+        else:
+            return new_instances
 
     def copy_to_study(self, uid, target):
         """Copy series to another study"""
 
-        attributes = list(set(
-            pydcm.module_patient() + 
-            pydcm.module_study() ))
         target_keys = self.keys(study=target)
         ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
-        max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
+        if ds is None: # target study is empty
+            attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
+            values = self.value(target_keys[0], attributes).tolist()
+            max_number = 0
+        else:
+            attributes = list(set(
+                pydcm.module_patient() + 
+                pydcm.module_study() ))
+            values = pydcm.get_values(ds, attributes)
+            max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
 
         copy_data = []
         copy_keys = []
 
         all_series = self.series(uid)
+        new_series = pydcm.new_uid(len(all_series))
+
         for s, series in enumerate(all_series):
 
             self.status.progress(s+1, len(all_series), message='Copying..')
-            new_uid = pydcm.new_uid() # should return a list of these instead of keys
             new_number = s + 1 + max_number
 
             for key in self.keys(series):
@@ -591,7 +640,7 @@ class DbIndex():
                     self._datasets[new_key] = ds
                 pydcm.set_values(ds, 
                     attributes + ['SeriesInstanceUID', 'SeriesNumber', 'SOPInstanceUID'], 
-                    values + [new_uid, new_number, pydcm.new_uid()])
+                    values + [new_series[s], new_number, pydcm.new_uid()])
                 if not key in self._datasets:
                     pydcm.write(ds, self.filepath(new_key), self.dialog)
                 # Get new data for the dataframe
@@ -605,25 +654,32 @@ class DbIndex():
         df['created'] = True
         self.dataframe = pd.concat([self.dataframe, df])
 
-        return copy_keys
-
+        if len(new_series) == 1:
+            return new_series[0]
+        else:
+            return new_series
 
     def copy_to_patient(self, uid, target):
         """Copy studies to another patient"""
 
-        attributes = pydcm.module_patient()
         target_keys = self.keys(patient=target)
         ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
+        if ds is None:
+            attributes = ['PatientID','PatientName']
+            values = self.value(target_keys[0], attributes).tolist()
+        else:
+            attributes = pydcm.module_patient()
+            values = pydcm.get_values(ds, attributes)
 
         copy_data = []
         copy_keys = []
 
         all_studies = self.studies(uid)
+        new_studies = pydcm.new_uid(len(all_studies))
+
         for s, study in enumerate(all_studies):
             
             self.status.progress(s+1, len(all_studies), message='Copying..')
-            new_study_uid = pydcm.new_uid()
 
             for series in self.series(study):
 
@@ -637,7 +693,7 @@ class DbIndex():
                         self._datasets[new_key] = ds
                     pydcm.set_values(ds, 
                         attributes + ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'], 
-                        values + [new_study_uid, new_series_uid, pydcm.new_uid()])
+                        values + [new_studies[s], new_series_uid, pydcm.new_uid()])
                     if not key in self._datasets:
                         pydcm.write(ds, self.filepath(new_key), self.dialog)
                     # Get new data for the dataframe
@@ -651,7 +707,10 @@ class DbIndex():
         df['created'] = True
         self.dataframe = pd.concat([self.dataframe, df])
 
-        return copy_keys
+        if len(new_studies) == 1:
+            return new_studies[0]
+        else:
+            return new_studies
 
     def copy_to(self, source, target):
 
@@ -665,22 +724,26 @@ class DbIndex():
         if type == 'SOPInstanceUID':
             raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
 
-
     def move_to_series(self, uid, target):
         """Copy datasets to another series"""
 
-        attributes = list(set(
-            pydcm.module_patient() + 
-            pydcm.module_study() + 
-            pydcm.module_series() ))
         target_keys = self.keys(series=target)
-        ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
-        max_instance_number = np.amax(self.value(target_keys, 'InstanceNumber'))
 
+        ds = self.dataset(target_keys[0])
+        if ds is None:
+            attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
+            values = self.value(target_keys[0], attributes).tolist()
+            max_number = 0
+        else:
+            attributes = list(set(
+                pydcm.module_patient() + 
+                pydcm.module_study() + 
+                pydcm.module_series() ))
+            values = pydcm.get_values(ds, attributes)
+            max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
+        
         copy_data = []
-        copy_keys = []
-        curr_keys = []        
+        copy_keys = []       
 
         keys = self.keys(uid)
         for i, key in enumerate(keys):
@@ -693,13 +756,12 @@ class DbIndex():
             if self.value(key, 'created'): 
                 pydcm.set_values(ds, 
                     attributes + ['InstanceNumber'], 
-                    values + [i+1 + max_instance_number])
+                    values + [i+1 + max_number])
                 if not key in self._datasets:
                     pydcm.write(ds, self.filepath(key), self.dialog)
                 for i, col in enumerate(attributes):
                     if col in self.columns:
                         self.dataframe.at[key,col] = values[i]
-                curr_keys.append(key)
 
             # If this is the first change, then save results in a copy.
             else:  
@@ -709,7 +771,7 @@ class DbIndex():
                     self._datasets[new_key] = ds
                 pydcm.set_values(ds, 
                     attributes + ['InstanceNumber'], 
-                    values + [i+1+max_instance_number])
+                    values + [i+1+max_number])
                 if not key in self._datasets:
                     pydcm.write(ds, self.filepath(new_key), self.dialog)
 
@@ -726,23 +788,30 @@ class DbIndex():
             df['created'] = True
             self.dataframe = pd.concat([self.dataframe, df])
 
-        return copy_keys + curr_keys
+        if len(keys) == 1:
+            return self.value(keys, 'SOPInstanceUID')
+        else:
+            return list(self.value(keys, 'SOPInstanceUID'))
 
 
     def move_to_study(self, uid, target):
         """Copy series to another study"""
 
-        attributes = list(set(
-            pydcm.module_patient() + 
-            pydcm.module_study() ))
         target_keys = self.keys(study=target)
         ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
-        max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
-
+        if ds is None:
+            attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
+            values = self.value(target_keys[0], attributes).tolist()
+            max_number = 0
+        else:
+            attributes = list(set(
+                pydcm.module_patient() + 
+                pydcm.module_study() ))
+            values = pydcm.get_values(ds, attributes)
+            max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
+        
         copy_data = []
-        copy_keys = []
-        curr_keys = []        
+        copy_keys = []       
 
         all_series = self.series(uid)
         for s, series in enumerate(all_series):
@@ -764,7 +833,6 @@ class DbIndex():
                     for i, col in enumerate(attributes):
                         if col in self.columns:
                             self.dataframe.at[key,col] = values[i]
-                    curr_keys.append(key)
 
                 # If this is the first change, then save results in a copy.
                 else:  
@@ -791,20 +859,25 @@ class DbIndex():
             df['created'] = True
             self.dataframe = pd.concat([self.dataframe, df])
 
-        return copy_keys + curr_keys
-
+        if len(all_series) == 1:
+            return all_series[0]
+        else:
+            return all_series
 
     def move_to_patient(self, uid, target):
         """Copy series to another study"""
 
-        attributes = pydcm.module_patient()
         target_keys = self.keys(patient=target)
         ds = self.dataset(target_keys[0])
-        values = pydcm.get_values(ds, attributes)
+        if ds is None:
+            attributes = ['PatientID','PatientName']
+            values = self.value(target_keys[0], attributes).tolist()
+        else:
+            attributes = pydcm.module_patient()
+            values = pydcm.get_values(ds, attributes)
 
         copy_data = []
-        copy_keys = []
-        curr_keys = []    
+        copy_keys = []  
 
         all_studies = self.studies(uid)
         for s, study in enumerate(all_studies):
@@ -826,7 +899,6 @@ class DbIndex():
                         for i, col in enumerate(attributes):
                             if col in self.columns:
                                 self.dataframe.at[key,col] = values[i]
-                        curr_keys.append(key)
 
                     # If this is the first change, then save results in a copy.
                     else:  
@@ -853,7 +925,10 @@ class DbIndex():
                 df['created'] = True
                 self.dataframe = pd.concat([self.dataframe, df])
 
-            return copy_keys + curr_keys
+        if len(all_studies) == 1:
+            return all_studies[0]
+        else:
+            return all_studies
 
     def move_to(self, source, target):
 
@@ -866,7 +941,6 @@ class DbIndex():
             return self.move_to_series(source, target)
         if type == 'SOPInstanceUID':
             raise ValueError('Cannot move to an instance. Please move to series, study or patient.')
-
 
     def set_values(self, uid, attributes, values):
         """Copy datasets to another series"""
@@ -994,12 +1068,9 @@ class DbIndex():
             if key in self._datasets:
                 del self._datasets[key]
             # delete on disk
-            try:
-                file = self.filepath(key) # !!! should return None if in memory only rather than raise exception !!!
-                if os.path.exists(file): 
-                    os.remove(file)
-            except:
-                pass
+            file = self.filepath(key) 
+            if os.path.exists(file): 
+                os.remove(file)
 
         df.loc[created.index, 'created'] = False
         df.drop(removed.index, inplace=True)
@@ -1021,17 +1092,18 @@ class DbIndex():
             if key in self._datasets:
                 del self._datasets[key]
             # delete on disk
-            try:
-                file = self.filepath(key) # !!! should return None if in memory only rather than raise exception !!!
-                if os.path.exists(file): 
-                    os.remove(file)
-            except:
-                pass
+            file = self.filepath(key) 
+            if os.path.exists(file): 
+                os.remove(file)
 
         df.loc[removed.index, 'removed'] = False
         df.drop(created.index, inplace=True)
 
-    def new_patient(self):
+
+    def new_patient(self, uid='Database'):
+
+        if uid != 'Database':
+            return None
 
         data = [None] * len(self.columns)
         data[0] = pydcm.new_uid()
@@ -1073,7 +1145,7 @@ class DbIndex():
         else:
             key = self.keys(study=study)[0]
             data[0] = self.value(key, 'PatientID')
-            data[0] = self.value(key, 'StudyInstanceUID')
+            data[1] = self.value(key, 'StudyInstanceUID')
             data[6] = self.value(key, 'PatientName')
             data[7] = self.value(key, 'StudyDescription')
             data[8] = self.value(key, 'StudyDate')
@@ -1085,14 +1157,131 @@ class DbIndex():
 
         return data[2]
 
+    def in_memory(self, uid): # needs a test
+
+        key = self.keys(uid)[0]
+        return key in self._datasets
+
+    def new_child(self, uid=None):
+
+        if uid is None:
+            return None
+        type = self.type(uid)
+        if type == 'Database':
+            return self.new_patient(uid)
+        if type == 'PatientID':
+            return self.new_study(uid)
+        if type == 'StudyInstanceUID':
+            return self.new_series(uid)
+        if type == 'SeriesInstanceUID':
+            instances = self.instances(uid)
+            if instances == []:
+                # Create new instance and set values from register
+                key = self.keys(uid)[0]
+                ds = rider() # Generalize with any ClassUID
+                columns = [ 
+                    'PatientID',
+                    'StudyInstanceUID',
+                    'SeriesInstanceUID',
+                    'PatientName',
+                    'StudyDescription',
+                    'StudyDate',
+                    'SeriesDescription',
+                    'SeriesNumber',
+                ]
+                pydcm.set_values(ds, columns, self.value(key, columns))
+                # Look for more complete study- or patient modules
+                study = self.dataframe.at[key, 'StudyInstanceUID']
+                study_instances = self.instances(study)
+                if study_instances != []:
+                    attr = list(set(pydcm.module_patient() + pydcm.module_study()))
+                    vals = self.get_values(study_instances[0], attr)
+                    pydcm.set_values(ds, attr, vals)
+                else:
+                    patient = self.dataframe.at[key, 'PatientID']
+                    patient_instances = self.instances(patient)
+                    if patient_instances != []:
+                        attr = pydcm.module_patient()
+                        vals = self.get_values(patient_instances[0], attr)
+                        pydcm.set_values(ds, attr, vals)
+                # Update the register
+                columns = ['SOPInstanceUID', 'SOPClassUID', 'InstanceNumber']
+                self.dataframe.loc[key, columns] = pydcm.get_values(ds, columns)
+                # Add it to the database
+                ds.save_as(self.filepath(key), write_like_original=False)
+                pydicom.dcmread(self.filepath(key))
+                return ds.SOPInstanceUID 
+            else:
+                return self.copy_to(instances[0], uid)
+        if type == 'SOPInstanceUID':
+            return None
+
+    def new_sibling(self, uid=None):
+
+        if uid is None:
+            return None
+        if uid == 'Database':
+            return None
+        parent = self.parent(uid)
+        return self.new_child(parent)
+
+    def new_pibling(self, uid=None):
+
+        if uid is None:
+            return None
+        if uid == 'Database':
+            return None
+        parent = self.parent(uid)
+        return self.new_sibling(parent)
+
+    def group(self, uids, into=None):
+        
+        if not isinstance(uids, list):
+            return
+        if into is None:
+            into = self.new_pibling(uids[0])
+        self.copy_to(uids, into)
+        return into
+
+    def merge(self, uids, into=None):
+
+        children = self.children(uids)
+        return self.group(children, into=into)
+
+    def import_datasets(self, files):
+
+        # Read register data
+        df = pydcm.read_dataframe(files, self.columns, self.status)
+        df['removed'] = False
+        df['created'] = True
+
+        # Do not import SOPInstances that are already in the database
+        uids = df.SOPInstanceUID.values.tolist()
+        keys = self.keys(dataset=uids)
+        if keys != []:
+            do_not_import = self.value(keys, 'SOPInstanceUID')
+            rows = df.SOPInstanceUID.isin(do_not_import)
+            df.drop(df[rows].index, inplace=True)
+        if df.empty:
+            return
+
+        # Add those that are left to the database
+        for file in df.index.tolist():
+            new_key = self.new_key()
+            ds = pydcm.read(file)
+            pydcm.write(ds, self.filepath(new_key), self.dialog)
+            df.rename(index={file:new_key}, inplace=True)
+        self.dataframe = pd.concat([self.dataframe, df])
+
+    def export_datasets(self, uids, database):
+        
+        files = self.filepaths(uids)
+        database.import_datasets(files)
+
 
 # Tested until here
 
 
-
-    # def row(self, key):
-    #     # Needs a formal test
-    #     return self.dataframe.loc[key]
 
     def sortby(self, sortby):
         """Sort dataframe values by given list of column labels"""
@@ -1101,125 +1290,3 @@ class DbIndex():
         # Needs a formal test for completeness
         self.dataframe.sort_values(sortby, inplace=True)
         return self
-
-    def _new_index(self, instances):
-        """Create a new index for a list of instances (DbData or DbRecord)"""
-
-        data = []
-        for instance in instances:
-            ds = instance.read()._ds
-            row = pydcm.get_values(ds, self.columns)
-            data.append(row)
-        new_files = [self.new_file() for _ in instances]
-        df = pd.DataFrame(data, index=new_files, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        return df
-
-    def _update_index(self, instances): # instances is a list of DbDatas or DbRecords
-
-        df = self.dataframe[self.dataframe.removed == False]
-        for instance in instances:
-            uid = instance.SOPInstanceUID
-            filename = df.index[df.SOPInstanceUID == uid].tolist()[0]
-            ds = instance.read()._ds
-            values = pydcm.get_values(ds, self.columns)
-            self.dataframe.loc[filename, self.columns] = values
-
-    def _add(self, instances): # instances is a list of instance DbDatas or DbRecords
-        
-        # TODO speed up if instances has just one element
-
-        df = self.dataframe[self.dataframe.removed == False]
-
-        # Find existing datasets that are changing for the first time 
-        # and existing datasets that have changed before
-        uids = [i.SOPInstanceUID for i in instances]
-        df_first_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == False)]
-        df_prevs_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == True)]
-        uids_first_change = df_first_change.SOPInstanceUID.values
-        uids_prevs_change = df_prevs_change.SOPInstanceUID.values
-        uids_all = df.SOPInstanceUID.values
-
-        # Create new dataframe for those that are changing for the first time
-        first_change = [i for i in instances if i.SOPInstanceUID in uids_first_change]
-        df_created = self._new_index(first_change)
-
-        # Update the dataframe values for those that have changed before
-        prevs_change = [i for i in instances if i.SOPInstanceUID in uids_prevs_change]
-        self._update_index(prevs_change)
-
-        # Find datasets that are new to the database and create a dataframe for them
-        new = [i for i in instances if i.SOPInstanceUID not in uids_all]
-        df_new = self._new_index(new)
- 
-        # Extend the dataframe with new rows
-        self.dataframe.loc[df_first_change.index, 'removed'] = True
-        self.dataframe = pd.concat([self.dataframe, df_created, df_new])
-
-    def update(self, uids, attributes): # instances is a list of instance DbDatas or DbRecords
-
-        df = self.dataframe[self.dataframe.removed == False]
-
-        # Find existing datasets that are changing for the first time 
-        # and existing datasets that have changed before
-        df_first_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == False)]
-        df_prevs_change = df.loc[df.SOPInstanceUID.isin(uids) & (df.created == True)]
-
-        # Create new dataframe for those that are changing for the first time
-        for key, value in attributes.items():
-            for index in df_first_change.index.values():
-                df_first_change.at[index, key] = value
-        df_first_change['removed'] = False
-        df_first_change['created'] = True
-
-        # Update the dataframe values for those that have changed before
-        for key, value in attributes.items():
-            for index in df_prevs_change.index.values():
-                df_first_change.at[index, key] = value
- 
-        # Extend the dataframe with new rows
-        self.dataframe.loc[df_first_change.index, 'removed'] = True
-        self.dataframe = pd.concat([self.dataframe, df_first_change])
-        
-        
-    def _append(self, ds):
-        """Append a new row to the dataframe from a pydicom dataset.
-        
-        Args:
-            ds: and instance of pydicom dataset
-        """
-
-        # Generate a new filename
-        file = self.new_file()
-#        path = os.path.join(self.path, "Weasel")
-#        if not os.path.isdir(path): os.mkdir(path)
-#        file = os.path.join(path, pydicom.uid.generate_uid() + '.dcm') 
-
-        row = pd.DataFrame([]*len(self.columns), index=[file], columns=self.columns)
-        row['removed'] = False
-        row['created'] = True
-        self.dataframe = pd.concat([self.dataframe, row]) 
-        
-        # REPLACED BY CONCAT on 03 june 2022
-        # labels = self.columns + ['removed','created']
-        #row = pd.Series(data=['']*len(labels), index=labels, name=file)
-        #row['removed'] = False
-        #row['created'] = True
-        #self.__dict__['dataframe'] = self.dataframe.append(row) # REPLACE BY CONCAT
-
-        self._update(file, ds)
-
-    def _update(self, file, ds):
-        """Update the values of a dataframe row.
-        
-        Args:
-            file: filepath (or index) of the row to be updated
-            ds: instance of a pydicom dataset.
-        """
-        for tag in self.columns:
-            if tag in ds:
-                value = pydcm.get_values(ds, tag)
-                self.dataframe.loc[file, tag] = value
-                #self.dataframe.loc[file, tag] = ds[tag].value
-

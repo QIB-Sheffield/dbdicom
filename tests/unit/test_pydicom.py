@@ -9,6 +9,8 @@ import dbdicom.utils.files as filetools
 # data
 #
 
+top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
@@ -134,7 +136,7 @@ def test_read_dataframe():
     v0 = pydcm.get_values(ds0, tags)
     v1 = pydcm.get_values(ds1, tags)
 
-    df = pydcm.read_dataframe(tmp, files, tags)
+    df = pydcm.read_dataframe(files, tags, path=tmp)
     v0_df = df.iloc[0].values.tolist()
     v1_df = df.iloc[1].values.tolist()
 
@@ -158,16 +160,34 @@ def test_modules():
 
     assert v0[2] == 'RIDER Neuro MRI-3369019796'
     assert v1[2] == 'RIDER Neuro MRI-5244517593'
+
+def test_codify():
     
+    output_folder = os.path.join(os.path.dirname(__file__), 'tmp')
+    if os.path.isdir(output_folder):
+        shutil.rmtree(output_folder)
+    os.makedirs(output_folder)
+
+    source = filetools.all_files(rider)
+    output_file = os.path.join(output_folder, 'MRImage_test.py')
+    pydcm.codify(source[0], output_file, exclude_size=100)
+
+    source = filetools.all_files(multiframe)
+    output_file = os.path.join(output_folder, 'EnhancedMRImage_test.py')
+    pydcm.codify(source[0], output_file, exclude_size=100)
+
+    # shutil.rmtree(output_folder)
+
 
 if __name__ == "__main__":
 
-    # test_rw()
-    # test_to_set_type()
-    # test_get_values()
-    # test_set_values()
-    # test_read_dataframe()
-    # test_modules()
+    test_rw()
+    test_to_set_type()
+    test_get_values()
+    test_set_values()
+    test_read_dataframe()
+    test_modules()
+    test_codify()
 
     print('-------------------------')
     print('pydicom passed all tests!')

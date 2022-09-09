@@ -5,6 +5,7 @@ import numpy as np
 from dbdicom.dbindex import DbIndex
 import dbdicom.utils.pydicom as pydcm
 
+
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
@@ -14,11 +15,14 @@ multiframe = os.path.join(datapath, 'MULTIFRAME')
 
 # Helper functions
 
-def create_tmp_database(path):
-    tmp = os.path.join(os.path.dirname(__file__), 'tmp')
+def create_tmp_database(path=None, name='tmp'):
+    tmp = os.path.join(os.path.dirname(__file__), name)
     if os.path.isdir(tmp):
         shutil.rmtree(tmp)
-    shutil.copytree(path, tmp)
+    if path is not None:
+        shutil.copytree(path, tmp)
+    else:
+        os.makedirs(tmp)
     return tmp
 
 def remove_tmp_database(tmp):
@@ -299,6 +303,26 @@ def test_children():
     assert [] == dbi.children()
     assert 6 == len(dbi.children([series, patient]))
 
+    remove_tmp_database(tmp)
+
+def test_siblings():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+    patient = 'RIDER Neuro MRI-5244517593'
+    assert dbi.siblings('Database') is None
+    assert len(dbi.children('Database')) == 2
+    assert len(dbi.siblings(dbi.children('Database')[0])) == 1
+    assert len(dbi.children(patient)) == 4
+    assert len(dbi.siblings(dbi.children(patient)[0])) == 3
+    assert len(dbi.children(series)) == 2
+    assert len(dbi.siblings(dbi.children(series)[0])) == 1
+
+    remove_tmp_database(tmp)
+
 def test_instances():
 
     tmp = create_tmp_database(rider)
@@ -312,6 +336,8 @@ def test_instances():
     assert len(dbi.instances('Database')) == 24
     assert dbi.instances() == []
 
+    remove_tmp_database(tmp)
+
 def test_series():
 
     tmp = create_tmp_database(rider)
@@ -324,6 +350,8 @@ def test_series():
     assert len(dbi.series(patient)) == 6
     assert dbi.series() == []
 
+    remove_tmp_database(tmp)
+
 def test_studies():
 
     tmp = create_tmp_database(rider)
@@ -334,6 +362,8 @@ def test_studies():
     patient = 'RIDER Neuro MRI-5244517593'
     assert len(dbi.studies(series)) == 1
     assert len(dbi.studies(patient)) == 4
+
+    remove_tmp_database(tmp)
 
 def test_patients():
 
@@ -347,6 +377,8 @@ def test_patients():
     assert len(dbi.patients(patient)) == 1
     assert len(dbi.patients('Database')) == 2
     assert dbi.patients() == []
+
+    remove_tmp_database(tmp)
 
 def test_label():
 
@@ -597,13 +629,13 @@ def test_copy_to_series():
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
     orig_keys = dbi.keys(patient='RIDER Neuro MRI-5244517593')
-    copy_keys = dbi.copy_to_series('RIDER Neuro MRI-5244517593', series)
+    copy_instances = dbi.copy_to_series('RIDER Neuro MRI-5244517593', series)
     assert len(dbi.keys(series)) == 14
     assert len(dbi.keys('RIDER Neuro MRI-5244517593')) == 12
     assert len(dbi.keys('RIDER Neuro MRI-3369019796')) == 24
     assert len(dbi.keys('Database')) == 36
     assert dbi.value(orig_keys[0], 'PatientID') == 'RIDER Neuro MRI-5244517593'
-    assert dbi.value(copy_keys[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
+    assert dbi.value(dbi.keys(copy_instances)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
     # Check that all new instance numbers are unique
     nrs = dbi.value(dbi.keys(series), 'InstanceNumber')
     assert len(set(nrs)) == len(nrs) 
@@ -620,14 +652,14 @@ def test_copy_to_study():
     assert len(dbi.series(study)) == 1
     assert len(dbi.series(patient)) == 6
     orig_keys = dbi.keys(patient=patient)
-    copy_keys = dbi.copy_to_study(patient, study)
+    copy_series = dbi.copy_to_study(patient, study)
     assert len(dbi.instances(study)) == 14
     assert len(dbi.series(study)) == 7
     assert len(dbi.instances('RIDER Neuro MRI-5244517593')) == 12
     assert len(dbi.instances('RIDER Neuro MRI-3369019796')) == 24
     assert len(dbi.instances('Database')) == 36
     assert dbi.value(orig_keys[0], 'PatientID') == 'RIDER Neuro MRI-5244517593'
-    assert dbi.value(copy_keys[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
+    assert dbi.value(dbi.keys(copy_series)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
     nrs = dbi.get_values(study, 'SeriesNumber')
     assert len(nrs) == len(dbi.series(study))
     remove_tmp_database(tmp)
@@ -681,13 +713,13 @@ def test_move_to_series():
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
     orig_keys = dbi.keys(patient='RIDER Neuro MRI-5244517593')
-    copy_keys = dbi.move_to_series('RIDER Neuro MRI-5244517593', series)
+    instances = dbi.move_to_series('RIDER Neuro MRI-5244517593', series)
     assert len(dbi.keys(series)) == 14
     assert len(dbi.keys('RIDER Neuro MRI-5244517593')) == 0
     assert len(dbi.keys('RIDER Neuro MRI-3369019796')) == 24
     assert len(dbi.keys('Database')) == 24
     assert dbi.value(orig_keys[0], 'PatientID') == 'RIDER Neuro MRI-5244517593'
-    assert dbi.value(copy_keys[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
+    assert dbi.value(dbi.keys(instances)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
     # Check that all new instance numbers are unique
     nrs = dbi.value(dbi.keys(series), 'InstanceNumber')
     assert len(set(nrs)) == len(nrs)
@@ -704,14 +736,14 @@ def test_move_to_study():
     patient = 'RIDER Neuro MRI-5244517593'
     assert len(dbi.series(study)) == 1
     assert len(dbi.series(patient)) == 6
-    copy_keys = dbi.move_to_study(patient, study) # move to a study of another patient
+    series = dbi.move_to_study(patient, study) # move to a study of another patient
     assert len(dbi.instances(study)) == 14
     assert len(dbi.series(study)) == 7
     assert len(dbi.instances(patient)) == 0
     assert len(dbi.instances('RIDER Neuro MRI-3369019796')) == 24
     assert len(dbi.instances('Database')) == 24
     assert dbi.get_values(patient, 'PatientID') is None
-    assert dbi.value(copy_keys[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
+    assert dbi.value(dbi.keys(series)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
     nrs = dbi.get_values(study, 'SeriesNumber')
     assert len(nrs) == len(dbi.series(study))
     remove_tmp_database(tmp)
@@ -967,55 +999,278 @@ def test_new_series():
 
     remove_tmp_database(tmp)
 
+def test_new_child():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    # Three objects that are not nested: study not in patient and series not in study.
+    patient = 'RIDER Neuro MRI-5244517593'
+    study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
+    series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+    instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
+
+    new_patient = dbi.new_child('Database')
+    assert dbi.parent(new_patient) == 'Database'
+    new_study = dbi.new_child(patient)
+    assert dbi.parent(new_study) == patient
+    new_series = dbi.new_child(study)
+    assert dbi.parent(new_series) == study
+    new_instance = dbi.new_child(series)
+    assert dbi.parent(new_instance) == series
+    new_instance = dbi.new_child(new_series)
+    assert dbi.parent(new_instance) == new_series
+    assert dbi.get_values(new_instance, 'BodyPartExamined') == 'FAKE'
+    assert None is dbi.new_child(instance)
+
+    remove_tmp_database(tmp)
+
+def test_new_sibling():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    # Three objects that are not nested: study not in patient and series not in study.
+    patient = 'RIDER Neuro MRI-5244517593'
+    study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
+    series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+    instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
+
+    assert dbi.new_sibling('Database') is None
+    new_patient = dbi.new_sibling(patient)
+    assert patient in dbi.children(dbi.parent(new_patient))
+    new_study = dbi.new_sibling(study)
+    assert study in dbi.children(dbi.parent(new_study))
+    new_series = dbi.new_sibling(series)
+    assert series in dbi.children(dbi.parent(new_series))
+    new_instance = dbi.new_sibling(instance)
+    assert instance in dbi.children(dbi.parent(new_instance))
+
+    remove_tmp_database(tmp)
+
+def test_new_pibling():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    # Three objects that are not nested: study not in patient and series not in study.
+    patient = 'RIDER Neuro MRI-5244517593'
+    study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
+    series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+    instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
+
+    assert dbi.new_pibling('Database') is None
+    assert dbi.new_pibling(patient) is None
+    new_patient = dbi.new_pibling(study)
+    assert new_patient in dbi.siblings(dbi.parent(study))
+    new_study = dbi.new_pibling(series)
+    assert new_study in dbi.siblings(dbi.parent(series))
+    new_series = dbi.new_pibling(instance)
+    assert new_series in dbi.siblings(dbi.parent(instance))
+
+    remove_tmp_database(tmp)
+
+def test_template():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    remove_tmp_database(tmp)
+
+def test_filter():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    patients = dbi.patients('Database')
+    patients = dbi.filter(patients, PatientName='281949')
+    assert len(patients) == 2
+    patients = dbi.filter(patients, PatientID='RIDER Neuro MRI-5244517593')
+    assert len(patients) == 1
+
+    series = dbi.series('Database')
+    series = dbi.filter(series, SeriesDescription='ax 5 flip')
+    assert len(series) == 4
+
+    series = dbi.series('Database')
+    series = dbi.filter(series, SeriesDescription='ax 5 flip', PatientID='RIDER Neuro MRI-5244517593')
+    assert len(series) == 2
+
+    remove_tmp_database(tmp)
+
+def test_group():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    series = [
+        '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242',    # RIDER Neuro MRI-3369019796
+        '1.3.6.1.4.1.9328.50.16.163870745718873861235299152775293374260',   # RIDER Neuro MRI-5244517593
+        '1.3.6.1.4.1.9328.50.16.39537076883396884954303966295061604769',    # RIDER Neuro MRI-3369019796
+        ]
+    target_study = dbi.new_pibling(series[1])
+    dbi.group(series, into=target_study)
+    assert len(dbi.children(target_study)) == 3
+
+
+def test_merge():
+
+    tmp = create_tmp_database(rider)
+    dbi = DbIndex()
+    dbi.open(tmp)
+
+    series = [
+        '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242',    # RIDER Neuro MRI-3369019796
+        '1.3.6.1.4.1.9328.50.16.163870745718873861235299152775293374260',   # RIDER Neuro MRI-5244517593
+        '1.3.6.1.4.1.9328.50.16.39537076883396884954303966295061604769',    # RIDER Neuro MRI-3369019796
+        ]
+    n = len(dbi.instances(series))
+    target_series = dbi.new_child(dbi.new_pibling(series[1]))
+    dbi.merge(series, into=target_series)
+    assert len(dbi.children(target_series)) == n
+
+def test_import_datasets():
+
+    source = create_tmp_database(rider, name='source')
+    source_dbi = DbIndex()
+    source_dbi.open(source)
+    source_files = source_dbi.filepaths('Database')
+
+    # Create empty database and import all source files
+    target = create_tmp_database(name='target')
+    target_dbi = DbIndex()
+    target_dbi.open(target)
+    target_dbi.import_datasets(source_files)
+
+    # Check that the number of datasets equals nr of source files
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    # Import all source files again and check that nothing has changed
+    target_dbi.import_datasets(source_files)
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    # Delete one patient, import all source files again and check that nothing has changed
+    patient = target_dbi.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
+    target_dbi.delete(patient)
+    target_dbi.import_datasets(source_files)
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    # Save new database and check that nothing has changed
+    target_dbi.save('Database')
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    # Delete one patient and import files from that patient again
+    # Check that nothing has changed
+    patient = target_dbi.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
+    target_dbi.delete(patient)
+    patient = source_dbi.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
+    patient_files = source_dbi.filepaths(patient)
+    assert len(target_dbi.instances('Database')) == len(source_files)-len(patient_files)
+    target_dbi.import_datasets(patient_files)
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    # Delete one patient and import files from another patient
+    # Check that files are not imported again
+    patient1 = target_dbi.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
+    patient1_files = target_dbi.filepaths(patient1)
+    patient2 = source_dbi.patients('Database', PatientID='RIDER Neuro MRI-3369019796')
+    patient2_files = source_dbi.filepaths(patient2)
+    target_dbi.delete(patient1)
+    assert len(target_dbi.instances('Database')) == len(source_files)-len(patient1_files)
+    target_dbi.import_datasets(patient2_files)
+    assert len(target_dbi.instances('Database')) == len(source_files)-len(patient1_files)
+
+    # Start over, this time with a full target databese
+    # Import all source files and check nothing has changed
+    target = create_tmp_database(rider, name='target')
+    target_dbi = DbIndex()
+    target_dbi.open(target)
+    assert len(target_dbi.instances('Database')) == len(source_files)
+    target_dbi.import_datasets(source_files)
+    assert len(target_dbi.instances('Database')) == len(source_files)
+
+    remove_tmp_database(source)
+    remove_tmp_database(target)
+
+def test_export_datasets():
+
+    source = create_tmp_database(rider, name='source')
+    source_dbi = DbIndex()
+    source_dbi.open(source)
+    patient = source_dbi.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
+
+    target = create_tmp_database(name='target')
+    target_dbi = DbIndex()
+    target_dbi.open(target)
+    source_dbi.export_datasets(patient, target_dbi)
+
+    assert len(target_dbi.instances('Database')) == len(source_dbi.instances(patient))
+    assert len(target_dbi.series('Database')) == len(source_dbi.series(patient))
+    assert len(target_dbi.studies('Database')) == len(source_dbi.studies(patient))
+
+    remove_tmp_database(source)
+    remove_tmp_database(target)
+
 
 if __name__ == "__main__":
 
-    test_init()
-    test_read_dataframe()
-    test_rw_df()
-    test_multiframe_to_singleframe()
-    test_scan()
-    test_type()
-    test_keys()
-    test_value()
-    test_parent()
-    test_children()
-    test_instances()
-    test_series()
-    test_studies()
-    test_patients()
-    test_label()
-    test_print()
-    test_read_and_clear()
-    test_write()
-    test_open_close()
-    test_inmemory_vs_ondisk() # This may need some revision
-    test_datasets()
-    test_delete()
-    test_copy_to_series()
-    test_copy_to_study()
-    test_copy_to_patient()
-    test_copy_to()
-    test_move_to_series()
-    test_move_to_study()
-    test_move_to_patient()
-    test_move_to()
-    test_set_values()
-    test_get_values()
-    test_restore()
-    test_save()
-    test_new_patient()
-    test_new_study()
-    test_new_series()
-
-    # new_cousin, new_sibling, new_pibling  
+    # test_init()
+    # test_read_dataframe()
+    # test_rw_df()
+    # test_multiframe_to_singleframe()
+    # test_scan()
+    # test_type()
+    # test_keys()
+    # test_value()
+    # test_parent()
+    # test_children()
+    # test_siblings()
+    # test_instances()
+    # test_series()
+    # test_studies()
+    # test_patients()
+    # test_label()
+    # test_print()
+    # test_read_and_clear()
+    # test_write()
+    # test_open_close()
+    # test_inmemory_vs_ondisk() 
+    # test_datasets()
+    # test_delete()
+    # test_copy_to_series()
+    # test_copy_to_study()
+    # test_copy_to_patient()
+    # test_copy_to()
+    # test_move_to_series()
+    # test_move_to_study()
+    # test_move_to_patient()
+    # test_move_to()
+    # test_set_values()
+    # test_get_values()
+    # test_restore()
+    # test_save()
+    # test_new_patient()
+    # test_new_study()
+    # test_new_series()
+    # test_new_child()
+    # test_new_sibling()
+    # test_new_pibling()
+    # test_filter()
+    # test_group()
+    # test_merge()
+    # test_import_datasets()
+    # test_export_datasets()
 
     # Next steps:
-    # Merge, group
-    # import and export
-    # include attributes in children, instances, series etc to filter on.
+    # Create database from scratch in memory
     
-
+    
     print('-------------------------')
     print('dbindex passed all tests!')
     print('-------------------------')
