@@ -50,7 +50,7 @@ class DbRecord():
             return 2
         elif type == 'Series':
             return 3
-        else:
+        elif type == 'Instance':
             return 4
 
     def parent(self):
@@ -139,6 +139,12 @@ class DbRecord():
 
     def get_values(self, attributes):
         get_values([self], attributes)[0]
+
+    def get_dataset(self):
+        return self.register.get_dataset(self.uid)
+
+    def set_dataset(self, dataset):
+        self.register.set_dataset(self.uid, dataset)
 
     def save(self):
         self.register.save(self.uid)
@@ -266,9 +272,3 @@ def save_npy(record, array=None, sortby=None, pixels_first=False):
     file = record.register.npy()
     with open(file, 'wb') as f:
         np.save(f, array)
-
-    
-    
-
-
-   

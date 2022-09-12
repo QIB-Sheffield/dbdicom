@@ -231,6 +231,7 @@ def sort_instances(dbobject, sortby=None, status=True):
         df.sort_values(sortby, inplace=True) 
         return _sorted_dataset_from_df(dbobject, df, sortby, status=status)
 
+
 def _sorted_dataset_from_df(dbobject, df, sortby, status=True): 
 
     data = []
@@ -245,6 +246,7 @@ def _sorted_dataset_from_df(dbobject, df, sortby, status=True):
             datac = _sorted_dataset_from_df(dbobject, dfc, sortby[1:], status=False)
         data.append(datac)
     return arrays._stack(data, align_left=True)
+
 
 def _dataset_from_df(dbobject, df): 
     """Return datasets as numpy array of object type"""
@@ -290,6 +292,7 @@ def map_onto(record, target):
             mapped_image.SeriesDescription = record.SeriesDescription
     record.status.hide()
     return mapped_series
+
 
 def _image_map_onto(record, target):
     """Map non-zero image pixels onto a target image.

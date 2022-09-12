@@ -437,94 +437,179 @@ class DbRegister():
         self.dataframe = pd.concat([self.dataframe, df])
 
         if dataset is not None:
-            self.set_dataset(dataset, data[3])
+            self.set_dataset(data[3], dataset)
 
         return data[3]
     
+    def is_empty(self, instance):
+        # Needs a unit test
+        key = self.keys(instance)[0]
+        if key in self.dataset:
+            return False
+        else:
+            file = self.filepath(key)
+            if file is None:
+                return True
+            elif not os.path.exists(file):
+                return True
+            else:
+                return False
 
-    def get_dataset(self, keys, message=None):
-        """Gets a list of datasets
+    def get_dataset(self, uid, message=None):
+        """Gets a list of datasets for a single record
         
         Datasets in memory will be returned.
         If they are not in memory, and the database exists on disk, they will be read from disk.
         If they are not in memory, and the database does not exist on disk, an exception is raised.
         """
-
-        if not isinstance(keys, list):
-            if keys in self.dataset:
-                # If in memory, get from memory
-                return self.dataset[keys]
-            else:
-                # If not in memory, read from disk
-                file = self.filepath(keys)
-                if file is None: # No dataset assigned yet
-                    return None
-                elif not os.path.exists(file):  # New instance, series, study or patient 
-                    return None 
-                else:
-                    return read_dataset(file, self.dialog)  
-
+        keys = self.keys(uid)
         dataset = []
         for i, key in enumerate(keys):
             if message is not None:
                 self.status.progress(i, len(keys), message)
-            ds = self.get_dataset(key)
+            if key in self.dataset:
+                # If in memory, get from memory
+                ds = self.dataset[key]
+            else:
+                # If not in memory, read from disk
+                file = self.filepath(key)
+                if file is None: # No dataset assigned yet
+                    ds = None
+                elif not os.path.exists(file):  # New instance, series, study or patient 
+                    ds = None 
+                else:
+                    ds = read_dataset(file, self.dialog)  
             dataset.append(ds)
-        self.status.hide()
-        return dataset
-
-
-    def set_dataset(self, dataset=None, instance=None, type='MRImage'):
-
-        if dataset is None:
-            dataset = new_dataset(type)
-        if instance is None:
-            instance = self.new_instance()
-
-        # Add dataset to database in memory
-        key = self.keys(instance)[0] 
-        data = self.value(key, self.columns)
-        data[4] = dataset.SOPClassUID
-        if 'NumberOfFrames' in dataset:
-            data[5] = dataset.NumberOfFrames
-        if self.value(key, 'created'):
-            self.dataset[key] = dataset
+        if self.type(uid) == 'Instance':
+            return dataset[0]
         else:
-            self.dataframe.at[key,'removed'] = True
-            new_key = self.new_key()
-            self.dataset[new_key] = dataset
-            # Update the dataframe in the index
-            df = pd.DataFrame([data], index=[new_key], columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])        
+            return dataset
 
-        # Set register values
-        dataset.set_values(self.columns, data)
+    def _get_values(self, instances, attr):
+        """Helper function for inherit_values"""
 
-        # Look for series, study- or patient modules in the hierarchy
+        for instance in instances:
+            ds = self.get_dataset(instance)
+            if ds is not None:
+                return ds.get_values(attr)
+        return [None] * len(attr)
+
+
+    def inherit_values(self, key):
+        """Attributes and values inherited from series, study and patient"""
+
+        attr = vals = []
         parent = self.dataframe.at[key, 'SeriesInstanceUID']
         instances = self.instances(parent)
         if instances != []:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + dbdataset.module_series()))
-            vals = self.get_values(instances[0], attr)
-            dataset.set_values(attr, vals)
+            vals = self._get_values(instances, attr)
         else:
             parent = self.dataframe.at[key, 'StudyInstanceUID']
             instances = self.instances(parent)
             if instances != []:
                 attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
-                vals = self.get_values(instances[0], attr)
-                dataset.set_values(attr, vals)
+                vals = self._get_values(instances, attr)
             else:
                 parent = self.dataframe.at[key, 'PatientID']
                 instances = self.instances(parent)
                 if instances != []:
                     attr = dbdataset.module_patient()
-                    vals = self.get_values(instances[0], attr)
-                    dataset.set_values(attr, vals)
+                    vals = self._get_values(instances, attr)
+        return attr, vals
 
-        return instance
+
+    def set_instance_dataset(self, instance, ds):
+
+        if isinstance(ds, list):
+            if len(ds) > 1:
+                raise ValueError('Cannot set multiple datasets to a single instance')
+            else:
+                ds = ds[0]
+
+        key = self.keys(instance)[0]
+        data = self.dataframe.loc[key, self.columns]
+        data[4] = ds.SOPClassUID
+        if 'NumberOfFrames' in ds:
+            data[5] = ds.NumberOfFrames
+        ds.set_values(self.columns, data)
+        if self.value(key, 'created'):
+            self.dataframe.loc[key, self.columns] = data
+            self.dataset[key] = ds
+        else:
+            self.dataframe.at[key,'removed'] = True
+            new_key = self.new_key()
+            self.dataset[new_key] = ds
+            df = pd.DataFrame([data], index=[new_key], columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])  
+                  
+
+    def set_dataset(self, uid, dataset):
+
+        if self.type(uid) == 'Instance':
+            self.set_instance_dataset(uid, dataset)
+            return
+
+        if not isinstance(dataset, list):
+            dataset = [dataset]
+         
+        parent_keys = self.keys(uid)
+        attr, vals = self.inherit_values(parent_keys[0])
+
+        new_data = []
+        new_keys = []
+        instances = self.value(parent_keys, 'SOPInstanceUID')
+
+        for ds in dataset:
+            try:
+                ind = list(instances).index(ds.SOPInstanceUID)
+            except:  # Save dataset in new instance
+
+                # Set parent modules
+                ds.set_values(attr, vals)
+
+                # Set values in register
+                key = parent_keys[0]
+                data = self.value(key, self.columns)
+                data[3] = dbdataset.new_uid()
+                data[4] = ds.SOPClassUID
+                if 'NumberOfFrames' in ds:
+                    data[5] = ds.NumberOfFrames
+                data[11] = 1 + max(self.value(parent_keys, 'InstanceNumber'))
+                ds.set_values(self.columns, data)
+
+                # Add to database in memory
+                new_key = self.new_key()
+                self.dataset[new_key] = ds
+                new_data.append(data)
+                new_keys.append(new_key)
+
+            else: # If the dataset is already in the object
+
+                key = self.keys(instances[ind])[0]
+                data = self.value(key, self.columns)
+                data[4] = ds.SOPClassUID
+                if 'NumberOfFrames' in ds:
+                    data[5] = ds.NumberOfFrames
+                if self.value(key, 'created'):
+                    self.dataset[key] = ds
+                else:
+                    self.dataframe.at[key,'removed'] = True
+
+                     # Add to database in memory
+                    new_key = self.new_key()
+                    self.dataset[new_key] = ds
+                    new_data.append(data)
+                    new_keys.append(new_key)
+
+        # Update the dataframe in the index
+        if new_keys != []:
+            df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])   
 
 
     def in_memory(self, uid): # needs a test
@@ -631,7 +716,7 @@ class DbRegister():
             # do not read if they are already in memory
             # this could overwrite changes made in memory only
             if not key in self.dataset:
-                self.dataset[key] = self.get_dataset(key)
+                self.dataset[key] = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
     def write(self, *args, message=None, **kwargs):
         """Writing data from memory to disk.
@@ -742,7 +827,7 @@ class DbRegister():
         """Copy instances to another series"""
 
         target_keys = self.keys(series=target)
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None:
             attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
             values = self.value(target_keys[0], attributes).tolist()
@@ -769,7 +854,7 @@ class DbRegister():
             # If the dataset is in memory, the copy is created in memory too
             # Else the copy is created on disk
             new_key = self.new_key()
-            ds = self.get_dataset(key)
+            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
             if key in self.dataset:
                 ds = copy.deepcopy(ds)
                 self.dataset[new_key] = ds
@@ -799,7 +884,7 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None: # target study is empty
             attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
             values = self.value(target_keys[0], attributes).tolist()
@@ -825,7 +910,7 @@ class DbRegister():
             for key in self.keys(series):
 
                 new_key = self.new_key()
-                ds = self.get_dataset(key)
+                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
                 if key in self.dataset:
                     ds = copy.deepcopy(ds)
                     self.dataset[new_key] = ds
@@ -854,7 +939,7 @@ class DbRegister():
         """Copy studies to another patient"""
 
         target_keys = self.keys(patient=target)
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None:
             attributes = ['PatientID','PatientName']
             values = self.value(target_keys[0], attributes).tolist()
@@ -878,7 +963,7 @@ class DbRegister():
                 for key in self.keys(series):
 
                     new_key = self.new_key()
-                    ds = self.get_dataset(key)
+                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
                     if key in self.dataset:
                         ds = copy.deepcopy(ds)
                         self.dataset[new_key] = ds
@@ -920,7 +1005,7 @@ class DbRegister():
 
         target_keys = self.keys(series=target)
 
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None:
             attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
             values = self.value(target_keys[0], attributes).tolist()
@@ -941,7 +1026,7 @@ class DbRegister():
 
             self.status.progress(i+1, len(keys), message='Moving dbdataset..')
 
-            ds = self.get_dataset(key)
+            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
             # If the value has changed before.
             if self.value(key, 'created'): 
@@ -989,7 +1074,7 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None:
             attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
             values = self.value(target_keys[0], attributes).tolist()
@@ -1012,7 +1097,7 @@ class DbRegister():
 
             for key in self.keys(series):
 
-                ds = self.get_dataset(key)
+                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
                 # If the value has changed before.
                 if self.value(key, 'created'): 
@@ -1059,7 +1144,7 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(patient=target)
-        ds = self.get_dataset(target_keys[0])
+        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
         if ds is None:
             attributes = ['PatientID','PatientName']
             values = self.value(target_keys[0], attributes).tolist()
@@ -1078,7 +1163,7 @@ class DbRegister():
 
                 for key in self.keys(series):
 
-                    ds = self.get_dataset(key)
+                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
                     # If the value has changed before.
                     if self.value(key, 'created'): 
@@ -1145,7 +1230,7 @@ class DbRegister():
 
             self.status.progress(i+1, len(keys), message='Setting values..')
 
-            ds = self.get_dataset(key)
+            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
             # If the value has changed before
             if self.value(key, 'created'): 
@@ -1194,8 +1279,11 @@ class DbRegister():
                 else:
                     value = []
                     for i, key in enumerate(keys):
-                        ds = self.get_dataset(key)
-                        v = ds.get_values(attributes)
+                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                        if ds is None:
+                            v = None
+                        else:
+                            v = ds.get_values(attributes)
                         value.append(v)
                 value = list(set(value))
                 if len(value) == 1:
@@ -1211,8 +1299,11 @@ class DbRegister():
                 else:
                     v = np.empty((len(keys), len(attributes)), dtype=object)
                     for i, key in enumerate(keys):
-                        ds = self.get_dataset(key)
-                        v[i,:] = ds.get_values(attributes)
+                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                        if ds is None:
+                            v[i,:] = [None] * len(attributes)
+                        else:
+                            v[i,:] = ds.get_values(attributes)
 
                 # Return a list with unique values for each attribute
                 values = []

@@ -455,16 +455,71 @@ def test_new_instance():
     n = len(dbr.instances('Database'))
     instance = dbr.new_instance()
     assert len(dbr.instances('Database')) == n+1
-    assert None is dbr.get_dataset(dbr.keys(instance)[0])
+    assert None is dbr.get_dataset(instance)
     assert 1 == len(dbr.keys(instance))
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
     n = len(dbr.instances(series))
     instance = dbr.new_instance(series)
     assert len(dbr.instances(series)) == n+1
-    assert None is dbr.get_dataset(dbr.keys(instance)[0])
+    assert None is dbr.get_dataset(instance)
 
     remove_tmp_database(tmp)
+
+
+def test_inherit_values():
+
+    tmp = create_tmp_database(rider)
+    dbr = DbRegister()
+    dbr.open(tmp)
+
+    series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+
+    instance = dbr.instances(series)[0]
+    attr, vals = dbr.inherit_values(dbr.keys(instance)[0])
+    series_vals = dbr.get_values(series, attr)
+    for i in range(len(vals)):
+        assert series_vals[i] == vals[i]
+
+    instance = dbr.new_instance(series)
+    attr, vals = dbr.inherit_values(dbr.keys(instance)[0])
+    series_vals = dbr.get_values(series, attr)
+    for i in range(len(vals)):
+        assert series_vals[i] == vals[i]
+
+def test_set_instance_dataset():
+
+    tmp = create_tmp_database(rider)
+    dbr = DbRegister()
+    dbr.open(tmp)
+
+    series1 = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
+
+    instance1 = dbr.instances(series1)[0]
+    ds1 = dbr.get_dataset(instance1)
+    ds1.PatientName = 'Blabla'
+    ds1.AcquisitionTime = '000000.00'
+    dbr.set_instance_dataset(instance1, ds1)
+    assert ds1.PatientName != 'Blabla'
+    assert ds1.AcquisitionTime == dbr.get_values(instance1, 'AcquisitionTime')
+
+    instance1 = dbr.instances(series1)[0]
+    ds1 = dbr.get_dataset(instance1)
+    ds1.PatientName = 'Blabla'
+    ds1.AcquisitionTime = '000001.00'
+    instance = dbr.new_instance(series1)
+    dbr.set_instance_dataset(instance, ds1)
+    assert ds1.PatientName != 'Blabla'
+    assert ds1.AcquisitionTime == dbr.get_values(instance, 'AcquisitionTime')
+
+    instance1 = dbr.instances(series1)[0]
+    ds1 = MRImage()
+    ds1.PatientName = 'Blabla'
+    ds1.AcquisitionTime = '000002.00'
+    dbr.set_instance_dataset(instance1, ds1)
+    assert ds1.PatientName != 'Blabla'
+    assert ds1.AcquisitionTime == dbr.get_values(instance1, 'AcquisitionTime')
+
 
 def test_set_dataset():
 
@@ -475,12 +530,26 @@ def test_set_dataset():
     series1 = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
     series2 = '1.3.6.1.4.1.9328.50.16.39537076883396884954303966295061604769'
 
-    instance1 = dbr.instances(series1)[0]
-    instance2 = dbr.new_instance(series2)
-    dataset1 = dbr.get_dataset(dbr.keys(instance1)[0])
-    dbr.set_dataset(dataset1, instance2)
-    assert dataset1.AcquisitionTime == dbr.get_values(instance2, 'AcquisitionTime') 
+    # Save datasets in new instances
+    dataset = dbr.get_dataset(series1)
+    dataset[0].AcquisitionTime = '000000'
+    n = len(dbr.instances(series2))
+    dbr.set_dataset(series2, dataset[:2])
+    assert len(dbr.instances(series2)) == n+2
+    assert '000000' in dbr.get_values(series2, 'AcquisitionTime')
+    dbr.restore('Database')
+    assert len(dbr.instances(series2)) == n
+    assert '000000' not in dbr.get_values(series2, 'AcquisitionTime')
 
+    # Save datasets in existing instances
+    dataset = dbr.get_dataset(series2)
+    dataset[0].AcquisitionTime = '000000'
+    n = len(dbr.instances(series2))
+    assert n == len(dataset)
+    dbr.set_dataset(series2, dataset[:2])
+    assert len(dbr.instances(series2)) == n
+    assert '000000' in dbr.get_values(series2, 'AcquisitionTime')
+    
     remove_tmp_database(tmp)
 
 def test_new_child():
@@ -665,7 +734,7 @@ def test_write():
     dbr.write('Database')
     dbr.clear('Database')
     dbr.read(instance=uid)
-    dataset = dbr.get_dataset(dbr.keys(instance=uid)[0])
+    dataset = dbr.get_dataset(uid)
     assert uid == dataset.SOPInstanceUID
     assert 'Anonymous' == dataset.PatientName
 
@@ -677,7 +746,7 @@ def test_write():
     dbr.write('Database')
     dbr.clear('Database')
     dbr.read(instance=uid)
-    ds = dbr.get_dataset(dbr.keys(instance=uid)[0])
+    ds = dbr.get_dataset(uid)
     assert ds.PatientName == 'Anonymous'
 
     remove_tmp_database(tmp)
@@ -744,24 +813,24 @@ def test_get_dataset():
     dbr.open(tmp)
 
     # Get a list of all datasets from disk
-    ds = dbr.get_dataset(dbr.keys('Database'))
+    ds = dbr.get_dataset('Database')
     assert 24 == len(ds)
 
     # Get a list of all datasets from memory
     dbr.read('Database')
-    ds = dbr.get_dataset(dbr.keys('Database'))
+    ds = dbr.get_dataset('Database')
     dbr.clear('Database')
     assert 24 == len(ds)
 
     # Read all datasets for one series from disk
     series_uid='1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
-    ds = dbr.get_dataset(dbr.keys(series=series_uid))
+    ds = dbr.get_dataset(series_uid)
     assert 2 == len(ds)
 
     # Read one of the datasets first, check that the result is the same
     uid = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
     dbr.read(instance=uid)
-    ds = dbr.get_dataset(dbr.keys(series=series_uid))
+    ds = dbr.get_dataset(series_uid)
     dbr.clear('Database')
     assert 2 == len(ds)
 
@@ -978,8 +1047,8 @@ def test_set_values():
         assert name != 'Anonymous'
     for t in dbr.value(dbr.keys(patient), 'SeriesDescription'):
         assert t != 'Desc'
-    for key in dbr.keys(patient):
-        assert dbr.get_dataset(key).get_values('AcquisitionTime') != '000000.00'
+    for instance in dbr.instances(patient):
+        assert dbr.get_dataset(instance).get_values('AcquisitionTime') != '000000.00'
 
     dbr.set_values(patient, ['PatientName', 'SeriesDescription', 'AcquisitionTime'], ['Anonymous', 'Desc', '000000.00'])
 
@@ -987,8 +1056,8 @@ def test_set_values():
         assert name == 'Anonymous'
     for t in dbr.value(dbr.keys(patient), 'SeriesDescription'):
         assert t == 'Desc'
-    for key in dbr.keys(patient):
-        assert dbr.get_dataset(key).get_values('AcquisitionTime') == '000000.00'
+    for instance in dbr.instances(patient):
+        assert dbr.get_dataset(instance).get_values('AcquisitionTime') == '000000.00'
 
     remove_tmp_database(tmp)
 
@@ -1271,6 +1340,8 @@ if __name__ == "__main__":
     test_new_study()
     test_new_series()
     test_new_instance()
+    test_inherit_values()
+    test_set_instance_dataset()
     test_set_dataset()
     test_new_child()
     test_new_sibling()
