@@ -5,8 +5,258 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
+import dbdicom.utils.arrays as arrays
 import dbdicom.utils.image as image
-import dbdicom.utils.pydicom as pydcm
+import dbdicom.dataset as dbdataset
+
+
+def array(dbobject, sortby=None, pixels_first=False): 
+    """Pixel values of the object as an ndarray
+    
+    Args:
+        sortby: 
+            Optional list of DICOM keywords by which the volume is sorted
+        pixels_first: 
+            If True, the (x,y) dimensions are the first dimensions of the array.
+            If False, (x,y) are the last dimensions - this is the default.
+
+    Returns:
+        An ndarray holding the pixel data.
+
+        An ndarry holding the datasets (instances) of each slice.
+
+    Examples:
+        ``` ruby
+        # return a 3D array (z,x,y)
+        # with the pixel data for each slice
+        # in no particular order (z)
+        array, _ = series.array()    
+
+        # return a 3D array (x,y,z)   
+        # with pixel data in the leading indices                               
+        array, _ = series.array(pixels_first = True)    
+
+        # Return a 4D array (x,y,t,k) sorted by acquisition time   
+        # The last dimension (k) enumerates all slices with the same acquisition time. 
+        # If there is only one image for each acquision time, 
+        # the last dimension is a dimension of 1                               
+        array, data = series.array('AcquisitionTime', pixels_first=True)                         
+        v = array[:,:,10,0]                 # First image at the 10th location
+        t = data[10,0].AcquisitionTIme      # acquisition time of the same image
+
+        # Return a 4D array (loc, TI, x, y) 
+        sortby = ['SliceLocation','InversionTime']
+        array, data = series.array(sortby) 
+        v = array[10,6,0,:,:]            # First slice at 11th slice location and 7th inversion time    
+        Loc = data[10,6,0][sortby[0]]    # Slice location of the same slice
+        TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
+        ```  
+    """
+    if dbobject.generation == 4:
+        return dbdataset._image_array(dbobject.read()._ds)
+    source = dbobject.sort_instances(sortby)
+    array = []
+    ds = source.ravel()
+    for i, im in enumerate(ds):
+        dbobject.status.progress(i, len(ds), 'Reading pixel data..')
+        if im is None:
+            array.append(np.zeros((1,1)))
+        else:
+            array.append(im.array())
+    dbobject.status.hide()
+    #array = [im.array() for im in dataset.ravel() if im is not None]
+    array = arrays._stack(array)
+    array = array.reshape(source.shape + array.shape[1:])
+    if pixels_first:
+        array = np.moveaxis(array, -1, 0)
+        array = np.moveaxis(array, -1, 0)
+    return array, source # REPLACE BY DBARRAY?
+
+
+def set_array(dbobject, array, source=None, pixels_first=False): 
+    """
+    Set pixel values of a series from a numpy ndarray.
+
+    Since the pixel data do not hold any information about the 
+    image such as geometry, or other metainformation,
+    a dataset must be provided as well with the same 
+    shape as the array except for the slice dimensions. 
+
+    If a dataset is not provided, header info is 
+    derived from existing instances in order.
+
+    Args:
+        array: 
+            numpy ndarray with pixel data.
+
+        dataset: 
+            numpy ndarray
+
+            Instances holding the header information. 
+            This *must* have the same shape as array, minus the slice dimensions.
+
+        pixels_first: 
+            bool
+
+            Specifies whether the pixel dimensions are the first or last dimensions of the series.
+            If not provided it is assumed the slice dimensions are the last dimensions
+            of the array.
+
+        inplace: 
+            bool
+
+            If True (default) the current pixel values in the series 
+            are overwritten. If set to False, the new array is added to the series.
+    
+    Examples:
+        ```ruby
+        # Invert all images in a series:
+        array, _ = series.array()
+        series.set_array(-array)
+
+        # Create a maximum intensity projection of the series.
+        # Header information for the result is taken from the first image.
+        # Results are saved in a new sibling series.
+        array, data = series.array()
+        array = np.amax(array, axis=0)
+        data = np.squeeze(data[0,...])
+        series.new_sibling().set_array(array, data)
+
+        # Create a 2D maximum intensity projection along the SliceLocation direction.
+        # Header information for the result is taken from the first slice location.
+        # Current data of the series are overwritten.
+        array, data = series.array('SliceLocation')
+        array = np.amax(array, axis=0)
+        data = np.squeeze(data[0,...])
+        series.set_array(array, data)
+
+        # In a series with multiple slice locations and inversion times,
+        # replace all images for each slice location with that of the shortest inversion time.
+        array, data = series.array(['SliceLocation','InversionTime']) 
+        for loc in range(array.shape[0]):               # loop over slice locations
+            slice0 = np.squeeze(array[loc,0,0,:,:])     # get the slice with shortest TI 
+            TI0 = data[loc,0,0].InversionTime           # get the TI of that slice
+            for TI in range(array.shape[1]):            # loop over TIs
+                array[loc,TI,0,:,:] = slice0            # replace each slice with shortest TI
+                data[loc,TI,0].InversionTime = TI0      # replace each TI with shortest TI
+        series.set_array(array, data)
+        ```
+    """
+    if pixels_first:    # Move to the end (default)
+        array = np.moveaxis(array, 0, -1)
+        array = np.moveaxis(array, 0, -1)
+
+    if source is None:
+        source = dbobject.sort_instances()
+
+    # Return with error message if dataset and array do not match.
+    nr_of_slices = np.prod(array.shape[:-2])
+    if nr_of_slices != np.prod(source.shape):
+        message = 'Error in set_array(): array and source do not match'
+        message += '\n Array has ' + str(nr_of_slices) + ' elements'
+        message += '\n Source has ' + str(np.prod(source.shape)) + ' elements'
+        dbobject.dialog.error(message)
+        raise ValueError(message)
+
+    # Identify the parent object and set 
+    # attributes that are inherited from the parent
+    if dbobject.generation in [3,4]:
+        parent = dbobject
+    else:
+        parent = dbobject.new_series()
+    attr = {}
+    attr['PatientID'] = parent.UID[0]
+    attr['StudyInstanceUID'] = parent.UID[1]
+    attr['SeriesInstanceUID'] = parent.UID[2]
+    if parent.attributes is not None:
+        attr.update(parent.attributes)
+
+    # Flatten array and source for iterating
+    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+    source = source.reshape(nr_of_slices) # shape (i,)
+
+    # Load each dataset in the source files
+    # Replace the array and parent attributes
+    # save the result in a new file
+    # and update the index dataframe
+    copy_data = []
+    copy_files = []
+    for i, instance in enumerate(source):
+
+        dbobject.status.progress(i, len(source), 'Writing array to file..')
+
+        # get a new UID and file for the copy
+        attr['SOPInstanceUID'] = dbdataset.new_uid()
+        copy_file = dbobject.dbindex.new_file()
+        filepath = os.path.join(dbobject.dbindex.path, copy_file)
+
+        # read dataset, set new attributes & array, and write result to new file
+        ds = instance.read()._ds 
+        dbdataset.set_values(ds, list(attr.keys()), list(attr.values()))
+        dbdataset._set_image_array(ds, array[i,...])
+        if not dbobject.in_memory():
+            dbdataset.write(ds, filepath, dbobject.dialog)
+
+        # Get new data for the dataframe
+        row = dbdataset.get_values(ds, dbobject.dbindex.columns)
+        copy_data.append(row)
+        copy_files.append(copy_file)
+        
+    # Update the dataframe in the index
+    df = pd.DataFrame(copy_data, index=copy_files, columns=dbobject.dbindex.columns)
+    df['removed'] = False
+    df['created'] = True
+    dbobject.dbindex.dataframe = pd.concat([dbobject.dbindex.dataframe, df])
+
+    return parent
+
+
+def sort_instances(dbobject, sortby=None, status=True): 
+    """Sort instances by a list of attributes.
+    
+    Args:
+        sortby: 
+            List of DICOM keywords by which the series is sorted
+    Returns:
+        An ndarray holding the instances sorted by sortby.
+    """
+    if sortby is None:
+        df = dbobject.data()
+        return dbobject._dataset_from_df(df)
+    else:
+        if set(sortby) <= set(dbobject.dbindex.dataframe):
+            df = dbobject.dbindex.dataframe.loc[dbobject.data().index, sortby]
+        else:
+            df = dbobject.get_dataframe(sortby)
+        df.sort_values(sortby, inplace=True) 
+        return _sorted_dataset_from_df(dbobject, df, sortby, status=status)
+
+def _sorted_dataset_from_df(dbobject, df, sortby, status=True): 
+
+    data = []
+    vals = df[sortby[0]].unique()
+    for i, c in enumerate(vals):
+        if status: 
+            dbobject.status.progress(i, len(vals), message='Sorting..')
+        dfc = df[df[sortby[0]] == c]
+        if len(sortby) == 1:
+            datac = _dataset_from_df(dbobject, dfc)
+        else:
+            datac = _sorted_dataset_from_df(dbobject, dfc, sortby[1:], status=False)
+        data.append(datac)
+    return arrays._stack(data, align_left=True)
+
+def _dataset_from_df(dbobject, df): 
+    """Return datasets as numpy array of object type"""
+
+    data = np.empty(df.shape[0], dtype=object)
+    cnt = 0
+    for file, _ in df.iterrows(): # just enumerate over df.index
+        #dbobject.status.progress(cnt, df.shape[0])
+        data[cnt] = dbobject.new_instance(file)
+        cnt += 1
+    #dbobject.status.hide()
+    return data
 
 
 def map_onto(record, target):
@@ -246,14 +496,14 @@ def get_colormap(record):
         return
 
     ds = record.read()
-    return pydcm.colormap(ds)
+    return dbdataset.colormap(ds)
 
 def get_lut(record):
 
     if record.generation < 4:
         return
     ds = record.read()
-    return pydcm.lut(ds)
+    return dbdataset.lut(ds)
 
 
 def set_colormap(record, *args, **kwargs):
@@ -262,7 +512,7 @@ def set_colormap(record, *args, **kwargs):
     if record.generation < 4:
         return
     dataset = record.read()
-    pydcm.set_colormap(dataset.to_pydicom(), *args, **kwargs)
+    dbdataset.set_colormap(dataset.to_pydicom(), *args, **kwargs)
     record.write(dataset)  
 
 
@@ -334,9 +584,9 @@ def image_type(record):
     ds = record.read().to_pydicom()
 
     if record.type == 'MRImage':
-        return pydcm.mr_image_type(ds)
+        return dbdataset.mr_image_type(ds)
     if record.type == 'EnhancedMRImage':
-        return pydcm.enhanced_mr_image_type(ds)
+        return dbdataset.enhanced_mr_image_type(ds)
 
 
 def signal_type(record):
@@ -345,8 +595,8 @@ def signal_type(record):
     ds = record.read().to_pydicom()
 
     if record.type == 'MRImage':
-        return pydcm.mr_image_signal_type(ds)
+        return dbdataset.mr_image_signal_type(ds)
     if record.type == 'EnhancedMRImage':
-        return pydcm.enhanced_mr_image_signal_type(ds)
+        return dbdataset.enhanced_mr_image_signal_type(ds)
 
 
