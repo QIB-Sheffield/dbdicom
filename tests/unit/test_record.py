@@ -1,7 +1,8 @@
 import os
 import shutil
+import numpy as np
 
-import dbdicom.record as db
+import dbdicom.record as record
 
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
@@ -27,74 +28,105 @@ def remove_tmp_database(tmp):
     shutil.rmtree(tmp)
 
 
+# Test functions
 
 def test_database():
 
     tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    dbr = db.open(tmp)
-    assert 24 == len(dbr.register.instances('Database'))
+    try:
+        database.print()
+    except:
+        assert False
+    assert 24 == len(database.instances())
 
+    database.close()
     remove_tmp_database(tmp)
 
-# Test functions
 
-def test_opendatabase_and_list_contents(path=datapath):
+def test_children():
 
-    database = db.open(path)
-    patient = database.children(1)
-    assert patient.label() == '281949 [RIDER Neuro MRI-5244517593]'
-    study = patient.children(2)
-    assert study.label() == 'BRAIN^RESEARCH [19041007]'
-    series = study.children(1)
-    assert series.label() == '[009] ax 10 flip'
-    assert len(series.children()) == 2
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
+    assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
+    studies = patients[0].children()
+    assert (len(studies) == 4)
+
     database.close()
+    remove_tmp_database(tmp)
+
 
 def test_read_dicom_data_elements():
 
-    database = db.open(datapath)
-    patient = database.children(1)
-    assert patient.PatientID == ['RIDER Neuro MRI-5244517593']
-    study = patient.children(2)
-    assert study.StudyDescription == ['BRAIN^RESEARCH']
-    series = study.children(1)
-    assert series.SeriesDescription == ['ax 10 flip']
-    instance = series.children(1)
-    assert instance.AcquisitionTime == '074634.479981'
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    patient_id = database.PatientID
+    patients = database.children()
+    for patient in patients:
+        assert patient.PatientID in patient_id
+
+    acq_time = database.AcquisitionTime
+    instances = database.instances()
+    for instance in instances:
+        assert instance.AcquisitionTime in acq_time
+
+    desc = patients[0].StudyDescription
+    study = patients[0].children()[0]
+    assert study.StudyDescription in desc
+
+    desc = study.SeriesDescription
+    series = study.children()[0]
+    assert series.SeriesDescription in desc
+
+    instance = series.children()[0]
+    assert instance.AcquisitionTime in acq_time
+
     database.close()
+    remove_tmp_database(tmp)
 
-def test_read_dicom_data_elements_from_memory_v1(): 
 
-    database = db.open(datapath)
-    patient = database.children(1).read()
-    assert patient.PatientID == ['RIDER Neuro MRI-5244517593']
-    study = patient.children(2).read()
-    assert study.StudyDescription == ['BRAIN^RESEARCH']
-    series = study.children(1).read()
-    assert series.SeriesDescription == ['ax 10 flip']
-    instance = series.children(1).read()
-    assert instance.AcquisitionTime == '074634.479981'
+def test_read_dicom_data_elements_from_memory(): 
+
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    database.read()
+
+    patient_id = database.PatientID
+    patients = database.children()
+    for patient in patients:
+        assert patient.PatientID in patient_id
+
+    acq_time = database.AcquisitionTime
+    instances = database.instances()
+    for instance in instances:
+        assert instance.AcquisitionTime in acq_time
+
+    desc = patients[0].StudyDescription
+    study = patients[0].children()[0]
+    assert study.StudyDescription in desc
+
+    desc = study.SeriesDescription
+    series = study.children()[0]
+    assert series.SeriesDescription in desc
+
+    instance = series.children()[0]
+    assert instance.AcquisitionTime in acq_time
+
     database.close()
+    remove_tmp_database(tmp)
 
-def test_read_dicom_data_elements_from_memory_v2(): 
-
-    database = db.open(datapath).read()
-    patient = database.children(1)
-    assert patient.PatientID == ['RIDER Neuro MRI-5244517593']
-    study = patient.children(2)
-    assert study.StudyDescription == ['BRAIN^RESEARCH']
-    series = study.children(1)
-    assert series.SeriesDescription == ['ax 10 flip']
-    instance = series.children(1)
-    assert instance.AcquisitionTime == '074634.479981'
 
 def test_hierarchy():
 
-    database = db.open(datapath)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    patients = database.patients()
-#    assert patients[0].database().path == database.path 
+    patients = database.patients() 
     assert len(patients) == 2
     studies = database.studies()
     assert len(studies) == 8
@@ -117,17 +149,21 @@ def test_hierarchy():
         nr_instances += len(study.instances())
     assert nr_instances == 24
 
-    assert patients[0].instances(0).patients(0).PatientID == patients[0].PatientID
-    assert patients[0].instances(-1).patients(0).PatientID == patients[0].PatientID
-    assert studies[1].instances(0).studies(0).StudyDescription == studies[1].StudyDescription
-    assert studies[1].instances(-1).studies(0).StudyDescription == studies[1].StudyDescription
+    assert patients[0].instances()[0].patients()[0].PatientID in database.PatientID
+    assert patients[0].instances()[-1].patients()[0].PatientID in database.PatientID
+    assert studies[1].instances()[0].studies()[0].StudyDescription in database.StudyDescription
+    assert studies[1].instances()[-1].studies()[0].StudyDescription in database.StudyDescription
+
+    remove_tmp_database(tmp)
     
 def test_hierarchy_in_memory_v1():
 
-    database = db.open(datapath).read()
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    patients = database.patients()
-#    assert patients[0].database().path == database.path 
+    database.read()
+
+    patients = database.patients() 
     assert len(patients) == 2
     studies = database.studies()
     assert len(studies) == 8
@@ -150,128 +186,147 @@ def test_hierarchy_in_memory_v1():
         nr_instances += len(study.instances())
     assert nr_instances == 24
 
-    assert patients[0].instances(0).patients(0).PatientID == patients[0].PatientID
-    assert patients[0].instances(-1).patients(0).PatientID == patients[0].PatientID
-    assert studies[1].instances(0).studies(0).StudyDescription == studies[1].StudyDescription
-    assert studies[1].instances(-1).studies(0).StudyDescription == studies[1].StudyDescription
+    assert patients[0].instances()[0].patients()[0].PatientID in database.PatientID
+    assert patients[0].instances()[-1].patients()[0].PatientID in database.PatientID
+    assert studies[1].instances()[0].studies()[0].StudyDescription in database.StudyDescription
+    assert studies[1].instances()[-1].studies()[0].StudyDescription in database.StudyDescription
+
+    remove_tmp_database(tmp)
 
 def test_hierarchy_in_memory_v2():
 
-    database = db.open(datapath)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    patients = database.patients()
+    patients = database.patients() 
+    assert len(patients) == 2
+    studies = database.studies()
+    assert len(studies) == 8
+    series = database.series()
+    assert len(series) == 12
+    instances = database.instances()
+    assert len(instances) == 24
+
     nr_series = 0
     nr_instances = 0
     for patient in patients:
-        p = patient.read()
-        nr_series += len(p.series())
-        nr_instances += len(p.instances())
+        patient.read()
+        nr_series += len(patient.series())
+        nr_instances += len(patient.instances())
     assert nr_instances == 24
 
-    studies = database.studies()
     nr_series = 0
     nr_instances = 0
     for study in studies:
-        s = study.read()
-        nr_series += len(s.series())
-        nr_instances += len(s.instances())
+        study.read()
+        nr_series += len(study.series())
+        nr_instances += len(study.instances())
     assert nr_instances == 24
 
-    p0 = patients[0].read()
-    assert p0.instances(0).patients(0).PatientID == p0.PatientID
-    assert p0.instances(-1).patients(0).PatientID == p0.PatientID
-    s1 = studies[1].read()
-    assert s1.instances(0).studies(0).StudyDescription == s1.StudyDescription
-    assert s1.instances(-1).studies(0).StudyDescription == s1.StudyDescription
+    assert patients[0].instances()[0].patients()[0].PatientID in database.PatientID
+    assert patients[0].instances()[-1].patients()[0].PatientID in database.PatientID
+    assert studies[1].instances()[0].studies()[0].StudyDescription in database.StudyDescription
+    assert studies[1].instances()[-1].studies()[0].StudyDescription in database.StudyDescription
+
+    remove_tmp_database(tmp)
 
 def test_find_by_value():
 
-    database = db.open(datapath)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
     series = database.series(
-        SeriesDescription = ['ax 20 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        SeriesDescription = 'ax 20 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 0
     series = database.series(
-        SeriesDescription = ['ax 10 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        SeriesDescription = 'ax 10 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 2
     series = database.series(
-        StudyDescription = ['BRAIN^ROUTINE BRAIN'], 
-        SeriesDescription = ['ax 10 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        StudyDescription = 'BRAIN^ROUTINE BRAIN', 
+        SeriesDescription = 'ax 10 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 1
+
+    remove_tmp_database(tmp)
 
 def test_find_by_value_in_memory():
 
-    database = db.open(datapath).read()
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+    database.read()
+
     series = database.series(
-        SeriesDescription = ['ax 20 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        SeriesDescription = 'ax 20 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 0
     series = database.series(
-        SeriesDescription = ['ax 10 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        SeriesDescription = 'ax 10 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 2
     series = database.series(
-        StudyDescription = ['BRAIN^ROUTINE BRAIN'], 
-        SeriesDescription = ['ax 10 flip'], 
-        PatientID = ['RIDER Neuro MRI-5244517593'])
+        StudyDescription = 'BRAIN^ROUTINE BRAIN', 
+        SeriesDescription = 'ax 10 flip', 
+        PatientID = 'RIDER Neuro MRI-5244517593')
     assert len(series) == 1
 
-# Reading DICOM attributes
-
+    remove_tmp_database(tmp)
 
 def test_read_item_instance():
 
-    database = db.open(datapath)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
         (0x0010, 0x0020), 
         'PatientID', 
+        'Rows',
         (0x0011, 0x0020)]
-    instance = database.instances(0)
+    instance = '1.3.6.1.4.1.9328.50.16.175333593952805976694548436931998383940'
+    instance = database.instances(SOPInstanceUID=instance)[0]
     assert instance[tags] == [
         'sag 3d gre +c', 
         'RIDER Neuro MRI-3369019796', 
         'RIDER Neuro MRI-3369019796', 
         'RIDER Neuro MRI-3369019796', 
+        256,
         None]
+
+    remove_tmp_database(tmp)
 
 def test_read_item():
 
-    database = db.open(datapath)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
         (0x0010, 0x0020), 
         'PatientID', 
+        'Rows',
         (0x0011, 0x0020)]
-    series = database.series(0)
+    uid = '1.3.6.1.4.1.9328.50.16.300508905663376267701233831747863284128'
+    series = database.series(SeriesInstanceUID=uid)[0]
     assert series[tags] == [
-        ['sag 3d gre +c'], 
-        ['RIDER Neuro MRI-3369019796'], 
-        ['RIDER Neuro MRI-3369019796'], 
-        ['RIDER Neuro MRI-3369019796'], 
-        [None]]
-    patient = database.patients(0)
-    assert set(patient[tags][0]) == set(['sag 3d gre +c', 'ax 5 flip', 'ax 10 flip'])
+        'ax 10 flip', 
+        'RIDER Neuro MRI-5244517593', 
+        'RIDER Neuro MRI-5244517593', 
+        'RIDER Neuro MRI-5244517593', 
+        256,
+        None]
+    patient = database.patients(PatientID='RIDER Neuro MRI-5244517593')[0]
+    assert set(patient[tags][0]) == set(['ax 10 flip', 'ax 5 flip', 'sag 3d gre +c'])
 
-def test_export():
-
-    tmp_path = create_tmp_database()
-    test_opendatabase_and_list_contents(tmp_path)
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
 
 def test_set_attr_instance():
 
-    # What if the attribute is one of the UIDs?
-    # What if it is one of the attributes?
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    tmp_path = create_tmp_database()
-
-    database = db.open(tmp_path)
-    instance = database.instances(0)
+    instance = database.instances()[0]
 
     orig_slice_loc = instance.SliceLocation
     instance.SliceLocation = orig_slice_loc + 100
@@ -283,15 +338,25 @@ def test_set_attr_instance():
     new_acq_time = instance.AcquisitionTime
     assert 3 == np.round(float(new_acq_time)-float(orig_acq_time))
 
-    remove_tmp_database(tmp_path)
+    uid = instance.uid
+    try:
+        instance.SOPInstanceUID = '007'
+    except:
+        assert True
+    else:
+        assert False
+    assert instance.SOPInstanceUID == uid
+
+    remove_tmp_database(tmp)
 
 
 def test_set_attr_instance_in_memory_v1():
 
-    tmp_path = create_tmp_database()
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    database = db.open(tmp_path)
-    instance = database.instances(0).read()
+    instance = database.instances()[0]
+    instance.read()
 
     orig_slice_loc = instance.SliceLocation
     instance.SliceLocation = orig_slice_loc + 100
@@ -303,15 +368,25 @@ def test_set_attr_instance_in_memory_v1():
     new_acq_time = instance.AcquisitionTime
     assert 3 == np.round(float(new_acq_time)-float(orig_acq_time))
 
-    remove_tmp_database(tmp_path)
+    uid = instance.uid
+    try:
+        instance.SOPInstanceUID = '007'
+    except:
+        assert True
+    else:
+        assert False
+    assert instance.SOPInstanceUID == uid
+
+    remove_tmp_database(tmp)
 
 
 def test_set_attr_instance_in_memory_v2():
 
-    tmp_path = create_tmp_database()
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
-    database = db.open(tmp_path).read()
-    instance = database.instances(0)
+    database.read()
+    instance = database.instances()[0]
 
     orig_slice_loc = instance.SliceLocation
     instance.SliceLocation = orig_slice_loc + 100
@@ -323,234 +398,225 @@ def test_set_attr_instance_in_memory_v2():
     new_acq_time = instance.AcquisitionTime
     assert 3 == np.round(float(new_acq_time)-float(orig_acq_time))
 
-    remove_tmp_database(tmp_path)
+    uid = instance.uid
+    try:
+        instance.SOPInstanceUID = '007'
+    except:
+        assert True
+    else:
+        assert False
+    assert instance.SOPInstanceUID == uid
+
+    remove_tmp_database(tmp)
 
 
 def test_set_item_instance():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
-    instance = database.instances(0)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    instance = database.instances()[0]
 
     tags = ['SliceLocation', 'AcquisitionTime', (0x0012, 0x0010)]
     new_values = [0.0, '000000.00', 'University of Sheffield']
 
+    assert instance[tags] != new_values
     instance[tags] = new_values
     assert instance[tags] == new_values
 
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
 
 
 def test_set_item_instance_in_memory():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
-    
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    instance = database.instances()[0]
+    instance.read()
+
     tags = ['SliceLocation', 'AcquisitionTime', (0x0012, 0x0010)]
-    current_values = [75.561665058136, '075649.057496', None]
     new_values = [0.0, '000000.00', 'University of Sheffield']
 
-    record = database.instances(0)
-    data = record.read()
-    
-    data[tags] = new_values
-    assert data[tags] == new_values
+    assert instance[tags] != new_values
+    instance[tags] = new_values
+    assert instance[tags] == new_values
 
-    # check that data on disk have not changed
-    assert record[tags] == current_values
-
-    # write out data in memory and check that data on disk now have changed
-    record.write(data)
-    assert record[tags] == new_values
-
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
 
 
 def test_set_item():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
-    series = database.series(0)
-    instance = series.instances(1)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
+    series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
+    instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
+    series = database.series(SeriesInstanceUID=series)[0]
+    instance = series.instances(SOPInstanceUID=instance)[0]
 
     tags = ['SliceLocation', 'AcquisitionTime', (0x0012, 0x0010)]
     values = series[tags]
-    assert set(values[0]) == set([74.561665058136, 75.561665058136])
-    assert values[1:] == [['075649.057496'], [None]]
+    assert set(values[0]) == set([59.872882843018, 64.872882843018])
+    assert values[1:] == ['074424.477508', None]
 
     values = instance[tags]
-    assert values == [74.561665058136, '075649.057496', None]
+    assert values == [59.872882843018, '074424.477508', None]
 
-    new_values = [0.0, '00:00:00', 'University of Sheffield']
+    new_values = [0.0, '000000.00', 'University of Sheffield']
     series[tags] = new_values
-    series_values = series[tags]
-    assert series_values[0][0] == new_values[0]
-    assert series_values[1][0] == new_values[1]
-    assert series_values[2][0] == new_values[2]
-    
-    instance_values = instance[tags]
-    assert instance_values[0] == series_values[0][0]
-    assert instance_values[1] == series_values[1][0]
-    assert instance_values[2] == series_values[2][0]
+    assert series[tags] == new_values
+    assert instance[tags] == new_values
 
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
+
 
 def test_set_item_in_memory():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
-    series_record = database.series(0)
-    instance_record = series_record.instances(1)
-    series = series_record.read()
-    instance = series.instances(1)
-    tags = ['SliceLocation', 'AcquisitionTime', (0x0012, 0x0010)]
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
 
+    series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
+    instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
+    series = database.series(SeriesInstanceUID=series)[0]
+    instance = series.instances(SOPInstanceUID=instance)[0]
+
+    series.read()
+
+    tags = ['SliceLocation', 'AcquisitionTime', (0x0012, 0x0010)]
     values = series[tags]
-    assert set(values[0]) == set([74.561665058136, 75.561665058136])
-    assert values[1:] == [['075649.057496'], [None]]
+    assert set(values[0]) == set([59.872882843018, 64.872882843018])
+    assert values[1:] == ['074424.477508', None]
 
     values = instance[tags]
-    assert values == [74.561665058136, '075649.057496', None]
+    assert values == [59.872882843018, '074424.477508', None]
 
-    new_values = [0.0, '00:00:00', 'University of Sheffield']
+    new_values = [0.0, '000000.00', 'University of Sheffield']
     series[tags] = new_values
-    series_values = series[tags]
-    assert series_values[0][0] == new_values[0]
-    assert series_values[1][0] == new_values[1]
-    assert series_values[2][0] == new_values[2]
+    assert series[tags] == new_values
+    assert instance[tags] == new_values
+
+    remove_tmp_database(tmp)
     
-    instance_values = instance[tags]
-    assert instance_values[0] == new_values[0]
-    assert instance_values[1] == new_values[1]
-    assert instance_values[2] == new_values[2]
-
-    # check that data on record have not been changed
-
-    values = series_record[tags]
-    assert set(values[0]) == set([74.561665058136, 75.561665058136])
-    assert values[1:] == [['075649.057496'], [None]]
-
-    values = instance_record[tags]
-    assert values == [74.561665058136, '075649.057496', None]
-
-    remove_tmp_database(tmp_path)
 
 def test_create_records():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)  
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
+
     patient = database.new_child()
     study = patient.new_child()
     series = study.new_child()
     instance = series.new_child()
 
-    # considering specifying a _ds attribute in DbRecord as well
-    # so that you can travers the hierarchy even if no data are saved
+    assert instance.parent() == series
+    assert series.parent() == study
+    assert study.parent() == patient
+    assert patient.parent() == database
 
-    # assert instance.patients(0).UID == patient.UID 
-    # assert instance.studies(0).UID == study.UID 
-    # assert series.children(0).UID == instance.UID 
+    database.read()
 
-    assert instance.UID[0] == patient.UID[0] 
-    assert instance.UID[:2] == study.UID
-    assert instance.UID[:3] == series.UID
-
-    database = database.read()
     patient = database.new_child()
     study = patient.new_child()
     series = study.new_child()
     instance = series.new_child()
 
-    assert instance.UID[0] == patient.UID[0] 
-    assert instance.UID[:2] == study.UID
-    assert instance.UID[:3] == series.UID
+    assert instance.parent() == series
+    assert series.parent() == study
+    assert study.parent() == patient
+    assert patient.parent() == database
 
-    assert instance.patients(0).UID == patient.UID 
-    assert instance.studies(0).UID == study.UID 
-    assert series.children(0).UID == instance.UID 
+    remove_tmp_database(tmp)
 
-    remove_tmp_database(tmp_path)
 
 def test_copy_remove_instance():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
+    tmp = create_tmp_database(rider)
+    database = record.open(tmp)
     
     #
     # move and copy an instance from one series to another
     #
 
-    parent = database.patients(1).studies(1).series(0) # [016] sag 3d gre +c (2)
-    instance = parent.instances(0)
-    new_parent = database.patients(0).studies(1).series(0) # [006] ax 5 flip (2)
+    parent = database.patients()[0].studies()[0].series()[0] 
+    instance = parent.instances()[0]
+    new_parent = database.patients()[1].studies()[0].series()[0] 
 
     # copy the instance to the new parent and remove the original
+    n = len(new_parent.instances())
+    desc = new_parent.SeriesDescription
     copy = instance.copy_to(new_parent)
 
-    assert len(parent.instances()) == 2
-    assert len(new_parent.instances()) == 3
-    assert set(parent.SeriesDescription) == set(['sag 3d gre +c'])
-    assert set(new_parent.SeriesDescription) == set(['ax 5 flip', 'sag 3d gre +c'])
-    assert instance.SOPInstanceUID in set(parent.SOPInstanceUID)
-    assert copy.SOPInstanceUID in set(new_parent.SOPInstanceUID)
+    assert len(new_parent.instances()) == 1 + n
+    assert desc == new_parent.SeriesDescription
+    assert instance.SeriesDescription == parent.SeriesDescription
+    assert instance.SOPInstanceUID in parent.SOPInstanceUID
+    assert copy.SOPInstanceUID in new_parent.SOPInstanceUID
+    assert copy.SeriesDescription == new_parent.SeriesDescription
 
     # remove the original instance
+    n0 = len(parent.instances())
     uid = instance.SOPInstanceUID
-    instance.remove()
+    instance.delete()
 
-    assert len(parent.instances()) == 1
-    assert set(parent.SeriesDescription) == set(['sag 3d gre +c'])
-    assert uid not in set(parent.SOPInstanceUID)
+    assert len(parent.instances()) == n0-1
+    assert uid not in parent.SOPInstanceUID
 
     # move the copy back to the original parent
     # this should restore the situation
     copy = copy.move_to(parent)
 
-    assert len(parent.instances()) == 2
-    assert len(new_parent.instances()) == 2
-    assert set(parent.SeriesDescription) == set(['sag 3d gre +c'])
-    assert set(new_parent.SeriesDescription) == set(['ax 5 flip'])
-    assert copy.SOPInstanceUID not in set(new_parent.SOPInstanceUID)
-    assert copy.SOPInstanceUID in set(parent.SOPInstanceUID)
+    assert len(parent.instances()) == n0
+    assert len(new_parent.instances()) == n
+    assert copy.SOPInstanceUID not in new_parent.SOPInstanceUID
+    assert copy.SOPInstanceUID in parent.SOPInstanceUID
 
     #
     # move and copy an instance from one study to another
     #
 
-    parent = database.patients(1).studies(1) # BRAIN^ROUTINE BRAIN (2)
-    instance = parent.instances(0)
-    new_parent = database.patients(0).studies(1) # BRAIN^RESEARCH (4)
-
+    patients = database.patients()
+    parent = patients[0].studies()[0]
+    new_parent = patients[1].studies()[0] 
+    instance = parent.instances()[0]
+    
     # copy the instance to the new parent and remove the original
-    copy = instance.copy_to(new_parent)
+    n0 = len(parent.instances())
+    n = len(new_parent.instances())
+    desc = new_parent.StudyDescription
+    series = new_parent.new_child()
 
-    assert len(parent.instances()) == 2
-    assert len(new_parent.instances()) == 5
-    assert set(parent.StudyDescription) == set(['BRAIN^ROUTINE BRAIN'])
-    assert set(new_parent.StudyDescription) == set(['BRAIN^ROUTINE BRAIN', 'BRAIN^RESEARCH'])
-    assert instance.SOPInstanceUID in set(parent.SOPInstanceUID)
-    assert copy.SOPInstanceUID in set(new_parent.SOPInstanceUID)
+    copy = instance.copy_to(series)
+
+    assert len(parent.instances()) == n0
+    assert len(new_parent.instances()) == 1 + n
+    assert desc == new_parent.StudyDescription
+    assert instance.StudyDescription == parent.StudyDescription
+    assert instance.SOPInstanceUID in parent.SOPInstanceUID
+    assert copy.SOPInstanceUID in new_parent.SOPInstanceUID
+    assert copy.StudyDescription == new_parent.StudyDescription
 
     # remove the original instance
     uid = instance.SOPInstanceUID
-    instance.remove()
+    series = instance.parent()
 
-    assert len(parent.instances()) == 1
-    assert set(parent.StudyDescription) == set(['BRAIN^ROUTINE BRAIN'])
-    assert uid not in set(parent.SOPInstanceUID)
+    instance.delete() 
+
+    assert len(parent.instances()) == n0-1
+    assert uid not in parent.SOPInstanceUID
 
     # move the copy back to the original parent
     # this should restore the situation
-    copy = copy.move_to(parent)
+    
+    copy = copy.move_to(series)
 
-    assert len(parent.instances()) == 2
-    assert len(new_parent.instances()) == 4
-    assert set(parent.StudyDescription) == set(['BRAIN^ROUTINE BRAIN'])
-    assert set(new_parent.StudyDescription) == set(['BRAIN^RESEARCH'])
-    assert copy.SOPInstanceUID not in set(new_parent.SOPInstanceUID)
-    assert copy.SOPInstanceUID in set(parent.SOPInstanceUID)
+    assert len(parent.instances()) == n0
+    assert len(new_parent.instances()) == n
+    assert copy.SOPInstanceUID not in new_parent.SOPInstanceUID
+    assert copy.SOPInstanceUID in parent.SOPInstanceUID
 
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
+
 
 def test_copy_remove():
 
@@ -720,31 +786,30 @@ def test_read_write_image():
 
 if __name__ == "__main__":
 
-    test_opendatabase_and_list_contents()
-    test_read_dicom_data_elements()
-    test_read_dicom_data_elements_from_memory_v1()
-    test_read_dicom_data_elements_from_memory_v2()
-    test_hierarchy()
-    test_hierarchy_in_memory_v1()
-    test_hierarchy_in_memory_v2()
-    test_find_by_value()
-    test_find_by_value_in_memory()
-    test_read_item_instance()
-    test_read_item()
-    test_export()
-    test_set_attr_instance()
-    test_set_attr_instance_in_memory_v1()
-    test_set_attr_instance_in_memory_v2()
-    test_set_item_instance()
-    test_set_item_instance_in_memory()
-    test_set_item()
-    test_set_item_in_memory()
-    test_create_records()
+    # test_database()
+    # test_children()
+    # test_read_dicom_data_elements()
+    # test_read_dicom_data_elements_from_memory()
+    # test_hierarchy()
+    # test_hierarchy_in_memory_v1()
+    # test_hierarchy_in_memory_v2()
+    # test_find_by_value()
+    # test_find_by_value_in_memory()
+    # test_read_item_instance()
+    # test_read_item()
+    # test_set_attr_instance()
+    # test_set_attr_instance_in_memory_v1()
+    # test_set_attr_instance_in_memory_v2()
+    # test_set_item_instance()
+    # test_set_item_instance_in_memory()
+    # test_set_item()
+    # test_set_item_in_memory()
+    # test_create_records()
     test_copy_remove_instance()
-    test_copy_remove()
-    test_merge()
-    test_save_restore()
-    test_read_write_dataset()
+    # test_copy_remove()
+    # test_merge()
+    # test_save_restore()
+    # test_read_write_dataset()
 
     # test_read_write_image()
 

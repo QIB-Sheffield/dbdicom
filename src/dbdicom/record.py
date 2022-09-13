@@ -12,6 +12,9 @@ class DbRecord():
         self.uid = uid
         self.attributes = attributes
         self.register = register
+    
+    def __eq__(self, other):
+        return self.uid == other.uid
 
     def __getattr__(self, attribute):
         return self.get_values(attribute)
@@ -55,57 +58,57 @@ class DbRecord():
 
     def parent(self):
         uid = self.register.parent(self.uid)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def children(self, **kwargs):
-        return children([self], **kwargs)[0]
+        return children([self], **kwargs)
 
     def instances(self, **kwargs):
-        return instances([self], **kwargs)[0]
+        return instances([self], **kwargs)
 
     def series(self, **kwargs):
-        return series([self], **kwargs)[0]
+        return series([self], **kwargs)
 
     def studies(self, **kwargs):
-        return studies([self], **kwargs)[0]
+        return studies([self], **kwargs)
 
     def patients(self, **kwargs):
-        return patients([self], **kwargs)[0]
+        return patients([self], **kwargs)
 
     def siblings(self, **kwargs):
         uids = self.register.siblings(self.uid, **kwargs)
-        return [DbRecord(self.register, uid) for uid in uids]
+        return [self.__class__(self.register, uid) for uid in uids]
 
     def database(self):
-        return DbRecord(self.register)
+        return self.__class__(self.register)
 
     def new_patient(self, **kwargs):
         uid = self.register.new_patient(parent=self.uid, **kwargs)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_study(self, **kwargs):
         uid = self.register.new_study(parent=self.uid, **kwargs)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_series(self, **kwargs):
         uid = self.register.new_series(parent=self.uid, **kwargs)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_instance(self, **kwargs):
         uid = self.register.new_instance(parent=self.uid, **kwargs)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_child(self, **kwargs): # inherit attributes
         uid = self.register.new_child(uid=self.uid, **kwargs)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_sibling(self):
         uid = self.register.new_sibling(uid=self.uid)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
 
     def new_pibling(self):
         uid = self.register.new_pibling(uid=self.uid)
-        return DbRecord(self.register, uid)
+        return self.__class__(self.register, uid)
     
     def label(self):
         return self.register.label(self.uid)
@@ -129,16 +132,16 @@ class DbRecord():
         self.register.delete(self.uid)
 
     def copy_to(self, target):
-        return copy_to([self], target)[0]
+        return copy_to([self], target)
     
     def move_to(self, target):
-        return move_to([self], target)[0]
+        return move_to([self], target)
 
     def set_values(self, attributes, values):
         set_values([self], attributes, values)
 
     def get_values(self, attributes):
-        get_values([self], attributes)[0]
+        return get_values([self], attributes)[0]
 
     def get_dataset(self):
         return self.register.get_dataset(self.uid)

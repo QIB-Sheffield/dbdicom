@@ -11,7 +11,7 @@ from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
 import dbdicom.dataset as dbdataset
-from dbdicom.objects.create import read_dataset, new_dataset, SOPClass
+from dbdicom.dataset_classes.create import read_dataset, SOPClass
 
 
 class DbRegister(): 
@@ -462,6 +462,8 @@ class DbRegister():
         If they are not in memory, and the database exists on disk, they will be read from disk.
         If they are not in memory, and the database does not exist on disk, an exception is raised.
         """
+        if uid is None:
+            return None
         keys = self.keys(uid)
         dataset = []
         for i, key in enumerate(keys):
@@ -485,20 +487,31 @@ class DbRegister():
         else:
             return dataset
 
-    def _get_values(self, instances, attr):
-        """Helper function for inherit_values"""
+    def _get_dataset(self, instances):
+        """Helper function"""
 
         for instance in instances:
             ds = self.get_dataset(instance)
             if ds is not None:
-                return ds.get_values(attr)
-        return [None] * len(attr)
+                return ds
+        return None
 
+    def _get_values(self, instances, attr):
+        """Helper function"""
 
-    def inherit_values(self, key):
+        ds = self._get_dataset(instances)
+        if ds is None:
+            return [None] * len(attr)
+        else:
+            return ds.get_values(attr)
+
+    def series_header(self, key):
         """Attributes and values inherited from series, study and patient"""
 
-        attr = vals = []
+        attr_patient = ['PatientID', 'PatientName']
+        attr_study = ['StudyInstanceUID', 'StudyDescription', 'StudyDate']
+        attr_series = ['SeriesInstanceUID', 'SeriesDescription', 'SeriesNumber'] 
+
         parent = self.dataframe.at[key, 'SeriesInstanceUID']
         instances = self.instances(parent)
         if instances != []:
@@ -508,16 +521,55 @@ class DbRegister():
             parent = self.dataframe.at[key, 'StudyInstanceUID']
             instances = self.instances(parent)
             if instances != []:
-                attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
+                attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + attr_series))
                 vals = self._get_values(instances, attr)
             else:
                 parent = self.dataframe.at[key, 'PatientID']
                 instances = self.instances(parent)
                 if instances != []:
-                    attr = dbdataset.module_patient()
+                    attr = list(set(dbdataset.module_patient() + attr_study + attr_series))
                     vals = self._get_values(instances, attr)
+                else:
+                    attr = attr_patient + attr_study + attr_series
+                    vals = self.value(key, attr).tolist()
         return attr, vals
 
+    def study_header(self, key):
+        """Attributes and values inherited from series, study and patient"""
+
+        attr_patient = ['PatientID', 'PatientName']
+        attr_study = ['StudyInstanceUID', 'StudyDescription', 'StudyDate']
+
+        parent = self.dataframe.at[key, 'StudyInstanceUID']
+        instances = self.instances(parent)
+        if instances != []:
+            attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
+            vals = self._get_values(instances, attr)
+        else:
+            parent = self.dataframe.at[key, 'PatientID']
+            instances = self.instances(parent)
+            if instances != []:
+                attr = list(set(dbdataset.module_patient() + attr_study))
+                vals = self._get_values(instances, attr)
+            else:
+                attr = attr_patient + attr_study
+                vals = self.value(key, attr).tolist()
+        return attr, vals
+
+    def patient_header(self, key):
+        """Attributes and values inherited from series, study and patient"""
+
+        attr_patient = ['PatientID', 'PatientName']
+
+        parent = self.dataframe.at[key, 'PatientID']
+        instances = self.instances(parent)
+        if instances != []:
+            attr = dbdataset.module_patient()
+            vals = self._get_values(instances, attr)
+        else:
+            attr = attr_patient
+            vals = self.value(key, attr).tolist()
+        return attr, vals
 
     def set_instance_dataset(self, instance, ds):
 
@@ -556,7 +608,7 @@ class DbRegister():
             dataset = [dataset]
          
         parent_keys = self.keys(uid)
-        attr, vals = self.inherit_values(parent_keys[0])
+        attr, vals = self.series_header(parent_keys[0])
 
         new_data = []
         new_keys = []
@@ -695,7 +747,7 @@ class DbRegister():
         print(' ')
         print('---------- DICOM FOLDER --------------')
         print('DATABASE: ' + self.path)
-        for i, patient in enumerate(self.children()):
+        for i, patient in enumerate(self.children('Database')):
             print(' ')
             print('    PATIENT [' + str(i) + ']: ' + self.label(patient))
             print(' ')
@@ -806,9 +858,6 @@ class DbRegister():
         # Needs a formal test for completeness
         return self.dataframe is not None
       
-    
-
-
     def delete(self, *args, **kwargs):
         """Deletes some datasets
         
@@ -827,18 +876,11 @@ class DbRegister():
         """Copy instances to another series"""
 
         target_keys = self.keys(series=target)
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None:
-            attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
-            values = self.value(target_keys[0], attributes).tolist()
-            max_number = 0
-        else:
-            attributes = list(set(
-                dbdataset.module_patient() + 
-                dbdataset.module_study() + 
-                dbdataset.module_series() ))
-            values = ds.get_values(attributes)
-            max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
+
+        attributes, values = self.series_header(target_keys[0])
+        n = self.value(target_keys, 'InstanceNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
             
         copy_data = []
         copy_keys = []
@@ -884,17 +926,11 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None: # target study is empty
-            attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
-            values = self.value(target_keys[0], attributes).tolist()
-            max_number = 0
-        else:
-            attributes = list(set(
-                dbdataset.module_patient() + 
-                dbdataset.module_study() ))
-            values = ds.get_values(attributes)
-            max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
+
+        attributes, values = self.study_header(target_keys[0])
+        n = self.value(target_keys, 'SeriesNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
 
         copy_data = []
         copy_keys = []
@@ -919,6 +955,7 @@ class DbRegister():
                     values + [new_series[s], new_number, dbdataset.new_uid()])
                 if not key in self.dataset:
                     ds.write(self.filepath(new_key), self.dialog)
+                    
                 # Get new data for the dataframe
                 row = ds.get_values(self.columns)
                 copy_data.append(row)
@@ -939,13 +976,8 @@ class DbRegister():
         """Copy studies to another patient"""
 
         target_keys = self.keys(patient=target)
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None:
-            attributes = ['PatientID','PatientName']
-            values = self.value(target_keys[0], attributes).tolist()
-        else:
-            attributes = dbdataset.module_patient()
-            values = ds.get_values(attributes)
+
+        attributes, values = self.patient_header(target_keys[0])
 
         copy_data = []
         copy_keys = []
@@ -1005,18 +1037,23 @@ class DbRegister():
 
         target_keys = self.keys(series=target)
 
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None:
-            attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
-            values = self.value(target_keys[0], attributes).tolist()
-            max_number = 0
-        else:
-            attributes = list(set(
-                dbdataset.module_patient() + 
-                dbdataset.module_study() + 
-                dbdataset.module_series() ))
-            values = ds.get_values(attributes)
-            max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
+        attributes, values = self.series_header(target_keys[0])
+        n = self.value(target_keys, 'InstanceNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
+
+        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
+        # if ds is None:
+        #     attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
+        #     values = self.value(target_keys[0], attributes).tolist()
+        #     max_number = 0
+        # else:
+        #     attributes = list(set(
+        #         dbdataset.module_patient() + 
+        #         dbdataset.module_study() + 
+        #         dbdataset.module_series() ))
+        #     values = ds.get_values(attributes)
+        #     max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
         
         copy_data = []
         copy_keys = []       
@@ -1024,7 +1061,7 @@ class DbRegister():
         keys = self.keys(uid)
         for i, key in enumerate(keys):
 
-            self.status.progress(i+1, len(keys), message='Moving dbdataset..')
+            self.status.progress(i+1, len(keys), message='Moving dataset..')
 
             ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
@@ -1074,17 +1111,23 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None:
-            attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
-            values = self.value(target_keys[0], attributes).tolist()
-            max_number = 0
-        else:
-            attributes = list(set(
-                dbdataset.module_patient() + 
-                dbdataset.module_study() ))
-            values = ds.get_values(attributes)
-            max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
+
+        attributes, values = self.study_header(target_keys[0])
+        n = self.value(target_keys, 'SeriesNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
+
+        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
+        # if ds is None:
+        #     attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
+        #     values = self.value(target_keys[0], attributes).tolist()
+        #     max_number = 0
+        # else:
+        #     attributes = list(set(
+        #         dbdataset.module_patient() + 
+        #         dbdataset.module_study() ))
+        #     values = ds.get_values(attributes)
+        #     max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
         
         copy_data = []
         copy_keys = []       
@@ -1144,13 +1187,16 @@ class DbRegister():
         """Copy series to another study"""
 
         target_keys = self.keys(patient=target)
-        ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        if ds is None:
-            attributes = ['PatientID','PatientName']
-            values = self.value(target_keys[0], attributes).tolist()
-        else:
-            attributes = dbdataset.module_patient()
-            values = ds.get_values(attributes)
+
+        attributes, values = self.patient_header(target_keys[0])
+
+        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
+        # if ds is None:
+        #     attributes = ['PatientID','PatientName']
+        #     values = self.value(target_keys[0], attributes).tolist()
+        # else:
+        #     attributes = dbdataset.module_patient()
+        #     values = ds.get_values(attributes)
 
         copy_data = []
         copy_keys = []  

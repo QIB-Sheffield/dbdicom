@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 
 from dbdicom.register import DbRegister
-from dbdicom.objects.mr_image import MRImage
+from dbdicom.dataset_classes.mr_image import MRImage
 
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
@@ -467,7 +467,7 @@ def test_new_instance():
     remove_tmp_database(tmp)
 
 
-def test_inherit_values():
+def test_series_header():
 
     tmp = create_tmp_database(rider)
     dbr = DbRegister()
@@ -476,13 +476,13 @@ def test_inherit_values():
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
 
     instance = dbr.instances(series)[0]
-    attr, vals = dbr.inherit_values(dbr.keys(instance)[0])
+    attr, vals = dbr.series_header(dbr.keys(instance)[0])
     series_vals = dbr.get_values(series, attr)
     for i in range(len(vals)):
         assert series_vals[i] == vals[i]
 
     instance = dbr.new_instance(series)
-    attr, vals = dbr.inherit_values(dbr.keys(instance)[0])
+    attr, vals = dbr.series_header(dbr.keys(instance)[0])
     series_vals = dbr.get_values(series, attr)
     for i in range(len(vals)):
         assert series_vals[i] == vals[i]
@@ -1340,7 +1340,7 @@ if __name__ == "__main__":
     test_new_study()
     test_new_series()
     test_new_instance()
-    test_inherit_values()
+    test_series_header()
     test_set_instance_dataset()
     test_set_dataset()
     test_new_child()

@@ -2,9 +2,9 @@ import os
 import pydicom
 
 import dbdicom.utils.files as filetools
-from dbdicom.objects.create import read_dataset, new_dataset
-from dbdicom.objects.mr_image import MRImage
-from dbdicom.objects.enhanced_mr_image import EnhancedMRImage
+from dbdicom.dataset_classes.create import read_dataset, new_dataset
+from dbdicom.dataset_classes.mr_image import MRImage
+from dbdicom.dataset_classes.enhanced_mr_image import EnhancedMRImage
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
 onefile = os.path.join(datapath, 'ONEFILE')
