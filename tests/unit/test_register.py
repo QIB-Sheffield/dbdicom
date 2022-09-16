@@ -929,6 +929,8 @@ def test_copy_to_patient():
 
 def test_copy_to():
 
+    # Need to include some scenarios involving copying to from empty objects
+
     tmp = create_tmp_database(rider)
     dbr = DbRegister()
     dbr.open(tmp)

@@ -26,8 +26,8 @@ def read_dataset(file, dialog=None):
 
     try:
         ds = pydicom.dcmread(file)
-    except:
-        message = "Failed to read " + file
+        # ds = pydicom.dcmread(file, force=True) # more robust but hides corrupted data
+    except Exception as message:
         if dialog is not None:
             dialog.information(message)  
         raise FileNotFoundError(message)

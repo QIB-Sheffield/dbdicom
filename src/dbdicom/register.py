@@ -11,7 +11,7 @@ from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
 import dbdicom.dataset as dbdataset
-from dbdicom.dataset_classes.create import read_dataset, SOPClass
+from dbdicom.dataset_classes.create import read_dataset, SOPClass, new_dataset
 
 
 class DbRegister(): 
@@ -374,7 +374,8 @@ class DbRegister():
         if parent is None:
             parent = self.new_patient()
         if self.type(parent) != 'Patient':
-            parent = self.patients(parent)[0]
+            #parent = self.patients(parent)[0]
+            parent = self.new_patient(parent)
 
         key = self.keys(patient=parent)[0]
 
@@ -383,11 +384,21 @@ class DbRegister():
         data[1] = dbdataset.new_uid()
         data[6] = self.value(key, 'PatientName')
         data[7] = StudyDescription
+
+        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
         
-        df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        if self.value(key, 'StudyInstanceUID') is None:
+            # New patient without studies - use existing row
+            self.dataframe.loc[key, self.columns] = data
+        else:
+            # Patient with existing study - create new row
+            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])
 
         return data[1]
 
@@ -397,7 +408,8 @@ class DbRegister():
         if parent is None:
             parent = self.new_study()
         if self.type(parent) != 'Study':
-            parent = self.studies(parent)[0]
+            #parent = self.studies(parent)[0]
+            parent = self.new_study(parent)
 
         key = self.keys(study=parent)[0]
         data = self.value(key, self.columns)
@@ -409,10 +421,20 @@ class DbRegister():
         data[10] = 1 + len(self.series(parent))
         data[11] = None
 
-        df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        if self.value(key, 'SeriesInstanceUID') is None:
+            # New study without series - use existing row
+            self.dataframe.loc[key, self.columns] = data
+        else:
+            # Study with existing series - create new row
+            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])
+
+        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         return data[2]
 
@@ -422,7 +444,8 @@ class DbRegister():
         if parent is None:
             parent = self.new_series()
         if self.type(parent) != 'Series':
-            parent = self.series(parent)[0]
+            # parent = self.series(parent)[0] 
+            parent = self.new_series(parent)
 
         key = self.keys(series=parent)[0]
         data = self.value(key, self.columns)
@@ -431,10 +454,20 @@ class DbRegister():
         data[5] = None
         data[11] = 1 + len(self.instances(parent))
 
-        df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        if self.value(key, 'SOPInstanceUID') is None:
+            # New series without instances - use existing row
+            self.dataframe.loc[key, self.columns] = data
+        else:
+            # Series with existing instances - create new row
+            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])
+
+        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         if dataset is not None:
             self.set_dataset(data[3], dataset)
@@ -521,18 +554,23 @@ class DbRegister():
             parent = self.dataframe.at[key, 'StudyInstanceUID']
             instances = self.instances(parent)
             if instances != []:
-                attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + attr_series))
+                attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
                 vals = self._get_values(instances, attr)
+                attr += attr_series
+                vals += self.value(key, attr_series).tolist()
             else:
                 parent = self.dataframe.at[key, 'PatientID']
                 instances = self.instances(parent)
                 if instances != []:
-                    attr = list(set(dbdataset.module_patient() + attr_study + attr_series))
+                    attr = dbdataset.module_patient()
                     vals = self._get_values(instances, attr)
+                    attr += attr_study + attr_series
+                    vals += self.value(key, attr_study + attr_series).tolist()
                 else:
                     attr = attr_patient + attr_study + attr_series
                     vals = self.value(key, attr).tolist()
         return attr, vals
+
 
     def study_header(self, key):
         """Attributes and values inherited from series, study and patient"""
@@ -549,8 +587,10 @@ class DbRegister():
             parent = self.dataframe.at[key, 'PatientID']
             instances = self.instances(parent)
             if instances != []:
-                attr = list(set(dbdataset.module_patient() + attr_study))
+                attr = dbdataset.module_patient()
                 vals = self._get_values(instances, attr)
+                attr += attr_study
+                vals += self.value(key, attr_study).tolist()
             else:
                 attr = attr_patient + attr_study
                 vals = self.value(key, attr).tolist()
@@ -592,6 +632,7 @@ class DbRegister():
             self.dataframe.at[key,'removed'] = True
             new_key = self.new_key()
             self.dataset[new_key] = ds
+            
             df = pd.DataFrame([data], index=[new_key], columns=self.columns)
             df['removed'] = False
             df['created'] = True
@@ -605,18 +646,18 @@ class DbRegister():
             return
 
         if not isinstance(dataset, list):
-            dataset = [dataset]
+           dataset = [dataset]
          
         parent_keys = self.keys(uid)
         attr, vals = self.series_header(parent_keys[0])
 
         new_data = []
         new_keys = []
-        instances = self.value(parent_keys, 'SOPInstanceUID')
+        instances = self.value(parent_keys, 'SOPInstanceUID').tolist()
 
         for ds in dataset:
             try:
-                ind = list(instances).index(ds.SOPInstanceUID)
+                ind = instances.index(ds.SOPInstanceUID)
             except:  # Save dataset in new instance
 
                 # Set parent modules
@@ -629,7 +670,12 @@ class DbRegister():
                 data[4] = ds.SOPClassUID
                 if 'NumberOfFrames' in ds:
                     data[5] = ds.NumberOfFrames
-                data[11] = 1 + max(self.value(parent_keys, 'InstanceNumber'))
+                nrs = self.value(parent_keys, 'InstanceNumber')
+                nrs = [n for n in nrs if n is not None]
+                if nrs == []:
+                    data[11] = 1
+                else:
+                    data[11] = 1 + max(nrs)
                 ds.set_values(self.columns, data)
 
                 # Add to database in memory
@@ -657,6 +703,16 @@ class DbRegister():
                     new_keys.append(new_key)
 
         # Update the dataframe in the index
+
+        # If the series is empty and new instances have been added
+        # then delete the row 
+        if self.value(parent_keys[0], 'SOPInstanceUID') is None:
+            if new_keys != []:
+                if self.dataframe.at[parent_keys[0], 'created']:
+                    self.dataframe.drop(index=parent_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[parent_keys[0], 'removed'] == True
+
         if new_keys != []:
             df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
             df['removed'] = False
@@ -669,19 +725,19 @@ class DbRegister():
         key = self.keys(uid)[0]
         return key in self.dataset
 
-    def new_child(self, uid=None, dataset=None):
+    def new_child(self, uid=None, dataset=None, **kwargs):
 
         if uid is None:
             return None
         parent_type = self.type(uid)
         if parent_type == 'Database':
-            return self.new_patient(uid)
+            return self.new_patient(uid, **kwargs)
         if parent_type == 'Patient':
-            return self.new_study(uid)
+            return self.new_study(uid, **kwargs)
         if parent_type == 'Study':
-            return self.new_series(uid)
+            return self.new_series(uid, **kwargs)
         if parent_type == 'Series':
-            return self.new_instance(uid, dataset=dataset)
+            return self.new_instance(uid, dataset=dataset, **kwargs)
         if parent_type == 'Instance':
             return None
 
@@ -872,172 +928,22 @@ class DbRegister():
 
         return os.path.join('dbdicom', dbdataset.new_uid() + '.dcm') 
 
-    def copy_to_series(self, uid, target):
+
+    def copy_to_series(self, uid, target, **kwargs):
         """Copy instances to another series"""
 
         target_keys = self.keys(series=target)
 
         attributes, values = self.series_header(target_keys[0])
-        n = self.value(target_keys, 'InstanceNumber')
-        n = n[n != np.array(None)]
-        max_number=0 if n.size==0 else np.amax(n)
-            
-        copy_data = []
-        copy_keys = []
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
 
-        keys = self.keys(uid)
-        new_instances = dbdataset.new_uid(len(keys))
-
-        for i, key in enumerate(keys):
-
-            self.status.progress(i+1, len(keys), message='Copying..')
-
-            # Set new UIDs in dataset
-            # If the dataset is in memory, the copy is created in memory too
-            # Else the copy is created on disk
-            new_key = self.new_key()
-            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-            if key in self.dataset:
-                ds = copy.deepcopy(ds)
-                self.dataset[new_key] = ds
-            ds.set_values( 
-                attributes + ['SOPInstanceUID', 'InstanceNumber'], 
-                values + [new_instances[i], i+1+max_number])
-            if not key in self.dataset:
-                ds.write(self.filepath(new_key), self.dialog)
-
-            # Get new data for the dataframe
-            row = ds.get_values(self.columns)
-            copy_data.append(row)
-            copy_keys.append(new_key)
-
-        # Update the dataframe in the index
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
-
-        if len(new_instances) == 1:
-            return new_instances[0]
-        else:
-            return new_instances
-
-    def copy_to_study(self, uid, target):
-        """Copy series to another study"""
-
-        target_keys = self.keys(study=target)
-
-        attributes, values = self.study_header(target_keys[0])
-        n = self.value(target_keys, 'SeriesNumber')
-        n = n[n != np.array(None)]
-        max_number=0 if n.size==0 else np.amax(n)
-
-        copy_data = []
-        copy_keys = []
-
-        all_series = self.series(uid)
-        new_series = dbdataset.new_uid(len(all_series))
-
-        for s, series in enumerate(all_series):
-
-            self.status.progress(s+1, len(all_series), message='Copying..')
-            new_number = s + 1 + max_number
-
-            for key in self.keys(series):
-
-                new_key = self.new_key()
-                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-                if key in self.dataset:
-                    ds = copy.deepcopy(ds)
-                    self.dataset[new_key] = ds
-                ds.set_values(
-                    attributes + ['SeriesInstanceUID', 'SeriesNumber', 'SOPInstanceUID'], 
-                    values + [new_series[s], new_number, dbdataset.new_uid()])
-                if not key in self.dataset:
-                    ds.write(self.filepath(new_key), self.dialog)
-                    
-                # Get new data for the dataframe
-                row = ds.get_values(self.columns)
-                copy_data.append(row)
-                copy_keys.append(new_key)
-
-        # Update the dataframe in the index
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
-
-        if len(new_series) == 1:
-            return new_series[0]
-        else:
-            return new_series
-
-    def copy_to_patient(self, uid, target):
-        """Copy studies to another patient"""
-
-        target_keys = self.keys(patient=target)
-
-        attributes, values = self.patient_header(target_keys[0])
-
-        copy_data = []
-        copy_keys = []
-
-        all_studies = self.studies(uid)
-        new_studies = dbdataset.new_uid(len(all_studies))
-
-        for s, study in enumerate(all_studies):
-            
-            self.status.progress(s+1, len(all_studies), message='Copying..')
-
-            for series in self.series(study):
-
-                new_series_uid = dbdataset.new_uid()
-                for key in self.keys(series):
-
-                    new_key = self.new_key()
-                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-                    if key in self.dataset:
-                        ds = copy.deepcopy(ds)
-                        self.dataset[new_key] = ds
-                    ds.set_values( 
-                        attributes + ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'], 
-                        values + [new_studies[s], new_series_uid, dbdataset.new_uid()])
-                    if not key in self.dataset:
-                        ds.write(self.filepath(new_key), self.dialog)
-                    # Get new data for the dataframe
-                    row = ds.get_values(self.columns)
-                    copy_data.append(row)
-                    copy_keys.append(new_key)
-
-        # Update the dataframe in the index
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
-
-        if len(new_studies) == 1:
-            return new_studies[0]
-        else:
-            return new_studies
-
-    def copy_to(self, source, target):
-
-        type = self.type(target)
-        if type == 'Patient':
-            return self.copy_to_patient(source, target)
-        if type == 'Study':
-            return self.copy_to_study(source, target)
-        if type == 'Series':
-            return self.copy_to_series(source, target)
-        if type == 'Instance':
-            raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
-
-    def move_to_series(self, uid, target):
-        """Copy datasets to another series"""
-
-        target_keys = self.keys(series=target)
-
-        attributes, values = self.series_header(target_keys[0])
         n = self.value(target_keys, 'InstanceNumber')
         n = n[n != np.array(None)]
         max_number=0 if n.size==0 else np.amax(n)
@@ -1054,65 +960,84 @@ class DbRegister():
         #         dbdataset.module_series() ))
         #     values = ds.get_values(attributes)
         #     max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
-        
+   
         copy_data = []
-        copy_keys = []       
+        copy_keys = []
 
         keys = self.keys(uid)
+        new_instances = dbdataset.new_uid(len(keys))
+
         for i, key in enumerate(keys):
 
-            self.status.progress(i+1, len(keys), message='Moving dataset..')
+            self.status.progress(i+1, len(keys), message='Copying..')
 
+            new_key = self.new_key()
             ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-
-            # If the value has changed before.
-            if self.value(key, 'created'): 
-                ds.set_values( 
-                    attributes + ['InstanceNumber'], 
-                    values + [i+1 + max_number])
-                if not key in self.dataset:
-                    ds.write(self.filepath(key), self.dialog)
-                for i, col in enumerate(attributes):
-                    if col in self.columns:
-                        self.dataframe.at[key,col] = values[i]
-
-            # If this is the first change, then save results in a copy.
-            else:  
-                new_key = self.new_key()
+            if ds is None:
+                row = self.value(key, self.columns).tolist()
+                row[0] = self.value(target_keys[0], 'PatientID')
+                row[1] = self.value(target_keys[0], 'StudyInstanceUID')
+                row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
+                row[3] = new_instances[i]
+                row[6] = self.value(target_keys[0], 'PatientName')
+                row[7] = self.value(target_keys[0], 'StudyDescription')
+                row[8] = self.value(target_keys[0], 'StudyDate')
+                row[9] = self.value(target_keys[0], 'SeriesDescription')
+                row[10] = self.value(target_keys[0], 'SeriesNumber')
+                row[11] = i+1+max_number
+            else:
                 if key in self.dataset:
                     ds = copy.deepcopy(ds)
                     self.dataset[new_key] = ds
-                ds.set_values(
-                    attributes + ['InstanceNumber'], 
-                    values + [i+1+max_number])
+                ds.set_values( 
+                    attributes + ['SOPInstanceUID', 'InstanceNumber'], 
+                    values + [new_instances[i], i+1+max_number])
                 if not key in self.dataset:
                     ds.write(self.filepath(new_key), self.dialog)
-
-                # Get new data for the dataframe
-                self.dataframe.at[key,'removed'] = True
                 row = ds.get_values(self.columns)
-                copy_data.append(row)
-                copy_keys.append(new_key)
+
+            # Get new data for the dataframe
+            copy_data.append(row)
+            copy_keys.append(new_key)
 
         # Update the dataframe in the index
-        if copy_data != []:
-            df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
 
-        if len(keys) == 1:
-            return self.value(keys, 'SOPInstanceUID')
+        # If the series is empty and new instances have been added
+        # then delete the row 
+        if self.value(target_keys[0], 'SOPInstanceUID') is None:
+            if copy_keys != []:
+                if self.dataframe.at[target_keys[0], 'created']:
+                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[target_keys[0], 'removed'] == True
+
+        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        df['removed'] = False
+        df['created'] = True
+        self.dataframe = pd.concat([self.dataframe, df])
+
+        if len(new_instances) == 1:
+            return new_instances[0]
         else:
-            return list(self.value(keys, 'SOPInstanceUID'))
+            return new_instances
 
 
-    def move_to_study(self, uid, target):
+
+    def copy_to_study(self, uid, target, **kwargs):
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
 
         attributes, values = self.study_header(target_keys[0])
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
+
         n = self.value(target_keys, 'SeriesNumber')
         n = n[n != np.array(None)]
         max_number=0 if n.size==0 else np.amax(n)
@@ -1128,6 +1053,297 @@ class DbRegister():
         #         dbdataset.module_study() ))
         #     values = ds.get_values(attributes)
         #     max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
+
+
+        copy_data = []
+        copy_keys = []
+
+        all_series = self.series(uid)
+        new_series = dbdataset.new_uid(len(all_series))
+
+        for s, series in enumerate(all_series):
+
+            self.status.progress(s+1, len(all_series), message='Copying..')
+            new_number = s + 1 + max_number
+
+            for key in self.keys(series):
+
+                new_key = self.new_key()
+                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                if ds is None:
+                    row = self.value(key, self.columns).tolist()
+                    row[0] = self.value(target_keys[0], 'PatientID')
+                    row[1] = self.value(target_keys[0], 'StudyInstanceUID')
+                    row[2] = new_series[s]
+                    row[3] = dbdataset.new_uid()
+                    row[6] = self.value(target_keys[0], 'PatientName')
+                    row[7] = self.value(target_keys[0], 'StudyDescription')
+                    row[8] = self.value(target_keys[0], 'StudyDate')
+                    row[10] = new_number
+                else:
+                    if key in self.dataset:
+                        ds = copy.deepcopy(ds)
+                        self.dataset[new_key] = ds
+                    ds.set_values(
+                        attributes + ['SeriesInstanceUID', 'SeriesNumber', 'SOPInstanceUID'], 
+                        values + [new_series[s], new_number, dbdataset.new_uid()])
+                    if not key in self.dataset:
+                        ds.write(self.filepath(new_key), self.dialog)
+                    row = ds.get_values(self.columns)
+
+                # Get new data for the dataframe
+                
+                copy_data.append(row)
+                copy_keys.append(new_key)
+
+        # Update the dataframe in the index
+
+        # If the study is empty and new series have been added
+        # then delete the row 
+        if self.value(target_keys[0], 'SeriesInstanceUID') is None:
+            if copy_keys != []:
+                if self.dataframe.at[target_keys[0], 'created']:
+                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[target_keys[0], 'removed'] == True
+
+        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        df['removed'] = False
+        df['created'] = True
+        self.dataframe = pd.concat([self.dataframe, df])
+
+        if len(new_series) == 1:
+            return new_series[0]
+        else:
+            return new_series
+
+    def copy_to_patient(self, uid, target, **kwargs):
+        """Copy studies to another patient"""
+
+        target_keys = self.keys(patient=target)
+
+        attributes, values = self.patient_header(target_keys[0])
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
+
+        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
+        # if ds is None:
+        #     attributes = ['PatientID','PatientName']
+        #     values = self.value(target_keys[0], attributes).tolist()
+        # else:
+        #     attributes = dbdataset.module_patient()
+        #     values = ds.get_values(attributes)
+
+        copy_data = []
+        copy_keys = []
+
+        all_studies = self.studies(uid)
+        new_studies = dbdataset.new_uid(len(all_studies))
+
+        for s, study in enumerate(all_studies):
+            
+            self.status.progress(s+1, len(all_studies), message='Copying..')
+
+            for series in self.series(study):
+
+                new_series_uid = dbdataset.new_uid()
+
+                for key in self.keys(series):
+
+                    new_key = self.new_key()
+                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                    if ds is None:
+                        row = self.value(key, self.columns).tolist()
+                        row[0] = self.value(target_keys[0], 'PatientID')
+                        row[1] = new_studies[s]
+                        row[2] = new_series_uid
+                        row[3] = dbdataset.new_uid()
+                        row[6] = self.value(target_keys[0], 'PatientName')
+                    else:
+                        if key in self.dataset:
+                            ds = copy.deepcopy(ds)
+                            self.dataset[new_key] = ds
+                        ds.set_values( 
+                            attributes + ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'], 
+                            values + [new_studies[s], new_series_uid, dbdataset.new_uid()])
+                        if not key in self.dataset:
+                            ds.write(self.filepath(new_key), self.dialog)
+                        row = ds.get_values(self.columns)
+
+                    # Get new data for the dataframe
+                    copy_data.append(row)
+                    copy_keys.append(new_key)
+
+        # Update the dataframe in the index
+
+        # If the patient is empty and new studies have been added
+        # then delete the row 
+        if self.value(target_keys[0], 'StudyInstanceUID') is None:
+            if copy_keys != []:
+                if self.dataframe.at[target_keys[0], 'created']:
+                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[target_keys[0], 'removed'] == True
+
+        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        df['removed'] = False
+        df['created'] = True
+        self.dataframe = pd.concat([self.dataframe, df])
+
+        if len(new_studies) == 1:
+            return new_studies[0]
+        else:
+            return new_studies
+
+    def copy_to(self, source, target, **kwargs):
+
+        type = self.type(target)
+        if type == 'Patient':
+            return self.copy_to_patient(source, target, **kwargs)
+        if type == 'Study':
+            return self.copy_to_study(source, target, **kwargs)
+        if type == 'Series':
+            return self.copy_to_series(source, target, **kwargs)
+        if type == 'Instance':
+            raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
+
+
+    columns = [    
+        'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 
+        'SOPClassUID','NumberOfFrames', 
+        'PatientName', 
+        'StudyDescription', 'StudyDate', 
+        'SeriesDescription', 'SeriesNumber',
+        'InstanceNumber', 
+    ]
+
+
+    def move_to_series(self, uid, target, **kwargs):
+        """Copy datasets to another series"""
+
+        target_keys = self.keys(series=target)
+
+        attributes, values = self.series_header(target_keys[0])
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
+
+        n = self.value(target_keys, 'InstanceNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
+        
+        copy_data = []
+        copy_keys = []       
+
+        keys = self.keys(uid)
+        for i, key in enumerate(keys):
+
+            self.status.progress(i+1, len(keys), message='Moving dataset..')
+
+            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+
+            if ds is None:
+
+                row = self.value(key, self.columns).tolist()
+                row[0] = self.value(target_keys[0], 'PatientID')
+                row[1] = self.value(target_keys[0], 'StudyInstanceUID')
+                row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
+                row[6] = self.value(target_keys[0], 'PatientName')
+                row[7] = self.value(target_keys[0], 'StudyDescription')
+                row[8] = self.value(target_keys[0], 'StudyDate')
+                row[9] = self.value(target_keys[0], 'SeriesDescription')
+                row[10] = self.value(target_keys[0], 'SeriesNumber')
+                row[11] = i+1 + max_number
+                if self.value(key, 'created'):
+                    self.dataframe.loc[key, self.columns] = row
+                else:
+                    self.dataframe.at[key,'removed'] = True
+                    copy_data.append(row)
+                    copy_keys.append(self.new_key())
+
+            else:
+
+                # If the value has changed before.
+                if self.value(key, 'created'): 
+                    ds.set_values( 
+                        attributes + ['InstanceNumber'], 
+                        values + [i+1 + max_number])
+                    if not key in self.dataset:
+                        ds.write(self.filepath(key), self.dialog)
+                    for i, col in enumerate(attributes):
+                        if col in self.columns:
+                            self.dataframe.at[key,col] = values[i]
+
+                # If this is the first change, then save results in a copy.
+                else:  
+                    new_key = self.new_key()
+                    if key in self.dataset:
+                        ds = copy.deepcopy(ds)
+                        self.dataset[new_key] = ds
+                    ds.set_values(
+                        attributes + ['InstanceNumber'], 
+                        values + [i+1+max_number])
+                    if not key in self.dataset:
+                        ds.write(self.filepath(new_key), self.dialog)
+
+                    # Get new data for the dataframe
+                    self.dataframe.at[key,'removed'] = True
+                    row = ds.get_values(self.columns)
+                    copy_data.append(row)
+                    copy_keys.append(new_key)
+
+        # Update the dataframe in the index
+
+        # If the series is empty and new instances have been added
+        # then delete the row 
+        if self.value(target_keys[0], 'SOPInstanceUID') is None:
+            if copy_keys != []:
+                if self.dataframe.at[target_keys[0], 'created']:
+                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[target_keys[0], 'removed'] == True
+
+        if copy_data != []:
+            df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.dataframe = pd.concat([self.dataframe, df])
+
+        if len(keys) == 1:
+            return self.value(keys, 'SOPInstanceUID')
+        else:
+            return list(self.value(keys, 'SOPInstanceUID'))
+
+
+    def move_to_study(self, uid, target, **kwargs):
+        """Copy series to another study"""
+
+        target_keys = self.keys(study=target)
+
+        attributes, values = self.study_header(target_keys[0])
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
+
+        n = self.value(target_keys, 'SeriesNumber')
+        n = n[n != np.array(None)]
+        max_number=0 if n.size==0 else np.amax(n)
         
         copy_data = []
         copy_keys = []       
@@ -1142,36 +1358,64 @@ class DbRegister():
 
                 ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
-                # If the value has changed before.
-                if self.value(key, 'created'): 
-                    ds.set_values( 
-                        attributes + ['SeriesNumber'], 
-                        values + [new_number])
-                    if not key in self.dataset:
-                        ds.write(self.filepath(key), self.dialog)
-                    for i, col in enumerate(attributes):
-                        if col in self.columns:
-                            self.dataframe.at[key,col] = values[i]
+                if ds is None:
 
-                # If this is the first change, then save results in a copy.
-                else:  
-                    new_key = self.new_key()
-                    if key in self.dataset:
-                        ds = copy.deepcopy(ds)
-                        self.dataset[new_key] = ds
-                    ds.set_values(
-                        attributes + ['SeriesNumber'], 
-                        values + [new_number])
-                    if not key in self.dataset:
-                        ds.write(self.filepath(new_key), self.dialog)
+                    row = self.value(key, self.columns).tolist()
+                    row[0] = self.value(target_keys[0], 'PatientID')
+                    row[1] = self.value(target_keys[0], 'StudyInstanceUID')
+                    row[6] = self.value(target_keys[0], 'PatientName')
+                    row[7] = self.value(target_keys[0], 'StudyDescription')
+                    row[8] = self.value(target_keys[0], 'StudyDate')
+                    row[10] = new_number
+                    if self.value(key, 'created'):
+                        self.dataframe.loc[key, self.columns] = row
+                    else:
+                        self.dataframe.at[key,'removed'] = True
+                        copy_data.append(row)
+                        copy_keys.append(self.new_key())
 
-                    # Get new data for the dataframe
-                    self.dataframe.at[key,'removed'] = True
-                    row = ds.get_values(self.columns)
-                    copy_data.append(row)
-                    copy_keys.append(new_key)
+                else:
+
+                    # If the value has changed before.
+                    if self.value(key, 'created'): 
+                        ds.set_values( 
+                            attributes + ['SeriesNumber'], 
+                            values + [new_number])
+                        if not key in self.dataset:
+                            ds.write(self.filepath(key), self.dialog)
+                        for i, col in enumerate(attributes):
+                            if col in self.columns:
+                                self.dataframe.at[key,col] = values[i]
+
+                    # If this is the first change, then save results in a copy.
+                    else:  
+                        new_key = self.new_key()
+                        if key in self.dataset:
+                            ds = copy.deepcopy(ds)
+                            self.dataset[new_key] = ds
+                        ds.set_values(
+                            attributes + ['SeriesNumber'], 
+                            values + [new_number])
+                        if not key in self.dataset:
+                            ds.write(self.filepath(new_key), self.dialog)
+
+                        # Get new data for the dataframe
+                        self.dataframe.at[key,'removed'] = True
+                        row = ds.get_values(self.columns)
+                        copy_data.append(row)
+                        copy_keys.append(new_key)
 
         # Update the dataframe in the index
+
+        # If the study is empty and new series have been added
+        # then delete the row 
+        if self.value(target_keys[0], 'SeriesInstanceUID') is None:
+            if copy_keys != []:
+                if self.dataframe.at[target_keys[0], 'created']:
+                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                else:
+                    self.dataframe.at[target_keys[0], 'removed'] == True
+
         if copy_data != []:
             df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
             df['removed'] = False
@@ -1183,20 +1427,21 @@ class DbRegister():
         else:
             return all_series
 
-    def move_to_patient(self, uid, target):
+
+    def move_to_patient(self, uid, target, **kwargs):
         """Copy series to another study"""
 
         target_keys = self.keys(patient=target)
 
         attributes, values = self.patient_header(target_keys[0])
-
-        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        # if ds is None:
-        #     attributes = ['PatientID','PatientName']
-        #     values = self.value(target_keys[0], attributes).tolist()
-        # else:
-        #     attributes = dbdataset.module_patient()
-        #     values = ds.get_values(attributes)
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
 
         copy_data = []
         copy_keys = []  
@@ -1211,32 +1456,56 @@ class DbRegister():
 
                     ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
-                    # If the value has changed before.
-                    if self.value(key, 'created'): 
-                        ds.set_values(attributes, values)
-                        if not key in self.dataset:
-                            ds.write(self.filepath(key), self.dialog)
-                        for i, col in enumerate(attributes):
-                            if col in self.columns:
-                                self.dataframe.at[key,col] = values[i]
+                    if ds is None:
 
-                    # If this is the first change, then save results in a copy.
-                    else:  
-                        new_key = self.new_key()
-                        if key in self.dataset:
-                            ds = copy.deepcopy(ds)
-                            self.dataset[new_key] = ds
-                        ds.set_values(attributes, values)
-                        if not key in self.dataset:
-                            ds.write(self.filepath(new_key), self.dialog)
+                        row = self.value(key, self.columns).tolist()
+                        row[0] = self.value(target_keys[0], 'PatientID')
+                        row[6] = self.value(target_keys[0], 'PatientName')
+                        if self.value(key, 'created'):
+                            self.dataframe.loc[key, self.columns] = row
+                        else:
+                            self.dataframe.at[key,'removed'] = True
+                            copy_data.append(row)
+                            copy_keys.append(self.new_key())
 
-                        # Get new data for the dataframe
-                        self.dataframe.at[key,'removed'] = True
-                        row = ds.get_values(self.columns)
-                        copy_data.append(row)
-                        copy_keys.append(new_key)
+                    else:
+
+                        # If the value has changed before.
+                        if self.value(key, 'created'): 
+                            ds.set_values(attributes, values)
+                            if not key in self.dataset:
+                                ds.write(self.filepath(key), self.dialog)
+                            for i, col in enumerate(attributes):
+                                if col in self.columns:
+                                    self.dataframe.at[key,col] = values[i]
+
+                        # If this is the first change, then save results in a copy.
+                        else:  
+                            new_key = self.new_key()
+                            if key in self.dataset:
+                                ds = copy.deepcopy(ds)
+                                self.dataset[new_key] = ds
+                            ds.set_values(attributes, values)
+                            if not key in self.dataset:
+                                ds.write(self.filepath(new_key), self.dialog)
+
+                            # Get new data for the dataframe
+                            self.dataframe.at[key,'removed'] = True
+                            row = ds.get_values(self.columns)
+                            copy_data.append(row)
+                            copy_keys.append(new_key)
 
             # Update the dataframe in the index
+
+            # If the patient is empty and new studies have been added
+            # then delete the row 
+            if self.value(target_keys[0], 'StudyInstanceUID') is None:
+                if copy_keys != []:
+                    if self.dataframe.at[target_keys[0], 'created']:
+                        self.dataframe.drop(index=target_keys[0], inplace=True)
+                    else:
+                        self.dataframe.at[target_keys[0], 'removed'] == True
+
             if copy_data != []:
                 df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
                 df['removed'] = False
@@ -1248,15 +1517,15 @@ class DbRegister():
         else:
             return all_studies
 
-    def move_to(self, source, target):
+    def move_to(self, source, target, **kwargs):
 
         type = self.type(target)
         if type == 'Patient':
-            return self.move_to_patient(source, target)
+            return self.move_to_patient(source, target, **kwargs)
         if type == 'Study':
-            return self.move_to_study(source, target)
+            return self.move_to_study(source, target, **kwargs)
         if type == 'Series':
-            return self.move_to_series(source, target)
+            return self.move_to_series(source, target, **kwargs)
         if type == 'Instance':
             raise ValueError('Cannot move to an instance. Please move to series, study or patient.')
 
@@ -1276,8 +1545,11 @@ class DbRegister():
 
             self.status.progress(i+1, len(keys), message='Setting values..')
 
-            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-
+            instance_uid = self.value(key, 'SOPInstanceUID')
+            ds = self.get_dataset(instance_uid)
+            if ds is None:
+                ds = new_dataset('MRImage')
+                self.set_dataset(instance_uid, ds)
             # If the value has changed before
             if self.value(key, 'created'): 
                 ds.set_values(attributes, values)
@@ -1381,7 +1653,6 @@ class DbRegister():
             return
         df = self.dataframe
         if uid != 'Database':
-            # df = df[df[self.type(uid)] == uid]
             df = df[np.isin(df, uid).any(axis=1)]
         created = df.created[df.created]   
         removed = df.removed[df.removed]
@@ -1396,8 +1667,8 @@ class DbRegister():
             if os.path.exists(file): 
                 os.remove(file)
 
-        df.loc[created.index, 'created'] = False
-        df.drop(removed.index, inplace=True)
+        self.dataframe.loc[created.index, 'created'] = False
+        self.dataframe.drop(index=removed.index, inplace=True)
 
     def restore(self, uid=None):  
 
@@ -1420,8 +1691,8 @@ class DbRegister():
             if os.path.exists(file): 
                 os.remove(file)
 
-        df.loc[removed.index, 'removed'] = False
-        df.drop(created.index, inplace=True)
+        self.dataframe.loc[removed.index, 'removed'] = False
+        self.dataframe.drop(index=created.index, inplace=True)
 
     def import_datasets(self, files):
 

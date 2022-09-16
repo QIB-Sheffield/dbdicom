@@ -1,16 +1,17 @@
-__all__ = ['open']
+__all__ = ['open_database']
 
 import os
 import numpy as np
 
 from dbdicom.register import DbRegister
+import dbdicom.dataset as dbdataset
 
 class DbRecord():
 
-    def __init__(self, register, uid='Database', **attributes):   
+    def __init__(self, register, uid='Database', **kwargs):   
 
         self.uid = uid
-        self.attributes = attributes
+        self.attributes = kwargs
         self.register = register
     
     def __eq__(self, other):
@@ -56,6 +57,21 @@ class DbRecord():
         elif type == 'Instance':
             return 4
 
+    def series_data(self):
+        attr = dbdataset.module_series()
+        vals = self[attr]
+        return attr, vals
+
+    def study_data(self):
+        attr = dbdataset.module_study()
+        vals = self[attr]
+        return attr, vals
+
+    def patient_data(self):
+        attr = dbdataset.module_patient()
+        vals = self[attr]
+        return attr, vals
+
     def parent(self):
         uid = self.register.parent(self.uid)
         return self.__class__(self.register, uid)
@@ -83,24 +99,35 @@ class DbRecord():
         return self.__class__(self.register)
 
     def new_patient(self, **kwargs):
-        uid = self.register.new_patient(parent=self.uid, **kwargs)
-        return self.__class__(self.register, uid)
+        attr = {**kwargs, **self.attributes}
+        uid = self.register.new_patient(parent=self.uid, 
+            PatientName = attr['PatientName'] if 'PatientName' in attr else 'New Patient',
+        )
+        return self.__class__(self.register, uid, **attr)
 
     def new_study(self, **kwargs):
-        uid = self.register.new_study(parent=self.uid, **kwargs)
-        return self.__class__(self.register, uid)
+        attr = {**kwargs, **self.attributes}
+        uid = self.register.new_study(parent=self.uid, 
+            StudyDescription = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
+        )
+        return self.__class__(self.register, uid, **attr)
 
     def new_series(self, **kwargs):
-        uid = self.register.new_series(parent=self.uid, **kwargs)
-        return self.__class__(self.register, uid)
+        attr = {**kwargs, **self.attributes}
+        uid = self.register.new_series(parent=self.uid,
+            SeriesDescription = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
+        )
+        return self.__class__(self.register, uid, **attr)
 
-    def new_instance(self, **kwargs):
-        uid = self.register.new_instance(parent=self.uid, **kwargs)
-        return self.__class__(self.register, uid)
+    def new_instance(self, dataset=None, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uid = self.register.new_instance(parent=self.uid, dataset=dataset, **attr)
+        return self.__class__(self.register, uid, **attr)
 
-    def new_child(self, **kwargs): # inherit attributes
-        uid = self.register.new_child(uid=self.uid, **kwargs)
-        return self.__class__(self.register, uid)
+    def new_child(self, **kwargs): 
+        attr = {**kwargs, **self.attributes}
+        uid = self.register.new_child(uid=self.uid, **attr)
+        return self.__class__(self.register, uid, **attr)
 
     def new_sibling(self):
         uid = self.register.new_sibling(uid=self.uid)
@@ -119,23 +146,24 @@ class DbRecord():
     def read(self):
         self.register.read(self.uid)
 
-    def write(self):
+    def write(self, path=None):
+        if path is not None:
+            self.register.path = path
         self.register.write(self.uid)
+        self.register._write_df()
 
     def clear(self):
         self.register.clear(self.uid)
 
-    def close(self):
-        close(self) 
-
-    def delete(self):
+    def remove(self):
         self.register.delete(self.uid)
 
     def copy_to(self, target):
-        return copy_to([self], target)
+        return copy_to([self], target)[0]
     
     def move_to(self, target):
-        return move_to([self], target)
+        move_to([self], target)
+        return self
 
     def set_values(self, attributes, values):
         set_values([self], attributes, values)
@@ -149,11 +177,13 @@ class DbRecord():
     def set_dataset(self, dataset):
         self.register.set_dataset(self.uid, dataset)
 
-    def save(self):
+    def save(self, path=None):
         self.register.save(self.uid)
-
+        self.write(path)
+        
     def restore(self):
         self.register.restore(self.uid)
+        self.write()
 
     def import_datasets(self, files):
         self.register.import_datasets(files)
@@ -162,17 +192,26 @@ class DbRecord():
         uids = [rec.uid for rec in records]
         self.register.export_datasets(uids, database.register)
 
-    
+    def open(self, path):
+        self.register.open(path)
 
-def open(path, **kwargs):
+    def close(self):
+        if self.uid == 'Database':
+            self.register.close()
+
+
+def new_database(path=None, **kwargs):
+    if path is not None:
+        return open_database(path, **kwargs)
+    dbr = DbRegister()
+    return DbRecord(dbr, **kwargs)
+
+def open_database(path, **kwargs):
 
     dbr = DbRegister(path, **kwargs)
     dbr.open(path)
     return DbRecord(dbr) 
 
-def close(dbr): # move to subclass only ?
-    if dbr.uid == 'Database':
-        dbr.register.close()
 
 
 #
@@ -230,21 +269,18 @@ def copy_to(records, target):
 
     dbr = records[0].register
     uids = [rec.uid for rec in records]
-    uids = dbr.copy_to(uids, target.uid)
+    uids = dbr.copy_to(uids, target.uid, **target.attributes)
     if isinstance(uids, list):
         return [DbRecord(dbr, uid) for uid in uids]
     else:
-        return DbRecord(dbr, uids)
+        return [DbRecord(dbr, uids)]
 
 def move_to(records, target):
 
     dbr = records[0].register
     uids = [rec.uid for rec in records]
-    uids = dbr.move_to(uids, target.uid)
-    if isinstance(uids, list):
-        return [DbRecord(dbr, uid) for uid in uids]
-    else:
-        return DbRecord(dbr, uids)
+    dbr.move_to(uids, target.uid, **target.attributes)
+    return records
 
 def group(records, into=None):
 
@@ -257,21 +293,3 @@ def merge(records, into=None):
 
     return group(children(records), into=into)
 
-
-
-def load_npy(record):
-    # Not in use - loading of temporary numpy files
-    file = record.register.npy()
-    if not os.path.exists(file):
-        return
-    with open(file, 'rb') as f:
-        array = np.load(f)
-    return array
-
-def save_npy(record, array=None, sortby=None, pixels_first=False):
-    # Not in use - saving of temporary numpy files
-    if array is None:
-        array = record.array(sortby=sortby, pixels_first=pixels_first)
-    file = record.register.npy()
-    with open(file, 'wb') as f:
-        np.save(f, array)

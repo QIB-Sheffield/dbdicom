@@ -3,6 +3,7 @@ import shutil
 import numpy as np
 
 import dbdicom.record as record
+from dbdicom.dataset_classes.mr_image import MRImage
 
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
@@ -33,7 +34,7 @@ def remove_tmp_database(tmp):
 def test_database():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     try:
         database.print()
@@ -48,7 +49,7 @@ def test_database():
 def test_children():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
     assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
@@ -62,7 +63,7 @@ def test_children():
 def test_read_dicom_data_elements():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     patient_id = database.PatientID
     patients = database.children()
@@ -92,7 +93,7 @@ def test_read_dicom_data_elements():
 def test_read_dicom_data_elements_from_memory(): 
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     database.read()
 
@@ -124,7 +125,7 @@ def test_read_dicom_data_elements_from_memory():
 def test_hierarchy():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -159,7 +160,7 @@ def test_hierarchy():
 def test_hierarchy_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     database.read()
 
@@ -196,7 +197,7 @@ def test_hierarchy_in_memory_v1():
 def test_hierarchy_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -233,7 +234,7 @@ def test_hierarchy_in_memory_v2():
 def test_find_by_value():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     series = database.series(
         SeriesDescription = 'ax 20 flip', 
@@ -254,7 +255,7 @@ def test_find_by_value():
 def test_find_by_value_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
     database.read()
 
     series = database.series(
@@ -276,7 +277,7 @@ def test_find_by_value_in_memory():
 def test_read_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -299,7 +300,7 @@ def test_read_item_instance():
 def test_read_item():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -321,10 +322,11 @@ def test_read_item():
 
     remove_tmp_database(tmp)
 
+
 def test_set_attr_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     instance = database.instances()[0]
 
@@ -353,7 +355,7 @@ def test_set_attr_instance():
 def test_set_attr_instance_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -383,7 +385,7 @@ def test_set_attr_instance_in_memory_v1():
 def test_set_attr_instance_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     database.read()
     instance = database.instances()[0]
@@ -413,7 +415,7 @@ def test_set_attr_instance_in_memory_v2():
 def test_set_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     instance = database.instances()[0]
 
@@ -430,7 +432,7 @@ def test_set_item_instance():
 def test_set_item_instance_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -448,7 +450,7 @@ def test_set_item_instance_in_memory():
 def test_set_item():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -474,7 +476,7 @@ def test_set_item():
 def test_set_item_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -502,7 +504,7 @@ def test_set_item_in_memory():
 def test_create_records():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
 
     patient = database.new_child()
     study = patient.new_child()
@@ -532,7 +534,7 @@ def test_create_records():
 def test_copy_remove_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open(tmp)
+    database = record.open_database(tmp)
     
     #
     # move and copy an instance from one series to another
@@ -557,7 +559,7 @@ def test_copy_remove_instance():
     # remove the original instance
     n0 = len(parent.instances())
     uid = instance.SOPInstanceUID
-    instance.delete()
+    instance.remove()
 
     assert len(parent.instances()) == n0-1
     assert uid not in parent.SOPInstanceUID
@@ -600,7 +602,7 @@ def test_copy_remove_instance():
     uid = instance.SOPInstanceUID
     series = instance.parent()
 
-    instance.delete() 
+    instance.remove() 
 
     assert len(parent.instances()) == n0-1
     assert uid not in parent.SOPInstanceUID
@@ -620,160 +622,295 @@ def test_copy_remove_instance():
 
 def test_copy_remove():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
 
-    # Create a new study and copy the first series to it.
-    new_study = database.patients(0).new_child()
-    study = database.patients(1).studies(0) # BRAIN^ROUTINE BRAIN (2)
-    series = study.series(0)
-    copy = series.copy_to(new_study)
+    # Copy a series of patient 1 to a new study of patient 0
+    patients = database.patients()
+    new_patient0_study = patients[0].new_child()
+    patient1_study = patients[1].studies()[0] 
+    patient1_series = patient1_study.series()[0]
 
-    assert len(study.series()) == 2
-    assert len(new_study.series()) == 1
-    assert set(study.SeriesDescription) == set(['ax 5 flip', 'ax 10 flip'])
-    assert set(new_study.SeriesDescription) == set(['ax 5 flip'])
-    assert set(series.SeriesInstanceUID) <= set(study.SeriesInstanceUID)
-    assert set(copy.SeriesInstanceUID) <= set(new_study.SeriesInstanceUID)
+    nr_patient1_study = len(patient1_study.series())
+    nr_new_patient0_study = len(new_patient0_study.series())
+
+    copy_patient1_series = patient1_series.copy_to(new_patient0_study)
+
+    assert len(patient1_study.series()) == nr_patient1_study
+    assert len(new_patient0_study.series()) == 1 + nr_new_patient0_study
+    assert len(new_patient0_study.series()) == 1 
+    assert patient1_series.SeriesDescription in patient1_study.SeriesDescription
+    assert copy_patient1_series.SeriesDescription in new_patient0_study.SeriesDescription
+
+    # Check that series header of copy is preserved
+    attr, values_copy = copy_patient1_series.series_data()
+    _, values_source = patient1_series.series_data()
+    for i, v_copy in enumerate(values_copy):
+        if attr[i] not in ['SeriesInstanceUID', 'SeriesNumber', 'SeriesDescription']:
+            assert v_copy == values_source[i]
+
+    # Check that study header has changed
+    attr, values_copy = copy_patient1_series.study_data()
+    _, values_source = patient1_series.study_data()
+    for i, v_copy in enumerate(values_copy):
+        if attr[i] not in ['StudyInstanceUID', 'StudyDate', 'StudyDescription']:
+            assert v_copy == values_source[i]
     
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
+
+def test_inherit_attributes():
+    
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
+    
+    #
+    # Copy RIDER series to new patient and study
+    #
+
+    patients = database.patients()
+    rider_series1 = patients[0].studies()[0].series()[0]
+    rider_series2 = patients[1].studies()[0].series()[0]
+
+    james_bond = database.new_patient(
+        PatientName = 'James Bond', 
+        PatientSex = 'M', 
+        PatientBirthDate = '19111972',
+    ) 
+    james_bond_mri = james_bond.new_study(
+        PatientName = 'Joanne Bond', # Ignore - alread set in patient
+        StudyDescription = 'MRI hip replacement',
+        Occupation = 'Secret agent',
+    )
+
+    copy_series = rider_series1.copy_to(james_bond_mri)
+
+    assert copy_series.PatientName == 'James Bond'
+    assert copy_series.PatientSex == 'M'
+    assert copy_series.PatientBirthDate == '19111972'
+    assert copy_series.StudyDescription == 'MRI hip replacement'
+    assert copy_series.Occupation == 'Secret agent'
+
+    rider_series2.move_to(james_bond_mri)
+
+    assert rider_series2.PatientName == 'James Bond'
+    assert rider_series2.PatientSex == 'M'
+    assert rider_series2.PatientBirthDate == '19111972'
+    assert rider_series2.StudyDescription == 'MRI hip replacement'
+    assert rider_series2.Occupation == 'Secret agent'
+
 
 def test_merge():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
 
     # first create two new patients
     # and copy series into them
-
     patient1 = database.new_child()
     patient2 = database.new_child()
-    for s in database.series(SeriesDescription = ['sag 3d gre +c']):
-        s.copy_to(patient1)
-    for s in database.series(SeriesDescription = ['ax 5 flip']):
-        s.copy_to(patient2) 
+    series = database.series(SeriesDescription = 'sag 3d gre +c')
+    for s in series:
+        study = patient1.new_child()
+        s.copy_to(study)
+    for s in database.series(SeriesDescription = 'ax 5 flip'):
+        s.copy_to(patient2.new_child()) 
 
-    assert len(patient1.studies()) == 4
-    assert len(patient2.studies()) == 4
-    assert len(patient1.series()) == 4
-    assert len(patient2.series()) == 4
-    assert len(database.patients()) == 4
+    n_instances = len(patient1.instances()) + len(patient2.instances())
+    n_studies = len(patient1.studies()) + len(patient2.studies())
+    n_series = len(patient1.series()) + len(patient2.series())
 
     # merge the two patients into a third
 
-    patients_to_merge = [patient1, patient2]
-    patient3 = database.new_child()
-    for patient in patients_to_merge:
-        for study in patient.studies():
-            study.copy_to(patient3)
+    patient3 = record.merge([patient1, patient2])
 
-    assert len(patient3.studies()) == 8
-    assert len(patient3.series()) == 8
-    assert set(patient1.SeriesDescription) == set(['sag 3d gre +c'])
-    assert set(patient2.SeriesDescription) == set(['ax 5 flip'])
+    assert len(patient3.studies()) == n_studies
+    assert len(patient3.series()) == n_series
+    assert len(patient3.instances()) == n_instances
+    assert patient1.SeriesDescription == 'sag 3d gre +c'
+    assert patient2.SeriesDescription == 'ax 5 flip'
     assert set(patient3.SeriesDescription) == set(['sag 3d gre +c', 'ax 5 flip'])
 
     # now merge all studies of the new patient 
     # into a new study of the same patient.
-    studies_to_merge = patient3.studies()
-    new_study = patient3.new_child()
-    for study in studies_to_merge:
-        for series in study.series():
-            series.copy_to(new_study)
+    new_study = record.merge(patient3.studies())
     
-    assert len(patient3.studies()) == 9
-    assert len(patient3.series()) == 16
-    assert len(new_study.series()) == 8
-    assert len(patient3.instances()) == 32
+    assert len(patient3.studies()) == n_studies + 1
+    assert len(patient3.series()) == 2 * n_series
+    assert len(new_study.series()) == n_series
+    assert len(patient3.instances()) == 2 * n_instances
 
     # now merge all series of the new patient into
     # a new series in a new study of the same patient
-    series_to_merge = patient3.series()
-    new_study = patient3.new_child()
-    new_series = new_study.new_child()
-    for series in series_to_merge:
-        for instance in series.instances():
-            instance.copy_to(new_series)
+    study = patient3.new_study()
+    record.merge(patient3.series(), into=study.new_series())
 
-    assert len(patient3.studies()) == 10
-    assert len(patient3.series()) == 17
-    assert len(patient3.instances()) == 64
-    assert len(new_study.series()) == 1
+    assert len(patient3.studies()) == n_studies + 2
+    assert len(patient3.series()) == 2 * n_series + 1
+    assert len(patient3.instances()) == 4 * n_instances
+    assert len(study.series()) == 1
 
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
+
+
+def test_merge_empty():
+
+    database = record.new_database()
+
+    james_bond = database.new_patient(PatientName='James Bond')
+    james_bond_mri = james_bond.new_study(StudyDescription='MRI')
+    james_bond_mri_localizer = james_bond_mri.new_series(SeriesDescription='Localizer')
+    james_bond_mri_T2w = james_bond_mri.new_series(SeriesDescription='T2w')
+    james_bond_xray = james_bond.new_study(StudyDescription='Xray')
+    james_bond_xray_chest = james_bond_xray.new_series(SeriesDescription='Chest')
+    james_bond_xray_head = james_bond_xray.new_series(SeriesDescription='Head')
+
+    scarface = database.new_patient(PatientName='Scarface')
+    scarface_mri = scarface.new_study(StudyDescription='MRI')
+    scarface_mri_localizer = scarface_mri.new_series(SeriesDescription='Localizer')
+    scarface_mri_T2w = scarface_mri.new_series(SeriesDescription='T2w')
+    scarface_xray = scarface.new_study(StudyDescription='Xray')
+    scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
+    scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
+
+    assert len(database.studies(StudyDescription='Xray')) == 2
+    assert len(database.studies(StudyDescription='Xray', PatientName='Scarface')) == 1
+    assert len(database.series(SeriesDescription='T2w')) == 2
+    assert len(database.series(SeriesDescription='T2w', PatientName='Scarface')) == 1
+
+    batman = record.merge([scarface, james_bond])
+
+    assert len(batman.studies()) == 4
+    assert len(batman.studies(StudyDescription='MRI')) == 2
+    assert len(batman.studies(PatientName='James Bond')) == 0
+    assert len(batman.studies(StudyDescription='MRI', PatientName='James Bond')) == 0
+
+    new_study = record.merge(batman.studies())
+
+    assert len(batman.studies()) == 5
+    assert len(new_study.series()) == 8
+
+    scarface_xray.copy_to(james_bond)
+
+    assert len(james_bond.studies(StudyDescription='Xray')) == 2
+    assert len(james_bond.studies(StudyDescription='Xray', PatientName='James Bond')) == 2
+
+    scarface_mri.move_to(james_bond)
+
+    assert len(scarface.studies(StudyDescription='MRI')) == 0
+    assert len(james_bond.studies(PatientName='James Bond')) == 4
+    assert len(james_bond.studies(StudyDescription='MRI')) == 2
+    assert len(james_bond.studies(StudyDescription='MRI', PatientName='James Bond')) == 2
+
+    localizer_slice1 = MRImage()
+    localizer_slice2 = MRImage()
+    T2w = MRImage()
+
+    scarface_mri_localizer.set_dataset(localizer_slice1)
+    scarface_mri_localizer.set_dataset(localizer_slice2)
+    scarface_mri_T2w.set_dataset(T2w)
+
+    ds = scarface_mri_localizer.get_dataset()
+    
+    assert ds[0].SeriesDescription == 'Localizer'
+    assert ds[0].PatientName == 'James Bond'
+    assert ds[1].SeriesDescription == 'Localizer'
+    assert ds[1].PatientName == 'James Bond'
+
+    assert set([ds[0].InstanceNumber, ds[1].InstanceNumber]) == set([1,2])
+
+    tmp = create_tmp_database()
+    database.save(tmp)
+
+    new_database = record.open_database(tmp)
+    assert set(new_database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
+    assert set(new_database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
+
+    remove_tmp_database(tmp)
+
 
 def test_save_restore():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
 
     nr_patients = len(database.patients())
-    nr_series = len(database.series())
+    nr_studies = len(database.studies())
 
     # copy the first series into a new patient
     # restore and check that the state is restored
     patient = database.new_child()
-    database.series(0).copy_to(patient)
+    database.studies()[0].copy_to(patient)
     assert len(database.patients()) == nr_patients + 1
-    assert len(database.series()) == nr_series + 1
-    assert len(patient.series()) == 1
+    assert len(database.studies()) == nr_studies + 1
+    assert len(patient.studies()) == 1
     database.restore()
     assert len(database.patients()) == nr_patients
-    assert len(database.series()) == nr_series
+    assert len(database.studies()) == nr_studies
     
     # Do the same thing again but this time save
     patient = database.new_child()
-    database.series(0).copy_to(patient)
+    database.studies()[0].copy_to(patient)
     assert len(database.patients()) == nr_patients + 1
-    assert len(database.series()) == nr_series + 1
-    assert len(patient.series()) == 1
+    assert len(database.studies()) == nr_studies + 1
+    assert len(patient.studies()) == 1
     database.save()
     assert len(database.patients()) == nr_patients + 1
-    assert len(database.series()) == nr_series + 1
-    assert len(patient.series()) == 1
+    assert len(database.studies()) == nr_studies + 1
+    assert len(patient.studies()) == 1
 
     # Close and open again, and check the state is the same
     database.close()
-    database = db.open(tmp_path)
+    database.open(tmp)
     assert len(database.patients()) == nr_patients + 1
-    assert len(database.series()) == nr_series + 1
+    assert len(database.studies()) == nr_studies + 1
 
-    remove_tmp_database(tmp_path)
+    remove_tmp_database(tmp)
+
 
 def test_read_write_dataset():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
+    instances = database.instances()
 
-    instance = database.instances(0)
-    dataset = instance.read() 
-    
-    assert dataset.Rows == instance.Rows
-    assert dataset.Columns == instance.Columns
+    instance = instances[0]
+    rows = instance.Rows
+    instance.read() 
+    assert rows == instance.Rows
+    instance.save()
+    assert rows == instance.Rows
+    instance.clear()
+    assert rows == instance.Rows
+    instance2 = instances[1]
+    rows2 = instance2.Rows
+    instance2.read()
+    instance2.Rows = 0
+    assert instance2.Rows == 0
+    instance2.restore()
+    assert instance2.Rows == rows2
+    instance.Rows = 1
+    instance2.Rows = 0
+    instance.save()
+    instance2.restore()
+    assert instance.Rows == 1
+    assert instance2.Rows == rows2
+    instance3 = instance.parent().new_instance()
+    assert instance3.Rows is None
+    database.save()
+    instance3.Rows = 256 
+    assert instance3.Rows == 256
+    database.restore()
+    assert instance3.Rows is None
 
-    dataset.Rows = dataset.Rows * 2
-    dataset.Columns = dataset.Columns * 2
-    assert dataset.Rows == instance.Rows * 2
-    assert dataset.Columns == instance.Columns * 2
+    remove_tmp_database(tmp)
 
-    matrix = ['Rows','Columns']
-    d = dataset[matrix]
-    dataset[matrix] = [int(d[0]*2), int(d[1]*2)]
-    assert dataset.Rows == instance.Rows * 4
-    assert dataset.Columns == instance.Columns * 4
-
-    instance.write(dataset)
-
-    assert instance.Rows == dataset.Rows
-    assert instance.Columns == dataset.Columns
-    
-    remove_tmp_database(tmp_path)
 
 def test_read_write_image():
 
-    tmp_path = create_tmp_database()
-    database = db.open(tmp_path)
-    instance = database.series(0).instances(0)
+    tmp = create_tmp_database(rider)
+    database = record.open_database(tmp)
+
+    instance = database.series()[0].instances()[0]
     array = instance.array()
     instance.set_array(-array)
     array_invert = instance.array()
@@ -786,30 +923,32 @@ def test_read_write_image():
 
 if __name__ == "__main__":
 
-    # test_database()
-    # test_children()
-    # test_read_dicom_data_elements()
-    # test_read_dicom_data_elements_from_memory()
-    # test_hierarchy()
-    # test_hierarchy_in_memory_v1()
-    # test_hierarchy_in_memory_v2()
-    # test_find_by_value()
-    # test_find_by_value_in_memory()
-    # test_read_item_instance()
-    # test_read_item()
-    # test_set_attr_instance()
-    # test_set_attr_instance_in_memory_v1()
-    # test_set_attr_instance_in_memory_v2()
-    # test_set_item_instance()
-    # test_set_item_instance_in_memory()
-    # test_set_item()
-    # test_set_item_in_memory()
-    # test_create_records()
+    test_database()
+    test_children()
+    test_read_dicom_data_elements()
+    test_read_dicom_data_elements_from_memory()
+    test_hierarchy()
+    test_hierarchy_in_memory_v1()
+    test_hierarchy_in_memory_v2()
+    test_find_by_value()
+    test_find_by_value_in_memory()
+    test_read_item_instance()
+    test_read_item()
+    test_set_attr_instance()
+    test_set_attr_instance_in_memory_v1()
+    test_set_attr_instance_in_memory_v2()
+    test_set_item_instance()
+    test_set_item_instance_in_memory()
+    test_set_item()
+    test_set_item_in_memory()
+    test_create_records()
     test_copy_remove_instance()
-    # test_copy_remove()
-    # test_merge()
-    # test_save_restore()
-    # test_read_write_dataset()
+    test_copy_remove()
+    test_inherit_attributes()
+    test_merge()
+    test_merge_empty()
+    test_save_restore()
+    test_read_write_dataset()
 
     # test_read_write_image()
 

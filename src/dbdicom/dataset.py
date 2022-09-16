@@ -122,11 +122,8 @@ def write(ds, file, dialog=None):
         dir = os.path.dirname(file)
         if not os.path.exists(dir):
             os.makedirs(dir)
-        ds.save_as(file) 
-    except:
-        message = "Failed to write to " + file
-        message += "\n The file may be open in another application, or is being synchronised by a cloud service."
-        message += "\n Please close the file or pause the synchronisation and try again."
+        ds.save_as(file, write_like_original=False) 
+    except Exception as message:
         if dialog is not None:
             dialog.information(message) 
         else:

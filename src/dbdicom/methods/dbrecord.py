@@ -261,6 +261,23 @@ def _dataset_from_df(dbobject, df):
     return data
 
 
+def load_npy(record):
+    # Not in use - loading of temporary numpy files
+    file = record.register.npy()
+    if not os.path.exists(file):
+        return
+    with open(file, 'rb') as f:
+        array = np.load(f)
+    return array
+
+def save_npy(record, array=None, sortby=None, pixels_first=False):
+    # Not in use - saving of temporary numpy files
+    if array is None:
+        array = record.array(sortby=sortby, pixels_first=pixels_first)
+    file = record.register.npy()
+    with open(file, 'wb') as f:
+        np.save(f, array)
+
 def map_onto(record, target):
     """Map non-zero pixels onto another series"""
 
