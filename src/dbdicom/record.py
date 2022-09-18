@@ -1,18 +1,15 @@
-__all__ = ['open_database']
-
-import os
-import numpy as np
-
-from dbdicom.register import DbRegister
 import dbdicom.dataset as dbdataset
+import dbdicom.methods.record as record_methods
+
 
 class DbRecord():
 
-    def __init__(self, register, uid='Database', **kwargs):   
+    def __init__(self, create, register, uid='Database', **kwargs):   
 
         self.uid = uid
         self.attributes = kwargs
         self.register = register
+        self.create = create
     
     def __eq__(self, other):
         return self.uid == other.uid
@@ -24,7 +21,7 @@ class DbRecord():
         return self.get_values(attributes)
 
     def __setattr__(self, attribute, value):
-        if attribute in ['uid', 'register', 'attributes']:
+        if attribute in ['uid', 'register', 'attributes', 'create']:
             self.__dict__[attribute] = value
         else:
             self.set_values(attribute, value)
@@ -45,7 +42,7 @@ class DbRecord():
 
     @property
     def generation(self): # Obsolete
-        type = self.type()
+        type = self.__class__.__name__
         if type == 'Database':
             return 0
         elif type == 'Patient':
@@ -73,69 +70,82 @@ class DbRecord():
         return attr, vals
 
     def parent(self):
+        type = self.__class__.__name__
+        if type == 'Database':
+            return None
+        if type == 'Patient':
+            return self.create(self.register, 'Database')
         uid = self.register.parent(self.uid)
-        return self.__class__(self.register, uid)
+        if type == 'Study':
+            return self.create(self.register, uid, 'Patient')
+        if type == 'Series':
+            return self.create(self.register, uid, 'Study')
+        if type == 'Instance':
+            return self.create(self.register, uid, 'Series')
 
     def children(self, **kwargs):
-        return children([self], **kwargs)
-
+        return record_methods.children([self], **kwargs)
     def instances(self, **kwargs):
-        return instances([self], **kwargs)
-
+        return record_methods.instances([self], **kwargs)
     def series(self, **kwargs):
-        return series([self], **kwargs)
-
+        return record_methods.series([self], **kwargs)
     def studies(self, **kwargs):
-        return studies([self], **kwargs)
-
+        return record_methods.studies([self], **kwargs)
     def patients(self, **kwargs):
-        return patients([self], **kwargs)
+        return record_methods.patients([self], **kwargs)
 
     def siblings(self, **kwargs):
         uids = self.register.siblings(self.uid, **kwargs)
-        return [self.__class__(self.register, uid) for uid in uids]
-
-    def database(self):
-        return self.__class__(self.register)
+        return [self.__class__(self.create, self.register, uid) for uid in uids]
 
     def new_patient(self, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid = self.register.new_patient(parent=self.uid, 
             PatientName = attr['PatientName'] if 'PatientName' in attr else 'New Patient',
         )
-        return self.__class__(self.register, uid, **attr)
+        return self.create(self.register, uid, 'Patient', **attr)
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid = self.register.new_study(parent=self.uid, 
             StudyDescription = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
         )
-        return self.__class__(self.register, uid, **attr)
+        return self.create(self.register, uid, 'Study', **attr)
 
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid = self.register.new_series(parent=self.uid,
             SeriesDescription = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
         )
-        return self.__class__(self.register, uid, **attr)
+        return self.create(self.register, uid, 'Series', **attr)
 
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid = self.register.new_instance(parent=self.uid, dataset=dataset, **attr)
-        return self.__class__(self.register, uid, **attr)
+        return self.create(self.register, uid, 'Instance', **attr)
 
-    def new_child(self, **kwargs): 
+    def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_child(uid=self.uid, **attr)
-        return self.__class__(self.register, uid, **attr)
+        uid = self.register.new_child(uid=self.uid, dataset=dataset, **attr)
+        return self.create(self.register, uid, **attr)
 
     def new_sibling(self):
         uid = self.register.new_sibling(uid=self.uid)
-        return self.__class__(self.register, uid)
+        return self.__class__(self.create, self.register, uid)
 
     def new_pibling(self):
+        type = self.__class__.__name__
+        if type == 'Database':
+            return None
+        if type == 'Patient':
+            return None
         uid = self.register.new_pibling(uid=self.uid)
-        return self.__class__(self.register, uid)
+        if type == 'Study':
+            return self.create(self.register, uid, 'Patient')
+        if type == 'Series':
+            return self.create(self.register, uid, 'Study')
+        if type == 'Instance':
+            return self.create(self.register, uid, 'Series')
     
     def label(self):
         return self.register.label(self.uid)
@@ -158,18 +168,21 @@ class DbRecord():
     def remove(self):
         self.register.delete(self.uid)
 
+    def copy(self):
+        return self.copy_to(self.parent())
+
     def copy_to(self, target):
-        return copy_to([self], target)[0]
+        return record_methods.copy_to([self], target)[0]
     
     def move_to(self, target):
-        move_to([self], target)
+        record_methods.move_to([self], target)
         return self
 
     def set_values(self, attributes, values):
-        set_values([self], attributes, values)
+        record_methods.set_values([self], attributes, values)
 
     def get_values(self, attributes):
-        return get_values([self], attributes)[0]
+        return record_methods.get_values([self], attributes)[0]
 
     def get_dataset(self):
         return self.register.get_dataset(self.uid)
@@ -185,111 +198,13 @@ class DbRecord():
         self.register.restore(self.uid)
         self.write()
 
-    def import_datasets(self, files):
-        self.register.import_datasets(files)
-
-    def export_datasets(self, records, database):
-        uids = [rec.uid for rec in records]
-        self.register.export_datasets(uids, database.register)
-
-    def open(self, path):
-        self.register.open(path)
-
-    def close(self):
-        if self.uid == 'Database':
-            self.register.close()
-
-
-def new_database(path=None, **kwargs):
-    if path is not None:
-        return open_database(path, **kwargs)
-    dbr = DbRegister()
-    return DbRecord(dbr, **kwargs)
-
-def open_database(path, **kwargs):
-
-    dbr = DbRegister(path, **kwargs)
-    dbr.open(path)
-    return DbRecord(dbr) 
-
-
-
-#
-# Functions on a list of records of the same database
-#
-
-def get_values(records, attributes):
-
-    uids = [rec.uid for rec in records]
-    dbr = records[0].register
-    return dbr.get_values(uids, attributes)
-
-def set_values(records, attributes, values):
-
-    uids = [rec.uid for rec in records]
-    dbr = records[0].register
-    dbr.set_values(uids, attributes, values)
-
-def children(records, **kwargs):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.children(uids, **kwargs)
-    return [DbRecord(dbr, uid) for uid in uids]
-
-def instances(records, **kwargs):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.instances(uids, **kwargs)
-    return [DbRecord(dbr, uid) for uid in uids]
-
-def series(records, **kwargs):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.series(uids, **kwargs)
-    return [DbRecord(dbr, uid) for uid in uids]
-
-def studies(records, **kwargs):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.studies(uids, **kwargs)
-    return [DbRecord(dbr, uid) for uid in uids]
-
-def patients(records, **kwargs):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.patients(uids, **kwargs)
-    return [DbRecord(dbr, uid) for uid in uids]
-
-def copy_to(records, target):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    uids = dbr.copy_to(uids, target.uid, **target.attributes)
-    if isinstance(uids, list):
-        return [DbRecord(dbr, uid) for uid in uids]
-    else:
-        return [DbRecord(dbr, uids)]
-
-def move_to(records, target):
-
-    dbr = records[0].register
-    uids = [rec.uid for rec in records]
-    dbr.move_to(uids, target.uid, **target.attributes)
-    return records
-
-def group(records, into=None):
-
-    if into is None:
-        into = records[0].new_pibling()
-    copy_to(records, into)
-    return into
-
-def merge(records, into=None):
-
-    return group(children(records), into=into)
-
+    def instance(self, uid):
+        return self.create(self.register, uid, 'Instance')
+    def sery(self, uid):
+        return self.create(self.register, uid, 'Series')
+    def study(self, uid):
+        return self.create(self.register, uid, 'Study')
+    def patient(self, uid):
+        return self.create(self.register, uid, 'Patient')
+    def database(self):
+        return self.create(self.register, 'Database')

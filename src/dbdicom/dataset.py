@@ -42,16 +42,14 @@ class DbDataset(Dataset):
     def set_colormap(self, colormap=None, levels=None):
         set_colormap(self, colormap=colormap, levels=levels)
 
-    @property
-    def pixel_array(self):
-        """Reimplements pydicom property pixel_array"""
-        return get_pixel_array(self)
-
     def get_pixel_array(self):
         return get_pixel_array(self)
 
     def set_pixel_array(self, array, value_range=None):
         set_pixel_array(self, array, value_range=value_range)
+
+    def affine_matrix(self):
+        return affine_matrix(self)
 
 
 def read(file, dialog=None):
@@ -110,8 +108,6 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                 dicom_files.append(index) 
         if status is not None: 
             status.progress(i+1, len(files), message)
-    if status is not None: 
-        status.hide()
     return pd.DataFrame(array, index = dicom_files, columns = tags)
 
 
@@ -237,13 +233,23 @@ def get_dataframe(datasets, tags):
     array = []
     indices = []
     for ds in datasets:
-        if isinstance(ds, pydicom.dataset.FileDataset):
-            if 'TransferSyntaxUID' in ds.file_meta:
-                row = get_values(ds, tags)
-                uid = get_values(ds, 'SOPInstanceUID')
-                array.append(row)
-                indices.append(uid) 
+        # if isinstance(ds, pydicom.dataset.FileDataset):
+        #     if 'TransferSyntaxUID' in ds.file_meta:
+        row = get_values(ds, tags)
+        uid = get_values(ds, 'SOPInstanceUID')
+        array.append(row)
+        indices.append(uid) 
     return pd.DataFrame(array, index=indices, columns=tags)
+
+
+def affine_matrix(ds):
+    """Affine transformation matrix for a DICOM image"""
+
+    return image.affine_matrix(
+        ds.ImageOrientationPatient, 
+        ds.ImagePositionPatient, 
+        ds.PixelSpacing, 
+        ds.SliceThickness)
 
 
 def lut(ds):

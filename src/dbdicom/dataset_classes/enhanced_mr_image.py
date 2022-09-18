@@ -602,3 +602,16 @@ def signal_type(ds):
             signal_type.append('UNKNOWN')
 
     return signal_type
+
+def affine_matrix(ds):
+    """Affine transformation matrix for all images in a multiframe image"""
+
+    affineList = []
+    for frame in ds.PerFrameFunctionalGroupsSequence:
+        affine = image.affine_matrix(
+            frame.PlaneOrientationSequence[0].ImageOrientationPatient, 
+            frame.PlanePositionSequence[0].ImagePositionPatient, 
+            frame.PixelMeasuresSequence[0].PixelSpacing, 
+            frame.PixelMeasuresSequence[0].SpacingBetweenSlices)
+        affineList.append(affine)
+    return np.squeeze(np.array(affineList))

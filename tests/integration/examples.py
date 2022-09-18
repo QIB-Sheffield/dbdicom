@@ -11,23 +11,6 @@ test_folder = os.path.join(os.path.dirname(__file__), 'data')
 test_export_folder = os.path.join(os.path.dirname(__file__), 'results')
 
 
-def test_df():
-
-    columns = ['Bool', 'Name', 'Age', 'Stream', 'Percentage']
-    record = {
-        'Bool' : [True, True, False, True, False, True] , 
-        'Name': ['Ankit', 'Amit', 'Aishwarya', 'Priyanka', 'Priya', 'Shaurya' ],
-        'Age': [21, 19, 20, 18, 17, 21],
-        'Stream': ['Math', 'Commerce', 'Science', 'Math', 'Math', 'Science'],
-        'Percentage': [88, 92, 95, 70, 65, 78] } 
-    df = pd.DataFrame(record, 
-        columns = columns, 
-        index = ['A','A','C',None,'E','F'])
-    print(df)
-
-def test_set_array_mip():
-    pass
-
 
 
 def test_set_array_invert():

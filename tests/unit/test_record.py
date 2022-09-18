@@ -1,8 +1,10 @@
 import os
 import shutil
 import numpy as np
+import matplotlib.pyplot as plt
 
-import dbdicom.record as record
+from dbdicom.methods.create import new_database, open_database
+import dbdicom.methods.record as record
 from dbdicom.dataset_classes.mr_image import MRImage
 
 
@@ -34,7 +36,7 @@ def remove_tmp_database(tmp):
 def test_database():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     try:
         database.print()
@@ -49,7 +51,7 @@ def test_database():
 def test_children():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
     assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
@@ -63,7 +65,7 @@ def test_children():
 def test_read_dicom_data_elements():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     patient_id = database.PatientID
     patients = database.children()
@@ -93,7 +95,7 @@ def test_read_dicom_data_elements():
 def test_read_dicom_data_elements_from_memory(): 
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     database.read()
 
@@ -125,7 +127,7 @@ def test_read_dicom_data_elements_from_memory():
 def test_hierarchy():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -160,7 +162,7 @@ def test_hierarchy():
 def test_hierarchy_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     database.read()
 
@@ -197,7 +199,7 @@ def test_hierarchy_in_memory_v1():
 def test_hierarchy_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -234,7 +236,7 @@ def test_hierarchy_in_memory_v2():
 def test_find_by_value():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     series = database.series(
         SeriesDescription = 'ax 20 flip', 
@@ -255,7 +257,7 @@ def test_find_by_value():
 def test_find_by_value_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     database.read()
 
     series = database.series(
@@ -277,7 +279,7 @@ def test_find_by_value_in_memory():
 def test_read_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -300,7 +302,7 @@ def test_read_item_instance():
 def test_read_item():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -326,7 +328,7 @@ def test_read_item():
 def test_set_attr_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     instance = database.instances()[0]
 
@@ -355,7 +357,7 @@ def test_set_attr_instance():
 def test_set_attr_instance_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -385,7 +387,7 @@ def test_set_attr_instance_in_memory_v1():
 def test_set_attr_instance_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     database.read()
     instance = database.instances()[0]
@@ -415,7 +417,7 @@ def test_set_attr_instance_in_memory_v2():
 def test_set_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     instance = database.instances()[0]
 
@@ -432,7 +434,7 @@ def test_set_item_instance():
 def test_set_item_instance_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -450,7 +452,7 @@ def test_set_item_instance_in_memory():
 def test_set_item():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -476,7 +478,7 @@ def test_set_item():
 def test_set_item_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -504,7 +506,7 @@ def test_set_item_in_memory():
 def test_create_records():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     patient = database.new_child()
     study = patient.new_child()
@@ -534,7 +536,7 @@ def test_create_records():
 def test_copy_remove_instance():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     
     #
     # move and copy an instance from one series to another
@@ -623,7 +625,7 @@ def test_copy_remove_instance():
 def test_copy_remove():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     # Copy a series of patient 1 to a new study of patient 0
     patients = database.patients()
@@ -661,7 +663,7 @@ def test_copy_remove():
 def test_inherit_attributes():
     
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     
     #
     # Copy RIDER series to new patient and study
@@ -702,7 +704,7 @@ def test_inherit_attributes():
 def test_merge():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     # first create two new patients
     # and copy series into them
@@ -754,7 +756,7 @@ def test_merge():
 
 def test_merge_empty():
 
-    database = record.new_database()
+    database = new_database()
 
     james_bond = database.new_patient(PatientName='James Bond')
     james_bond_mri = james_bond.new_study(StudyDescription='MRI')
@@ -821,9 +823,9 @@ def test_merge_empty():
     tmp = create_tmp_database()
     database.save(tmp)
 
-    new_database = record.open_database(tmp)
-    assert set(new_database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
-    assert set(new_database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
+    database = open_database(tmp)
+    assert set(database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
+    assert set(database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
 
     remove_tmp_database(tmp)
 
@@ -831,7 +833,7 @@ def test_merge_empty():
 def test_save_restore():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
 
     nr_patients = len(database.patients())
     nr_studies = len(database.studies())
@@ -860,7 +862,7 @@ def test_save_restore():
 
     # Close and open again, and check the state is the same
     database.close()
-    database.open(tmp)
+    database = open_database(tmp)
     assert len(database.patients()) == nr_patients + 1
     assert len(database.studies()) == nr_studies + 1
 
@@ -870,7 +872,7 @@ def test_save_restore():
 def test_read_write_dataset():
 
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
     instances = database.instances()
 
     instance = instances[0]
@@ -907,50 +909,131 @@ def test_read_write_dataset():
 
 def test_read_write_image():
 
+    tmp = create_tmp_database(onefile)
+    database = open_database(tmp)
+    image = database.instances()[0]
+    
+    array = image.get_pixel_array()
+    image.set_pixel_array(-array)
+    array_invert = image.get_pixel_array()
+
+    norm_diff = np.abs(np.sum(np.square(array)) - np.sum(np.square(array_invert)))
+    norm_mean = np.abs(np.sum(np.square(array)) + np.sum(np.square(array_invert)))
+    max_diff = np.amax(np.abs(array + array_invert))
+
+    assert norm_diff/norm_mean < 0.0001
+    assert max_diff < 0.05
+
+    plot = False
+
+    if plot==True:
+
+        col = 3
+        fig = plt.figure(figsize=(16,16))
+        i=0
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array)
+        plt.colorbar()
+        i=1
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array_invert)
+        plt.colorbar()
+        i=2
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array+array_invert)
+        plt.colorbar()
+        plt.show()
+
+    remove_tmp_database(tmp)
+
+def test_read_write_series():
+
     tmp = create_tmp_database(rider)
-    database = record.open_database(tmp)
+    database = open_database(tmp)
+    all_series = database.series()
+    series = all_series[0]
 
-    instance = database.series()[0].instances()[0]
-    array = instance.array()
-    instance.set_array(-array)
-    array_invert = instance.array()
+    # Read array, modify and save in same series
+    array, headers = series.get_pixel_array('SliceLocation')
+    series.set_pixel_array(-array, headers)
+    array_invert, _ = series.get_pixel_array('SliceLocation')
 
-    print('These should be equal: ', np.sum(np.square(array)), np.sum(np.square(array_invert)))
-    print('This should be zero: ', np.sum(np.square(array + array_invert)))
+    norm_diff = np.abs(np.sum(np.square(array)) - np.sum(np.square(array_invert)))
+    norm_mean = np.abs(np.sum(np.square(array)) + np.sum(np.square(array_invert)))
+    max_diff = np.amax(np.abs(array + array_invert))
 
-    remove_tmp_database(tmp_path)
+    assert norm_diff/norm_mean < 0.0001
+    assert max_diff < 0.05
+
+    # Set array in new series
+
+    inverse = series.new_sibling()
+    inverse.set_pixel_array(-array, headers)
+    array_invert, _ = inverse.get_pixel_array('SliceLocation')
+
+    norm_diff = np.abs(np.sum(np.square(array)) - np.sum(np.square(array_invert)))
+    norm_mean = np.abs(np.sum(np.square(array)) + np.sum(np.square(array_invert)))
+    max_diff = np.amax(np.abs(array + array_invert))
+
+    print(norm_diff/norm_mean)
+    print(max_diff)
+
+#    assert norm_diff/norm_mean < 0.0001
+#    assert max_diff < 0.05
+
+    plot = True
+
+    if plot==True:
+
+        col = 3
+        fig = plt.figure(figsize=(16,16))
+        i=0
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array[1,0,:,:])
+        plt.colorbar()
+        i=1
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array_invert[1,0,:,:])
+        plt.colorbar()
+        i=2
+        fig.add_subplot(1,col,i+1)
+        plt.imshow(array[1,0,:,:] + array_invert[1,0,:,:])
+        plt.colorbar()
+        plt.show()
+
+    remove_tmp_database(tmp)
 
 
 if __name__ == "__main__":
 
-    test_database()
-    test_children()
-    test_read_dicom_data_elements()
-    test_read_dicom_data_elements_from_memory()
-    test_hierarchy()
-    test_hierarchy_in_memory_v1()
-    test_hierarchy_in_memory_v2()
-    test_find_by_value()
-    test_find_by_value_in_memory()
-    test_read_item_instance()
-    test_read_item()
-    test_set_attr_instance()
-    test_set_attr_instance_in_memory_v1()
-    test_set_attr_instance_in_memory_v2()
-    test_set_item_instance()
-    test_set_item_instance_in_memory()
-    test_set_item()
-    test_set_item_in_memory()
-    test_create_records()
-    test_copy_remove_instance()
-    test_copy_remove()
-    test_inherit_attributes()
-    test_merge()
-    test_merge_empty()
-    test_save_restore()
-    test_read_write_dataset()
-
+    # test_database()
+    # test_children()
+    # test_read_dicom_data_elements()
+    # test_read_dicom_data_elements_from_memory()
+    # test_hierarchy()
+    # test_hierarchy_in_memory_v1()
+    # test_hierarchy_in_memory_v2()
+    # test_find_by_value()
+    # test_find_by_value_in_memory()
+    # test_read_item_instance()
+    # test_read_item()
+    # test_set_attr_instance()
+    # test_set_attr_instance_in_memory_v1()
+    # test_set_attr_instance_in_memory_v2()
+    # test_set_item_instance()
+    # test_set_item_instance_in_memory()
+    # test_set_item()
+    # test_set_item_in_memory()
+    # test_create_records()
+    # test_copy_remove_instance()
+    # test_copy_remove()
+    # test_inherit_attributes()
+    # test_merge()
+    # test_merge_empty()
+    # test_save_restore()
+    # test_read_write_dataset()
     # test_read_write_image()
+    test_read_write_series()
 
 
     print('------------------------')

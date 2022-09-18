@@ -25,16 +25,11 @@ class MRImage(DbDataset):
         if template == 'RIDER': 
             rider(self)
 
-    @property
-    def pixel_array(self):
-        """Reimplements pydicom property pixel_array"""
-        return get_pixel_array(self)
-
     def get_pixel_array(self):
         return get_pixel_array(self)
 
-    def set_pixel_array(self, array, value_range=None):
-        set_pixel_array(self, array, value_range=value_range)
+    def set_pixel_array(self, array):
+        set_pixel_array(self, array)
 
     def image_type(self):
         return image_type(self)
@@ -162,6 +157,11 @@ def rider(ds): # required only - check
 def get_pixel_array(ds):
     """Read the pixel array from an MR image"""
 
+    #array = ds.pixel_array.astype(np.float64)
+    #array = ds.pixel_array
+    #array = np.frombuffer(ds.PixelData, dtype=np.uint16).reshape(ds.Rows, ds.Columns)
+    #array = array.astype(np.float32)
+
     array = ds.pixel_array.astype(np.float32)
     if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
         slope = ds[(0x2005, 0x100E)].value
@@ -176,7 +176,7 @@ def get_pixel_array(ds):
     return np.transpose(array)
 
 
-def set_pixel_array(ds, array, value_range=None):
+def set_pixel_array(ds, array):
 
     if (0x2005, 0x100E) in ds: 
         del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
@@ -185,14 +185,19 @@ def set_pixel_array(ds, array, value_range=None):
     
     if array.ndim >= 3: # remove spurious dimensions of 1
         array = np.squeeze(array) 
-        
-    array = image.clip(array, value_range=value_range)
-    array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
-    array = np.transpose(array)
 
+    #ds.BitsAllocated = 32
+    #ds.BitsStored = 32
+    #ds.HighBit = 31
+    
+    # room for speed up
+    # clipping may slow down a lot
+    # max/min are calculated multiple times
+    array = image.clip(array)
     maximum = np.amax(array)
     minimum = np.amin(array)
-    shape = np.shape(array)
+    array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
+    array = np.transpose(array)
 
     ds.PixelRepresentation = 0
     ds.SmallestImagePixelValue = int(maximum)
@@ -201,8 +206,8 @@ def set_pixel_array(ds, array, value_range=None):
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2
 #        ds.WindowWidth = maximum - minimum
-    ds.Rows = shape[0]
-    ds.Columns = shape[1]
+    ds.Rows = array.shape[0]
+    ds.Columns = array.shape[1]
     ds.PixelData = array.tobytes()
 
 

@@ -1,3 +1,6 @@
+import math
+import numpy as np
+
 def _stack(arrays, align_left=False):
     """Stack a list of arrays of different shapes but same number of dimensions.
     

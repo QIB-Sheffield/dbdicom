@@ -44,6 +44,9 @@ class DbRegister():
         self.path = path
         self.dataframe = dataframe
         self.dataset = {}
+        self._pause_extensions = False
+        self._new_keys = []
+        self._new_data = []
 
     def read_dataframe(self, message='Reading database..'):
         """
@@ -134,7 +137,6 @@ class DbRegister():
                     # delete the original multiframe 
                     os.remove(filepath)
                     self.dataframe.drop(index=relpath, inplace=True)
-                self.status.hide()
 
     def scan(self, unzip=False):
         """
@@ -220,38 +222,43 @@ class DbRegister():
                 return not_deleted[not_deleted].index.tolist()
 
         # If arguments are provided, create a list of unique datasets
-        keys = []
+        # keys = []
         if uid is not None:
             if not isinstance(uid, list):
                 uid = [uid]
             uid = [i for i in uid if i is not None]
             rows = np.isin(df, uid).any(axis=1) & not_deleted
-            keys += df[rows].index.tolist()
+            return df[rows].index.tolist()
+            # keys += df[rows].index.tolist()
         if patient is not None:
             if not isinstance(patient, list):
                 patient = [patient]
             patient = [i for i in patient if i is not None]
             rows = df.PatientID.isin(patient) & not_deleted
-            keys += rows[rows].index.tolist()
+            return df[rows].index.tolist()
+            # keys += rows[rows].index.tolist()
         if study is not None:
             if not isinstance(study, list):
                 study = [study]
             study = [i for i in study if i is not None]
             rows = df.StudyInstanceUID.isin(study) & not_deleted
-            keys += rows[rows].index.tolist()
+            return df[rows].index.tolist()
+            # keys += rows[rows].index.tolist()
         if series is not None:
             if not isinstance(series, list):
                 series = [series]
             series = [i for i in series if i is not None]
             rows = df.SeriesInstanceUID.isin(series) & not_deleted
-            keys += rows[rows].index.tolist()
+            return df[rows].index.tolist()
+            # keys += rows[rows].index.tolist()
         if instance is not None: 
             if not isinstance(instance, list):
                 instance = [instance]
             instance = [i for i in instance if i is not None]
             rows = df.SOPInstanceUID.isin(instance) & not_deleted
-            keys += rows[rows].index.tolist()
-        return list(set(keys))
+            return df[rows].index.tolist()
+            # keys += rows[rows].index.tolist()
+        # return list(set(keys))
 
     def value(self, key, column):
         try:
@@ -354,6 +361,34 @@ class DbRegister():
         values = [v for v in values if v is not None]
         return self.filter(values, **kwargs)
 
+    def pause_extensions(self):
+        
+        self._pause_extensions = True
+
+    def resume_extensions(self):
+
+        self._pause_extensions = False
+        self.extend()
+
+    def extend(self):
+
+        if self._pause_extensions:
+            return
+        if self._new_keys == []:
+            return
+
+        df = pd.DataFrame(self._new_data, index=self._new_keys, columns=self.columns)
+        df['removed'] = False
+        df['created'] = True
+        self.dataframe = pd.concat([self.dataframe, df])
+        #sortby = ['PatientID', 'StudyInstanceUID', 'SeriesNumber', 'InstanceNumber']
+        #sortby = ['PatientID', 'StudyDescription', 'SeriesDescription', 'InstanceNumber']
+        #self.dataframe.sort_values(sortby, inplace=True)
+
+        self._new_data = []
+        self._new_keys = []
+
+
     def new_patient(self, parent='Database', PatientName='Anonymous'):
         # Allow multiple to be made at the same time
 
@@ -361,10 +396,14 @@ class DbRegister():
         data[0] = dbdataset.new_uid()
         data[6] = PatientName
 
-        df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        self._new_data.append(data)
+        self._new_keys.append(self.new_key())
+        self.extend()
+
+        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         return data[0]
 
@@ -384,21 +423,19 @@ class DbRegister():
         data[1] = dbdataset.new_uid()
         data[6] = self.value(key, 'PatientName')
         data[7] = StudyDescription
-
-        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
         
         if self.value(key, 'StudyInstanceUID') is None:
             # New patient without studies - use existing row
             self.dataframe.loc[key, self.columns] = data
         else:
             # Patient with existing study - create new row
-            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
+            self._new_data.append(data)
+            self._new_keys.append(self.new_key())
+            self.extend()
+            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            # df['removed'] = False
+            # df['created'] = True
+            # self.dataframe = pd.concat([self.dataframe, df])
 
         return data[1]
 
@@ -426,15 +463,13 @@ class DbRegister():
             self.dataframe.loc[key, self.columns] = data
         else:
             # Study with existing series - create new row
-            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
-
-        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+            self._new_data.append(data)
+            self._new_keys.append(self.new_key())
+            self.extend()
+            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            # df['removed'] = False
+            # df['created'] = True
+            # self.dataframe = pd.concat([self.dataframe, df])
 
         return data[2]
 
@@ -459,15 +494,13 @@ class DbRegister():
             self.dataframe.loc[key, self.columns] = data
         else:
             # Series with existing instances - create new row
-            df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
-
-        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+            self._new_data.append(data)
+            self._new_keys.append(self.new_key())
+            self.extend()
+            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
+            # df['removed'] = False
+            # df['created'] = True
+            # self.dataframe = pd.concat([self.dataframe, df])
 
         if dataset is not None:
             self.set_dataset(data[3], dataset)
@@ -632,11 +665,15 @@ class DbRegister():
             self.dataframe.at[key,'removed'] = True
             new_key = self.new_key()
             self.dataset[new_key] = ds
+
+            self._new_data.append(data)
+            self._new_keys.append(new_key)
+            self.extend()
             
-            df = pd.DataFrame([data], index=[new_key], columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])  
+            # df = pd.DataFrame([data], index=[new_key], columns=self.columns)
+            # df['removed'] = False
+            # df['created'] = True
+            # self.dataframe = pd.concat([self.dataframe, df])  
                   
 
     def set_dataset(self, uid, dataset):
@@ -713,11 +750,15 @@ class DbRegister():
                 else:
                     self.dataframe.at[parent_keys[0], 'removed'] == True
 
-        if new_keys != []:
-            df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])   
+        self._new_keys += new_keys
+        self._new_data += new_data
+        self.extend()
+
+        # if new_keys != []:
+        #     df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
+        #     df['removed'] = False
+        #     df['created'] = True
+        #     self.dataframe = pd.concat([self.dataframe, df])   
 
 
     def in_memory(self, uid): # needs a test
@@ -800,19 +841,15 @@ class DbRegister():
     def print(self):
         """Prints a summary of the project folder to the terminal."""
         
-        print(' ')
         print('---------- DICOM FOLDER --------------')
         print('DATABASE: ' + self.path)
         for i, patient in enumerate(self.children('Database')):
-            print(' ')
-            print('    PATIENT [' + str(i) + ']: ' + self.label(patient))
-            print(' ')
+            print('  PATIENT [' + str(i) + ']: ' + self.label(patient))
             for j, study in enumerate(self.children(patient)):
-                print('        STUDY [' + str(j) + ']: ' + self.label(study))
-                print(' ')
+                print('    STUDY [' + str(j) + ']: ' + self.label(study))
                 for k, series in enumerate(self.children(study)):
-                    print('            SERIES [' + str(k) + ']: ' + self.label(series))
-                    print('                Nr of instances: ' + str(len(self.children(series)))) 
+                    print('      SERIES [' + str(k) + ']: ' + self.label(series))
+                    print('        Nr of instances: ' + str(len(self.children(series)))) 
 
     def read(self, *args, message=None, **kwargs):
         """Read the dataset from disk.
@@ -929,7 +966,7 @@ class DbRegister():
         return os.path.join('dbdicom', dbdataset.new_uid() + '.dcm') 
 
 
-    def copy_to_series(self, uid, target, **kwargs):
+    def copy_to_series(self, uids, target, **kwargs):
         """Copy instances to another series"""
 
         target_keys = self.keys(series=target)
@@ -947,24 +984,11 @@ class DbRegister():
         n = self.value(target_keys, 'InstanceNumber')
         n = n[n != np.array(None)]
         max_number=0 if n.size==0 else np.amax(n)
-
-        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        # if ds is None:
-        #     attributes = ['SeriesInstanceUID','SeriesDescription', 'SeriesNumber']
-        #     values = self.value(target_keys[0], attributes).tolist()
-        #     max_number = 0
-        # else:
-        #     attributes = list(set(
-        #         dbdataset.module_patient() + 
-        #         dbdataset.module_study() + 
-        #         dbdataset.module_series() ))
-        #     values = ds.get_values(attributes)
-        #     max_number = np.amax(self.value(target_keys, 'InstanceNumber'))
    
         copy_data = []
         copy_keys = []
 
-        keys = self.keys(uid)
+        keys = self.keys(uids)
         new_instances = dbdataset.new_uid(len(keys))
 
         for i, key in enumerate(keys):
@@ -1011,10 +1035,14 @@ class DbRegister():
                 else:
                     self.dataframe.at[target_keys[0], 'removed'] == True
 
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         if len(new_instances) == 1:
             return new_instances[0]
@@ -1041,19 +1069,6 @@ class DbRegister():
         n = self.value(target_keys, 'SeriesNumber')
         n = n[n != np.array(None)]
         max_number=0 if n.size==0 else np.amax(n)
-
-        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        # if ds is None:
-        #     attributes = ['StudyInstanceUID','StudyDescription','StudyDate']
-        #     values = self.value(target_keys[0], attributes).tolist()
-        #     max_number = 0
-        # else:
-        #     attributes = list(set(
-        #         dbdataset.module_patient() + 
-        #         dbdataset.module_study() ))
-        #     values = ds.get_values(attributes)
-        #     max_number = np.amax(self.value(target_keys, 'SeriesNumber'))
-
 
         copy_data = []
         copy_keys = []
@@ -1107,10 +1122,14 @@ class DbRegister():
                 else:
                     self.dataframe.at[target_keys[0], 'removed'] == True
 
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         if len(new_series) == 1:
             return new_series[0]
@@ -1131,14 +1150,6 @@ class DbRegister():
                 values.append(kwargs[key])
             else:
                 values[ind] = kwargs[key]
-
-        # ds = self.get_dataset(self.value(target_keys[0], 'SOPInstanceUID'))
-        # if ds is None:
-        #     attributes = ['PatientID','PatientName']
-        #     values = self.value(target_keys[0], attributes).tolist()
-        # else:
-        #     attributes = dbdataset.module_patient()
-        #     values = ds.get_values(attributes)
 
         copy_data = []
         copy_keys = []
@@ -1191,10 +1202,14 @@ class DbRegister():
                 else:
                     self.dataframe.at[target_keys[0], 'removed'] == True
 
-        df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        # df['removed'] = False
+        # df['created'] = True
+        # self.dataframe = pd.concat([self.dataframe, df])
 
         if len(new_studies) == 1:
             return new_studies[0]
@@ -1212,16 +1227,6 @@ class DbRegister():
             return self.copy_to_series(source, target, **kwargs)
         if type == 'Instance':
             raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
-
-
-    columns = [    
-        'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 
-        'SOPClassUID','NumberOfFrames', 
-        'PatientName', 
-        'StudyDescription', 'StudyDate', 
-        'SeriesDescription', 'SeriesNumber',
-        'InstanceNumber', 
-    ]
 
 
     def move_to_series(self, uid, target, **kwargs):
@@ -1314,11 +1319,15 @@ class DbRegister():
                 else:
                     self.dataframe.at[target_keys[0], 'removed'] == True
 
-        if copy_data != []:
-            df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # if copy_data != []:
+        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        #     df['removed'] = False
+        #     df['created'] = True
+        #     self.dataframe = pd.concat([self.dataframe, df])
 
         if len(keys) == 1:
             return self.value(keys, 'SOPInstanceUID')
@@ -1416,11 +1425,15 @@ class DbRegister():
                 else:
                     self.dataframe.at[target_keys[0], 'removed'] == True
 
-        if copy_data != []:
-            df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # if copy_data != []:
+        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        #     df['removed'] = False
+        #     df['created'] = True
+        #     self.dataframe = pd.concat([self.dataframe, df])
 
         if len(all_series) == 1:
             return all_series[0]
@@ -1506,11 +1519,15 @@ class DbRegister():
                     else:
                         self.dataframe.at[target_keys[0], 'removed'] == True
 
-            if copy_data != []:
-                df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-                df['removed'] = False
-                df['created'] = True
-                self.dataframe = pd.concat([self.dataframe, df])
+            self._new_keys += copy_keys
+            self._new_data += copy_data
+            self.extend()
+
+            # if copy_data != []:
+            #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+            #     df['removed'] = False
+            #     df['created'] = True
+            #     self.dataframe = pd.concat([self.dataframe, df])
 
         if len(all_studies) == 1:
             return all_studies[0]
@@ -1575,12 +1592,16 @@ class DbRegister():
                 copy_data.append(row)
                 copy_keys.append(new_key)
 
-        # Update the dataframe in the index
-        if copy_data != []:
-            df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-            df['removed'] = False
-            df['created'] = True
-            self.dataframe = pd.concat([self.dataframe, df])
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        # # Update the dataframe in the index
+        # if copy_data != []:
+        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
+        #     df['removed'] = False
+        #     df['created'] = True
+        #     self.dataframe = pd.concat([self.dataframe, df])
 
     def get_values(self, uid, attributes):
 
@@ -1723,15 +1744,3 @@ class DbRegister():
         
         files = self.filepaths(uids)
         database.import_datasets(files)
-
-
-# Tested until here
-
-
-    def sortby(self, sortby):
-        """Sort dataframe values by given list of column labels"""
-        if self.dataframe is None:
-            raise ValueError('Cant sort database index - no database open')
-        # Needs a formal test for completeness
-        self.dataframe.sort_values(sortby, inplace=True)
-        return self

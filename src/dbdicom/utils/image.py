@@ -30,20 +30,20 @@ def clip(array, value_range = None):
         finite = array[np.isfinite(array)]
         value_range = [np.amin(finite), np.amax(finite)]
     return np.clip(array, value_range[0], value_range[1])
+    
 
 def scale_to_range(array, bits_allocated):
         
-#    target = np.power(2, bits_allocated) - 1
-    target = 2.0**bits_allocated - 1
+    range = 2.0**bits_allocated - 1
     maximum = np.amax(array)
     minimum = np.amin(array)
     if maximum == minimum:
         slope = 1
     else:
-        slope = target / (maximum - minimum)
+        slope = range / (maximum - minimum)
     intercept = -slope * minimum
-    # array = slope * (array - minimum)
-    array = slope * array + intercept
+    array *= slope
+    array += intercept
 
     if bits_allocated == 8:
         return array.astype(np.uint8), slope, intercept
