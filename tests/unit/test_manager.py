@@ -2,11 +2,11 @@ import os
 import shutil
 import numpy as np
 
-from dbdicom.register import DbRegister
+from dbdicom.manager import Manager
 from dbdicom.dataset_classes.mr_image import MRImage
 
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
+datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
@@ -31,13 +31,13 @@ def remove_tmp_database(tmp):
 
 def test_init():
 
-    dbr = DbRegister()
-    assert dbr.dataframe.empty
+    dbr = Manager()
+    assert dbr.register.empty
 
     tmp = create_tmp_database(rider)
 
-    dbr = DbRegister(tmp)
-    assert dbr.dataframe.empty
+    dbr = Manager(tmp)
+    assert dbr.register.empty
     assert dbr.path == tmp
 
     remove_tmp_database(tmp)
@@ -46,21 +46,21 @@ def test_init():
 def test_read_dataframe():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister(tmp)
+    dbr = Manager(tmp)
     dbr.read_dataframe()
-    assert dbr.dataframe.shape == (24, 2+len(dbr.columns))
+    assert dbr.register.shape == (24, 2+len(dbr.columns))
     remove_tmp_database(tmp)
 
 
 def test_read_write_df():
 
     tmp = create_tmp_database(twofiles)
-    dbr = DbRegister(tmp)
+    dbr = Manager(tmp)
     dbr.read_dataframe()
     dbr._write_df()
-    df1 = dbr.dataframe
+    df1 = dbr.register
     dbr._read_df()
-    df2 = dbr.dataframe
+    df2 = dbr.register
 
     remove_tmp_database(tmp)
 
@@ -69,25 +69,25 @@ def test_read_write_df():
 def test_multiframe_to_singleframe():
 
     tmp = create_tmp_database(multiframe)
-    dbr = DbRegister(tmp)
+    dbr = Manager(tmp)
     dbr.read_dataframe()
-    assert dbr.dataframe.shape == (2, 14)
+    assert dbr.register.shape == (2, 14)
     dbr._multiframe_to_singleframe()
-    assert dbr.dataframe.shape == (124, 14)
+    assert dbr.register.shape == (124, 14)
     remove_tmp_database(tmp)
 
 def test_scan():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister(tmp)
+    dbr = Manager(tmp)
     dbr.scan()
-    assert dbr.dataframe.shape == (24, 14)
+    assert dbr.register.shape == (24, 14)
     remove_tmp_database(tmp)
 
 def test_type():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -100,7 +100,7 @@ def test_type():
 def test_keys():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     keys = dbr.keys()
@@ -257,7 +257,7 @@ def test_keys():
 def test_value():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     key = dbr.keys('Database')[5]
@@ -276,7 +276,7 @@ def test_value():
 def test_parent():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -289,7 +289,7 @@ def test_parent():
 def test_children():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
@@ -309,7 +309,7 @@ def test_children():
 def test_siblings():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -327,7 +327,7 @@ def test_siblings():
 def test_instances():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -342,7 +342,7 @@ def test_instances():
 def test_series():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -356,7 +356,7 @@ def test_series():
 def test_studies():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -369,7 +369,7 @@ def test_studies():
 def test_patients():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -385,7 +385,7 @@ def test_patients():
 def test_new_patient():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     n = len(dbr.patients('Database'))
@@ -407,7 +407,7 @@ def test_new_patient():
 def test_new_study():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     n = len(dbr.studies('Database'))
@@ -428,7 +428,7 @@ def test_new_study():
 def test_new_series():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     n = len(dbr.series('Database'))
@@ -449,7 +449,7 @@ def test_new_series():
 def test_new_instance():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     n = len(dbr.instances('Database'))
@@ -470,7 +470,7 @@ def test_new_instance():
 def test_series_header():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -490,7 +490,7 @@ def test_series_header():
 def test_set_instance_dataset():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series1 = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -524,7 +524,7 @@ def test_set_instance_dataset():
 def test_set_dataset():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series1 = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -555,7 +555,7 @@ def test_set_dataset():
 def test_new_child():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Three objects that are not nested: study not in patient and series not in study.
@@ -581,7 +581,7 @@ def test_new_child():
 def test_new_sibling():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Three objects that are not nested: study not in patient and series not in study.
@@ -605,7 +605,7 @@ def test_new_sibling():
 def test_new_pibling():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Three objects that are not nested: study not in patient and series not in study.
@@ -628,7 +628,7 @@ def test_new_pibling():
 def test_label():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     patient = dbr.patients('Database')[0]
@@ -661,7 +661,7 @@ def test_print():
 
     tmp = create_tmp_database(rider)
 
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
     try:
         dbr.print()
@@ -675,7 +675,7 @@ def test_print():
 def test_read_and_clear():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     assert 0 == len(dbr.dataset)
@@ -723,7 +723,7 @@ def test_read_and_clear():
 def test_write():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     uid = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
@@ -754,12 +754,12 @@ def test_write():
 def test_open_close():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister(tmp)
+    dbr = Manager(tmp)
     dbr.open()
-    assert dbr.dataframe.shape == (24, 14)
+    assert dbr.register.shape == (24, 14)
     dbr.save()
     dbr.close()
-    assert dbr.dataframe is None
+    assert dbr.register is None
     try:
         dbr.open()
     except ValueError:
@@ -771,33 +771,33 @@ def test_open_close():
 
     tmp = create_tmp_database(twofiles)
     dbr.open(tmp)
-    assert dbr.dataframe.shape == (2, 14)
+    assert dbr.register.shape == (2, 14)
     dbr.save()
     dbr.close()
-    assert dbr.dataframe is None
+    assert dbr.register is None
     remove_tmp_database(tmp)
 
 def test_inmemory_vs_ondisk():
 
     tmp = create_tmp_database(rider)
 
-    dbr = DbRegister()
+    dbr = Manager()
 
     # open a database on disk
     # get the dataframe and close it again
     dbr.open(tmp)   
-    df = dbr.dataframe
+    df = dbr.register
     dbr.close()
     assert df.shape == (24, 14)
-    assert dbr.dataframe is None
+    assert dbr.register is None
 
     remove_tmp_database(tmp)
 
     # create a database in memory
     # Try to read a dataframe and check 
     # that this produces an exception
-    dbr.dataframe = df
-    assert dbr.dataframe.shape == (24, 14)
+    dbr.register = df
+    assert dbr.register.shape == (24, 14)
     try:
         dbr.read_dataframe()
     except ValueError:
@@ -809,7 +809,7 @@ def test_inmemory_vs_ondisk():
 def test_get_dataset():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Get a list of all datasets from disk
@@ -839,7 +839,7 @@ def test_get_dataset():
 def test_delete():
     
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Delete all datasets for one series
@@ -868,7 +868,7 @@ def test_delete():
 def test_copy_to_series():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -888,7 +888,7 @@ def test_copy_to_series():
 def test_copy_to_study():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
@@ -911,7 +911,7 @@ def test_copy_to_study():
 def test_copy_to_patient():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
@@ -932,7 +932,7 @@ def test_copy_to():
     # Need to include some scenarios involving copying to from empty objects
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     instance ='1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
@@ -954,7 +954,7 @@ def test_copy_to():
 def test_move_to_series():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
@@ -975,7 +975,7 @@ def test_move_to_series():
 def test_move_to_study():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
@@ -997,7 +997,7 @@ def test_move_to_study():
 def test_move_to_patient():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
@@ -1016,7 +1016,7 @@ def test_move_to_patient():
 def test_move_to():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     instance ='1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
@@ -1041,7 +1041,7 @@ def test_move_to():
 def test_set_values():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     patient = 'RIDER Neuro MRI-5244517593'
@@ -1067,7 +1067,7 @@ def test_set_values():
 def test_get_values():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     assert dbr.get_values('', 'PatientName') is None
@@ -1106,7 +1106,7 @@ def test_get_values():
 def test_restore():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     patient = 'RIDER Neuro MRI-5244517593'
@@ -1145,7 +1145,7 @@ def test_restore():
 def test_save():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     # Three objects that are not nested: study not in patient and series not in study.
@@ -1187,7 +1187,7 @@ def test_save():
 def test_template():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     remove_tmp_database(tmp)
@@ -1195,7 +1195,7 @@ def test_template():
 def test_filter():
 
     tmp = create_tmp_database(rider)
-    dbr = DbRegister()
+    dbr = Manager()
     dbr.open(tmp)
 
     patients = dbr.patients('Database')
@@ -1218,13 +1218,13 @@ def test_filter():
 def test_import_datasets():
 
     source = create_tmp_database(rider, name='source')
-    source_dbr = DbRegister()
+    source_dbr = Manager()
     source_dbr.open(source)
     source_files = source_dbr.filepaths('Database')
 
     # Create empty database and import all source files
     target = create_tmp_database(name='target')
-    target_dbr = DbRegister()
+    target_dbr = Manager()
     target_dbr.open(target)
     target_dbr.import_datasets(source_files)
 
@@ -1269,7 +1269,7 @@ def test_import_datasets():
     # Start over, this time with a full target databese
     # Import all source files and check nothing has changed
     target = create_tmp_database(rider, name='target')
-    target_dbr = DbRegister()
+    target_dbr = Manager()
     target_dbr.open(target)
     assert len(target_dbr.instances('Database')) == len(source_files)
     target_dbr.import_datasets(source_files)
@@ -1281,12 +1281,12 @@ def test_import_datasets():
 def test_export_datasets():
 
     source = create_tmp_database(rider, name='source')
-    source_dbr = DbRegister()
+    source_dbr = Manager()
     source_dbr.open(source)
     patient = source_dbr.patients('Database', PatientID='RIDER Neuro MRI-5244517593')
 
     target = create_tmp_database(name='target')
-    target_dbr = DbRegister()
+    target_dbr = Manager()
     target_dbr.open(target)
     source_dbr.export_datasets(patient, target_dbr)
 
@@ -1299,7 +1299,7 @@ def test_export_datasets():
 
 def test_new_database():
 
-    dbr = DbRegister()
+    dbr = Manager()
 
     p1 = dbr.new_patient('Database')
     p2 = dbr.new_patient('Database')
@@ -1375,6 +1375,6 @@ if __name__ == "__main__":
     
 
     print('--------------------------')
-    print('register passed all tests!')
+    print('manager passed all tests!')
     print('--------------------------')
 

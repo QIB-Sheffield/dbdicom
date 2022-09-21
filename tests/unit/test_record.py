@@ -8,7 +8,7 @@ import dbdicom.methods.record as record
 from dbdicom.dataset_classes.mr_image import MRImage
 
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
+datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')

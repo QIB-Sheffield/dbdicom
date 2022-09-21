@@ -1,4 +1,4 @@
-# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\fixtures\MULTIFRAME\IM_0010'
+# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\data\MULTIFRAME\IM_0010'
 # Produced by pydicom codify utility script
 import numpy as np
 

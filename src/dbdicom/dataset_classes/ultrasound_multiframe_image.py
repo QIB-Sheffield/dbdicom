@@ -1,4 +1,4 @@
-# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\fixtures\UltrasoundPaletteColor-dicom_viewer_0020\0020.DCM'
+# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\data\UltrasoundPaletteColor-dicom_viewer_0020\0020.DCM'
 # Produced by pydicom codify utility script
 import numpy as np
 

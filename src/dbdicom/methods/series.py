@@ -41,7 +41,7 @@ def subseries(record, **kwargs):
 
 def read_npy(record):
     # Not in use - loading of temporary numpy files
-    file = record.register.npy()
+    file = record.manager.npy()
     if not os.path.exists(file):
         return
     with open(file, 'rb') as f:
@@ -226,11 +226,11 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
     else:
         copy = source.tolist()
 
-    series.register.pause_extensions()
+    series.manager.pause_extensions()
     for i, instance in enumerate(copy):
         series.status.progress(i, len(copy), 'Writing array to file..')
         instance.set_pixel_array(array[i,...])
-    series.register.resume_extensions()
+    series.manager.resume_extensions()
 
 
 def amax(record, axis=None):

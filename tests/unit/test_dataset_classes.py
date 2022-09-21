@@ -6,7 +6,7 @@ from dbdicom.dataset_classes.create import read_dataset, new_dataset
 from dbdicom.dataset_classes.mr_image import MRImage
 from dbdicom.dataset_classes.enhanced_mr_image import EnhancedMRImage
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fixtures')
+datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 onefile = os.path.join(datapath, 'ONEFILE')
 multiframe = os.path.join(datapath, 'MULTIFRAME')
 

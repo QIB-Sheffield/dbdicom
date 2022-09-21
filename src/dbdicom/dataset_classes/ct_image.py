@@ -1,4 +1,4 @@
-# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\fixtures\VPH-Pelvis-CT\vhf.1000.dcm'
+# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\data\VPH-Pelvis-CT\vhf.1000.dcm'
 # Produced by pydicom codify utility script
 import numpy as np
 import pydicom

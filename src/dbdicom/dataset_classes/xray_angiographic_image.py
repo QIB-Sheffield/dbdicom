@@ -1,4 +1,4 @@
-# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\fixtures\XRayAngioUncompressed-dicom_viewer_0015\0015.DCM'
+# Coded version of DICOM file 'C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\tests\data\XRayAngioUncompressed-dicom_viewer_0015\0015.DCM'
 # Produced by pydicom codify utility script
 import numpy as np
 import pydicom

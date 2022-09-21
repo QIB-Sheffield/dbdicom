@@ -14,7 +14,7 @@ import dbdicom.dataset as dbdataset
 from dbdicom.dataset_classes.create import read_dataset, SOPClass, new_dataset
 
 
-class DbRegister(): 
+class Manager(): 
     """Programming interface for reading and writing a DICOM folder."""
 
     # The column labels of the dataframe as required by dbdicom
@@ -38,11 +38,11 @@ class DbRegister():
         """  
         if dataframe is None:
             dataframe = pd.DataFrame(index=[], columns=self.columns)
-        # THIS NEEDS A MECHANISM TO PREVENT ANOTHER DbRegister to open the same database.
+        # THIS NEEDS A MECHANISM TO PREVENT ANOTHER Manager to open the same database.
         self.status = status
         self.dialog = dialog 
         self.path = path
-        self.dataframe = dataframe
+        self.register = dataframe
         self.dataset = {}
         self._pause_extensions = False
         self._new_keys = []
@@ -55,14 +55,14 @@ class DbRegister():
         if self.path is None:
             raise ValueError('Cant read dataframe - index manages a database in memory')
         files = filetools.all_files(self.path)
-        self.dataframe = dbdataset.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
-        self.dataframe['removed'] = False
-        self.dataframe['created'] = False
+        self.register = dbdataset.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
+        self.register['removed'] = False
+        self.register['created'] = False
 
     def _pkl(self):
         """ Returns the file path of the .pkl file"""
         if self.path is None:
-            raise ValueError('Cant read index file - register manages a database in memory')
+            raise ValueError('Cant read index file - manager manages a database in memory')
         filename = os.path.basename(os.path.normpath(self.path)) + ".pkl"
         return os.path.join(self.path, filename) 
 
@@ -77,16 +77,16 @@ class DbRegister():
     def _write_df(self):
         """ Writes the dataFrame as a .pkl file"""
         file = self._pkl()
-        self.dataframe.to_pickle(file)
+        self.register.to_pickle(file)
 
     def _read_df(self):
         """Reads the dataFrame from a .pkl file """
         file = self._pkl()
-        self.dataframe = pd.read_pickle(file)
+        self.register = pd.read_pickle(file)
 
     def write_csv(self, file):
         """ Writes the dataFrame as a .csv file for visual inspection"""
-        self.dataframe.to_csv(file)
+        self.register.to_csv(file)
 
     def filepath(self, key):
         """Return the full filepath for a given relative path.
@@ -114,12 +114,12 @@ class DbRegister():
             # Solution: save data in a temporary file, use the filebased conversion, 
             # the upload the solution and delete the temporary file.
             raise ValueError('Multi-frame to single-frame conversion does not yet exist from data in memory')
-        singleframe = self.dataframe.NumberOfFrames.isnull() 
+        singleframe = self.register.NumberOfFrames.isnull() 
         multiframe = singleframe == False
         nr_multiframe = multiframe.sum()
         if nr_multiframe != 0: 
             cnt=0
-            for relpath in self.dataframe[multiframe].index.values:
+            for relpath in self.register[multiframe].index.values:
                 cnt+=1
                 msg = "Converting multiframe file " + relpath
                 self.status.progress(cnt, nr_multiframe, message=msg)
@@ -133,10 +133,10 @@ class DbRegister():
                     df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
                     df['removed'] = False
                     df['created'] = False
-                    self.dataframe = pd.concat([self.dataframe, df])
+                    self.register = pd.concat([self.register, df])
                     # delete the original multiframe 
                     os.remove(filepath)
-                    self.dataframe.drop(index=relpath, inplace=True)
+                    self.register.drop(index=relpath, inplace=True)
 
     def scan(self, unzip=False):
         """
@@ -179,7 +179,7 @@ class DbRegister():
         if uid == 'Database':
             return uid
 
-        df = self.dataframe
+        df = self.register
         type = df.columns[df.isin([uid]).any()].values[0]
 
         if type == 'PatientID':
@@ -204,7 +204,7 @@ class DbRegister():
         writing a database that is in memory.
         """
 
-        df = self.dataframe
+        df = self.register
         if df is None:
             raise ValueError('Cant return dicom files - no database open')
 
@@ -263,9 +263,9 @@ class DbRegister():
     def value(self, key, column):
         try:
             if not isinstance(key, list) and not isinstance(column, list):
-                return self.dataframe.at[key, column]
+                return self.register.at[key, column]
             else:
-                return self.dataframe.loc[key, column].values
+                return self.register.loc[key, column].values
         except:
             return None
 
@@ -277,7 +277,7 @@ class DbRegister():
         keys = self.keys(uid)
         if keys == []:
             return None
-        row = self.dataframe.loc[keys[0]].values.tolist()
+        row = self.register.loc[keys[0]].values.tolist()
         i = row.index(uid)
         if self.columns[i] == 'PatientID':
             return 'Database'
@@ -311,12 +311,12 @@ class DbRegister():
         if uid == 'Database':
             children = list(set(self.value(keys, 'PatientID')))
         else:
-            row = self.dataframe.loc[keys[0]].values.tolist()
+            row = self.register.loc[keys[0]].values.tolist()
             i = row.index(uid)
             if self.columns[i] == 'SOPInstanceUID':
                 return []
             else:
-                values = self.dataframe.loc[keys,self.columns[i+1]].values
+                values = self.register.loc[keys,self.columns[i+1]].values
                 values = values[values != np.array(None)]
                 children = np.unique(values).tolist()
 
@@ -380,10 +380,10 @@ class DbRegister():
         df = pd.DataFrame(self._new_data, index=self._new_keys, columns=self.columns)
         df['removed'] = False
         df['created'] = True
-        self.dataframe = pd.concat([self.dataframe, df])
+        self.register = pd.concat([self.register, df])
         #sortby = ['PatientID', 'StudyInstanceUID', 'SeriesNumber', 'InstanceNumber']
         #sortby = ['PatientID', 'StudyDescription', 'SeriesDescription', 'InstanceNumber']
-        #self.dataframe.sort_values(sortby, inplace=True)
+        #self.register.sort_values(sortby, inplace=True)
 
         self._new_data = []
         self._new_keys = []
@@ -403,7 +403,7 @@ class DbRegister():
         # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
         # df['removed'] = False
         # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+        # self.register = pd.concat([self.register, df])
 
         return data[0]
 
@@ -426,7 +426,7 @@ class DbRegister():
         
         if self.value(key, 'StudyInstanceUID') is None:
             # New patient without studies - use existing row
-            self.dataframe.loc[key, self.columns] = data
+            self.register.loc[key, self.columns] = data
         else:
             # Patient with existing study - create new row
             self._new_data.append(data)
@@ -435,7 +435,7 @@ class DbRegister():
             # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
             # df['removed'] = False
             # df['created'] = True
-            # self.dataframe = pd.concat([self.dataframe, df])
+            # self.register = pd.concat([self.register, df])
 
         return data[1]
 
@@ -460,7 +460,7 @@ class DbRegister():
 
         if self.value(key, 'SeriesInstanceUID') is None:
             # New study without series - use existing row
-            self.dataframe.loc[key, self.columns] = data
+            self.register.loc[key, self.columns] = data
         else:
             # Study with existing series - create new row
             self._new_data.append(data)
@@ -469,7 +469,7 @@ class DbRegister():
             # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
             # df['removed'] = False
             # df['created'] = True
-            # self.dataframe = pd.concat([self.dataframe, df])
+            # self.register = pd.concat([self.register, df])
 
         return data[2]
 
@@ -491,7 +491,7 @@ class DbRegister():
 
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row
-            self.dataframe.loc[key, self.columns] = data
+            self.register.loc[key, self.columns] = data
         else:
             # Series with existing instances - create new row
             self._new_data.append(data)
@@ -500,7 +500,7 @@ class DbRegister():
             # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
             # df['removed'] = False
             # df['created'] = True
-            # self.dataframe = pd.concat([self.dataframe, df])
+            # self.register = pd.concat([self.register, df])
 
         if dataset is not None:
             self.set_dataset(data[3], dataset)
@@ -578,13 +578,13 @@ class DbRegister():
         attr_study = ['StudyInstanceUID', 'StudyDescription', 'StudyDate']
         attr_series = ['SeriesInstanceUID', 'SeriesDescription', 'SeriesNumber'] 
 
-        parent = self.dataframe.at[key, 'SeriesInstanceUID']
+        parent = self.register.at[key, 'SeriesInstanceUID']
         instances = self.instances(parent)
         if instances != []:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + dbdataset.module_series()))
             vals = self._get_values(instances, attr)
         else:
-            parent = self.dataframe.at[key, 'StudyInstanceUID']
+            parent = self.register.at[key, 'StudyInstanceUID']
             instances = self.instances(parent)
             if instances != []:
                 attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
@@ -592,7 +592,7 @@ class DbRegister():
                 attr += attr_series
                 vals += self.value(key, attr_series).tolist()
             else:
-                parent = self.dataframe.at[key, 'PatientID']
+                parent = self.register.at[key, 'PatientID']
                 instances = self.instances(parent)
                 if instances != []:
                     attr = dbdataset.module_patient()
@@ -611,13 +611,13 @@ class DbRegister():
         attr_patient = ['PatientID', 'PatientName']
         attr_study = ['StudyInstanceUID', 'StudyDescription', 'StudyDate']
 
-        parent = self.dataframe.at[key, 'StudyInstanceUID']
+        parent = self.register.at[key, 'StudyInstanceUID']
         instances = self.instances(parent)
         if instances != []:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
             vals = self._get_values(instances, attr)
         else:
-            parent = self.dataframe.at[key, 'PatientID']
+            parent = self.register.at[key, 'PatientID']
             instances = self.instances(parent)
             if instances != []:
                 attr = dbdataset.module_patient()
@@ -634,7 +634,7 @@ class DbRegister():
 
         attr_patient = ['PatientID', 'PatientName']
 
-        parent = self.dataframe.at[key, 'PatientID']
+        parent = self.register.at[key, 'PatientID']
         instances = self.instances(parent)
         if instances != []:
             attr = dbdataset.module_patient()
@@ -653,16 +653,16 @@ class DbRegister():
                 ds = ds[0]
 
         key = self.keys(instance)[0]
-        data = self.dataframe.loc[key, self.columns]
+        data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
         if 'NumberOfFrames' in ds:
             data[5] = ds.NumberOfFrames
         ds.set_values(self.columns, data)
         if self.value(key, 'created'):
-            self.dataframe.loc[key, self.columns] = data
+            self.register.loc[key, self.columns] = data
             self.dataset[key] = ds
         else:
-            self.dataframe.at[key,'removed'] = True
+            self.register.at[key,'removed'] = True
             new_key = self.new_key()
             self.dataset[new_key] = ds
 
@@ -673,7 +673,7 @@ class DbRegister():
             # df = pd.DataFrame([data], index=[new_key], columns=self.columns)
             # df['removed'] = False
             # df['created'] = True
-            # self.dataframe = pd.concat([self.dataframe, df])  
+            # self.register = pd.concat([self.register, df])  
                   
 
     def set_dataset(self, uid, dataset):
@@ -700,7 +700,7 @@ class DbRegister():
                 # Set parent modules
                 ds.set_values(attr, vals)
 
-                # Set values in register
+                # Set values in manager
                 key = parent_keys[0]
                 data = self.value(key, self.columns)
                 data[3] = dbdataset.new_uid()
@@ -731,7 +731,7 @@ class DbRegister():
                 if self.value(key, 'created'):
                     self.dataset[key] = ds
                 else:
-                    self.dataframe.at[key,'removed'] = True
+                    self.register.at[key,'removed'] = True
 
                      # Add to database in memory
                     new_key = self.new_key()
@@ -745,10 +745,10 @@ class DbRegister():
         # then delete the row 
         if self.value(parent_keys[0], 'SOPInstanceUID') is None:
             if new_keys != []:
-                if self.dataframe.at[parent_keys[0], 'created']:
-                    self.dataframe.drop(index=parent_keys[0], inplace=True)
+                if self.register.at[parent_keys[0], 'created']:
+                    self.register.drop(index=parent_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[parent_keys[0], 'removed'] == True
+                    self.register.at[parent_keys[0], 'removed'] == True
 
         self._new_keys += new_keys
         self._new_data += new_data
@@ -758,7 +758,7 @@ class DbRegister():
         #     df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
         #     df['removed'] = False
         #     df['created'] = True
-        #     self.dataframe = pd.concat([self.dataframe, df])   
+        #     self.register = pd.concat([self.register, df])   
 
 
     def in_memory(self, uid): # needs a test
@@ -803,7 +803,7 @@ class DbRegister():
     def label(self, uid):
         """Return a label to describe a row as Patient, Study, Series or Instance"""
 
-        if self.dataframe is None:
+        if self.register is None:
             raise ValueError('Cant provide labels - no database open')
 
         if uid is None:
@@ -813,7 +813,7 @@ class DbRegister():
 
         type = self.type(uid)
         key = self.keys(uid)[0]
-        row = self.dataframe.loc[key]
+        row = self.register.loc[key]
 
         if type == 'Patient':
             name = row.PatientName
@@ -926,7 +926,7 @@ class DbRegister():
 
         self._write_df()
         self.write()
-        self.dataframe = None            
+        self.register = None            
         self.path = None
 
     def is_saved(self):
@@ -936,9 +936,9 @@ class DbRegister():
             True if the folder is saved and False otherwise.
         """
         # Needs a formal test for completeness
-        if self.dataframe.removed.any(): 
+        if self.register.removed.any(): 
             return False
-        if self.dataframe.created.any():
+        if self.register.created.any():
             return False
         return True
 
@@ -949,7 +949,7 @@ class DbRegister():
             True if a database is open and False otherwise.
         """
         # Needs a formal test for completeness
-        return self.dataframe is not None
+        return self.register is not None
       
     def delete(self, *args, **kwargs):
         """Deletes some datasets
@@ -958,7 +958,7 @@ class DbRegister():
         Using save() will delete them permanently
         """
         keys = self.keys(*args, **kwargs)
-        self.dataframe.loc[keys,'removed'] = True
+        self.register.loc[keys,'removed'] = True
 
     def new_key(self):
         """Generate a new key"""
@@ -1030,10 +1030,10 @@ class DbRegister():
         # then delete the row 
         if self.value(target_keys[0], 'SOPInstanceUID') is None:
             if copy_keys != []:
-                if self.dataframe.at[target_keys[0], 'created']:
-                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_keys[0], 'created']:
+                    self.register.drop(index=target_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_keys[0], 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1042,7 +1042,7 @@ class DbRegister():
         # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         # df['removed'] = False
         # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+        # self.register = pd.concat([self.register, df])
 
         if len(new_instances) == 1:
             return new_instances[0]
@@ -1117,10 +1117,10 @@ class DbRegister():
         # then delete the row 
         if self.value(target_keys[0], 'SeriesInstanceUID') is None:
             if copy_keys != []:
-                if self.dataframe.at[target_keys[0], 'created']:
-                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_keys[0], 'created']:
+                    self.register.drop(index=target_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_keys[0], 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1129,7 +1129,7 @@ class DbRegister():
         # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         # df['removed'] = False
         # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+        # self.register = pd.concat([self.register, df])
 
         if len(new_series) == 1:
             return new_series[0]
@@ -1197,10 +1197,10 @@ class DbRegister():
         # then delete the row 
         if self.value(target_keys[0], 'StudyInstanceUID') is None:
             if copy_keys != []:
-                if self.dataframe.at[target_keys[0], 'created']:
-                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_keys[0], 'created']:
+                    self.register.drop(index=target_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_keys[0], 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1209,7 +1209,7 @@ class DbRegister():
         # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         # df['removed'] = False
         # df['created'] = True
-        # self.dataframe = pd.concat([self.dataframe, df])
+        # self.register = pd.concat([self.register, df])
 
         if len(new_studies) == 1:
             return new_studies[0]
@@ -1271,9 +1271,9 @@ class DbRegister():
                 row[10] = self.value(target_keys[0], 'SeriesNumber')
                 row[11] = i+1 + max_number
                 if self.value(key, 'created'):
-                    self.dataframe.loc[key, self.columns] = row
+                    self.register.loc[key, self.columns] = row
                 else:
-                    self.dataframe.at[key,'removed'] = True
+                    self.register.at[key,'removed'] = True
                     copy_data.append(row)
                     copy_keys.append(self.new_key())
 
@@ -1288,7 +1288,7 @@ class DbRegister():
                         ds.write(self.filepath(key), self.dialog)
                     for i, col in enumerate(attributes):
                         if col in self.columns:
-                            self.dataframe.at[key,col] = values[i]
+                            self.register.at[key,col] = values[i]
 
                 # If this is the first change, then save results in a copy.
                 else:  
@@ -1303,7 +1303,7 @@ class DbRegister():
                         ds.write(self.filepath(new_key), self.dialog)
 
                     # Get new data for the dataframe
-                    self.dataframe.at[key,'removed'] = True
+                    self.register.at[key,'removed'] = True
                     row = ds.get_values(self.columns)
                     copy_data.append(row)
                     copy_keys.append(new_key)
@@ -1314,10 +1314,10 @@ class DbRegister():
         # then delete the row 
         if self.value(target_keys[0], 'SOPInstanceUID') is None:
             if copy_keys != []:
-                if self.dataframe.at[target_keys[0], 'created']:
-                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_keys[0], 'created']:
+                    self.register.drop(index=target_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_keys[0], 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1327,7 +1327,7 @@ class DbRegister():
         #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         #     df['removed'] = False
         #     df['created'] = True
-        #     self.dataframe = pd.concat([self.dataframe, df])
+        #     self.register = pd.concat([self.register, df])
 
         if len(keys) == 1:
             return self.value(keys, 'SOPInstanceUID')
@@ -1377,9 +1377,9 @@ class DbRegister():
                     row[8] = self.value(target_keys[0], 'StudyDate')
                     row[10] = new_number
                     if self.value(key, 'created'):
-                        self.dataframe.loc[key, self.columns] = row
+                        self.register.loc[key, self.columns] = row
                     else:
-                        self.dataframe.at[key,'removed'] = True
+                        self.register.at[key,'removed'] = True
                         copy_data.append(row)
                         copy_keys.append(self.new_key())
 
@@ -1394,7 +1394,7 @@ class DbRegister():
                             ds.write(self.filepath(key), self.dialog)
                         for i, col in enumerate(attributes):
                             if col in self.columns:
-                                self.dataframe.at[key,col] = values[i]
+                                self.register.at[key,col] = values[i]
 
                     # If this is the first change, then save results in a copy.
                     else:  
@@ -1409,7 +1409,7 @@ class DbRegister():
                             ds.write(self.filepath(new_key), self.dialog)
 
                         # Get new data for the dataframe
-                        self.dataframe.at[key,'removed'] = True
+                        self.register.at[key,'removed'] = True
                         row = ds.get_values(self.columns)
                         copy_data.append(row)
                         copy_keys.append(new_key)
@@ -1420,10 +1420,10 @@ class DbRegister():
         # then delete the row 
         if self.value(target_keys[0], 'SeriesInstanceUID') is None:
             if copy_keys != []:
-                if self.dataframe.at[target_keys[0], 'created']:
-                    self.dataframe.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_keys[0], 'created']:
+                    self.register.drop(index=target_keys[0], inplace=True)
                 else:
-                    self.dataframe.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_keys[0], 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1433,7 +1433,7 @@ class DbRegister():
         #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         #     df['removed'] = False
         #     df['created'] = True
-        #     self.dataframe = pd.concat([self.dataframe, df])
+        #     self.register = pd.concat([self.register, df])
 
         if len(all_series) == 1:
             return all_series[0]
@@ -1475,9 +1475,9 @@ class DbRegister():
                         row[0] = self.value(target_keys[0], 'PatientID')
                         row[6] = self.value(target_keys[0], 'PatientName')
                         if self.value(key, 'created'):
-                            self.dataframe.loc[key, self.columns] = row
+                            self.register.loc[key, self.columns] = row
                         else:
-                            self.dataframe.at[key,'removed'] = True
+                            self.register.at[key,'removed'] = True
                             copy_data.append(row)
                             copy_keys.append(self.new_key())
 
@@ -1490,7 +1490,7 @@ class DbRegister():
                                 ds.write(self.filepath(key), self.dialog)
                             for i, col in enumerate(attributes):
                                 if col in self.columns:
-                                    self.dataframe.at[key,col] = values[i]
+                                    self.register.at[key,col] = values[i]
 
                         # If this is the first change, then save results in a copy.
                         else:  
@@ -1503,7 +1503,7 @@ class DbRegister():
                                 ds.write(self.filepath(new_key), self.dialog)
 
                             # Get new data for the dataframe
-                            self.dataframe.at[key,'removed'] = True
+                            self.register.at[key,'removed'] = True
                             row = ds.get_values(self.columns)
                             copy_data.append(row)
                             copy_keys.append(new_key)
@@ -1514,10 +1514,10 @@ class DbRegister():
             # then delete the row 
             if self.value(target_keys[0], 'StudyInstanceUID') is None:
                 if copy_keys != []:
-                    if self.dataframe.at[target_keys[0], 'created']:
-                        self.dataframe.drop(index=target_keys[0], inplace=True)
+                    if self.register.at[target_keys[0], 'created']:
+                        self.register.drop(index=target_keys[0], inplace=True)
                     else:
-                        self.dataframe.at[target_keys[0], 'removed'] == True
+                        self.register.at[target_keys[0], 'removed'] == True
 
             self._new_keys += copy_keys
             self._new_data += copy_data
@@ -1527,7 +1527,7 @@ class DbRegister():
             #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
             #     df['removed'] = False
             #     df['created'] = True
-            #     self.dataframe = pd.concat([self.dataframe, df])
+            #     self.register = pd.concat([self.register, df])
 
         if len(all_studies) == 1:
             return all_studies[0]
@@ -1574,7 +1574,7 @@ class DbRegister():
                     ds.write(self.filepath(key), self.dialog)
                 for i, col in enumerate(attributes):
                     if col in self.columns:
-                        self.dataframe.at[key,col] = values[i]
+                        self.register.at[key,col] = values[i]
 
             # If this is the first change, then save results in a copy
             else:  
@@ -1587,7 +1587,7 @@ class DbRegister():
                     ds.write(self.filepath(new_key), self.dialog)
 
                 # Get new data for the dataframe
-                self.dataframe.at[key,'removed'] = True
+                self.register.at[key,'removed'] = True
                 row = ds.get_values(self.columns)
                 copy_data.append(row)
                 copy_keys.append(new_key)
@@ -1601,7 +1601,7 @@ class DbRegister():
         #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
         #     df['removed'] = False
         #     df['created'] = True
-        #     self.dataframe = pd.concat([self.dataframe, df])
+        #     self.register = pd.concat([self.register, df])
 
     def get_values(self, uid, attributes):
 
@@ -1672,7 +1672,7 @@ class DbRegister():
 
         if uid is None:
             return
-        df = self.dataframe
+        df = self.register
         if uid != 'Database':
             df = df[np.isin(df, uid).any(axis=1)]
         created = df.created[df.created]   
@@ -1688,14 +1688,14 @@ class DbRegister():
             if os.path.exists(file): 
                 os.remove(file)
 
-        self.dataframe.loc[created.index, 'created'] = False
-        self.dataframe.drop(index=removed.index, inplace=True)
+        self.register.loc[created.index, 'created'] = False
+        self.register.drop(index=removed.index, inplace=True)
 
     def restore(self, uid=None):  
 
         if uid is None:
             return
-        df = self.dataframe
+        df = self.register
         if uid != 'Database':
             # df = df[df[self.type(uid)] == uid]
             df = df[np.isin(df, uid).any(axis=1)]
@@ -1712,12 +1712,12 @@ class DbRegister():
             if os.path.exists(file): 
                 os.remove(file)
 
-        self.dataframe.loc[removed.index, 'removed'] = False
-        self.dataframe.drop(index=created.index, inplace=True)
+        self.register.loc[removed.index, 'removed'] = False
+        self.register.drop(index=created.index, inplace=True)
 
     def import_datasets(self, files):
 
-        # Read register data
+        # Read manager data
         df = dbdataset.read_dataframe(files, self.columns, self.status)
         df['removed'] = False
         df['created'] = True
@@ -1738,7 +1738,7 @@ class DbRegister():
             ds = dbdataset.read(file)
             ds.write(self.filepath(new_key), self.dialog)
             df.rename(index={file:new_key}, inplace=True)
-        self.dataframe = pd.concat([self.dataframe, df])
+        self.register = pd.concat([self.register, df])
 
     def export_datasets(self, uids, database):
         

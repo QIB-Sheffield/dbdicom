@@ -4,11 +4,11 @@ import dbdicom.methods.record as record_methods
 
 class DbRecord():
 
-    def __init__(self, create, register, uid='Database', **kwargs):   
+    def __init__(self, create, manager, uid='Database', **kwargs):   
 
         self.uid = uid
         self.attributes = kwargs
-        self.register = register
+        self.manager = manager
         self.create = create
     
     def __eq__(self, other):
@@ -21,7 +21,7 @@ class DbRecord():
         return self.get_values(attributes)
 
     def __setattr__(self, attribute, value):
-        if attribute in ['uid', 'register', 'attributes', 'create']:
+        if attribute in ['uid', 'manager', 'attributes', 'create']:
             self.__dict__[attribute] = value
         else:
             self.set_values(attribute, value)
@@ -31,14 +31,14 @@ class DbRecord():
 
     @property
     def status(self):
-        return self.register.status
+        return self.manager.status
 
     @property
     def dialog(self):
-        return self.register.dialog
+        return self.manager.dialog
 
     def type(self):
-        return self.register.type(self.uid)
+        return self.manager.type(self.uid)
 
     @property
     def generation(self): # Obsolete
@@ -74,14 +74,14 @@ class DbRecord():
         if type == 'Database':
             return None
         if type == 'Patient':
-            return self.create(self.register, 'Database')
-        uid = self.register.parent(self.uid)
+            return self.create(self.manager, 'Database')
+        uid = self.manager.parent(self.uid)
         if type == 'Study':
-            return self.create(self.register, uid, 'Patient')
+            return self.create(self.manager, uid, 'Patient')
         if type == 'Series':
-            return self.create(self.register, uid, 'Study')
+            return self.create(self.manager, uid, 'Study')
         if type == 'Instance':
-            return self.create(self.register, uid, 'Series')
+            return self.create(self.manager, uid, 'Series')
 
     def children(self, **kwargs):
         return record_methods.children([self], **kwargs)
@@ -95,43 +95,43 @@ class DbRecord():
         return record_methods.patients([self], **kwargs)
 
     def siblings(self, **kwargs):
-        uids = self.register.siblings(self.uid, **kwargs)
-        return [self.__class__(self.create, self.register, uid) for uid in uids]
+        uids = self.manager.siblings(self.uid, **kwargs)
+        return [self.__class__(self.create, self.manager, uid) for uid in uids]
 
     def new_patient(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_patient(parent=self.uid, 
+        uid = self.manager.new_patient(parent=self.uid, 
             PatientName = attr['PatientName'] if 'PatientName' in attr else 'New Patient',
         )
-        return self.create(self.register, uid, 'Patient', **attr)
+        return self.create(self.manager, uid, 'Patient', **attr)
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_study(parent=self.uid, 
+        uid = self.manager.new_study(parent=self.uid, 
             StudyDescription = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
         )
-        return self.create(self.register, uid, 'Study', **attr)
+        return self.create(self.manager, uid, 'Study', **attr)
 
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_series(parent=self.uid,
+        uid = self.manager.new_series(parent=self.uid,
             SeriesDescription = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
         )
-        return self.create(self.register, uid, 'Series', **attr)
+        return self.create(self.manager, uid, 'Series', **attr)
 
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_instance(parent=self.uid, dataset=dataset, **attr)
-        return self.create(self.register, uid, 'Instance', **attr)
+        uid = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
+        return self.create(self.manager, uid, 'Instance', **attr)
 
     def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
-        uid = self.register.new_child(uid=self.uid, dataset=dataset, **attr)
-        return self.create(self.register, uid, **attr)
+        uid = self.manager.new_child(uid=self.uid, dataset=dataset, **attr)
+        return self.create(self.manager, uid, **attr)
 
     def new_sibling(self, **kwargs):
-        uid = self.register.new_sibling(uid=self.uid, **kwargs)
-        return self.__class__(self.create, self.register, uid)
+        uid = self.manager.new_sibling(uid=self.uid, **kwargs)
+        return self.__class__(self.create, self.manager, uid)
 
     def new_pibling(self):
         type = self.__class__.__name__
@@ -139,34 +139,34 @@ class DbRecord():
             return None
         if type == 'Patient':
             return None
-        uid = self.register.new_pibling(uid=self.uid)
+        uid = self.manager.new_pibling(uid=self.uid)
         if type == 'Study':
-            return self.create(self.register, uid, 'Patient')
+            return self.create(self.manager, uid, 'Patient')
         if type == 'Series':
-            return self.create(self.register, uid, 'Study')
+            return self.create(self.manager, uid, 'Study')
         if type == 'Instance':
-            return self.create(self.register, uid, 'Series')
+            return self.create(self.manager, uid, 'Series')
     
     def label(self):
-        return self.register.label(self.uid)
+        return self.manager.label(self.uid)
 
     def print(self):
-        self.register.print() # print self.uid only
+        self.manager.print() # print self.uid only
 
     def read(self):
-        self.register.read(self.uid)
+        self.manager.read(self.uid)
 
     def write(self, path=None):
         if path is not None:
-            self.register.path = path
-        self.register.write(self.uid)
-        self.register._write_df()
+            self.manager.path = path
+        self.manager.write(self.uid)
+        self.manager._write_df()
 
     def clear(self):
-        self.register.clear(self.uid)
+        self.manager.clear(self.uid)
 
     def remove(self):
-        self.register.delete(self.uid)
+        self.manager.delete(self.uid)
 
     def copy(self):
         return self.copy_to(self.parent())
@@ -185,26 +185,26 @@ class DbRecord():
         return record_methods.get_values([self], attributes)[0]
 
     def get_dataset(self):
-        return self.register.get_dataset(self.uid)
+        return self.manager.get_dataset(self.uid)
 
     def set_dataset(self, dataset):
-        self.register.set_dataset(self.uid, dataset)
+        self.manager.set_dataset(self.uid, dataset)
 
     def save(self, path=None):
-        self.register.save(self.uid)
+        self.manager.save(self.uid)
         self.write(path)
         
     def restore(self):
-        self.register.restore(self.uid)
+        self.manager.restore(self.uid)
         self.write()
 
     def instance(self, uid):
-        return self.create(self.register, uid, 'Instance')
+        return self.create(self.manager, uid, 'Instance')
     def sery(self, uid):
-        return self.create(self.register, uid, 'Series')
+        return self.create(self.manager, uid, 'Series')
     def study(self, uid):
-        return self.create(self.register, uid, 'Study')
+        return self.create(self.manager, uid, 'Study')
     def patient(self, uid):
-        return self.create(self.register, uid, 'Patient')
+        return self.create(self.manager, uid, 'Patient')
     def database(self):
-        return self.create(self.register, 'Database')
+        return self.create(self.manager, 'Database')

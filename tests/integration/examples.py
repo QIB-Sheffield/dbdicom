@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-from dbdicom.register import DbRegister
+from dbdicom.manager import Manager
 
 
 test_folder = os.path.join(os.path.dirname(__file__), 'data')
@@ -15,7 +15,7 @@ test_export_folder = os.path.join(os.path.dirname(__file__), 'results')
 
 def test_set_array_invert():
 
-    folder = DbRegister(test_folder2).open() # enhancement: open automatically on init
+    folder = Manager(test_folder2).open() # enhancement: open automatically on init
     series = folder.series(12) # T1-MOLLI multi-TI
     array, _ = series.array()
     invert = series.copy().set_array(-array)
@@ -41,7 +41,7 @@ def test_set_array_invert():
 
 def test_sort_series():
 
-    folder = DbRegister(test_folder2).open()
+    folder = Manager(test_folder2).open()
     series = folder.series(12) # T1-MOLLI multi-TI
 #    data = series.sort(['SliceLocation','InversionTime', 'PatientName'])
     data = series.sort(['SliceLocation','InversionTime', 'PatientName'])
@@ -55,7 +55,7 @@ def test_sort_series():
 
 def test_read_series_array():
 
-    folder = DbRegister(test_folder2).open()
+    folder = Manager(test_folder2).open()
     series = folder.series(12) # T1-MOLLI multi-TI
     array, data = series.array(['SliceLocation','InversionTime', 'PatientName'], pixels_first=True)
     print(array.shape)

@@ -80,8 +80,8 @@ def instance_array(record, sortby=None, status=True):
             array[i] = instance
         return array
     else:
-        if set(sortby) <= set(record.register.dataframe):
-            df = record.register.dataframe.loc[dataframe(record).index, sortby]
+        if set(sortby) <= set(record.manager.register):
+            df = record.manager.register.loc[dataframe(record).index, sortby]
         else:
             ds = record.get_dataset()
             df = dbdataset.get_dataframe(ds, sortby)
@@ -116,8 +116,8 @@ def df_to_instance_array(record, df):
 
 def dataframe(record):
 
-    keys = record.register.keys(record.uid)
-    return record.register.dataframe.loc[keys, :]
+    keys = record.manager.keys(record.uid)
+    return record.manager.register.loc[keys, :]
 
 
 
@@ -130,53 +130,53 @@ def dataframe(record):
 def get_values(records, attributes):
 
     uids = [rec.uid for rec in records]
-    dbr = records[0].register
+    dbr = records[0].manager
     return dbr.get_values(uids, attributes)
 
 def set_values(records, attributes, values):
 
     uids = [rec.uid for rec in records]
-    dbr = records[0].register
+    dbr = records[0].manager
     dbr.set_values(uids, attributes, values)
 
 def children(records, **kwargs):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.children(uids, **kwargs)
     return [records[0].create(dbr, uid) for uid in uids]
 
 def instances(records, **kwargs):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.instances(uids, **kwargs)
     return [records[0].create(dbr, uid, 'Instance') for uid in uids]
 
 def series(records, **kwargs):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.series(uids, **kwargs)
     return [records[0].create(dbr, uid, 'Series') for uid in uids]
 
 def studies(records, **kwargs):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.studies(uids, **kwargs)
     return [records[0].create(dbr, uid, 'Study') for uid in uids]
 
 def patients(records, **kwargs):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.patients(uids, **kwargs)
     return [records[0].create(dbr, uid, 'Patient') for uid in uids]
 
 def copy_to(records, target):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     uids = dbr.copy_to(uids, target.uid, **target.attributes)
     if isinstance(uids, list):
@@ -186,7 +186,7 @@ def copy_to(records, target):
 
 def move_to(records, target):
 
-    dbr = records[0].register
+    dbr = records[0].manager
     uids = [rec.uid for rec in records]
     dbr.move_to(uids, target.uid, **target.attributes)
     return records
