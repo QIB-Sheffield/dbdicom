@@ -129,8 +129,8 @@ class DbRecord():
         uid = self.register.new_child(uid=self.uid, dataset=dataset, **attr)
         return self.create(self.register, uid, **attr)
 
-    def new_sibling(self):
-        uid = self.register.new_sibling(uid=self.uid)
+    def new_sibling(self, **kwargs):
+        uid = self.register.new_sibling(uid=self.uid, **kwargs)
         return self.__class__(self.create, self.register, uid)
 
     def new_pibling(self):

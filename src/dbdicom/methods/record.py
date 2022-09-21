@@ -44,8 +44,9 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
         TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
         ```  
     """
-    if not isinstance(sortby, list):
-        sortby = [sortby]
+    if sortby is not None:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
     source = instance_array(record, sortby)
     array = []
     instances = source.ravel()
@@ -55,7 +56,6 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
             array.append(np.zeros((1,1)))
         else:
             array.append(im.get_pixel_array())
-    #array = [im.array() for im in dataset.ravel() if im is not None]
     array = arrays._stack(array)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:
@@ -74,8 +74,11 @@ def instance_array(record, sortby=None, status=True):
         An ndarray holding the instances sorted by sortby.
     """
     if sortby is None:
-        df = dataframe(record)
-        return df_to_instance_array(record, df)
+        instances = record.instances()
+        array = np.empty(len(instances), dtype=object)
+        for i, instance in enumerate(instances): 
+            array[i] = instance
+        return array
     else:
         if set(sortby) <= set(record.register.dataframe):
             df = record.register.dataframe.loc[dataframe(record).index, sortby]
@@ -106,11 +109,8 @@ def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    cnt = 0
-    for uid in df.index.values: 
-        record.status.progress(cnt, df.shape[0])
-        data[cnt] = record.instance(uid)
-        cnt += 1
+    for i, uid in enumerate(df.index.values): 
+        data[i] = record.instance(uid)
     return data
 
 

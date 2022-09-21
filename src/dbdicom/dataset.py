@@ -33,14 +33,14 @@ class DbDataset(Dataset):
     def set_values(self, tags, values):
         return set_values(self, tags, values)
 
-    def lut(self):
-        return lut(self)
+    def get_lut(self):
+        return get_lut(self)
 
     def get_colormap(self):
         return get_colormap(self)
 
-    def set_colormap(self, colormap=None, levels=None):
-        set_colormap(self, colormap=colormap, levels=levels)
+    def set_colormap(*args, **kwargs):
+        set_colormap(*args, **kwargs)
 
     def get_pixel_array(self):
         return get_pixel_array(self)
@@ -50,6 +50,26 @@ class DbDataset(Dataset):
 
     def affine_matrix(self):
         return affine_matrix(self)
+
+    def get_window(self):
+        return get_window(self)
+
+
+def get_window(ds):
+    """Centre and width of the pixel data after applying rescale slope and intercept"""
+
+    if 'WindowCenter' in ds: 
+        centre = ds.WindowCenter
+    if 'WindowWidth' in ds: 
+        width = ds.WindowWidth
+    if centre is None or width is None:
+        array = ds.get_pixel_array()
+    if centre is None: 
+        centre = np.median(array)
+    if width is None: 
+        p = np.percentile(array, [25, 75])
+        width = p[1] - p[0]
+    return centre, width
 
 
 def read(file, dialog=None):
@@ -62,6 +82,21 @@ def read(file, dialog=None):
         if dialog is not None:
             dialog.information(message)  
         raise FileNotFoundError(message)
+
+
+def write(ds, file, dialog=None): 
+
+    try:
+        # check if directory exists and create it if not
+        dir = os.path.dirname(file)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        ds.save_as(file, write_like_original=False) 
+    except Exception as message:
+        if dialog is not None:
+            dialog.information(message) 
+        else:
+            print(message) 
 
 def codify(source_file, save_file, **kwargs):
     
@@ -110,20 +145,7 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
             status.progress(i+1, len(files), message)
     return pd.DataFrame(array, index = dicom_files, columns = tags)
 
-
-def write(ds, file, dialog=None): 
-
-    try:
-        # check if directory exists and create it if not
-        dir = os.path.dirname(file)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        ds.save_as(file, write_like_original=False) 
-    except Exception as message:
-        if dialog is not None:
-            dialog.information(message) 
-        else:
-            print(message)  
+ 
 
 def set_values(ds, tags, values):
     """Sets DICOM tags in the pydicom dataset in memory"""
@@ -152,12 +174,16 @@ def set_values(ds, tags, values):
 
 
 def get_values(ds, tags):
-    """Helper function - return a list of values for a DbObject"""
+    """Return a list of values for a dataset"""
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 
         if tags not in ds:
-            return None
+            value = None
+            if isinstance(tags, str):
+                if hasattr(ds, tags):
+                    value = getattr(ds, tags)()
+            return value
         else:
         #    return ds[tags].value
             return to_set_type(ds[tags].value)
@@ -166,6 +192,9 @@ def get_values(ds, tags):
     for tag in tags:
         if tag not in ds:
             value = None
+            if isinstance(tag, str):
+                if hasattr(ds, tag):
+                    value = getattr(ds, tag)()
         else:
         #    value = ds[tag].value
             value = to_set_type(ds[tag].value)
@@ -252,7 +281,7 @@ def affine_matrix(ds):
         ds.SliceThickness)
 
 
-def lut(ds):
+def get_lut(ds):
 
     redColour = list(ds.RedPaletteColorLookupTableData)
     greenColour = list(ds.GreenPaletteColorLookupTableData)
@@ -283,7 +312,7 @@ def get_colormap(ds):
             colormap = 'gray'
     elif len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR':
         colormap = 'custom'
-        lookuptable = lut(ds)
+        lookuptable = get_lut(ds)
     else:
         colormap = 'gray' # default
 

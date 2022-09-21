@@ -782,14 +782,14 @@ class DbRegister():
         if parent_type == 'Instance':
             return None
 
-    def new_sibling(self, uid=None):
+    def new_sibling(self, uid=None, **kwargs):
 
         if uid is None:
             return None
         if uid == 'Database':
             return None
         parent = self.parent(uid)
-        return self.new_child(parent)
+        return self.new_child(parent, **kwargs)
 
     def new_pibling(self, uid=None):
 

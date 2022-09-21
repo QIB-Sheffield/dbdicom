@@ -585,75 +585,33 @@ A number of different dialogs are available via the dialog attribute (see refere
 
 ## Why ***dbdicom***?
 
-DICOM is scary. *And* it has been the universally accepted standard for medical images for decades. 
-Why is that? It is *because* it is scary. DICOM is extremely detailed and rigorous in the description of its 
-terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your 
-medical history. All of it. Every single one of your DICOM images in a clinical archive contains 
-the key to access all of your medical details. This allows doctors to link your images to your blood tests, 
-family history, previous diagnosis treatments, other imaging, and so on. And this is important to make 
-the best possible informed decisions when it comes to your health. 
+'*DICOM?: The idea of using DICOM is still floating around. The reasons why not are simple: DICOM is too layered and rococo to meet the "reasonable" test described above. For example, after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*
 
-In medical imaging research this additional information is often seen as a nuisance and discarded prior to 
-processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as 
-pixel sizes or a transformation matrix, and all the other information is ignored. 
+Robert W. Cox [2004](https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html) PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health.
 
-Conversion into a *lossy* data format is often sufficient for method development or basic scientific research, 
-but when it comes to deploying these methods in clinical studies, 
-all this additional (discarded) information is just as important as in clinical practice. 
-It ensures that all derived data are properly traceable to the source, 
-and can be compared between subjects and within a subject over time. 
-It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit 
-over and above (cheap) data from medical history, clinical exams or blood tests. 
-And so, if we accept that new image analysis methods ultimately will need to be tested clinically 
-(and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. 
-In practice this step often requires a major rewrite of image processing pipelines set up for basic research, 
-creating a major barrier to clinical translation of new methods. 
+This statement echoes a common frustration for anyone who has ever had a closer to look at DICOM. DICOM is scary. But it has also been the universally accepted standard for medical images for decades. Why is that? DICOM is extremely detailed and rigorous in the description of its terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your body your medical history. All of it. Every single one of your DICOM images in a clinical archive contains the key to access all of your medical details. This allows doctors to link your images to your blood tests, family history, previous diagnosis treatments, other imaging, and so on. And this is important to make the best possible informed decisions when it comes to your health. 
 
-Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. 
-Quantification involves the application of complex signal models to multi-dimensional imaging 
-data that are acquired by varying contrast parameters such as (in MRI) echo times, b-values, 
-gradient directions, inversion times, flip angle etc. Often many of these are varied at the same 
-time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data 
-need access to this information, and often also need to encode it alongside the images that 
-are produced. When images are first converted from DICOM into some lossy data format, 
-this is often not possible because the application was not foreseen when the lossy format was first defined. 
-This then requires ad-hoc solutions retaining part of the 
-original DICOM information in unstructured free text fields or separate newly defined header files. 
+In medical imaging research this additional information is often seen as a nuisance and discarded prior to processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as pixel sizes or a transformation matrix, and all the other information is ignored. 
 
-All these problems can be solved, for current and any imaginable or unimaginable future applications, 
-by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
+Conversion into such a *lossy* data format may be sufficient for method development or basic scientific research, but when it comes to deploying these methods in clinical studies, all this additional information is just as important as in clinical practice. It ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. Sure, you can encode this in different ways, but if you wanted to do this properly, you would rediscover DICOM all over again.
+
+And so, if we accept that new image analysis methods ultimately will need to be tested clinically (and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. In practice this step often requires a major rewrite of image processing pipelines set up for basic research, creating a significant barrier to deployment of new methods in clinical trials. 
+
+Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. Quantification involves the application of complex signal models to multi-dimensional imaging data. These are acquired by varying contrast parameters such as (in MRI) echo times, b-values, gradient directions, inversion times, flip angle etc. Often many of these are varied at the same time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data need access to this information, and often also need to encode it alongside the images that are produced. When DICOM data have been converted to some lossy data format, this then requires ad-hoc solutions retaining part of the original DICOM information in unstructured free text fields or separate newly defined header files. 
+
+All these problems can be solved, for current and any imaginable or unimaginable future applications, by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
 
 If only DICOM wasn't so scary!!
 
 ## What is ***dbdicom***?
 
-`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive 
-for the practicing medical imaging scientist working in Python. 
-We promise you won't even know it's DICOM. In fact the documentation 
-hardly even mentions DICOM at all. It will certainly not mention things like composite information 
-object definitions, application entities, service-object pairs, unique identifiers, etc etc. 
-This is the language of DICOM, and it's confusing in part because the concepts date back to 
-the 1970's and 1980's when the standard was developed. But then again, that is exactly what you 
-would expect from a successful standard. It doesn't change. It shouldn't change. 
+`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive for the practicing medical imaging scientist working in Python. We promise you won't even know it's DICOM. In fact the documentation hardly even mentions DICOM at all. It will certainly not mention things like composite information object definitions, application entities, service-object pairs, unique identifiers, etc etc. This is the language of DICOM, and it's confusing in part because the concepts date back to the 1970's and 1980's when the standard was developed. But then again, that is exactly what you would expect from a successful standard. It doesn't change. It shouldn't change. But we *can* wrap it up real nice.
 
-`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. 
-It allows you to develop your medical imaging methods using DICOM files only, which 
-means your prototypes of new analysis methods can be deployed in clinical trials just like that. 
-It also means that any result you generate can easily be integrated in open access DICOM databases 
-and can be visualised along with any other images of the same subject 
-by anyone with a DICOM viewer (i.e. literally anyone).
+`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. It allows you to develop your medical imaging methods using DICOM files only, which means your prototypes of new analysis methods can be deployed in clinical trials just like that. It also means that any result you generate can easily be integrated in open access DICOM databases and can be visualised along with any other images of the same subject by anyone with a DICOM viewer (i.e. literally anyone).
 
-Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. 
-However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately 
-clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. 
-Convenience classes are provided for user interaction that print to a terminal when used 
-in a script, but will automatically generate pop-up windows or progress bars when the same script is 
-deployed inside a `dbdicom` compatible graphical user interface. 
+Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. Convenience classes are provided for user interaction that print to a terminal when used 
+in a script, but will automatically generate pop-up windows or progress bars when the same script is deployed inside a `dbdicom` compatible graphical user interface. 
 
 ## Acknowledgements
 
-`dbdicom` relies heavily on `pydicom` for basic read/write of DICOM files, 
-with some additional features provided by `nibabel` and `dcm4che`. 
-Graphical user interface compatibility is provided by `PyQt5`. 
-Documentation is generated by `pdoc3`. Basic image manipulation is provided by `numpy` and `scipi`,
- and sorting and tabulating of data by `pandas`. Export to other formats is provided by `matplotlib`.
+`dbdicom` relies heavily on `pydicom` for read/write of individual DICOM files, with some additional features provided by `nibabel` and `dcm4che`. Basic array manipulation is provided by `numpy`, and sorting and tabulating of data by `pandas`. Export to other formats is provided by `matplotlib`.

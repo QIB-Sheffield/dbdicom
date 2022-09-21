@@ -497,6 +497,24 @@ def ukrin_maps_per_frame_functional_group():
 
     return ds
 
+def get_window(ds):
+    """Centre and width of the pixel data after applying rescale slope and intercept.
+    
+    In this case retrieve the centre and width values of the first frame
+    NOT In USE
+    """
+
+    centre = ds.PerFrameFunctionalGroupsSequence[0].FrameVOILUTSequence[0].WindowCenter 
+    width = ds.PerFrameFunctionalGroupsSequence[0].FrameVOILUTSequence[0].WindowWidth
+    if centre is None or width is None:
+        array = ds.get_pixel_array()
+    if centre is None: 
+        centre = np.median(array)
+    if width is None: 
+        p = np.percentile(array, [25, 75])
+        width = p[1] - p[0]
+    
+    return centre, width
 
 def get_pixel_array(ds):
 

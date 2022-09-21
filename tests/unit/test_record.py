@@ -975,13 +975,10 @@ def test_read_write_series():
     norm_mean = np.abs(np.sum(np.square(array)) + np.sum(np.square(array_invert)))
     max_diff = np.amax(np.abs(array + array_invert))
 
-    print(norm_diff/norm_mean)
-    print(max_diff)
+    assert norm_diff/norm_mean < 0.0001
+    assert max_diff < 0.05
 
-#    assert norm_diff/norm_mean < 0.0001
-#    assert max_diff < 0.05
-
-    plot = True
+    plot = False
 
     if plot==True:
 
@@ -1003,37 +1000,183 @@ def test_read_write_series():
 
     remove_tmp_database(tmp)
 
+def test_instance_map_to():
+
+    return # needs some work
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    images = database.instances()
+    try:
+        map = images[0].map_to(images[1])
+    except:
+        assert False
+
+    remove_tmp_database(tmp)
+
+def test_instance_map_mask_to():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    images = database.instances()
+    try:
+        map = images[0].map_mask_to(images[1])
+    except:
+        assert False
+
+
+def test_series_map_mask_to():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    series = database.series()
+    try:
+        map = series[0].map_mask_to(series[1])
+    except:
+        assert False
+
+def test_set_colormap():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    images = database.instances()
+    try:
+        images[0].set_colormap('gray')
+    except:
+        assert False
+
+def test_instance_export_as_csv():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    images = database.instances()
+    try:
+        images[0].export_as_csv(export)
+    except:
+        assert False
+
+def test_instance_export_as_png():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    images = database.instances()
+    try:
+        images[0].export_as_png(export)
+    except:
+        assert False
+
+def test_instance_export_as_nifti():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    images = database.instances()
+    try:
+        images[0].export_as_nifti(export)
+    except:
+        assert False
+
+def test_series_export_as_csv():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    try:
+        series[0].export_as_csv(export)
+    except:
+        assert False
+
+def test_series_export_as_png():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    try:
+        series[0].export_as_png(export)
+    except:
+        assert False
+
+def test_series_export_as_nifti():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    try:
+        series[0].export_as_nifti(export)
+    except:
+        assert False
+
+def test_series_export_as_npy():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    try:
+        series[0].export_as_npy(export)
+    except:
+        assert False
+
+
+def test_subseries():
+
+    tmp = create_tmp_database(rider)
+    database = open_database(tmp)
+    series = database.series()
+    for i in series[0].instances():
+        assert i.image_type == 'MAGNITUDE'
+    magn = series[0].subseries(image_type='MAGNITUDE')
+    for i in magn.instances():
+        assert i.image_type == 'MAGNITUDE'
+
 
 if __name__ == "__main__":
 
-    # test_database()
-    # test_children()
-    # test_read_dicom_data_elements()
-    # test_read_dicom_data_elements_from_memory()
-    # test_hierarchy()
-    # test_hierarchy_in_memory_v1()
-    # test_hierarchy_in_memory_v2()
-    # test_find_by_value()
-    # test_find_by_value_in_memory()
-    # test_read_item_instance()
-    # test_read_item()
-    # test_set_attr_instance()
-    # test_set_attr_instance_in_memory_v1()
-    # test_set_attr_instance_in_memory_v2()
-    # test_set_item_instance()
-    # test_set_item_instance_in_memory()
-    # test_set_item()
-    # test_set_item_in_memory()
-    # test_create_records()
-    # test_copy_remove_instance()
-    # test_copy_remove()
-    # test_inherit_attributes()
-    # test_merge()
-    # test_merge_empty()
-    # test_save_restore()
-    # test_read_write_dataset()
-    # test_read_write_image()
+    test_database()
+    test_children()
+    test_read_dicom_data_elements()
+    test_read_dicom_data_elements_from_memory()
+    test_hierarchy()
+    test_hierarchy_in_memory_v1()
+    test_hierarchy_in_memory_v2()
+    test_find_by_value()
+    test_find_by_value_in_memory()
+    test_read_item_instance()
+    test_read_item()
+    test_set_attr_instance()
+    test_set_attr_instance_in_memory_v1()
+    test_set_attr_instance_in_memory_v2()
+    test_set_item_instance()
+    test_set_item_instance_in_memory()
+    test_set_item()
+    test_set_item_in_memory()
+    test_create_records()
+    test_copy_remove_instance()
+    test_copy_remove()
+    test_inherit_attributes()
+    test_merge()
+    test_merge_empty()
+    test_save_restore()
+    test_read_write_dataset()
+    test_read_write_image()
     test_read_write_series()
+    test_instance_map_to()
+    test_instance_map_mask_to()
+    test_series_map_mask_to()
+    test_set_colormap()
+    test_instance_export_as_csv()
+    test_instance_export_as_png()
+    test_instance_export_as_nifti()
+    test_series_export_as_csv()
+    test_series_export_as_png()
+    test_series_export_as_nifti()
+    test_series_export_as_npy()
+    test_subseries()
 
 
     print('------------------------')

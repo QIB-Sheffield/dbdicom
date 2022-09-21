@@ -38,6 +38,7 @@ class MRImage(DbDataset):
         return signal_type(self)
 
 
+
 def rider(ds): # required only - check
 
     # File meta info data elements
@@ -256,8 +257,8 @@ def signal_type(ds):
         elif set(['F', 'FAT']).intersection(type):
             return 'FAT'
         elif set(['IP', 'IN_PHASE']).intersection(type):
-            return 'IN-PHASE'
+            return 'IN_PHASE'
         elif set(['OP', 'OUT_PHASE']).intersection(type):
-            return 'OP-PHASE'
+            return 'OP_PHASE'
     
     return 'UNKNOWN'

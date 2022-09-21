@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from dbdicom.record import DbRecord
 import dbdicom.methods.record as record_methods
@@ -11,34 +12,117 @@ class Series(DbRecord):
     def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
-    def map_mask_onto(*args, **kwargs):
-        map_mask_onto(*args, **kwargs)
+    def map_mask_to(*args, **kwargs):
+        map_mask_to(*args, **kwargs)
+
+    def export_as_csv(*args, **kwargs):
+        export_as_csv(*args, **kwargs)
+
+    def export_as_png(*args, **kwargs):
+        export_as_png(*args, **kwargs)
+
+    def export_as_nifti(*args, **kwargs):
+        export_as_nifti(*args, **kwargs)
+
+    def export_as_npy(*args, **kwargs):
+        export_as_npy(*args, **kwargs)
+
+    def subseries(*args, **kwargs):
+        return subseries(*args, **kwargs)
 
 
-def map_mask_onto(record, target):
+def subseries(record, **kwargs):
+    """Extract subseries"""
+
+    series = record.new_sibling()
+    for instance in record.instances(**kwargs):
+        instance.copy_to(series)
+    return series
+
+def read_npy(record):
+    # Not in use - loading of temporary numpy files
+    file = record.register.npy()
+    if not os.path.exists(file):
+        return
+    with open(file, 'rb') as f:
+        array = np.load(f)
+    return array
+
+def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
+    """Export all images as csv files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the csv data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_csv( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']', 
+            columnHeaders = columnHeaders)
+
+def export_as_png(record, directory=None, filename=None):
+    """Export all images as png files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_png( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']')
+
+def export_as_nifti(record, directory=None, filename=None):
+    """Export all images as nifti files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_nifti( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']')
+
+def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
+    """Export array in numpy format"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if filename is None:
+        filename = record.SeriesDescription
+    array, _ = record.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
+    file = os.path.join(directory, filename + '.npy')
+    with open(file, 'wb') as f:
+        np.save(f, array)
+
+
+def map_mask_to(series, target):
     """Map non-zero pixels onto another series"""
 
-    source_images = record.children()
-    mapped_series = record.new_sibling()
-    target_images = target.children() # create record.images() to return children of type image
-
+    source_images = series.instances()
+    target_images = target.instances() 
+    mapped_series = series.new_sibling(
+        SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
+    )
     for i, target_image in enumerate(target_images):
-        record.status.progress(i, len(target_images))
-        pixel_array = np.zeros((target_image.Rows, target_image.Columns), dtype=np.bool) 
+        series.status.progress(i, len(target_images))
+        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=np.bool) 
         for j, source_image in enumerate(source_images):
-            message = (
+            series.status.message(
                 'Mapping image ' + str(j) + 
-                ' of ' + record.SeriesDescription + 
+                ' of ' + series.SeriesDescription + 
                 ' to image ' + str(i) + 
-                ' of ' + target.SeriesDescription )
-            record.status.message(message)
-            im = source_image.map_mask_onto(target_image)
+                ' of ' + target.SeriesDescription 
+            )
+            im = source_image.map_mask_to(target_image)
             array = im.get_pixel_array().astype(np.bool)
             np.logical_or(pixel_array, array, out=pixel_array)
+            im.remove()
         if pixel_array.any():
             mapped_image = target_image.copy_to(mapped_series)
             mapped_image.set_pixel_array(pixel_array.astype(np.float32))
-            mapped_image.SeriesDescription = record.SeriesDescription
     return mapped_series
 
 
@@ -147,4 +231,33 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         series.status.progress(i, len(copy), 'Writing array to file..')
         instance.set_pixel_array(array[i,...])
     series.register.resume_extensions()
+
+
+def amax(record, axis=None):
+    """Calculate the maximum of the image array along a given dimension.
+    
+    This function is included as a placeholder reminder 
+    to build up functionality at series level that emulates 
+    numpy behaviour.
+
+    Args:
+        axis: DICOM KeyWord string to specify the dimension
+        along which the maximum is taken.
+
+    Returns:
+        a new sibling series holding the result.
+
+    Example:
+    ```ruby
+    # Create a maximum intensity projection along the slice dimension:
+    mip = series.amax(axis='SliceLocation')
+    ```
+    """
+
+    array, header = record.get_pixel_array(axis)
+    array = np.amax(array, axis=0)
+    header = np.squeeze(header[0,...])
+    series = record.new_sibling()
+    series.set_pixel_array(array, header)
+    return series
 
