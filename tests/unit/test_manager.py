@@ -3,8 +3,7 @@ import shutil
 import numpy as np
 
 from dbdicom.manager import Manager
-from dbdicom.dataset_classes.mr_image import MRImage
-
+from dbdicom.dsdicom import MRImage
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')

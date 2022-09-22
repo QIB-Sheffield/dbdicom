@@ -1,13 +1,14 @@
 import os
+import math
 import numpy as np
-from dbdicom.record import DbRecord
-import dbdicom.methods.record as record_methods
+from dbdicom.record import DbRecord, copy_to
+import dbdicom.dsdicom.dataset as dbdataset
 
 
 class Series(DbRecord):
-    
+
     def get_pixel_array(*args, **kwargs):
-        return record_methods.get_pixel_array(*args, **kwargs)
+        return get_pixel_array(*args, **kwargs)
 
     def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
@@ -126,6 +127,68 @@ def map_mask_to(series, target):
     return mapped_series
 
 
+def get_pixel_array(record, sortby=None, pixels_first=False): 
+    """Pixel values of the object as an ndarray
+    
+    Args:
+        sortby: 
+            Optional list of DICOM keywords by which the volume is sorted
+        pixels_first: 
+            If True, the (x,y) dimensions are the first dimensions of the array.
+            If False, (x,y) are the last dimensions - this is the default.
+
+    Returns:
+        An ndarray holding the pixel data.
+
+        An ndarry holding the datasets (instances) of each slice.
+
+    Examples:
+        ``` ruby
+        # return a 3D array (z,x,y)
+        # with the pixel data for each slice
+        # in no particular order (z)
+        array, _ = series.array()    
+
+        # return a 3D array (x,y,z)   
+        # with pixel data in the leading indices                               
+        array, _ = series.array(pixels_first = True)    
+
+        # Return a 4D array (x,y,t,k) sorted by acquisition time   
+        # The last dimension (k) enumerates all slices with the same acquisition time. 
+        # If there is only one image for each acquision time, 
+        # the last dimension is a dimension of 1                               
+        array, data = series.array('AcquisitionTime', pixels_first=True)                         
+        v = array[:,:,10,0]                 # First image at the 10th location
+        t = data[10,0].AcquisitionTIme      # acquisition time of the same image
+
+        # Return a 4D array (loc, TI, x, y) 
+        sortby = ['SliceLocation','InversionTime']
+        array, data = series.array(sortby) 
+        v = array[10,6,0,:,:]            # First slice at 11th slice location and 7th inversion time    
+        Loc = data[10,6,0][sortby[0]]    # Slice location of the same slice
+        TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
+        ```  
+    """
+    if sortby is not None:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
+    source = instance_array(record, sortby)
+    array = []
+    instances = source.ravel()
+    for i, im in enumerate(instances):
+        record.status.progress(i, len(instances), 'Reading pixel data..')
+        if im is None:
+            array.append(np.zeros((1,1)))
+        else:
+            array.append(im.get_pixel_array())
+    array = _stack(array)
+    array = array.reshape(source.shape + array.shape[1:])
+    if pixels_first:
+        array = np.moveaxis(array, -1, 0)
+        array = np.moveaxis(array, -1, 0)
+    return array, source 
+
+
 def set_pixel_array(series, array, source=None, pixels_first=False): 
     """
     Set pixel values of a series from a numpy ndarray.
@@ -200,7 +263,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         array = np.moveaxis(array, 0, -1)
 
     if source is None:
-        source = record_methods.instance_array(series)
+        source = instance_array(series)
 
     # Return with error message if dataset and array do not match.
     nr_of_slices = np.prod(array.shape[:-2])
@@ -220,7 +283,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         if i not in source.tolist():
             i.remove()
     if series.instances() == []:
-        copy = record_methods.copy_to(source.tolist(), series)
+        copy = copy_to(source.tolist(), series)
         #for i, s in enumerate(source.tolist()):
         #    print(copy[i].SliceLocation, s.SliceLocation) # Not matching up
     else:
@@ -260,4 +323,102 @@ def amax(record, axis=None):
     series = record.new_sibling()
     series.set_pixel_array(array, header)
     return series
+
+
+
+##
+## Helper functions
+##
+
+
+def instance_array(record, sortby=None, status=True): 
+    """Sort instances by a list of attributes.
+    
+    Args:
+        sortby: 
+            List of DICOM keywords by which the series is sorted
+    Returns:
+        An ndarray holding the instances sorted by sortby.
+    """
+    if sortby is None:
+        instances = record.instances()
+        array = np.empty(len(instances), dtype=object)
+        for i, instance in enumerate(instances): 
+            array[i] = instance
+        return array
+    else:
+        if set(sortby) <= set(record.manager.register):
+            df = record.manager.register.loc[dataframe(record).index, sortby]
+        else:
+            ds = record.get_dataset()
+            df = dbdataset.get_dataframe(ds, sortby)
+        df.sort_values(sortby, inplace=True) 
+        return df_to_sorted_instance_array(record, df, sortby, status=status)
+
+def dataframe(record):
+
+    keys = record.manager.keys(record.uid)
+    return record.manager.register.loc[keys, :]
+
+
+def df_to_sorted_instance_array(record, df, sortby, status=True): 
+
+    data = []
+    vals = df[sortby[0]].unique()
+    for i, c in enumerate(vals):
+        if status: 
+            record.status.progress(i, len(vals), message='Sorting..')
+        dfc = df[df[sortby[0]] == c]
+        if len(sortby) == 1:
+            datac = df_to_instance_array(record, dfc)
+        else:
+            datac = df_to_sorted_instance_array(record, dfc, sortby[1:], status=False)
+        data.append(datac)
+    return _stack(data, align_left=True)
+
+
+def df_to_instance_array(record, df): 
+    """Return datasets as numpy array of object type"""
+
+    data = np.empty(df.shape[0], dtype=object)
+    for i, uid in enumerate(df.index.values): 
+        data[i] = record.instance(uid)
+    return data
+
+def _stack(arrays, align_left=False):
+    """Stack a list of arrays of different shapes but same number of dimensions.
+    
+    This generalises numpy.stack to arrays of different sizes.
+    The stack has the size of the largest array.
+    If an array is smaller it is zero-padded and centred on the middle.
+    """
+
+    # Get the dimensions of the stack
+    # For each dimension, look for the largest values across all arrays
+    ndim = len(arrays[0].shape)
+    dim = [0] * ndim
+    for array in arrays:
+        for i, d in enumerate(dim):
+            dim[i] = max((d, array.shape[i])) # changing the variable we are iterating over!!
+    #    for i in range(ndim):
+    #        dim[i] = max((dim[i], array.shape[i]))
+
+    # Create the stack
+    # Add one dimension corresponding to the size of the stack
+    n = len(arrays)
+    #stack = np.full([n] + dim, 0, dtype=arrays[0].dtype)
+    stack = np.full([n] + dim, None, dtype=arrays[0].dtype)
+
+    for k, array in enumerate(arrays):
+        index = [k]
+        for i, d in enumerate(dim):
+            if align_left:
+                i0 = 0
+            else: # align center and zero-pad missing values
+                i0 = math.floor((d-array.shape[i])/2)
+            i1 = i0 + array.shape[i]
+            index.append(slice(i0,i1))
+        stack[tuple(index)] = array
+
+    return stack
 

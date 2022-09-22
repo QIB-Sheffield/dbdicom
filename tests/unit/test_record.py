@@ -3,9 +3,9 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 
-from dbdicom.methods.create import new_database, open_database
-import dbdicom.methods.record as record
-from dbdicom.dataset_classes.mr_image import MRImage
+import dbdicom as db
+from dbdicom.dsdicom import MRImage
+
 
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
@@ -36,7 +36,7 @@ def remove_tmp_database(tmp):
 def test_database():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     try:
         database.print()
@@ -51,7 +51,7 @@ def test_database():
 def test_children():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
     assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
@@ -65,7 +65,7 @@ def test_children():
 def test_read_dicom_data_elements():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     patient_id = database.PatientID
     patients = database.children()
@@ -95,7 +95,7 @@ def test_read_dicom_data_elements():
 def test_read_dicom_data_elements_from_memory(): 
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     database.read()
 
@@ -127,7 +127,7 @@ def test_read_dicom_data_elements_from_memory():
 def test_hierarchy():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -162,7 +162,7 @@ def test_hierarchy():
 def test_hierarchy_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     database.read()
 
@@ -199,7 +199,7 @@ def test_hierarchy_in_memory_v1():
 def test_hierarchy_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     patients = database.patients() 
     assert len(patients) == 2
@@ -236,7 +236,7 @@ def test_hierarchy_in_memory_v2():
 def test_find_by_value():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     series = database.series(
         SeriesDescription = 'ax 20 flip', 
@@ -257,7 +257,7 @@ def test_find_by_value():
 def test_find_by_value_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     database.read()
 
     series = database.series(
@@ -279,7 +279,7 @@ def test_find_by_value_in_memory():
 def test_read_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -302,7 +302,7 @@ def test_read_item_instance():
 def test_read_item():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     tags = [
         'SeriesDescription', 
         (0x0010, 0x0020), 
@@ -328,7 +328,7 @@ def test_read_item():
 def test_set_attr_instance():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     instance = database.instances()[0]
 
@@ -357,7 +357,7 @@ def test_set_attr_instance():
 def test_set_attr_instance_in_memory_v1():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -387,7 +387,7 @@ def test_set_attr_instance_in_memory_v1():
 def test_set_attr_instance_in_memory_v2():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     database.read()
     instance = database.instances()[0]
@@ -417,7 +417,7 @@ def test_set_attr_instance_in_memory_v2():
 def test_set_item_instance():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     instance = database.instances()[0]
 
@@ -434,7 +434,7 @@ def test_set_item_instance():
 def test_set_item_instance_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     instance = database.instances()[0]
     instance.read()
@@ -452,7 +452,7 @@ def test_set_item_instance_in_memory():
 def test_set_item():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -478,7 +478,7 @@ def test_set_item():
 def test_set_item_in_memory():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     series = '1.3.6.1.4.1.9328.50.16.121915437221985680060436367746350988049'
     instance = '1.3.6.1.4.1.9328.50.16.243004851579310565813723110219735642931'
@@ -506,7 +506,7 @@ def test_set_item_in_memory():
 def test_create_records():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     patient = database.new_child()
     study = patient.new_child()
@@ -536,7 +536,7 @@ def test_create_records():
 def test_copy_remove_instance():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     
     #
     # move and copy an instance from one series to another
@@ -625,7 +625,7 @@ def test_copy_remove_instance():
 def test_copy_remove():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     # Copy a series of patient 1 to a new study of patient 0
     patients = database.patients()
@@ -663,7 +663,7 @@ def test_copy_remove():
 def test_inherit_attributes():
     
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     
     #
     # Copy RIDER series to new patient and study
@@ -704,7 +704,7 @@ def test_inherit_attributes():
 def test_merge():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     # first create two new patients
     # and copy series into them
@@ -723,7 +723,7 @@ def test_merge():
 
     # merge the two patients into a third
 
-    patient3 = record.merge([patient1, patient2])
+    patient3 = db.merge([patient1, patient2])
 
     assert len(patient3.studies()) == n_studies
     assert len(patient3.series()) == n_series
@@ -734,7 +734,7 @@ def test_merge():
 
     # now merge all studies of the new patient 
     # into a new study of the same patient.
-    new_study = record.merge(patient3.studies())
+    new_study = db.merge(patient3.studies())
     
     assert len(patient3.studies()) == n_studies + 1
     assert len(patient3.series()) == 2 * n_series
@@ -744,7 +744,7 @@ def test_merge():
     # now merge all series of the new patient into
     # a new series in a new study of the same patient
     study = patient3.new_study()
-    record.merge(patient3.series(), into=study.new_series())
+    db.merge(patient3.series(), into=study.new_series())
 
     assert len(patient3.studies()) == n_studies + 2
     assert len(patient3.series()) == 2 * n_series + 1
@@ -756,7 +756,7 @@ def test_merge():
 
 def test_merge_empty():
 
-    database = new_database()
+    database = db.database()
 
     james_bond = database.new_patient(PatientName='James Bond')
     james_bond_mri = james_bond.new_study(StudyDescription='MRI')
@@ -779,14 +779,14 @@ def test_merge_empty():
     assert len(database.series(SeriesDescription='T2w')) == 2
     assert len(database.series(SeriesDescription='T2w', PatientName='Scarface')) == 1
 
-    batman = record.merge([scarface, james_bond])
+    batman = db.merge([scarface, james_bond])
 
     assert len(batman.studies()) == 4
     assert len(batman.studies(StudyDescription='MRI')) == 2
     assert len(batman.studies(PatientName='James Bond')) == 0
     assert len(batman.studies(StudyDescription='MRI', PatientName='James Bond')) == 0
 
-    new_study = record.merge(batman.studies())
+    new_study = db.merge(batman.studies())
 
     assert len(batman.studies()) == 5
     assert len(new_study.series()) == 8
@@ -823,7 +823,7 @@ def test_merge_empty():
     tmp = create_tmp_database()
     database.save(tmp)
 
-    database = open_database(tmp)
+    database = db.database(tmp)
     assert set(database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
     assert set(database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
 
@@ -833,7 +833,7 @@ def test_merge_empty():
 def test_save_restore():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
 
     nr_patients = len(database.patients())
     nr_studies = len(database.studies())
@@ -862,7 +862,7 @@ def test_save_restore():
 
     # Close and open again, and check the state is the same
     database.close()
-    database = open_database(tmp)
+    database = db.database(tmp)
     assert len(database.patients()) == nr_patients + 1
     assert len(database.studies()) == nr_studies + 1
 
@@ -872,7 +872,7 @@ def test_save_restore():
 def test_read_write_dataset():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     instances = database.instances()
 
     instance = instances[0]
@@ -910,7 +910,7 @@ def test_read_write_dataset():
 def test_read_write_image():
 
     tmp = create_tmp_database(onefile)
-    database = open_database(tmp)
+    database = db.database(tmp)
     image = database.instances()[0]
     
     array = image.get_pixel_array()
@@ -949,7 +949,7 @@ def test_read_write_image():
 def test_read_write_series():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     all_series = database.series()
     series = all_series[0]
 
@@ -1005,7 +1005,7 @@ def test_instance_map_to():
     return # needs some work
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     images = database.instances()
     try:
         map = images[0].map_to(images[1])
@@ -1017,7 +1017,7 @@ def test_instance_map_to():
 def test_instance_map_mask_to():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     images = database.instances()
     try:
         map = images[0].map_mask_to(images[1])
@@ -1028,7 +1028,7 @@ def test_instance_map_mask_to():
 def test_series_map_mask_to():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     series = database.series()
     try:
         map = series[0].map_mask_to(series[1])
@@ -1038,7 +1038,7 @@ def test_series_map_mask_to():
 def test_set_colormap():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     images = database.instances()
     try:
         images[0].set_colormap('gray')
@@ -1048,7 +1048,7 @@ def test_set_colormap():
 def test_instance_export_as_csv():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     images = database.instances()
     try:
@@ -1059,7 +1059,7 @@ def test_instance_export_as_csv():
 def test_instance_export_as_png():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     images = database.instances()
     try:
@@ -1070,7 +1070,7 @@ def test_instance_export_as_png():
 def test_instance_export_as_nifti():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     images = database.instances()
     try:
@@ -1081,7 +1081,7 @@ def test_instance_export_as_nifti():
 def test_series_export_as_csv():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     series = database.series()
     try:
@@ -1092,7 +1092,7 @@ def test_series_export_as_csv():
 def test_series_export_as_png():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     series = database.series()
     try:
@@ -1103,7 +1103,7 @@ def test_series_export_as_png():
 def test_series_export_as_nifti():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     series = database.series()
     try:
@@ -1114,7 +1114,7 @@ def test_series_export_as_nifti():
 def test_series_export_as_npy():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
     series = database.series()
     try:
@@ -1126,7 +1126,7 @@ def test_series_export_as_npy():
 def test_subseries():
 
     tmp = create_tmp_database(rider)
-    database = open_database(tmp)
+    database = db.database(tmp)
     series = database.series()
     for i in series[0].instances():
         assert i.image_type == 'MAGNITUDE'

@@ -2,10 +2,10 @@
 # Produced by pydicom codify utility script
 import numpy as np
 
-from dbdicom.dataset import DbDataset
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.sequence import Sequence
 
+from dbdicom.dsdicom.dataset import DbDataset
 import dbdicom.utils.image as image
 
 class EnhancedMRImage(DbDataset):

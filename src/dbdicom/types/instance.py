@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import nibabel as nib
 
 from dbdicom.record import DbRecord
-from dbdicom.dataset_classes.create import new_dataset
-import dbdicom.dataset as dbdataset
+from dbdicom.dsdicom.create import new_dataset
+import dbdicom.dsdicom.dataset as dbdataset
 import dbdicom.utils.image as image
 
 

@@ -1,9 +1,10 @@
+
 from dbdicom.manager import Manager
-from dbdicom.methods.database import Database
-from dbdicom.methods.patient import Patient
-from dbdicom.methods.study import Study
-from dbdicom.methods.series import Series
-from dbdicom.methods.instance import Instance
+from dbdicom.types.database import Database
+from dbdicom.types.patient import Patient
+from dbdicom.types.study import Study
+from dbdicom.types.series import Series
+from dbdicom.types.instance import Instance
 
 
 def create(manager, uid='Database', type=None, **kwargs):
@@ -22,14 +23,11 @@ def create(manager, uid='Database', type=None, **kwargs):
         return Instance(create, manager, uid, **kwargs)
 
 
-def new_database(path=None, **kwargs):
-    if path is not None:
-        return open(path, **kwargs)
-    dbr = Manager()
-    return Database(create, dbr, **kwargs)
+def database(path=None, **kwargs):
 
-def open_database(path, **kwargs):
-
-    dbr = Manager(path, **kwargs)
-    dbr.open(path)
+    if path is None:
+        dbr = Manager()
+    else:
+        dbr = Manager(path, **kwargs)
+        dbr.open(path)
     return Database(create, dbr, **kwargs) 

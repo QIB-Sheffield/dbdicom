@@ -7,7 +7,7 @@ import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.sequence import Sequence
 
-from dbdicom.dataset import DbDataset
+from dbdicom.dsdicom.dataset import DbDataset
 import dbdicom.utils.image as image
 
 

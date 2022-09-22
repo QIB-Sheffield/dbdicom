@@ -1,11 +1,11 @@
 import pydicom
 
 from pydicom.dataset import Dataset
-from dbdicom.dataset_classes.xray_angiographic_image import XrayAngiographicImage
-from dbdicom.dataset_classes.ct_image import CTImage
-from dbdicom.dataset_classes.mr_image import MRImage
-from dbdicom.dataset_classes.enhanced_mr_image import EnhancedMRImage
-from dbdicom.dataset_classes.ultrasound_multiframe_image import UltrasoundMultiFrameImage
+from dbdicom.dsdicom.types.xray_angiographic_image import XrayAngiographicImage
+from dbdicom.dsdicom.types.ct_image import CTImage
+from dbdicom.dsdicom.types.mr_image import MRImage
+from dbdicom.dsdicom.types.enhanced_mr_image import EnhancedMRImage
+from dbdicom.dsdicom.types.ultrasound_multiframe_image import UltrasoundMultiFrameImage
 
 def SOPClass(SOPClassUID):
 
