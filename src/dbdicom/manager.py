@@ -1740,6 +1740,10 @@ class Manager():
             df.rename(index={file:new_key}, inplace=True)
         self.register = pd.concat([self.register, df])
 
+        # return the UIDs of the new instances
+        return df.SOPInstanceUID.values.tolist()
+
+
     def export_datasets(self, uids, database):
         
         files = self.filepaths(uids)

@@ -1153,6 +1153,47 @@ def test_subseries():
 
     remove_tmp_database(tmp)
 
+def test_export_as_dicom():
+
+    tmp = create_tmp_database(rider)
+    database = db.database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    try:
+        series[0].export_as_dicom(export)
+        database.export_as_dicom(export)
+    except:
+        assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
+
+def test_import_dicom():
+
+    tmp = create_tmp_database(rider)
+    database = db.database(tmp)
+    export = create_tmp_database(path=None, name='export')
+    series = database.series()
+    series[0].export_as_dicom(export)
+    dbexport = db.database(export)
+    try:
+        series[0].import_dicom(dbexport.files())
+        database.import_dicom(dbexport.files())
+    except:
+        assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
+
+def test_series():
+
+    path = create_tmp_database(path=None, name='export')
+    # array = np.random.normal(size=(10, 128, 192))
+    array = np.zeros((10, 128, 192))
+    series = db.series(array)
+    series.PatientName = 'Random noise'
+    series.StudyDate = '19112022'
+    series.AcquisitionTime = '120000'
+    series.save(path)
+
 
 if __name__ == "__main__":
 
@@ -1196,6 +1237,9 @@ if __name__ == "__main__":
     test_series_export_as_nifti()
     test_series_export_as_npy()
     test_subseries()
+    test_export_as_dicom()
+    test_import_dicom()
+    test_series()
 
 
     print('------------------------')

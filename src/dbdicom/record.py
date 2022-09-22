@@ -1,5 +1,6 @@
 
 import dbdicom.ds.dataset as dbdataset
+from dbdicom.manager import Manager
 
 
 class DbRecord():
@@ -36,6 +37,9 @@ class DbRecord():
     @property
     def dialog(self):
         return self.manager.dialog
+
+    def files(self):
+        return self.manager.filepaths(self.uid)
 
     def type(self):
         return self.manager.type(self.uid)
@@ -194,6 +198,60 @@ class DbRecord():
         return self.new(self.manager, uid, 'Patient')
     def database(self):
         return self.new(self.manager, 'Database')
+
+    def export_as_dicom(self, path): 
+        mgr = Manager(path)
+        mgr.open(path)
+        uids = self.manager.instances(self.uid)
+        self.manager.export_datasets(uids, mgr)
+
+    def export_as_csv(*args, **kwargs):
+        export_as_csv(*args, **kwargs)
+
+    def export_as_png(*args, **kwargs):
+        export_as_png(*args, **kwargs)
+
+    def export_as_nifti(*args, **kwargs):
+        export_as_nifti(*args, **kwargs)
+
+
+def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
+    """Export all images as csv files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the csv data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_csv( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']', 
+            columnHeaders = columnHeaders)
+
+def export_as_png(record, directory=None, filename=None):
+    """Export all images as png files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_png( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']')
+
+def export_as_nifti(record, directory=None, filename=None):
+    """Export all images as nifti files"""
+
+    if directory is None: 
+        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if filename is None:
+        filename = record.SeriesDescription
+    for i, instance in enumerate(record.instances()):
+        instance.export_as_nifti( 
+            directory = directory, 
+            filename = filename + ' [' + str(i) + ']')
+
 
 
 

@@ -8,12 +8,11 @@ class Database(DbRecord):
     def close(self):
         self.manager.close()
 
-    def import_datasets(self, files):
-        self.manager.import_datasets(files)
+    def scan(self):
+        self.manager.scan()
 
-    def export_datasets(self, records, database):
-        uids = [rec.uid for rec in records]
-        self.manager.export_datasets(uids, database.manager)
+    def import_dicom(self, files):
+        self.manager.import_datasets(files)
 
 
 

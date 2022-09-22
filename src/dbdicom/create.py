@@ -26,8 +26,20 @@ def create(manager, uid='Database', type=None, **kwargs):
 def database(path=None, **kwargs):
 
     if path is None:
-        dbr = Manager()
+        mgr = Manager()
     else:
-        dbr = Manager(path, **kwargs)
-        dbr.open(path)
-    return Database(create, dbr, **kwargs) 
+        mgr = Manager(path, **kwargs)
+        mgr.open(path)
+    return Database(create, mgr, **kwargs) 
+
+
+def series(array, pixels_first=False, path=None):
+
+    db = database(path)
+    patient = db.new_patient()
+    study = patient.new_study()
+    series = study.new_series()
+    series.set_pixel_array(array, pixels_first=pixels_first)
+    return series
+
+

@@ -3,6 +3,7 @@ import math
 import numpy as np
 from dbdicom.record import DbRecord, copy_to
 import dbdicom.ds.dataset as dbdataset
+from dbdicom.ds import MRImage
 
 
 class Series(DbRecord):
@@ -16,21 +17,19 @@ class Series(DbRecord):
     def map_mask_to(*args, **kwargs):
         map_mask_to(*args, **kwargs)
 
-    def export_as_csv(*args, **kwargs):
-        export_as_csv(*args, **kwargs)
-
-    def export_as_png(*args, **kwargs):
-        export_as_png(*args, **kwargs)
-
-    def export_as_nifti(*args, **kwargs):
-        export_as_nifti(*args, **kwargs)
-
     def export_as_npy(*args, **kwargs):
         export_as_npy(*args, **kwargs)
 
     def subseries(*args, **kwargs):
         return subseries(*args, **kwargs)
 
+    def import_dicom(*args, **kwargs):
+        import_dicom(*args, **kwargs)
+
+
+def import_dicom(series, files):
+    uids = series.manager.import_datasets(files)
+    series.manager.move_to(uids, series.uid)
 
 def subseries(record, **kwargs):
     """Extract subseries"""
@@ -49,42 +48,6 @@ def read_npy(record):
         array = np.load(f)
     return array
 
-def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
-    """Export all images as csv files"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the csv data')
-    if filename is None:
-        filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
-        instance.export_as_csv( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']', 
-            columnHeaders = columnHeaders)
-
-def export_as_png(record, directory=None, filename=None):
-    """Export all images as png files"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
-        instance.export_as_png( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
-
-def export_as_nifti(record, directory=None, filename=None):
-    """Export all images as nifti files"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
-        instance.export_as_nifti( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
 
 def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
     """Export array in numpy format"""
@@ -262,8 +225,15 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
+    # if no header data is provided, use template headers.
     if source is None:
-        source = instance_array(series)
+        n = np.prod(array.shape[:-2])
+        source = np.empty(n, dtype=object)
+        for i in range(n): 
+            source[i] = series.new_instance(MRImage())  
+        source = source.reshape(array.shape[:-2])
+        series.set_pixel_array(array, source)
+        #source = instance_array(series)
 
     # Return with error message if dataset and array do not match.
     nr_of_slices = np.prod(array.shape[:-2])
