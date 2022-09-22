@@ -10,8 +10,8 @@ import numpy as np
 from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
-import dbdicom.dsdicom.dataset as dbdataset
-from dbdicom.dsdicom.create import read_dataset, SOPClass, new_dataset
+import dbdicom.ds.dataset as dbdataset
+from dbdicom.ds.create import read_dataset, SOPClass, new_dataset
 
 
 class Manager(): 

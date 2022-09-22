@@ -2,7 +2,7 @@ import os
 import math
 import numpy as np
 from dbdicom.record import DbRecord, copy_to
-import dbdicom.dsdicom.dataset as dbdataset
+import dbdicom.ds.dataset as dbdataset
 
 
 class Series(DbRecord):

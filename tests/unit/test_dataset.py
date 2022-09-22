@@ -2,8 +2,8 @@ import os
 import shutil
 import pydicom
 
-from dbdicom.dsdicom import MRImage, EnhancedMRImage, read_dataset, new_dataset
-import dbdicom.dsdicom.dataset as dbdataset
+from dbdicom.ds import MRImage, EnhancedMRImage, read_dataset, new_dataset
+import dbdicom.ds.dataset as dbdataset
 import dbdicom.utils.files as filetools
 
 #

@@ -1,5 +1,5 @@
 
-import dbdicom.dsdicom.dataset as dbdataset
+import dbdicom.ds.dataset as dbdataset
 
 
 class DbRecord():
@@ -40,20 +40,6 @@ class DbRecord():
     def type(self):
         return self.manager.type(self.uid)
 
-    @property
-    def generation(self): # Obsolete
-        type = self.__class__.__name__
-        if type == 'Database':
-            return 0
-        elif type == 'Patient':
-            return 1
-        elif type == 'Study':
-            return 2
-        elif type == 'Series':
-            return 3
-        elif type == 'Instance':
-            return 4
-
     def series_data(self):
         attr = dbdataset.module_series()
         vals = self[attr]
@@ -84,15 +70,15 @@ class DbRecord():
             return self.new(self.manager, uid, 'Series')
 
     def children(self, **kwargs):
-        return children([self], **kwargs)
+        return children(self, **kwargs)
     def instances(self, **kwargs):
-        return instances([self], **kwargs)
+        return instances(self, **kwargs)
     def series(self, **kwargs):
-        return series([self], **kwargs)
+        return series(self, **kwargs)
     def studies(self, **kwargs):
-        return studies([self], **kwargs)
+        return studies(self, **kwargs)
     def patients(self, **kwargs):
-        return patients([self], **kwargs)
+        return patients(self, **kwargs)
 
     def siblings(self, **kwargs):
         uids = self.manager.siblings(self.uid, **kwargs)
@@ -172,17 +158,17 @@ class DbRecord():
         return self.copy_to(self.parent())
 
     def copy_to(self, target):
-        return copy_to([self], target)[0]
+        return copy_to(self, target)[0]
     
     def move_to(self, target):
-        move_to([self], target)
+        move_to(self, target)
         return self
 
     def set_values(self, attributes, values):
-        set_values([self], attributes, values)
+        set_values(self, attributes, values)
 
     def get_values(self, attributes):
-        return get_values([self], attributes)[0]
+        return get_values(self, attributes)
 
     def get_dataset(self):
         return self.manager.get_dataset(self.uid)
@@ -217,70 +203,91 @@ class DbRecord():
 
 def get_values(records, attributes):
 
+    if not isinstance(records, list):
+        mgr = records.manager
+        return mgr.get_values(records.uid, attributes)
     uids = [rec.uid for rec in records]
-    dbr = records[0].manager
-    return dbr.get_values(uids, attributes)
+    mgr = records[0].manager
+    return mgr.get_values(uids, attributes)
 
 def set_values(records, attributes, values):
 
+    if not isinstance(records, list):
+        records = [records]
     uids = [rec.uid for rec in records]
-    dbr = records[0].manager
-    dbr.set_values(uids, attributes, values)
+    mgr = records[0].manager
+    mgr.set_values(uids, attributes, values)
 
 def children(records, **kwargs):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.children(uids, **kwargs)
-    return [records[0].new(dbr, uid) for uid in uids]
+    uids = mgr.children(uids, **kwargs)
+    return [records[0].new(mgr, uid) for uid in uids]
 
 def instances(records, **kwargs):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.instances(uids, **kwargs)
-    return [records[0].new(dbr, uid, 'Instance') for uid in uids]
+    uids = mgr.instances(uids, **kwargs)
+    return [records[0].new(mgr, uid, 'Instance') for uid in uids]
 
 def series(records, **kwargs):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.series(uids, **kwargs)
-    return [records[0].new(dbr, uid, 'Series') for uid in uids]
+    uids = mgr.series(uids, **kwargs)
+    return [records[0].new(mgr, uid, 'Series') for uid in uids]
 
 def studies(records, **kwargs):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.studies(uids, **kwargs)
-    return [records[0].new(dbr, uid, 'Study') for uid in uids]
+    uids = mgr.studies(uids, **kwargs)
+    return [records[0].new(mgr, uid, 'Study') for uid in uids]
 
 def patients(records, **kwargs):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.patients(uids, **kwargs)
-    return [records[0].new(dbr, uid, 'Patient') for uid in uids]
+    uids = mgr.patients(uids, **kwargs)
+    return [records[0].new(mgr, uid, 'Patient') for uid in uids]
 
 def copy_to(records, target):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    uids = dbr.copy_to(uids, target.uid, **target.attributes)
+    uids = mgr.copy_to(uids, target.uid, **target.attributes)
     if isinstance(uids, list):
-        return [records[0].new(dbr, uid) for uid in uids]
+        return [records[0].new(mgr, uid) for uid in uids]
     else:
-        return [records[0].new(dbr, uids)]
+        return [records[0].new(mgr, uids)]
 
 def move_to(records, target):
 
-    dbr = records[0].manager
+    if not isinstance(records, list):
+        records = [records]
+    mgr = records[0].manager
     uids = [rec.uid for rec in records]
-    dbr.move_to(uids, target.uid, **target.attributes)
+    mgr.move_to(uids, target.uid, **target.attributes)
     return records
 
 def group(records, into=None):
 
+    if not isinstance(records, list):
+        records = [records]
     if into is None:
         into = records[0].new_pibling()
     copy_to(records, into)
@@ -288,4 +295,6 @@ def group(records, into=None):
 
 def merge(records, into=None):
 
+    if not isinstance(records, list):
+        records = [records]
     return group(children(records), into=into)

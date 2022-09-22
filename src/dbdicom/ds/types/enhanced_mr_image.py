@@ -5,7 +5,7 @@ import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.sequence import Sequence
 
-from dbdicom.dsdicom.dataset import DbDataset
+from dbdicom.ds.dataset import DbDataset
 import dbdicom.utils.image as image
 
 class EnhancedMRImage(DbDataset):

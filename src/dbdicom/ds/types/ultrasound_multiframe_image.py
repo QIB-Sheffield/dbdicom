@@ -6,7 +6,7 @@ import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.sequence import Sequence
 
-from dbdicom.dsdicom.dataset import DbDataset
+from dbdicom.ds.dataset import DbDataset
 
 class UltrasoundMultiFrameImage(DbDataset):
     def __init__(self, dataset=None, template=None):

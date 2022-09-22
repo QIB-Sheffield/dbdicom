@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import dbdicom as db
-from dbdicom.dsdicom import MRImage
+from dbdicom.ds import MRImage
 
 
 
@@ -1023,6 +1023,7 @@ def test_instance_map_mask_to():
         map = images[0].map_mask_to(images[1])
     except:
         assert False
+    remove_tmp_database(tmp)
 
 
 def test_series_map_mask_to():
@@ -1034,6 +1035,7 @@ def test_series_map_mask_to():
         map = series[0].map_mask_to(series[1])
     except:
         assert False
+    remove_tmp_database(tmp)
 
 def test_set_colormap():
 
@@ -1044,6 +1046,7 @@ def test_set_colormap():
         images[0].set_colormap('gray')
     except:
         assert False
+    remove_tmp_database(tmp)
 
 def test_instance_export_as_csv():
 
@@ -1055,6 +1058,8 @@ def test_instance_export_as_csv():
         images[0].export_as_csv(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_instance_export_as_png():
 
@@ -1066,6 +1071,8 @@ def test_instance_export_as_png():
         images[0].export_as_png(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_instance_export_as_nifti():
 
@@ -1077,6 +1084,8 @@ def test_instance_export_as_nifti():
         images[0].export_as_nifti(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_series_export_as_csv():
 
@@ -1088,6 +1097,8 @@ def test_series_export_as_csv():
         series[0].export_as_csv(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_series_export_as_png():
 
@@ -1099,6 +1110,8 @@ def test_series_export_as_png():
         series[0].export_as_png(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_series_export_as_nifti():
 
@@ -1110,6 +1123,8 @@ def test_series_export_as_nifti():
         series[0].export_as_nifti(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 def test_series_export_as_npy():
 
@@ -1121,6 +1136,8 @@ def test_series_export_as_npy():
         series[0].export_as_npy(export)
     except:
         assert False
+    remove_tmp_database(tmp)
+    remove_tmp_database(export)
 
 
 def test_subseries():
@@ -1133,6 +1150,8 @@ def test_subseries():
     magn = series[0].subseries(image_type='MAGNITUDE')
     for i in magn.instances():
         assert i.image_type == 'MAGNITUDE'
+
+    remove_tmp_database(tmp)
 
 
 if __name__ == "__main__":
