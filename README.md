@@ -216,7 +216,7 @@ And equivalently for `new_patient`, `new_study` and `new_instance`. New sibling 
 new_series = series.new_sibling()
 ```
 
-here `new_series` will be a series under the same study as `series`. Objects higher up the hiearchy can be created using `new_pibling` (i.e. sibling of the parent):
+here `new_series` will be a series under the same study as `series`. Objects higher up the hierarchy can be created using `new_pibling` (i.e. sibling of the parent):
 
 ```python
 new_study = series.new_pibling()
@@ -227,6 +227,16 @@ This is shorthand for:
 ```python
 new_study = series.parent().new_sibling()
 ```
+
+When new objects are created, they can be assigned properties up front, for instance:
+
+```python
+new_study = series.new_pibling(
+    StudyDescription='Parametric maps',
+    StudyDate = '12.12.22')
+```
+
+This will ensure that all data that appear under the new study will have these attributes. 
 
 
 ### Export and import
@@ -273,13 +283,13 @@ This exports an array with dimensions `(z,t,n,x,y)` sorted by slice location and
 An object's DICOM attributes can be read by using the DICOM keyword of the attribute:
 
 ```python
-dimensions = [instance.Rows, instance.Columns]
+nr_of_rows = instance.Rows
 ```
 
 All attributes can also be accessed at series, study, patient or folder level. In this case they will return a list of unique values. For instance to return a list with all distinct series descriptions in a study:
 
 ```python
-desc = database.study()[0].SeriesDescription
+desc = study.SeriesDescription
 ```
 
 DICOM attributes can also be accessed using the list notation, using either the keyword as a string or a (group, element) pair:
@@ -362,7 +372,7 @@ After this all changes are made in memory. To clear the data from memory and con
 series.clear()
 ```
 
-These operations can be called on patients, studies, series or instances. 
+These operations can be called on the entire database, on patients, studies, series or instances. 
 
 
 ### Save and restore
@@ -397,7 +407,7 @@ will save all changes made in the series (but not other objects in the database)
 
 ### Working with series
 
-A DICOM series typically represents image that are acquirted togther, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hiearchy. 
+A DICOM series typically represents images that are acquired together, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hierarchy. 
 
 To extract the images in a series as a numpy array, use `get_pixel_array`:
 
@@ -411,15 +421,17 @@ This will return an array with dimensions `(n,x,y)` where `n` enumerates the ima
 array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
 ```
 
-This returns an array with dimensions `(z,t,n,x,y)` where `z` corresponds to slice locations and `t` to flip angles. The 3d dimension `n` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way.
-
-If an application requires the pixels to be listed first, use the `pixels_first` keyword:
+This returns an array with dimensions `(z,t,n,x,y)` where `z` corresponds to slice locations and `t` to flip angles. The 3d dimension `n` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way. If an application requires the pixels to be listed first, use the `pixels_first` keyword:
 
 ```python
 array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'], pixels_first=True)
 ```
 
-In this case the array has dimensions `(x,y,z,t,n)`. 
+In this case the array has dimensions `(x,y,z,t,n)`. Replacing the images of a series with a given numpy array works the same way:
+
+```python
+series.set_pixel_array(array)
+```
 
 The `get_pixel_array()` also returns the header information for each slice in a second return value:
 
@@ -427,13 +439,13 @@ The `get_pixel_array()` also returns the header information for each slice in a 
 array, header = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
 ```
 
-The header is a numpy array of instances with the same dimensions as the array - save the pixel coordinates; in this case `(z,t,n)`. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice `z=0`:
+The header is a numpy array of instances with the same dimensions as the array - except for the pixel coordinates: in this case `(z,t,n)`. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice `z=0, n=0`:
 
 ```python
-FA = [hdr.FA for hdr in header[0,:,0]]
+FA = [hdr.FlipAngle for hdr in header[0,:,0]]
 ```
 
-The header array is also useful when a calculation is performed on the array and the results need to be saved in the DICOM database again. In this case `header` can be used to carry over the metadata for the images. 
+The header array is also useful when a calculation is performed on the array and the results need to be saved in the DICOM database again. In this case `header` can be used to carry over the metadata. 
 
 As an example, let's calculate a maximum intensity projection (MIP) of a 4D time series and write the result out in the same series:
 
@@ -443,7 +455,7 @@ mip = np.amax(array, axis=0)
 series.set_pixel_array(mip, header[0,:,:])
 ```
 
-In this case the header information of the MIP is taken from the first image of the time series.
+In this case the header information of the MIP is taken from the first image of the time series. Provding header information is not required - if the header argument is not specified then a template header is used.
 
 Another useful tool on series level is extracting a subseries. Let's say we have an MRI series with phase and magnitude data mixed, and we want to split it up into separate series:
 
@@ -453,7 +465,7 @@ phase = series.subseries(image_type='PHASE')
 magn = series.subseries(image_type='MAGNITUDE')
 ```
 
-This will create two new series in the same study. The `image_type` keyword is defined in dbdicom for MR images to simplify accces to phase or magnitude date, but the method also works for any standard DICOM keyword, or combinations thereof. For instance, to extract a subseries of all images with a flip angle of 20 and a TR of 5:
+This will create two new series in the same study. The `image_type` keyword is defined in dbdicom for MR images to simplify access to phase or magnitude data, but the method also works for any standard DICOM keyword, or combinations thereof. For instance, to extract a subseries of all images with a flip angle of 20 and a TR of 5:
 
 ```python
 sub = series.subseries(FlipAngle=20, RepetitionTime=5)
@@ -465,7 +477,7 @@ Another useful feature at series level is to overlay one series on another.
 overlay = series.map_to(target)
 ```
 
-If series is a binary mask, a similar function can eb used to overlay the mask on another series:
+If series is a binary mask (or can be interpreted as one), a similar function can be used to overlay the mask on another series:
 
 ```python
 overlay = series.map_mask_to(target)
@@ -548,19 +560,17 @@ When used in a script, this will ask the user to enter either "y" (for yes), "n"
 
 ## Why ***dbdicom***?
 
-'*DICOM?: The idea of using DICOM is still floating around. The reasons why not are simple: DICOM is too layered and rococo to meet the "reasonable" test described above. For example, after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*
+This statement echoes a common frustration for anyone who has ever had a closer to look at DICOM: 
 
-Robert W. Cox [2004](https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html) PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health.
+``*[...] after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*''. Robert W. Cox, PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health [link](https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html).
 
-This statement echoes a common frustration for anyone who has ever had a closer to look at DICOM. DICOM is scary. But it has also been the universally accepted standard for medical images for decades. Why is that? DICOM is extremely detailed and rigorous in the description of its terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your body your medical history. All of it. Every single one of your DICOM images in a clinical archive contains the key to access all of your medical details. This allows doctors to link your images to your blood tests, family history, previous diagnosis treatments, other imaging, and so on. And this is important to make the best possible informed decisions when it comes to your health. 
+DICOM is scary. But it has also been the universally accepted standard for medical images for decades. Why is that? DICOM is extremely detailed and rigorous in the description of its terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your body. All of it. Every single one of your DICOM images in a clinical archive contains the key to access all of your medical details. This allows doctors to link your images to your blood tests, family history, previous diagnosis treatments, other imaging, and so on. And this is important to make the best possible informed decisions when it comes to your health. 
 
-In medical imaging research this additional information is often seen as a nuisance and discarded prior to processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as pixel sizes or a transformation matrix, and all the other information is ignored. 
-
-Conversion into such a *lossy* data format may be sufficient for method development or basic scientific research, but when it comes to deploying these methods in clinical studies, all this additional information is just as important as in clinical practice. It ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. Sure, you can encode this in different ways, but if you wanted to do this properly, you would rediscover DICOM all over again.
+In medical imaging research this additional information is often seen as a nuisance and discarded prior to processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as pixel sizes or a transformation matrix, and all the other information is ignored. Conversion into such a *lossy* data format may be sufficient for method development or basic scientific research, but when it comes to deploying these methods in clinical studies, all this additional information is just as important as in clinical practice. It ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. 
 
 And so, if we accept that new image analysis methods ultimately will need to be tested clinically (and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. In practice this step often requires a major rewrite of image processing pipelines set up for basic research, creating a significant barrier to deployment of new methods in clinical trials. 
 
-Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. Quantification involves the application of complex signal models to multi-dimensional imaging data. These are acquired by varying contrast parameters such as (in MRI) echo times, b-values, gradient directions, inversion times, flip angle etc. Often many of these are varied at the same time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data need access to this information, and often also need to encode it alongside the images that are produced. When DICOM data have been converted to some lossy data format, this then requires ad-hoc solutions retaining part of the original DICOM information in unstructured free text fields or separate newly defined header files. 
+Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. Quantification involves the application of complex signal models to multi-dimensional imaging data. These are acquired by varying contrast parameters such as (in MRI) echo times, b-values, gradient directions, inversion times, flip angle etc. Often many of these are varied at the same time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data need access to this information. When DICOM data have been converted to some lossy data format, this then requires ad-hoc solutions retaining part of the original DICOM information in unstructured free text fields or separate newly defined header files. 
 
 All these problems can be solved, for current and any imaginable or unimaginable future applications, by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
 
