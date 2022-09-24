@@ -214,6 +214,9 @@ class DbRecord():
     def export_as_nifti(*args, **kwargs):
         export_as_nifti(*args, **kwargs)
 
+    def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
+        self.manager.register.sort_values(sortby, inplace=True)
+
 
 def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
     """Export all images as csv files"""

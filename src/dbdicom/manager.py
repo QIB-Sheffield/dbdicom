@@ -928,6 +928,7 @@ class Manager():
         self.write()
         self.register = None            
         self.path = None
+        return True
 
     def is_saved(self):
         """Check if the folder is saved.

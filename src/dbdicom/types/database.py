@@ -6,7 +6,7 @@ class Database(DbRecord):
         self.manager.open(path)
 
     def close(self):
-        self.manager.close()
+        return self.manager.close()
 
     def scan(self):
         self.manager.scan()
