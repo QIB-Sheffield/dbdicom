@@ -1,5 +1,6 @@
 import os
 import shutil
+import timeit
 import numpy as np
 
 from dbdicom.manager import Manager
@@ -1320,6 +1321,37 @@ def test_new_database():
 
     assert 6 == len(mgr.instances(p1v1))
 
+def test_tree():
+
+    tmp = create_tmp_database(rider)
+    mgr = Manager()
+    mgr.open(tmp)
+
+    start = timeit.default_timer()
+    tree = mgr.tree(depth=1)
+    tree = mgr.tree(depth=2)
+    tree = mgr.tree(depth=3)
+    stop = timeit.default_timer()
+
+    print(tree['uid'])
+    for patient in tree['patients']:
+        for study in patient['studies']:
+            for series in study['series']:
+                for ind in series['indices']:
+                    print('Patient: ', patient['uid'])
+                    print('Study: ', study['uid'])
+                    print('Series: ', series['uid'])
+                    print('Index: ', ind)
+
+    print(tree['patients'][0]['studies'][0]['series'][0]['indices'][0])
+
+    assert len(tree) == 2
+    assert stop-start <= 0.1
+
+    print('time to build tree:', stop-start)
+
+    remove_tmp_database(tmp)
+
 if __name__ == "__main__":
 
     test_init()
@@ -1371,6 +1403,7 @@ if __name__ == "__main__":
     test_import_datasets()
     test_export_datasets()
     test_new_database()
+    test_tree()
     
 
     print('--------------------------')

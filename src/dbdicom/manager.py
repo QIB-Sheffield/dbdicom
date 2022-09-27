@@ -191,6 +191,39 @@ class Manager():
         if type == 'SOPInstanceUID':
             return 'Instance'
 
+
+    def tree(self, depth=3):
+
+        df = self.register
+        if df is None:
+            raise ValueError('Cannot build tree - no database open')
+        df = df[df.removed == False]
+        df.sort_values(['PatientName','StudyDate','SeriesNumber','InstanceNumber'], inplace=True)
+        
+        database = {'uid': self.path}
+        database['patients'] = []
+        for uid_patient in df.PatientID.unique():
+            patient = {'uid': uid_patient}
+            database['patients'].append(patient)
+            if depth >= 1:
+                patient['studies'] = []
+                df_patient = df[df.PatientID == uid_patient]
+                for uid_study in df_patient.StudyInstanceUID.unique():
+                    study = {'uid': uid_study}
+                    patient['studies'].append(study)
+                    if depth >= 2:
+                        study['series'] = []
+                        df_study = df_patient[df_patient.StudyInstanceUID == uid_study]
+                        for uid_sery in df_study.SeriesInstanceUID.unique():
+                            series = {'uid': uid_sery}
+                            study['series'].append(series)
+                            if depth == 3:
+                                df_series = df_study[df_study.SeriesInstanceUID == uid_sery]
+                                #series['instances'] = df_series.SOPInstanceUID.tolist()
+                                series['indices'] = df_series.index.values.tolist()
+        return database
+
+
     def keys(self,
         uid = None, 
         patient = None,
@@ -800,40 +833,53 @@ class Manager():
         parent = self.parent(uid)
         return self.new_sibling(parent)
 
-    def label(self, uid):
+    def label(self, uid=None, key=None, type=None):
         """Return a label to describe a row as Patient, Study, Series or Instance"""
 
         if self.register is None:
             raise ValueError('Cant provide labels - no database open')
 
         if uid is None:
-            return ''
+            if key is None:
+                return ''
+    
         if uid == 'Database':
             return 'Database: ' + self.path
 
-        type = self.type(uid)
-        key = self.keys(uid)[0]
-        row = self.register.loc[key]
+        if type is None:
+            type = self.type(uid)
 
         if type == 'Patient':
+            if key is None:
+                key = self.keys(patient=uid)[0]
+            row = self.register.loc[key]
             name = row.PatientName
             id = row.PatientID
             label = str(name)
             label += ' [' + str(id) + ']'
             return type + " {}".format(label)
         if type == 'Study':
+            if key is None:
+                key = self.keys(study=uid)[0]
+            row = self.register.loc[key]
             descr = row.StudyDescription
             date = row.StudyDate
             label = str(descr)
             label += ' [' + str(date) + ']'
             return type + " {}".format(label)
         if type == 'Series':
+            if key is None:
+                key = self.keys(series=uid)[0]
+            row = self.register.loc[key]
             descr = row.SeriesDescription
             nr = row.SeriesNumber
             label = str(nr).zfill(3)  
             label += ' [' + str(descr) + ']'
             return type + " {}".format(label)
         if type == 'Instance':
+            if key is None:
+                key = self.keys(instance=uid)[0]
+            row = self.register.loc[key]
             nr = row.InstanceNumber
             label = str(nr).zfill(6)
             return SOPClass(row.SOPClassUID) + " {}".format(label)
@@ -1586,6 +1632,7 @@ class Manager():
                 ds.set_values(attributes, values)
                 if not key in self.dataset:
                     ds.write(self.filepath(new_key), self.dialog)
+                
 
                 # Get new data for the dataframe
                 self.register.at[key,'removed'] = True

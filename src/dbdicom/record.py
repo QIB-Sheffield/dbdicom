@@ -25,7 +25,8 @@ class DbRecord():
         if attribute in ['uid', 'manager', 'attributes', 'new']:
             self.__dict__[attribute] = value
         else:
-            self.set_values(attribute, value)
+            #self.set_values(attribute, value)
+            self.set_values([attribute], [value])
         
     def __setitem__(self, attributes, values):
         self.set_values(attributes, values)
@@ -136,6 +137,13 @@ class DbRecord():
             return self.new(self.manager, uid, 'Study')
         if type == 'Instance':
             return self.new(self.manager, uid, 'Series')
+
+    def record(self, type, uid):
+        return self.new(self.manager, uid, type)
+
+    def register(self):
+        keys = self.manager.keys(self.uid)
+        return self.manager.register.loc[keys,:]
     
     def label(self):
         return self.manager.label(self.uid)
@@ -216,6 +224,13 @@ class DbRecord():
 
     def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
         self.manager.register.sort_values(sortby, inplace=True)
+
+    def read_dataframe(self, tags):
+        return dbdataset.read_dataframe(self.files(), tags, self.status, path=self.manager.path)
+
+    # def tree(*args, **kwargs):
+    #     return tree(*args, **kwargs)
+
 
 
 def export_as_csv(record, directory=None, filename=None, columnHeaders=None):

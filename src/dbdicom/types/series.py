@@ -318,14 +318,15 @@ def instance_array(record, sortby=None, status=True):
         return array
     else:
         if set(sortby) <= set(record.manager.register):
-            df = record.manager.register.loc[dataframe(record).index, sortby]
+            df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
+            # df = record.manager.register.loc[record.register().index, sortby]
         else:
             ds = record.get_dataset()
             df = dbdataset.get_dataframe(ds, sortby)
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
-def dataframe(record):
+def dataframe(record): # OBSOLETE replace by record.register()
 
     keys = record.manager.keys(record.uid)
     return record.manager.register.loc[keys, :]

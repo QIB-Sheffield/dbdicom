@@ -1,6 +1,8 @@
 import numpy as np
 from PyQt5 import QtGui
 
+# https://discovery.ucl.ac.uk/id/eprint/10146893/1/geometry_medim.pdf
+
 def affine_matrix(
     image_orientation, 
     image_position, 

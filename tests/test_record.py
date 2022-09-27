@@ -1,5 +1,6 @@
 import os
 import shutil
+import timeit
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -9,6 +10,7 @@ from dbdicom.ds import MRImage
 
 
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+ct = os.path.join(datapath, '2_skull_ct')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
@@ -32,6 +34,13 @@ def remove_tmp_database(tmp):
 
 
 # Test functions
+
+def test_read():
+
+    tmp = create_tmp_database(ct)
+    database = db.database(tmp)
+    database.print()
+    remove_tmp_database(tmp)
 
 def test_database():
 
@@ -1194,9 +1203,24 @@ def test_series():
     series.AcquisitionTime = '120000'
     series.save(path)
 
+def test_custom_attributes():
+
+    tmp = create_tmp_database(rider)
+    database = db.database(tmp)
+    series = database.series()
+    for i in series[0].instances():
+        assert i.image_type == 'MAGNITUDE'
+    for i in series[0].instances():
+        i.image_type = 'PHASE'
+    for i in series[0].instances():
+        assert i.image_type == 'PHASE'
+
+    remove_tmp_database(tmp)
+
 
 if __name__ == "__main__":
 
+    test_read()
     test_database()
     test_children()
     test_read_dicom_data_elements()
@@ -1240,6 +1264,7 @@ if __name__ == "__main__":
     test_export_as_dicom()
     test_import_dicom()
     test_series()
+    test_custom_attributes()
 
 
     print('------------------------')

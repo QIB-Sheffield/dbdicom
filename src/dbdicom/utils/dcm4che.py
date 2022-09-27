@@ -50,7 +50,8 @@ def split_multiframe(filepath):
 
     for i, file in enumerate(new_files):
         ds = pydicom.dcmread(file, force=True)
-        ds.SliceLocation = ds[0x2001,0x100a].value
+        if (0x2001,0x100a) in ds:
+            ds.SliceLocation = ds[0x2001,0x100a].value
         ds.save_as(output_files[i])
         os.remove(file)
 

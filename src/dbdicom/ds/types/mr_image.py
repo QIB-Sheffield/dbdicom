@@ -31,11 +31,17 @@ class MRImage(DbDataset):
     def set_pixel_array(self, array):
         set_pixel_array(self, array)
 
-    def image_type(self):
-        return image_type(self)
+    def get_attribute_image_type(self):
+        return get_attribute_image_type(self)
 
-    def signal_type(self):
-        return signal_type(self)
+    def set_attribute_image_type(self, value):
+        set_attribute_image_type(self, value)
+
+    def get_attribute_signal_type(self):
+        return get_attribute_signal_type(self)
+
+    def set_attribute_signal_type(self, value):
+        set_attribute_signal_type(self, value)
 
 
 
@@ -212,7 +218,7 @@ def set_pixel_array(ds, array):
     ds.PixelData = array.tobytes()
 
 
-def image_type(ds):
+def get_attribute_image_type(ds):
     """Determine if an image is Magnitude, Phase, Real or Imaginary image or None"""
 
     if (0x0043, 0x102f) in ds:
@@ -247,7 +253,11 @@ def image_type(ds):
     return 'UNKNOWN'
 
 
-def signal_type(ds):
+def set_attribute_image_type(ds, value):
+    ds.ImageType = value
+
+
+def get_attribute_signal_type(ds):
     """Determine if an image is Water, Fat, In-Phase, Out-phase image or None"""
 
     if hasattr(ds, 'ImageType'):
@@ -260,5 +270,8 @@ def signal_type(ds):
             return 'IN_PHASE'
         elif set(['OP', 'OUT_PHASE']).intersection(type):
             return 'OP_PHASE'
-    
     return 'UNKNOWN'
+
+
+def set_attribute_signal_type(ds, value):
+    ds.ImageType = value
