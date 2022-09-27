@@ -246,10 +246,11 @@ def test_create_dataset():
 
 def test_get_colormap():
     
-    tmp = create_tmp_database(rider)
+    tmp = create_tmp_database(onefile)
     files = filetools.all_files(tmp)
     ds = read_dataset(files[0])
-    print(ds.get_lut())
+    assert None == ds.get_attribute_lut()
+    assert 'gray' == ds.get_attribute_colormap()
 
 if __name__ == "__main__":
 
@@ -264,7 +265,7 @@ if __name__ == "__main__":
     test_EnhancedMRImage()
     test_read_dataset()
     test_create_dataset()
-    # test_get_colormap()
+    test_get_colormap()
     
     print('-------------------------')
     print('dataset passed all tests!')

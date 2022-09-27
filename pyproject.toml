@@ -4,13 +4,14 @@
 [project]
 name = "dbdicom"
 version = "0.0.10"
-dependencies = [
-    "PyQt5", 
+dependencies = [ 
     "matplotlib",
     "nibabel",
     "numpy",
     "pandas",
     "pydicom", 
+    "GDCM",
+    "pylibjpeg-libjpeg",
 ]
 
 # optional information

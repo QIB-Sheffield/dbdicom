@@ -348,6 +348,28 @@ When setting values in a series, study or patient, all the instances in the obje
 series.Rows = 128
 ```
 
+### Custom attributes
+
+Apart from the predefined public and private DICOM keywords, `dbdicom` also provides a number of custom attributes for more convenient access to higher level properties. In order to distinguish these from existing DICOM attributes which are defined in `CamelCase`, the custom attributes follow the `lower_case` notation. 
+
+For instance, to set one of the standard [matplotlib color maps](https://matplotlib.org/stable/tutorials/colors/colormaps.html), you can do:
+
+```python
+image.colormap = 'YlGnBu'
+series.colormap = 'Oranges'
+```
+
+and so on.. The colormaps can be retrieved the same way:
+
+```python
+cm_image = image.colormap
+cm_series = series.colormap
+```
+
+As for standard DICOM attributes this returns a list if unique values for the series. 
+
+Custom attributes can easily be added to any DICOM dataset type and the number of available attributes is set to grow as the need arises.
+
 
 ### Read and write
 

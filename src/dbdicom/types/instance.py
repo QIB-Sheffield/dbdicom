@@ -41,17 +41,6 @@ class Instance(DbRecord):
     def export_as_nifti(*args, **kwargs):
         export_as_nifti(*args, **kwargs)
 
-    def get_colormap(*args, **kwargs):
-        get_colormap(*args, **kwargs)
-
-    def set_colormap(*args, **kwargs):
-        set_colormap(*args, **kwargs)
-
-    def qimage(self):
-
-        array = self.get_pixel_array()
-        return image.QImage(array, width=self.WindowWidth, center=self.WindowCenter)
-
 
 def map_to(source, target):
     """Map non-zero image pixels onto a target image.
@@ -163,10 +152,9 @@ def export_as_png(record, directory=None, filename=None):
     if directory is None: 
         directory = record.dialog.directory(message='Please select a folder for the png data')
 
-    ds = record.get_dataset()
-    colourTable, _ = ds.get_colormap()
-    pixelArray = np.transpose(ds.get_pixel_array())
-    centre, width = ds.get_window()
+    colourTable = record.colormap
+    pixelArray = np.transpose(record.get_pixel_array())
+    centre, width = record.window
     minValue = centre - width/2
     maxValue = centre + width/2
     cmap = plt.get_cmap(colourTable)
@@ -195,20 +183,4 @@ def export_as_nifti(record, directory=None, filename=None):
     niftiObj.header.extensions.append(dicomHeader)
     nib.save(niftiObj, directory + '/' + filename + '.nii')
 
-def get_colormap(record):
-    """Returns the colormap if there is any."""
 
-    ds = record.get_dataset()
-    return dbdataset.get_colormap(ds)
-
-def set_colormap(record, *args, **kwargs):
-    """Set the colour table of the image."""
-
-    ds = record.get_dataset()
-    ds.set_colormap(*args, **kwargs)
-    record.set_dataset(ds)  
-
-def get_lut(record):
-
-    ds = record.read()
-    return dbdataset.get_lut(ds)

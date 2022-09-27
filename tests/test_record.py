@@ -1051,10 +1051,8 @@ def test_set_colormap():
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     images = database.instances()
-    try:
-        images[0].set_colormap('gray')
-    except:
-        assert False
+    images[0].colormap = 'gray'
+    assert images[0].colormap == 'gray'
     remove_tmp_database(tmp)
 
 def test_instance_export_as_csv():
@@ -1210,6 +1208,8 @@ def test_custom_attributes():
     series = database.series()
     for i in series[0].instances():
         assert i.image_type == 'MAGNITUDE'
+        assert i.colormap == 'gray'
+        assert i.lut is None
     for i in series[0].instances():
         i.image_type = 'PHASE'
     for i in series[0].instances():

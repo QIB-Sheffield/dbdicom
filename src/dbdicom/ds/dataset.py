@@ -39,13 +39,16 @@ class DbDataset(Dataset):
     def set_values(self, tags, values):
         return set_values(self, tags, values)
 
-    def get_lut(self):
+    def get_attribute_lut(self): # use _get_attribute to encode these
         return get_lut(self)
 
-    def get_colormap(self):
+    def set_attribute_lut(*args, **kwargs): # use _set_attribute to encode these
+        set_lut(*args, **kwargs)
+
+    def get_attribute_colormap(self):
         return get_colormap(self)
 
-    def set_colormap(*args, **kwargs):
+    def set_attribute_colormap(*args, **kwargs):
         set_colormap(*args, **kwargs)
 
     # Should be just pixel_array to fit in with logic 
@@ -60,7 +63,7 @@ class DbDataset(Dataset):
     def affine_matrix(self):
         return affine_matrix(self)
 
-    def get_window(self):
+    def get_attribute_window(self):
         return get_window(self)
 
 
@@ -154,7 +157,6 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
             status.progress(i+1, len(files), message)
     return pd.DataFrame(array, index = dicom_files, columns = tags)
 
- 
 
 def set_values(ds, tags, values):
     """Sets DICOM tags in the pydicom dataset in memory"""
@@ -296,6 +298,7 @@ def affine_matrix(ds):
 
 def get_colormap(ds):
     """Returns the colormap if there is any."""
+    # This is not correctly encoded - needs revision
 
     colormap = 'gray' # default
     if hasattr(ds, 'ContentLabel'):
@@ -309,7 +312,9 @@ def get_colormap(ds):
     return colormap
 
 
-def set_colormap(ds, colormap=None, levels=None):
+def set_colormap(ds, colormap):
+    # This is not correctly encoded - needs revision
+    # Content label is Code String - can't be just anything
 
     #and (colormap != 'gray') removed from If statement below, so as to save gray colour tables
     if (colormap == 'gray'):
@@ -327,7 +332,7 @@ def set_colormap(ds, colormap=None, levels=None):
         ds.ContentLabel = colormap
         stringType = 'US' # ('SS' if minValue < 0 else 'US')
         ds.PixelRepresentation = 0 # (1 if minValue < 0 else 0)
-        pixelArray = ds.pixel_array
+        pixelArray = ds.get_pixel_array()
         minValue = int(np.amin(pixelArray))
         maxValue = int(np.amax(pixelArray))
         numberOfValues = int(maxValue - minValue)
@@ -343,9 +348,35 @@ def set_colormap(ds, colormap=None, levels=None):
             2, totalBytes) - 1) * value) for value in colorsList[:, 1].flatten()]).astype('uint'+str(totalBytes)))
         ds.BluePaletteColorLookupTableData = bytes(np.array([int((np.power(
             2, totalBytes) - 1) * value) for value in colorsList[:, 2].flatten()]).astype('uint'+str(totalBytes)))
-    if levels is not None:
-        ds.WindowCenter = levels[0]
-        ds.WindowWidth = levels[1]
+
+
+def get_lut(ds):
+    # Needs testing
+
+    if len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR': 
+        redColour = list(ds.RedPaletteColorLookupTableData)
+        greenColour = list(ds.GreenPaletteColorLookupTableData)
+        blueColour = list(ds.BluePaletteColorLookupTableData)
+        redLut = list(struct.unpack('<' + ('H' * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
+        greenLut = list(struct.unpack('<' + ('H' * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
+        blueLut = list(struct.unpack('<' + ('H' * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
+        colourTable = np.transpose([redLut, greenLut, blueLut])
+        normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
+        # Fast ColourTable loading
+        colourTable = np.around(colourTable/normaliseFactor, decimals = 2)
+        indexes = np.unique(colourTable, axis=0, return_index=True)[1]
+        lut = [colourTable[index].tolist() for index in sorted(indexes)]
+        # Full / Complete Colourmap - takes 20 seconds to load each image
+        # lut = (colours/normaliseFactor).tolist()   
+    else:
+        lut = None
+    
+    return lut
+
+
+def set_lut(ds, lut):
+    # Still needs to be implemented
+    pass
 
 
 def get_pixel_array(ds):
@@ -385,28 +416,7 @@ def set_pixel_array(ds, array, value_range=None):
 
 
 
-def get_lut(ds):
-    # Needs testing
-
-    if len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR': 
-        redColour = list(ds.RedPaletteColorLookupTableData)
-        greenColour = list(ds.GreenPaletteColorLookupTableData)
-        blueColour = list(ds.BluePaletteColorLookupTableData)
-        redLut = list(struct.unpack('<' + ('H' * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
-        greenLut = list(struct.unpack('<' + ('H' * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
-        blueLut = list(struct.unpack('<' + ('H' * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
-        colours = np.transpose([redLut, greenLut, blueLut])
-        normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
-        # Fast ColourTable loading
-        colourTable = np.around(colours/normaliseFactor, decimals = 2)
-        indexes = np.unique(colourTable, axis=0, return_index=True)[1]
-        lut = [colourTable[index].tolist() for index in sorted(indexes)]
-        # Full / Complete Colourmap - takes 20 seconds to load each image
-        # lut = (colours/normaliseFactor).tolist()   
-    else:
-        lut = None
-    
-    return lut 
+ 
 
 
 def module_patient():
