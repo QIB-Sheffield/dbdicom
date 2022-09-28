@@ -2,72 +2,78 @@
 
 `dbdicom` is a Python interface for reading and writing DICOM databases. 
 
-***CAUTION: dbdicom is developed in public but is work in progress and backwards compatibility is not guaranteed. It is very likely there WILL be breaking changes in future versions***
+***CAUTION: dbdicom is work in progress!!!***
 
 ## Installation
 Run `pip install dbdicom`.
 
+
 # Browsing a DICOM folder
 
-### Reading and opening a DICOM folder
+### Reading and opening a DICOM database
 
-Open a DICOM database in a given folder, 
-read it and print a summary of the content:
+Open a DICOM database in a given folder, and print a summary of the content:
 
 ```python
-from dbdicom import Folder
+import dbdicom as db
 
-folder = Folder('C:\\Users\\MyName\\MyData\\DICOMtestData')
-folder.open()
-folder.print()
+database = db.database('C:\\Users\\MyName\\MyData\\DICOMtestData')
+database.print()
 ```
 
-The first time the folder is read this will be relatively slow. 
-This is because each individual DICOM file in the folder 
-is read and summarised in a table (csv file). 
-If the folder is reopened again later, 
-the table can be read directly and opening will be much faster. 
+The first time the database is opened this will be relatively slow because all files need to be read and summarized. If the folder is reopened again later, the table can be read directly and opening will be much faster. 
 
-Use `scan()` to force a rereading of the folder. This may 
-be of use when files have become corrupted, 
-or have been removed/modified by external applications:
+Use `scan()` to force a rereading of the database. This may be of use when files have become corrupted, or have been removed/modified by external applications:
 
 ```python
-folder.scan()
+database.scan()
 ```
 
 After making changes to the DICOM data, the folder should be closed 
 properly so any changes can be either saved or rolled back as needed:
 
 ```python
-folder.close()
+database.close()
 ```
 
-If unsaved changes exist, `close()` will prompt the user to either save or restore to 
-the last saved state.
+If unsaved changes exist, `close()` will prompt the user to either save or restore to the last saved state.
 
 ### Retrieving objects from the folder
 
 A DICOM database has a hierarchical structure. 
-The files are *instances* of a specific DICOM class and correspond to real-world 
-objects such as images or regions-of-interest. Instances are grouped into a *series*, 
-and multiple series are grouped into *studies*. Typically a study consist of all the data 
-derived in a single examination of a subject. Studies are grouped into *patients*, 
-which correspond to the subjects the study is performed upon. 
-A *patient* can be an actual patient, but can also be a healthy volunteer, an animal,
-a physical reference object, or a digital reference object.
+
+```
+database/
+|
+|---- Patient 1/
+|    |
+|    |---- Study 1/
+|    |     |
+|    |     |---- Series 1/
+|    |     |    |----Instance 1
+|    |     |    |----Instance 2
+|    |     |    |----Instance 3
+|    |     |    
+|    |     |----Series 2/
+|    |    
+|    |---- Study 2/
+|
+|---- Patient 2/  
+| 
+```
+
+A *patient* can be an actual patient but can also be a healthy volunteer, an animal, a physical reference object, or a digital reference object. Typically a *study* consist of all the data derived in a single examination of a subject. A *series* usually represents and individual examination in a study, such an MR sequence. The files contain the data and are *instances* of real-world objects such as images or regions-of-interest. 
 
 To return a list of all patients, studies, series or instances in the folder: 
 
 ```python
-instances = folder.instances()
-series = folder.series()
-studies = folder.studies()
-patients = folder.patients()
+instances = database.instances()
+series = database.series()
+studies = database.studies()
+patients = database.patients()
 ```
 
-The same functions can be used to retrieve the children of 
-a certain parent object. For instance, 
+The same functions can be used to retrieve the children of a certain parent object. For instance, 
 to get all studies of a patient:
 
 ```python
@@ -77,7 +83,7 @@ studies = patient.studies()
 Or all series under the first of those studies:
 
 ```python
-series = studies[0].series()
+series = studies()[0].series()
 ```
 
 Or all instances of a study:
@@ -86,19 +92,11 @@ Or all instances of a study:
 instances = study.instances()
 ```
 
-And so on for all other levels in the hierarchy. 
-Individual objects can also be access directly using 
-indices. For instance to retrieve the first instance in the folder:
-
-```python
-instance = folder.instances(0)
-```
-
-These can be chained together for convencience, 
+And so on for all other levels in the hierarchy. These can be chained together for convencience, 
 e.g. to get all instances instance of series 5 in study 1 of patient 2:
 
 ```python
-instance = folder.patients(2).studies(1).series(5).instances()
+instance = database.patients()[2].studies()[1].series()[5].instances()
 ```
 
 These functions also work to find objects higher up in the hierarchy. 
@@ -108,58 +106,47 @@ For instance, to find the patient of a given series:
 patient = series.patients()
 ```
 
-In this case the function will return a single object rather than a list.
+In this case the function will return a single item.
 
 ### Finding DICOM objects in the folder
 
-Each DICOM file has a number of attributes describing the properties
-of the object. Examples are PatientName, StudyDate, etc. 
-A full list of attributes for specific objects can be found here: 
-https://dicom.innolitics.com/. 
+Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here]: (https://dicom.innolitics.com/). 
 
-Each known attribute is identified most easily by a keyword, 
-which has a capitalised notation. Objects in the folder 
-can be can also be listed by searching on any DICOM tag:
+Each known attribute is identified most easily by a keyword, which has a capitalised notation. Objects in the folder can be can also be listed by searching on any DICOM tag:
 
 ```python
-instances = folder.instances(PatientName = 'John Dory')
+instances = database.instances(PatientName = 'John Dory')
 ```
 
-This will only return the instances for patient John Dory. 
-Objects can also be searched on multiple DICOM tags:
+This will only return the instances for patient John Dory. This also works with multiple DICOM tags:
 
 ```python
-series = folder.instances(
+series = database.instances(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
 ```
 
-In this case objects are only returned if both conditions are fullfilled. 
-Any arbitrary number of conditions can be entered, and 
-higher order objects can be found in the same way:
+In this case objects are only returned if both conditions are fullfilled. Any arbitrary number of conditions can be entered, and higher order objects can be found in the same way:
 
 ```python
-studies = folder.studies(
+studies = database.studies(
     PatientName = 'John Dory', 
     ReferringPhysicianName = 'Dr. No', 
 )
 ```
 
-As an alternative to calling explicit object types, 
-you can call `children()` and `parent` to move through the hierarchy:
+As an alternative to calling explicit object types, you can call `children()` and `parent` to move through the hierarchy:
 
 ```python
 studies = patient.children()
 patient = studies[0].parent
 ```
 
-The same convenience functions are available, 
-such as using an index or searching by keywords:
+The same convenience functions are available, such as searching by keywords:
 
 ```python
 studies = patient.children(ReferringPhysicianName = 'Dr. No')
-study = patient.children(0)
 ```
 
 ### Moving and removing objects
@@ -173,45 +160,29 @@ instance.remove()
 
 remove() can  be called on Patient, Study, Series or Instances.
 
-Moving an object to another parent can be done with `move_to()`
-For instance to move a study from one patient to another:
+Moving an object to another parent can be done with `move_to()`. For instance to move a study from one patient to another:
 
 ```python
-study = folder.patients(0).studies(0)
-new_parent = folder.patients(1)
+study = folder.patients()[0].studies()[0]
+new_parent = folder.patients()[1]
 study.move_to(new_parent)
 ```
-
-Objects can also be moved to objects higher up in the hierarchy.
-Any missing parents will be automatically created. For instance:
-
-```python
-instance = folder.instances(0)
-study = folder.studies(1)
-instance.move_to(study)
-```
-
-This will move *instance* from its current parent series to *study*. 
-Since no new parent series under *study* has been provided, 
-a new series will be created under *study* and used as a parent for *instance*.
 
 
 ### Copying and creating objects
 
-A DICOM object can be copied by calling `copy()`: 
+Any object can be copied by calling `copy()`: 
 
 ```python
-study = folder.patients(0).studies(0)
+study = folder.patients()[0].studies()[0]
 new_study = study.copy()
 ```
 
-This will create a copy of the object in the same parent object, 
-i.e. `study.copy()` in the example above has created a new study in patient 0.
-This can be used for instance to copy-paste a study from one patient to another: 
+This will create a copy of the object in the same parent object, i.e. `study.copy()` in the example above has created a new study in patient 0. This can be used for instance to copy-paste a study from one patient to another: 
 
 ```python
-study = folder.patients(0).studies(0)
-new_parent = folder.patients(1)
+study = folder.patients()[0].studies()[0]
+new_parent = folder.patients()[1]
 study.copy().move_to(new_parent)
 ```
 
@@ -221,63 +192,107 @@ This is equivalent to using `copy_to()`:
 study.copy_to(new_parent)   
 ```
 
+Instead of copying, and object can also be moved:
+
+```python
+study.move_to(new_parent)   
+```
+
 To create a new object, call `new_child()` on the parent:
 
 ```python
 series = study.new_child()
 ```
 
-*series* will now be a new (empty) series under *study*.
+*series* will now be a new (empty) series under *study*. This can also be written more explicitly for clarity:
+
+```python
+series = study.new_series()
+```
+
+And equivalently for `new_patient`, `new_study` and `new_instance`. New sibling objects under the same parent can be created by:
+
+```python
+new_series = series.new_sibling()
+```
+
+here `new_series` will be a series under the same study as `series`. Objects higher up the hierarchy can be created using `new_pibling` (i.e. sibling of the parent):
+
+```python
+new_study = series.new_pibling()
+```
+
+This is shorthand for:
+
+```python
+new_study = series.parent().new_sibling()
+```
+
+When new objects are created, they can be assigned properties up front, for instance:
+
+```python
+new_study = series.new_pibling(
+    StudyDescription='Parametric maps',
+    StudyDate = '12.12.22')
+```
+
+This will ensure that all data that appear under the new study will have these attributes. 
 
 
 ### Export and import
 
-To export an object out of the folder to an external folder, 
-call `export()` on any dicom object with the export path as argument:
+To import DICOM files from an external folder, call `import_dicom()` on a database with a list of files:
 
 ```python
-series.export(path)
+database.import_dicom(files)
 ```
 
-If no path is given then the user will be asked to select one.
-
-*TO DO* Equivalently to import DICOM files from an external folder,
-call `import()` with a list of files:
+To export dicom datasets out of the folder to an external folder, call `export_as_dicom()` on any dicom object with the export path as argument:
 
 ```python
-folder.import(files)
+series.export_as_dicom(path)
 ```
 
+Exporting in other formats is similar:
+
+```python
+study.export_as_csv(path)
+study.export_as_nifti(path)
+study.export_as_png(path)
+```
+
+The pixel data from a series can also be exported in numpy format:
+
+```python
+series.export_as_npy(path)
+```
+
+This exports the array in dimensions `(n,x,y)` where `n` enumerates the images and `x,y` are the pixels. To export in different dimensions use the `sortby` keyword with one or more DICOM tags:
+
+```python
+series.export_as_npy(path, sortby=['SliceLocation','AcquisitionTime'])
+```
+
+This exports an array with dimensions `(z,t,n,x,y)` sorted by slice location and acquisition time.
 
 
 # Creating and modifying DICOM files
-
-
 
 ### Reading DICOM attributes
 
 An object's DICOM attributes can be read by using the DICOM keyword of the attribute:
 
 ```python
-dimensions = [instance.Rows, instance.Columns]
+nr_of_rows = instance.Rows
 ```
 
-All attributes can also be accessed at series, study, patient or folder level. 
-In this case they will return a single value taken from their first instance.
+All attributes can also be accessed at series, study, patient or folder level. In this case they will return a list of unique values. For instance to return a list with all distinct series descriptions in a study:
 
 ```python
-rows = folder.patient(0).series(0).Rows
+desc = study.SeriesDescription
 ```
 
-To print the Rows for all instances in the series, iterate over them:
-
-```python
-for instance in series.instances():
-    print(instance.Rows)
-```
-
-DICOM attributes can also be accessed using the list notation, 
-using either the keyword as a string or a (group, element) pair.
+DICOM attributes can also be accessed using the list notation, using either the keyword as a string or a (group, element) pair:
 
 ```python
 columns = instance['Columns']
@@ -291,17 +306,12 @@ dimensions = ['Rows', (0x0028, 0x0010)]
 dimensions = instance[dimensions] 
 ```
 
-This will return a list with two items. As shown in the example,
-the items in the list can be either KeyWord strings or (group, element) pairs. 
-This also works on higher-level objects:
+This will return a list with two items. As shown in the example, the items in the list can be either KeyWord strings or (group, element) pairs. This also works on higher-level objects:
 
 ```python
 dimensions = ['Rows', (0x0028, 0x0010)]
 dimensions = patient[dimensions] 
 ```
-
-As for single KeyWord attributes this will return one list
-taken from the first instance of the patient.
 
 
 ### Editing attributes
@@ -332,63 +342,59 @@ shape = ['Rows', 'Columns']
 instance[shape] = [128, 192]
 ```
 
-When setting values in a series, study or patient, 
-all the instances in the object will be modified. 
-For instance, to set all the Rows in all instances of a series to 128:
+When setting values in a series, study or patient, all the instances in the object will be modified. For instance, to set all the Rows in all instances of a series to 128:
 
 ```python
 series.Rows = 128
 ```
 
-This is shorthand for:
+### Custom attributes
+
+Apart from the predefined public and private DICOM keywords, `dbdicom` also provides a number of custom attributes for more convenient access to higher level properties. In order to distinguish these from existing DICOM attributes which are defined in `CamelCase`, the custom attributes follow the `lower_case` notation. 
+
+For instance, to set one of the standard [matplotlib color maps](https://matplotlib.org/stable/tutorials/colors/colormaps.html), you can do:
 
 ```python
-for instance in series.instances():
-     instance.Rows = 128
+image.colormap = 'YlGnBu'
+series.colormap = 'Oranges'
 ```
 
+and so on.. The colormaps can be retrieved the same way:
+
+```python
+cm_image = image.colormap
+cm_series = series.colormap
+```
+
+As for standard DICOM attributes this returns a list if unique values for the series. 
+
+Custom attributes can easily be added to any DICOM dataset type and the number of available attributes is set to grow as the need arises.
 
 
 ### Read and write
 
-By default all changes to a DICOM object are made on disk. 
-For instance if a DICOM attribute is changed
+By default all changes to a database are made on disk. For instance if a DICOM attribute is changed
 
 ```python
 instance.Rows = 128
 ```
 
-The data are read from disk, the change is made, the data are
-written to disk again and memory is cleared. 
-Equally, if a series is copied to another study, all 
-its instances will be read, any necessary changes made,
-and then written to disk and cleared from memory. 
+The data are read from disk, the change is made, the data are written to disk again and memory is cleared. Equally, if a series is copied to another study, all its instances will be read, any necessary changes made, and then written to disk and cleared from memory. 
 
-For many applications reading and writing from disk is too slow. 
-For faster access at the cost of some memory usage, the data
-can be read into memory before performing any manipulations:
+For many applications reading and writing from disk is too slow. For faster access at the cost of some memory usage, the data can be read into memory before performing any manipulations:
 
 ```python
 series.read()
 ```
 
-After this all changes are made in memory *only*. 
-At any point the changes can be written out again 
-by calling `write()`:
+After this all changes are made in memory. To clear the data from memory and continue working from disk, use `clear()`:
 
-```python
-series.write()
-```
-
-This will still retain the data in memory for an further editing.
-In order to delete them from memory and free up the space, call `clear()`:
 
 ```python
 series.clear()
 ```
 
-After calling `clear()`, all subsequent changes are made to disk again.
-These operations can be called on patients, studies, series or instances. 
+These operations can be called on the entire database, on patients, studies, series or instances. 
 
 
 ### Save and restore
@@ -397,150 +403,163 @@ All changes made in a DICOM folder are reversible until they are saved.
 To save all changes, use `save()`:
 
 ```python
-folder.save()
+database.save()
 ```
 
-This will permanently burn all changes that are made on disk. 
-Changes that are only made in memory will *not* be saved in this way. 
-In order to save all changes including this that are made in memory, 
-make sure to call `write()` first. These commands can also be piped for convenience:
+This will permanently burn all changes that are made on disk. In order to reverse any changes made, use `restore()` to revert back to the last saved state:
 
 ```python
-folder.write().save()
+database.restore()
 ```
 
-In order to reverse any changes made, use `restore()` to revert back to the last saved state:
-
-```python
-folder.restore()
-```
-
-This will roll back all changes on disk to the last changed state. 
-As for `save()`, changes made in memory alone will not be reversed. 
-In order to restore all changes in memory as well, read the data again after restoring:
-
-```python
-folder.restore().read()
-```
-
-This will read the entire folder in meomory, which is not usually appropriate. 
-However, `save()` and `restore()` can also be called at the level of individual objects:
+This will roll back all changes on disk to the last changed state. `save()` and `restore()` can also be called at the level of individual objects:
 
 ```python
 series.restore()
 ```
 
-will reverse all changes made since the last save, but only for this series. 
-Equivalently:
+will reverse all changes made since the last save, but only for this series. Equivalently:
 
 ```python
 series.save()
 ```
 
-will save all changes made in the series permanently. 
+will save all changes made in the series (but not other objects in the database) permanently. 
 
 
-### DICOM Classes
+### Working with series
 
-Each DICOM file in a folder holds and instance of a DICOM class, which in turn 
-represents an object in the real world such as an MR image, or an image co-registration,
-an ECG, etc. The [innolitics DICOM browser](https://dicom.innolitics.com/) shows all possible DICOM Classes
-in an easily searchable manner. 
+A DICOM series typically represents images that are acquired together, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hierarchy. 
 
-In `dbdicom` such DICOM classes are represented by a separate python class. 
-When an instance or list of instances are generated, for instance through: 
+To extract the images in a series as a numpy array, use `get_pixel_array`:
 
 ```python
-instances = series.instances()
+array, _ = series.get_pixel_array()
 ```
 
-then each instance is automatically returned as an instance of the appropriate class. 
-As an example, if the first instance of the series represents an MR Image, 
-then `instances[0]` will be an instance of the class "MRImage", which on itself 
-inherits functionality from a more general "Image" class. 
-This means `instance[0]` automatically has access to functionality relevant for images, 
-such as:
+This will return an array with dimensions `(n,x,y)` where `n` enumerates the images in the series. The array can also be returned with other dimensions:
 
 ```python
-array = instances[0].array()
+array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
 ```
 
-this will return a 2D numpy array holding the pixel data, 
-and will automatically correct for particular MR image issues such 
-as the use of private rescale slopes and intercepts for Philips data. 
-
-Other relevant functionality is explained in the reference guide of the individual classes.
-At the moment the DICOM classes are very limited in scope, 
-but this will be extended over time as needs arise in ongoing projects.
-
-
-### Creating DICOM files from scratch
-
-
-*TO DO* DICOM data can be created from scratch by instantiating one of the 
-DICOM classes: 
+This returns an array with dimensions `(z,t,n,x,y)` where `z` corresponds to slice locations and `t` to flip angles. The 3d dimension `n` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way. If an application requires the pixels to be listed first, use the `pixels_first` keyword:
 
 ```python
-new_image = MRImage()
+array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'], pixels_first=True)
 ```
 
-This will create an MRI image with empty pixel data. Since no parent series/study/patient are 
-provide, defaults will be automatically created. At this point 
-the image will only exist in memory but can be edited in the usual way. 
-For instance to assign pixel data based on an empty numpy array:
+In this case the array has dimensions `(x,y,z,t,n)`. Replacing the images of a series with a given numpy array works the same way:
 
 ```python
-array = numpy.zeros(128, 128)
-new_image.set_array(array)
+series.set_pixel_array(array)
 ```
 
-In order to save the image to disk an instance of the folder class needs to be provided. 
-This can point to an empty folder, or to an existing DICOM database where the new data will be added:
+The `get_pixel_array()` also returns the header information for each slice in a second return value:
 
 ```python
-new_image.folder = Folder('C:\\Users\\MyName\\MyData\\New Folder')
+array, header = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
 ```
 
-After setting a folder, the image can be written to disk:
+The header is a numpy array of instances with the same dimensions as the array - except for the pixel coordinates: in this case `(z,t,n)`. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice `z=0, n=0`:
 
 ```python
-new_image.write()
+FA = [hdr.FlipAngle for hdr in header[0,:,0]]
 ```
 
-An instance can also be read from a single file:
+The header array is also useful when a calculation is performed on the array and the results need to be saved in the DICOM database again. In this case `header` can be used to carry over the metadata. 
+
+As an example, let's calculate a maximum intensity projection (MIP) of a 4D time series and write the result out in the same series:
 
 ```python
-image = MRImage('C:\\Users\\steve\\Data\\my_dicom_file.ima')
+array, header = series.get_pixel_array(['SliceLocation', 'AcquisitionTime'])
+mip = np.amax(array, axis=0)
+series.set_pixel_array(mip, header[0,:,:])
 ```
 
-Changes to the file can then be made as usual:
+In this case the header information of the MIP is taken from the first image of the time series. Provding header information is not required - if the header argument is not specified then a template header is used.
+
+Another useful tool on series level is extracting a subseries. Let's say we have an MRI series with phase and magnitude data mixed, and we want to split it up into separate series:
+
 
 ```python
-image.PatientName = 'John Dory'
-image.array = numpy.zeros((128,128)
+phase = series.subseries(image_type='PHASE')
+magn = series.subseries(image_type='MAGNITUDE')
 ```
 
-and then saved as `image.write()`. When used in this way the class is just a simple 
-wrapped for a `pydicom` dataset.
+This will create two new series in the same study. The `image_type` keyword is defined in dbdicom for MR images to simplify access to phase or magnitude data, but the method also works for any standard DICOM keyword, or combinations thereof. For instance, to extract a subseries of all images with a flip angle of 20 and a TR of 5:
+
+```python
+sub = series.subseries(FlipAngle=20, RepetitionTime=5)
+```
+
+Another useful feature at series level is to overlay one series on another. 
+
+```python
+overlay = series.map_to(target)
+```
+
+If series is a binary mask (or can be interpreted as one), a similar function can be used to overlay the mask on another series:
+
+```python
+overlay = series.map_mask_to(target)
+```
+
+
+### Creating DICOM data from scratch
+
+To create a DICOM series from a numpy array, use `dbdicom.series()`:
+
+```python
+import numpy as np
+import dbdicom as db
+
+array = np.random.normal(size=(10, 128, 192))
+series = db.series(array)
+```
+
+After this you can save it to a folder in DICOM, or set some header elements before saving:
+
+```python
+series.PatientName = 'Random noise'
+series.StudyDate = '19112022'
+series.AcquisitionTime = '120000'
+series.save(path)
+```
+
+You can build an entire database explicitly as well. For instance, the following code builds a database with two patients (James Bond and Scarface) who each underwent and MRI and an XRay study:
+
+```python
+database = db.database()
+
+james_bond = database.new_patient(PatientName='James Bond')
+james_bond_mri = james_bond.new_study(StudyDescription='MRI')
+james_bond_mri_localizer = james_bond_mri.new_series(SeriesDescription='Localizer')
+james_bond_mri_T2w = james_bond_mri.new_series(SeriesDescription='T2w')
+james_bond_xray = james_bond.new_study(StudyDescription='Xray')
+james_bond_xray_chest = james_bond_xray.new_series(SeriesDescription='Chest')
+james_bond_xray_head = james_bond_xray.new_series(SeriesDescription='Head')
+
+scarface = database.new_patient(PatientName='Scarface')
+scarface_mri = scarface.new_study(StudyDescription='MRI')
+scarface_mri_localizer = scarface_mri.new_series(SeriesDescription='Localizer')
+scarface_mri_T2w = scarface_mri.new_series(SeriesDescription='T2w')
+scarface_xray = scarface.new_study(StudyDescription='Xray')
+scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
+scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
+```
 
 
 # User interactions
 
 
-`dbdicom` can be used in standalone scripts or at command line, to streamline
-integration in a GUI, communication with the user should be performed 
-via two dedicated attributes `status` and `dialog`. 
-dialog and status attributes are available to the folder class, and to any DICOM object.
-
-The status attribute is used to send messages to the user, or update on progress of a calculation:
+`dbdicom` can be used in standalone scripts or at command line. To streamline integration in a GUI, communication with the user is performed via two dedicated attributes `status` and `dialog`. dialog and status attributes are available to any DICOM object. The status attribute is used to send messages to the user, or update on progress of a calculation:
 
 ```python
 series.status.message("Starting calculation...")
 ```
 
-When operating in command line mode this will simply print the message to the terminal.
-If `dbdicom` is used in a GUI, this will print the same message to the status bar.
-Equivalently, the user can be updated on the progress of a calculation via:
+When operating in command line mode this will print the message to the terminal. If `dbdicom` is used in a compatible GUI, this will print the same message to the status bar. Equivalently, the user can be updated on the progress of a calculation via:
 
 ```python
 series.status.message("Calculating..")
@@ -548,107 +567,46 @@ for i in range(length):
     series.status.progress(i, length)
 ```
 
-This will print the message with a percentage progress at each iteraion. 
-When used in a GUI, this will update the porgress bar of the GUI. For use in a GUI,
-it is required to reset the progress bar after exiting the loop:
+This will print the message with a percentage progress at each iteraion. When used in a GUI, this will update the progress bar of the GUI. 
 
-```python
-series.status.hide()
-```
-
-When operating in command line, this statement does nothing, but it makes the 
-pipeline ready to be deloyed in a GUI without modification.
-
-In addition, dialogs can be used to send messages to the user or prompt for input.
-In some cases a dialog may halt the operation of te program until the user 
-has performed the appropriate action, such as hitting enter or entering a value. 
-In command line operator or scripts the user will be prompted for input at the terminal. 
-When using in a GUI, the user will be prompted via a pop-up. Example:
+Dialogs can be used to send messages to the user or prompt for input. In some cases a dialog may halt the operation of te program until the user has performed the appropriate action, such as hitting enter or entering a value. In command line operator or scripts the user will be prompted for input at the terminal. When using in a GUI, the user will be prompted via a pop-up:
 
 ```python
 series.dialog.question("Do you wish to proceed?", cancel=True)
 ```
 
-When used in a script, this will ask the user to enter either 
-"y" (for yes), "n" (for no) or "c" (for cancel) and the program execution will
-depend on the answer. When the scame script is deployed in a GUI, the question
-will be asked via a pop-up window and a button push to answer. 
-A number of different dialogs are available via the dialog attribute (see reference guide). 
+When used in a script, this will ask the user to enter either "y" (for yes), "n" (for no) or "c" (for cancel) and the program execution will depend on the answer. When the scame script is deployed in a GUI, the question will be asked via a pop-up window and a button push to answer. A number of different dialogs are available via the dialog attribute (see reference guide). 
 
 
 # About ***dbdicom***
 
 ## Why ***dbdicom***?
 
-DICOM is scary. *And* it has been the universally accepted standard for medical images for decades. 
-Why is that? It is *because* it is scary. DICOM is extremely detailed and rigorous in the description of its 
-terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your 
-medical history. All of it. Every single one of your DICOM images in a clinical archive contains 
-the key to access all of your medical details. This allows doctors to link your images to your blood tests, 
-family history, previous diagnosis treatments, other imaging, and so on. And this is important to make 
-the best possible informed decisions when it comes to your health. 
+This statement echoes a common frustration for anyone who has ever had a closer to look at DICOM: 
 
-In medical imaging research this additional information is often seen as a nuisance and discarded prior to 
-processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as 
-pixel sizes or a transformation matrix, and all the other information is ignored. 
+``*[...] after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*''. Robert W. Cox, PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health [link](https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html).
 
-Conversion into a *lossy* data format is often sufficient for method development or basic scientific research, 
-but when it comes to deploying these methods in clinical studies, 
-all this additional (discarded) information is just as important as in clinical practice. 
-It ensures that all derived data are properly traceable to the source, 
-and can be compared between subjects and within a subject over time. 
-It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit 
-over and above (cheap) data from medical history, clinical exams or blood tests. 
-And so, if we accept that new image analysis methods ultimately will need to be tested clinically 
-(and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. 
-In practice this step often requires a major rewrite of image processing pipelines set up for basic research, 
-creating a major barrier to clinical translation of new methods. 
+DICOM is scary. But it has also been the universally accepted standard for medical images for decades. Why is that? DICOM is extremely detailed and rigorous in the description of its terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your body. All of it. Every single one of your DICOM images in a clinical archive contains the key to access all of your medical details. This allows doctors to link your images to your blood tests, family history, previous diagnosis treatments, other imaging, and so on. And this is important to make the best possible informed decisions when it comes to your health. 
 
-Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. 
-Quantification involves the application of complex signal models to multi-dimensional imaging 
-data that are acquired by varying contrast parameters such as (in MRI) echo times, b-values, 
-gradient directions, inversion times, flip angle etc. Often many of these are varied at the same 
-time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data 
-need access to this information, and often also need to encode it alongside the images that 
-are produced. When images are first converted from DICOM into some lossy data format, 
-this is often not possible because the application was not foreseen when the lossy format was first defined. 
-This then requires ad-hoc solutions retaining part of the 
-original DICOM information in unstructured free text fields or separate newly defined header files. 
+In medical imaging research this additional information is often seen as a nuisance and discarded prior to processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as pixel sizes or a transformation matrix, and all the other information is ignored. Conversion into such a *lossy* data format may be sufficient for method development or basic scientific research, but when it comes to deploying these methods in clinical studies, all this additional information is just as important as in clinical practice. It ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. 
 
-All these problems can be solved, for current and any imaginable or unimaginable future applications, 
-by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
+And so, if we accept that new image analysis methods ultimately will need to be tested clinically (and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. In practice this step often requires a major rewrite of image processing pipelines set up for basic research, creating a significant barrier to deployment of new methods in clinical trials. 
+
+Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. Quantification involves the application of complex signal models to multi-dimensional imaging data. These are acquired by varying contrast parameters such as (in MRI) echo times, b-values, gradient directions, inversion times, flip angle etc. Often many of these are varied at the same time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data need access to this information. When DICOM data have been converted to some lossy data format, this then requires ad-hoc solutions retaining part of the original DICOM information in unstructured free text fields or separate newly defined header files. 
+
+All these problems can be solved, for current and any imaginable or unimaginable future applications, by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
 
 If only DICOM wasn't so scary!!
 
 ## What is ***dbdicom***?
 
-`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive 
-for the practicing medical imaging scientist working in Python. 
-We promise you won't even know it's DICOM. In fact the documentation 
-hardly even mentions DICOM at all. It will certainly not mention things like composite information 
-object definitions, application entities, service-object pairs, unique identifiers, etc etc. 
-This is the language of DICOM, and it's confusing in part because the concepts date back to 
-the 1970's and 1980's when the standard was developed. But then again, that is exactly what you 
-would expect from a successful standard. It doesn't change. It shouldn't change. 
+`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive for the practicing medical imaging scientist working in Python. We promise you won't even know it's DICOM. In fact the documentation hardly even mentions DICOM at all. It will certainly not mention things like composite information object definitions, application entities, service-object pairs, unique identifiers, etc etc. This is the language of DICOM, and it's confusing in part because the concepts date back to the 1970's and 1980's when the standard was developed. But then again, that is exactly what you would expect from a successful standard. It doesn't change. It shouldn't change. But we *can* wrap it up real nice.
 
-`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. 
-It allows you to develop your medical imaging methods using DICOM files only, which 
-means your prototypes of new analysis methods can be deployed in clinical trials just like that. 
-It also means that any result you generate can easily be integrated in open access DICOM databases 
-and can be visualised along with any other images of the same subject 
-by anyone with a DICOM viewer (i.e. literally anyone).
+`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. It allows you to develop your medical imaging methods using DICOM files only, which means your prototypes of new analysis methods can be deployed in clinical trials just like that. It also means that any result you generate can easily be integrated in open access DICOM databases and can be visualised along with any other images of the same subject by anyone with a DICOM viewer (i.e. literally anyone).
 
-Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. 
-However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately 
-clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. 
-Convenience classes are provided for user interaction that print to a terminal when used 
-in a script, but will automatically generate pop-up windows or progress bars when the same script is 
-deployed inside a `dbdicom` compatible graphical user interface. 
+Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. Convenience classes are provided for user interaction that print to a terminal when used 
+in a script, but will automatically generate pop-up windows or progress bars when the same script is deployed inside a `dbdicom` compatible graphical user interface. 
 
 ## Acknowledgements
 
-`dbdicom` relies heavily on `pydicom` for basic read/write of DICOM files, 
-with some additional features provided by `nibabel` and `dcm4che`. 
-Graphical user interface compatibility is provided by `PyQt5`. 
-Documentation is generated by `pdoc3`. Basic image manipulation is provided by `numpy` and `scipi`,
- and sorting and tabulating of data by `pandas`. Export to other formats is provided by `matplotlib`.
+`dbdicom` relies heavily on `pydicom` for read/write of individual DICOM files, with some additional features provided by `nibabel` and `dcm4che`. Basic array manipulation is provided by `numpy`, and sorting and tabulating of data by `pandas`. Export to other formats is provided by `matplotlib`.

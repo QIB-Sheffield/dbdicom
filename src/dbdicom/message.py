@@ -1,3 +1,5 @@
+import os
+
 class StatusBar():
     """
     Class with the same interface as StatusBar for use outside weasel.
@@ -15,9 +17,9 @@ class StatusBar():
         
     def progress(self, value, maximum, message=None):
         if message is not None:
-            self.message(message)
-        perc = str(100*value/maximum)
-        print(self._message + ' (' + perc + ' %)')
+            self._message = message
+        perc = str(round(100*value/maximum))
+        print(self._message + ' [' + perc + ' %]')
         
 
 class Dialog():
@@ -47,11 +49,22 @@ class Dialog():
         if title != "": print(title)
         print(message)
 
-    def directory(self, message='Please select a folder', datafolder=None):
+    def directory(self, message='Please provide a folder', datafolder=None):
         """
         Select a directory.
         """
-        pass
+        print(message)
+        path = input()
+        while not os.path.exists(path):
+            reply = self.question( 
+                title = 'Error!', 
+                message = path + ' does not exist. Select another?')
+            if reply == "Yes":
+                print(message)
+                path = input()
+            elif reply == 'No':
+                return None
+        return path
 
     def question(self, message="Do you wish to proceed?", title="Question", cancel=False):
         """
