@@ -371,7 +371,11 @@ class Manager():
         keys = self.keys(uid)
         values = list(self.value(keys, 'SOPInstanceUID'))
         values = [v for v in values if v is not None]
-        return self.filter(values, **kwargs)
+        #return self.filter(values, **kwargs)
+        values = self.filter(values, **kwargs)
+        df = self.register[self.register.SOPInstanceUID.isin(values)]
+        df.sort_values(['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber'], inplace=True)
+        return df.SOPInstanceUID.values.tolist()
 
     def series(self, uid=None, **kwargs):
 
