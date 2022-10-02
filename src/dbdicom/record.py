@@ -39,6 +39,12 @@ class DbRecord():
     def dialog(self):
         return self.manager.dialog
 
+    def mute(self):
+        self.status.mute()
+        
+    def unmute(self):
+        self.status.unmute()
+
     def files(self):
         return self.manager.filepaths(self.uid)
 

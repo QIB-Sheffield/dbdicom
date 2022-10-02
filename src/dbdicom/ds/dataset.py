@@ -39,6 +39,18 @@ class DbDataset(Dataset):
     def set_values(self, tags, values):
         return set_values(self, tags, values)
 
+    def get_lut(self): 
+        return get_lut(self)
+
+    def set_lut(*args, **kwargs): 
+        set_lut(*args, **kwargs)
+
+    def get_colormap(self):
+        return get_colormap(self)
+
+    def set_colormap(*args, **kwargs):
+        set_colormap(*args, **kwargs)
+
     def get_attribute_lut(self): # use _get_attribute to encode these
         return get_lut(self)
 
@@ -295,88 +307,110 @@ def affine_matrix(ds):
         ds.PixelSpacing, 
         ds.SliceThickness)
 
+# List of all supported (matplotlib) colormaps
+
+COLORMAPS =  ['cividis',  'magma', 'plasma', 'viridis', 
+    'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+    'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn',
+    'binary', 'gist_yarg', 'gist_gray', 'bone', 'pink',
+    'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
+    'hot', 'afmhot', 'gist_heat', 'copper',
+    'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+    'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic',
+    'twilight', 'twilight_shifted', 'hsv',
+    'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
+    'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'turbo',
+    'gist_rainbow', 'rainbow', 'jet', 'nipy_spectral', 'gist_ncar']
+
 
 def get_colormap(ds):
     """Returns the colormap if there is any."""
-    # This is not correctly encoded - needs revision
 
-    colormap = 'gray' # default
-    if hasattr(ds, 'ContentLabel'):
-        if ds.PhotometricInterpretation == 'PALETTE COLOR':
-            colormap = ds.ContentLabel
-        elif 'MONOCHROME' in ds.PhotometricInterpretation:
-            colormap = 'gray'
-    elif len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR':
-        colormap = 'custom'  
-
-    return colormap
+    # Hijacking this free text field to store the colormap
+    # There is probably a better solution (private tag?)
+    if 'WindowCenterWidthExplanation' in ds:
+        if ds.WindowCenterWidthExplanation in COLORMAPS:
+            return ds.WindowCenterWidthExplanation
+    else:
+        return None
 
 
-def set_colormap(ds, colormap):
-    # This is not correctly encoded - needs revision
-    # Content label is Code String - can't be just anything
+def set_colormap(ds, colormap=None):
 
-    #and (colormap != 'gray') removed from If statement below, so as to save gray colour tables
-    if (colormap == 'gray'):
+    if colormap is None:
+        ds.WindowCenterWidthExplanation = ''
         ds.PhotometricInterpretation = 'MONOCHROME2'
-        ds.ContentLabel = ''
         if hasattr(ds, 'RedPaletteColorLookupTableData'):
-            del (ds.RGBLUTTransferFunction, ds.RedPaletteColorLookupTableData,
-                ds.GreenPaletteColorLookupTableData, ds.BluePaletteColorLookupTableData,
-                ds.RedPaletteColorLookupTableDescriptor, ds.GreenPaletteColorLookupTableDescriptor,
-                ds.BluePaletteColorLookupTableDescriptor)
-    if ((colormap is not None)  and (colormap != 'custom') and (colormap != 'gray') 
-        and (colormap != 'default') and isinstance(colormap, str)):
-        ds.PhotometricInterpretation = 'PALETTE COLOR'
-        ds.RGBLUTTransferFunction = 'TABLE'
-        ds.ContentLabel = colormap
-        stringType = 'US' # ('SS' if minValue < 0 else 'US')
-        ds.PixelRepresentation = 0 # (1 if minValue < 0 else 0)
-        pixelArray = ds.get_pixel_array()
-        minValue = int(np.amin(pixelArray))
-        maxValue = int(np.amax(pixelArray))
-        numberOfValues = int(maxValue - minValue)
-        arrayForRGB = np.arange(0, numberOfValues)
-        colorsList = cm.ScalarMappable(cmap=colormap).to_rgba(np.array(arrayForRGB), bytes=False)
-        totalBytes = ds.BitsAllocated
-        ds.add_new('0x00281101', stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new('0x00281102', stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new('0x00281103', stringType, [numberOfValues, minValue, totalBytes])
-        ds.RedPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 0].flatten()]).astype('uint'+str(totalBytes)))
-        ds.GreenPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 1].flatten()]).astype('uint'+str(totalBytes)))
-        ds.BluePaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 2].flatten()]).astype('uint'+str(totalBytes)))
+            del (
+                ds.RGBLUTTransferFunction, 
+                ds.RedPaletteColorLookupTableData,
+                ds.GreenPaletteColorLookupTableData, 
+                ds.BluePaletteColorLookupTableData,
+                ds.RedPaletteColorLookupTableDescriptor, 
+                ds.GreenPaletteColorLookupTableDescriptor,
+                ds.BluePaletteColorLookupTableDescriptor,
+            )
+    else:
+        ds.WindowCenterWidthExplanation = colormap
+        # Get a LUT as float numpy array with values in the range [0,1]
+        RGBA = cm.ScalarMappable(cmap=colormap).to_rgba(np.arange(256))
+        set_lut(ds, RGBA[:,:3])
+
+
+def set_lut(ds, RGB):
+    """Set RGB as float with values in range [0,1]"""
+
+    ds.PhotometricInterpretation = 'PALETTE COLOR'
+
+    RGB *= (np.power(2, ds.BitsAllocated) - 1)
+
+    if ds.BitsAllocated == 8:
+        RGB = RGB.astype(np.ubyte)
+    elif ds.BitsAllocated == 16:
+        RGB = RGB.astype(np.uint16)
+
+    # Define the properties of the LUT
+    ds.add_new('0x00281101', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281102', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281103', 'US', [255, 0, ds.BitsAllocated])
+
+    # Scale the colorsList to the available range
+    ds.RedPaletteColorLookupTableData = bytes(RGB[:,0])
+    ds.GreenPaletteColorLookupTableData = bytes(RGB[:,1])
+    ds.BluePaletteColorLookupTableData = bytes(RGB[:,2])
 
 
 def get_lut(ds):
-    # Needs testing
+    """Return RGB as float with values in [0,1]"""
 
-    if len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR': 
-        redColour = list(ds.RedPaletteColorLookupTableData)
-        greenColour = list(ds.GreenPaletteColorLookupTableData)
-        blueColour = list(ds.BluePaletteColorLookupTableData)
-        redLut = list(struct.unpack('<' + ('H' * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
-        greenLut = list(struct.unpack('<' + ('H' * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
-        blueLut = list(struct.unpack('<' + ('H' * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
-        colourTable = np.transpose([redLut, greenLut, blueLut])
-        normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
-        # Fast ColourTable loading
-        colourTable = np.around(colourTable/normaliseFactor, decimals = 2)
-        indexes = np.unique(colourTable, axis=0, return_index=True)[1]
-        lut = [colourTable[index].tolist() for index in sorted(indexes)]
-        # Full / Complete Colourmap - takes 20 seconds to load each image
-        # lut = (colours/normaliseFactor).tolist()   
-    else:
-        lut = None
+    if 'PhotometricInterpretation' not in ds:
+        return None
+    if ds.PhotometricInterpretation != 'PALETTE COLOR':
+        return None
+
+    if ds.BitsAllocated == 8:
+        dtype = np.ubyte
+    elif ds.BitsAllocated == 16:
+        dtype = np.uint16
     
-    return lut
+    R = ds.RedPaletteColorLookupTableData
+    G = ds.GreenPaletteColorLookupTableData
+    B = ds.BluePaletteColorLookupTableData
 
+    R = np.frombuffer(R, dtype=dtype)
+    G = np.frombuffer(G, dtype=dtype)
+    B = np.frombuffer(B, dtype=dtype)
 
-def set_lut(ds, lut):
-    # Still needs to be implemented
-    pass
+    R = R.astype(np.float32)
+    G = G.astype(np.float32)
+    B = B.astype(np.float32)
+
+    R *= 255/(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]) - 1)
+    G *= 255/(np.power(2, ds.GreenPaletteColorLookupTableDescriptor[2]) - 1)
+    B *= 255/(np.power(2, ds.BluePaletteColorLookupTableDescriptor[2]) - 1)
+    
+    return np.transpose([R.astype(np.ubyte), G.astype(np.ubyte), B.astype(np.ubyte)])
 
 
 def get_pixel_array(ds):

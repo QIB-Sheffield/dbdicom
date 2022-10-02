@@ -373,8 +373,9 @@ class Manager():
         values = [v for v in values if v is not None]
         #return self.filter(values, **kwargs)
         values = self.filter(values, **kwargs)
-        df = self.register[self.register.SOPInstanceUID.isin(values)]
-        df.sort_values(['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber'], inplace=True)
+        sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
+        df = self.register[(self.register.removed == False) & self.register.SOPInstanceUID.isin(values)]
+        df.sort_values(sortby, inplace=True)
         return df.SOPInstanceUID.values.tolist()
 
     def series(self, uid=None, **kwargs):
@@ -382,21 +383,36 @@ class Manager():
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'SeriesInstanceUID')))
         values = [v for v in values if v is not None]
-        return self.filter(values, **kwargs)
+        #return self.filter(values, **kwargs)
+        values = self.filter(values, **kwargs)
+        sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
+        df = self.register[(self.register.removed == False) & self.register.SeriesInstanceUID.isin(values)]
+        df.sort_values(sortby, inplace=True)
+        return df.SeriesInstanceUID.unique().tolist()
 
     def studies(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'StudyInstanceUID')))
         values = [v for v in values if v is not None]
-        return self.filter(values, **kwargs)
+        #return self.filter(values, **kwargs)
+        values = self.filter(values, **kwargs)
+        sortby = ['PatientName', 'StudyDescription']
+        df = self.register[(self.register.removed == False) & self.register.StudyInstanceUID.isin(values)]
+        df.sort_values(sortby, inplace=True)
+        return df.StudyInstanceUID.unique().tolist()
 
     def patients(self, uid=None, **kwargs):
 
         keys = self.keys(uid)
         values = list(set(self.value(keys, 'PatientID')))
         values = [v for v in values if v is not None]
-        return self.filter(values, **kwargs)
+        #return self.filter(values, **kwargs)
+        values = self.filter(values, **kwargs)
+        sortby = ['PatientName']
+        df = self.register[(self.register.removed == False) & self.register.PatientID.isin(values)]
+        df.sort_values(sortby, inplace=True)
+        return df.PatientID.unique().tolist()
 
     def pause_extensions(self):
         
@@ -1667,6 +1683,7 @@ class Manager():
 
                 if attributes in self.columns:
                     value = self.value(keys, attributes)
+                    value = list(set(value))
                 else:
                     value = []
                     for i, key in enumerate(keys):
@@ -1675,8 +1692,8 @@ class Manager():
                             v = None
                         else:
                             v = ds.get_values(attributes)
-                        value.append(v)
-                value = list(set(value))
+                        if v not in value:
+                            value.append(v)
                 if len(value) == 1:
                     return value[0]
                 else:

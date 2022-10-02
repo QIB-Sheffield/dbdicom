@@ -1346,7 +1346,7 @@ def test_tree():
     print(tree['patients'][0]['studies'][0]['series'][0]['indices'][0])
 
     assert len(tree) == 2
-    assert stop-start <= 0.1
+    assert stop-start <= 0.5
 
     print('time to build tree:', stop-start)
 
