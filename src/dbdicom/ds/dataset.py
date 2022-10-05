@@ -88,11 +88,15 @@ def get_window(ds):
         width = ds.WindowWidth
     if centre is None or width is None:
         array = ds.get_pixel_array()
+        #p = np.percentile(array, [25, 50, 75])
+        min = np.min(array)
+        max = np.max(array)
     if centre is None: 
-        centre = np.median(array)
+        centre = (max+min)/2
+        #centre = p[1]
     if width is None: 
-        p = np.percentile(array, [25, 75])
-        width = p[1] - p[0]
+        width = 0.9*(max-min)
+        #width = p[2] - p[0]
     return centre, width
 
 
@@ -173,17 +177,22 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
 def set_values(ds, tags, values):
     """Sets DICOM tags in the pydicom dataset in memory"""
 
-    # TODO: Automatically convert datatypes to the correct ones required by pydicom for setting (above)
-
     if not isinstance(tags, list): 
         tags = [tags]
         values = [values]
     for i, tag in enumerate(tags):
         if values[i] is None:
-            if tag in ds:
+            if hasattr(ds, tag):
+                # Setting standard DICOM attribute to None
                 del ds[tag]
+            else:
+                # Setting custom attribute to None
+                if isinstance(tag, str):
+                    if hasattr(ds, 'set_attribute_' + tag):
+                        getattr(ds, 'set_attribute_' + tag)(values[i])                
         else:
-            if tag in ds:
+            if hasattr(ds, tag):
+            #if tag in ds:
                 ds[tag].value = values[i]
             else:
                 if isinstance(tag, str):
@@ -205,7 +214,8 @@ def get_values(ds, tags):
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 
-        if tags not in ds:
+        #if tags not in ds:
+        if not hasattr(ds, tags):
             value = None
             if isinstance(tags, str):
                 if hasattr(ds, 'get_attribute_' + tags):
@@ -217,7 +227,8 @@ def get_values(ds, tags):
             
     row = []  
     for tag in tags:
-        if tag not in ds:
+        #if tag not in ds:
+        if not hasattr(ds, tag):
             value = None
             if isinstance(tag, str):
                 if hasattr(ds, 'get_attribute_' + tag):
@@ -332,25 +343,28 @@ def get_colormap(ds):
     if 'WindowCenterWidthExplanation' in ds:
         if ds.WindowCenterWidthExplanation in COLORMAPS:
             return ds.WindowCenterWidthExplanation
-    else:
-        return None
 
 
 def set_colormap(ds, colormap=None):
 
     if colormap is None:
-        ds.WindowCenterWidthExplanation = ''
         ds.PhotometricInterpretation = 'MONOCHROME2'
+        if hasattr(ds, 'WindowCenterWidthExplanation'):
+            del ds.WindowCenterWidthExplanation
+        if hasattr(ds, 'RGBLUTTransferFunction'):
+            del ds.RGBLUTTransferFunction
+        if hasattr(ds, 'GreenPaletteColorLookupTableData'):
+            del ds.GreenPaletteColorLookupTableData
         if hasattr(ds, 'RedPaletteColorLookupTableData'):
-            del (
-                ds.RGBLUTTransferFunction, 
-                ds.RedPaletteColorLookupTableData,
-                ds.GreenPaletteColorLookupTableData, 
-                ds.BluePaletteColorLookupTableData,
-                ds.RedPaletteColorLookupTableDescriptor, 
-                ds.GreenPaletteColorLookupTableDescriptor,
-                ds.BluePaletteColorLookupTableDescriptor,
-            )
+            del ds.RedPaletteColorLookupTableData
+        if hasattr(ds, 'BluePaletteColorLookupTableData'):
+            del ds.BluePaletteColorLookupTableData
+        if hasattr(ds, 'RedPaletteColorLookupTableDescriptor'):
+            del ds.RedPaletteColorLookupTableDescriptor
+        if hasattr(ds, 'GreenPaletteColorLookupTableDescriptor'):
+            del ds.GreenPaletteColorLookupTableDescriptor
+        if hasattr(ds, 'BluePaletteColorLookupTableDescriptor'):
+            del ds.BluePaletteColorLookupTableDescriptor
     else:
         ds.WindowCenterWidthExplanation = colormap
         # Get a LUT as float numpy array with values in the range [0,1]
@@ -406,11 +420,11 @@ def get_lut(ds):
     G = G.astype(np.float32)
     B = B.astype(np.float32)
 
-    R *= 255/(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]) - 1)
-    G *= 255/(np.power(2, ds.GreenPaletteColorLookupTableDescriptor[2]) - 1)
-    B *= 255/(np.power(2, ds.BluePaletteColorLookupTableDescriptor[2]) - 1)
+    R *= 1.0/(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]) - 1)
+    G *= 1.0/(np.power(2, ds.GreenPaletteColorLookupTableDescriptor[2]) - 1)
+    B *= 1.0/(np.power(2, ds.BluePaletteColorLookupTableDescriptor[2]) - 1)
     
-    return np.transpose([R.astype(np.ubyte), G.astype(np.ubyte), B.astype(np.ubyte)])
+    return np.transpose([R, G, B])
 
 
 def get_pixel_array(ds):
