@@ -200,7 +200,7 @@ def set_pixel_array(ds, array):
     # room for speed up
     # clipping may slow down a lot
     # max/min are calculated multiple times
-    array = image.clip(array)
+    array = image.clip(array.astype(np.float32))
     maximum = np.amax(array)
     minimum = np.amin(array)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)

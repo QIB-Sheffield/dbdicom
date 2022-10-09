@@ -27,6 +27,7 @@ class Series(DbRecord):
         import_dicom(*args, **kwargs)
 
 
+
 def import_dicom(series, files):
     uids = series.manager.import_datasets(files)
     series.manager.move_to(uids, series.uid)
@@ -226,12 +227,18 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         array = np.moveaxis(array, 0, -1)
 
     # if no header data is provided, use template headers.
+    # Note - looses information on dimensionality of array
+    # Everything is reduced to 3D
     if source is None:
-        n = np.prod(array.shape[:-2])
+        if array.ndim <= 2:
+            n = 1
+        else:
+            n = np.prod(array.shape[:-2])
         source = np.empty(n, dtype=object)
         for i in range(n): 
             source[i] = series.new_instance(MRImage())  
-        source = source.reshape(array.shape[:-2])
+        if array.ndim > 2:
+            source = source.reshape(array.shape[:-2])
         series.set_pixel_array(array, source)
         #source = instance_array(series)
 

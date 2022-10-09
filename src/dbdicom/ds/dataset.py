@@ -334,12 +334,14 @@ COLORMAPS =  ['cividis',  'magma', 'plasma', 'viridis',
     'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'turbo',
     'gist_rainbow', 'rainbow', 'jet', 'nipy_spectral', 'gist_ncar']
 
+# Include support for DICOM natiove colormaps (see pydicom guide on working with pixel data)
 
 def get_colormap(ds):
     """Returns the colormap if there is any."""
 
     # Hijacking this free text field to store the colormap
-    # There is probably a better solution (private tag?)
+    # This should use ContentDescription instead (0070, 0081)
+    # 
     if 'WindowCenterWidthExplanation' in ds:
         if ds.WindowCenterWidthExplanation in COLORMAPS:
             return ds.WindowCenterWidthExplanation
@@ -443,7 +445,7 @@ def set_pixel_array(ds, array, value_range=None):
     
     if array.ndim >= 3: # remove spurious dimensions of 1
         array = np.squeeze(array) 
-    array = image.clip(array, value_range=value_range)
+    array = image.clip(array.astype(np.float32), value_range=value_range)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 

@@ -1,4 +1,4 @@
-
+import numpy as np
 from dbdicom.manager import Manager
 from dbdicom.types.database import Database
 from dbdicom.types.patient import Patient
@@ -24,7 +24,6 @@ def create(manager, uid='Database', type=None, **kwargs):
 
 
 def database(path=None, **kwargs):
-
     if path is None:
         mgr = Manager()
     else:
@@ -34,12 +33,17 @@ def database(path=None, **kwargs):
 
 
 def series(array, pixels_first=False, path=None):
-
     db = database(path)
     patient = db.new_patient()
     study = patient.new_study()
     series = study.new_series()
     series.set_pixel_array(array, pixels_first=pixels_first)
     return series
+
+def zeros(shape, dtype='mri', path=None):
+    db = database(path)
+    patient = db.new_patient()
+    study = patient.new_study()
+    return study.zeros(study, shape, dtype=dtype)
 
 

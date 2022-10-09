@@ -549,6 +549,24 @@ scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
 scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
 ```
 
+### Work in progress: a numpy-like interface
+
+We are currently building a `numpy`-type interface for creating new DICOM objects. For instance to create a new series with given dimensions in a study you can do:
+
+```python
+img = study.zeros((10, 128, 192), dtype='mri')
+```
+
+This will create a DICOM series of type 'MRImage' (shorthand 'mri') with 10 slices of 128 columns and 192 rows each. This can also be done from scratch:
+
+```python
+import dbdicom as db
+
+series = db.series((10, 128, 192))
+```
+
+Currently, writing in data types other than 'MRImage' is not supported, so the data type argument is not necessary.
+
 
 # User interactions
 
@@ -567,9 +585,17 @@ for i in range(length):
     series.status.progress(i, length)
 ```
 
-This will print the message with a percentage progress at each iteraion. When used in a GUI, this will update the progress bar of the GUI. 
+This will print the message with a percentage progress at each iteration. When used in a GUI, this can be used to update the progress bar of the GUI. If messaging is not desired, and/or when it slows down the execution too much, it can be muted and unmuted:
 
-Dialogs can be used to send messages to the user or prompt for input. In some cases a dialog may halt the operation of te program until the user has performed the appropriate action, such as hitting enter or entering a value. In command line operator or scripts the user will be prompted for input at the terminal. When using in a GUI, the user will be prompted via a pop-up:
+```python
+series.mute()
+compute(series)
+series.unmute()
+```
+
+In this case, even if the function `compute` directs messaging to the terminal, these will not be printed until the series is unmuted again.
+
+Dialogs can be used to send messages to the user or prompt for input. In some cases a dialog may halt the operation of te program until the user has performed the appropriate action, such as hitting enter or entering a value. In command line operator or scripts the user will be prompted for input at the terminal. When using in a GUI, these prompts can be redirected to a pop-up window:
 
 ```python
 series.dialog.question("Do you wish to proceed?", cancel=True)

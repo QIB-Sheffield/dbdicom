@@ -14,5 +14,12 @@ class Database(DbRecord):
     def import_dicom(self, files):
         self.manager.import_datasets(files)
 
+    def zeros(*args, **kwargs):
+        return zeros(*args, **kwargs)
+
+def zeros(database, shape, dtype='mri'):
+    study = database.new_study()
+    return study.zeros(shape, dtype=dtype)
+
 
 

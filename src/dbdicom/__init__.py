@@ -5,6 +5,7 @@ __pdoc__["external"] = False
 from dbdicom.create import (
     database,
     series, 
+    zeros,
 )
 from dbdicom.record import (
     get_values,

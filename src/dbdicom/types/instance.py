@@ -14,12 +14,10 @@ import dbdicom.utils.image as image
 class Instance(DbRecord):
 
     def get_pixel_array(self):
-
         ds = self.get_dataset()
         return ds.get_pixel_array()
 
     def set_pixel_array(self, array):
-
         ds = self.get_dataset()
         if ds is None:
             ds = new_dataset('MRImage')
