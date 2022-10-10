@@ -29,7 +29,9 @@ extensions = ['sphinx.ext.napoleon', # parsing of NumPy and Google style docstri
                 'sphinx.ext.viewcode', # viewing source code
                 'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
                 'sphinx_rtd_theme', # ReadTheDocs theme
-                'myst_parser'] # parser for markdown language
+                'myst_parser', # parser for markdown language
+                'sphinx_copybutton', # copy button for code blocks
+                'sphinx_remove_toctrees'] # selectively remove toctree objects from pages
 
 # Add any paths that contain templates here, relative to this directory
 templates_path = ['_templates']
@@ -42,9 +44,21 @@ exclude_patterns = []
 # -- Extension configuration -------------------------------------------------
 # Map intersphinx to pre-exisiting documentation from other projects used in this project
 intersphinx_mapping = {'python': ('https://docs.python.org/3/', None),
-                        'numpy': ('https://numpy.org/doc/stable/', None)}
+                        'numpy': ('https://numpy.org/doc/stable/', None),
+                        'matplotlib': ('https://matplotlib.org/stable/', None),
+                        'pydicom': ('https://pydicom.github.io/pydicom/stable/', None),
+                        'nilabel': ('https://nipy.org/nibabel/', None),
+                        'pandas': ('https://pandas.pydata.org/docs/', None)
+                        }
 
 autosummary_generate = True # enable autosummary extension
+
+# Tell sphinx-autodoc-typehints to generate stub parameter annotations including
+# types, even if the parameters aren't explicitly documented.
+always_document_param_types = True
+
+# Remove auto-generated API docs from sidebars.
+remove_from_toctrees = ["_autosummary/*"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -59,3 +73,7 @@ html_static_path = ['_static']
 
 # The suffix(es) of source filenames.
 source_suffix = ['.rst', '.md']
+
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = 'images/sheffield-logo.jpg'
