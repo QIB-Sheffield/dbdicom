@@ -5,6 +5,7 @@ pandas
 pydicom
 GDCM
 pylibjpeg-libjpeg
+importlib-resources
 sphinx
 sphinx_rtd_theme
-importlib-resources
+myst-parser

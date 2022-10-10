@@ -28,7 +28,8 @@ extensions = ['sphinx.ext.napoleon', # parsing of NumPy and Google style docstri
                 'sphinx.ext.autosummary', # generates function/method/attribute summary lists
                 'sphinx.ext.viewcode', # viewing source code
                 'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
-                'sphinx_rtd_theme'] # ReadTheDocs theme
+                'sphinx_rtd_theme', # ReadTheDocs theme
+                'myst_parser'] # parser for markdown language
 
 # Add any paths that contain templates here, relative to this directory
 templates_path = ['_templates']
@@ -42,7 +43,7 @@ exclude_patterns = []
 # Map intersphinx to pre-exisiting documentation from other projects used in this project
 intersphinx_mapping = {'python': ('https://docs.python.org/3/', None),
                         'numpy': ('https://numpy.org/doc/stable/', None)}
-                        
+
 autosummary_generate = True # enable autosummary extension
 
 # -- Options for HTML output -------------------------------------------------
@@ -57,4 +58,4 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 # The suffix(es) of source filenames.
-#source_suffix = ['.rst', '.md']
+source_suffix = ['.rst', '.md']

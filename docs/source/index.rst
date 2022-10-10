@@ -10,6 +10,7 @@ Welcome to dbdicom's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   readme
    modules
 
 
