@@ -3,7 +3,7 @@
 
 ### package builds
 .venv/*
-docs/*
+docs/build
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
