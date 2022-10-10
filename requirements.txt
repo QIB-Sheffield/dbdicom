@@ -6,3 +6,5 @@ pydicom
 GDCM
 pylibjpeg-libjpeg
 sphinx
+sphinx_rtd_theme
+importlib-resources
