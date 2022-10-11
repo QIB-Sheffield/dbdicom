@@ -1,4 +1,4 @@
-
+import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.manager import Manager
 
@@ -231,12 +231,26 @@ class DbRecord():
     def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
         self.manager.register.sort_values(sortby, inplace=True)
 
-    def read_dataframe(self, tags):
-        return dbdataset.read_dataframe(self.files(), tags, self.status, path=self.manager.path)
+    def read_dataframe(*args, **kwargs):
+        return read_dataframe(*args, **kwargs)
 
     # def tree(*args, **kwargs):
     #     return tree(*args, **kwargs)
 
+
+def read_dataframe(record, tags):
+    if set(tags) <= set(record.manager.columns):
+        return record.register()[tags]  
+    data = []
+    indices = []
+    instances = record.instances()
+    for i, instance in enumerate(instances):
+        index = record.manager.keys(instance=instance.uid)[0]
+        indices.append(index)
+        row = get_values(instance, tags)
+        data.append(row)
+        record.status.progress(i+1, len(instances), 'Reading dataframe..')
+    return pd.DataFrame(data, index=indices, columns=tags)
 
 
 def export_as_csv(record, directory=None, filename=None, columnHeaders=None):

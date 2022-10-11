@@ -44,6 +44,6 @@ def zeros(shape, dtype='mri', path=None):
     db = database(path)
     patient = db.new_patient()
     study = patient.new_study()
-    return study.zeros(study, shape, dtype=dtype)
+    return study.zeros(shape, dtype=dtype)
 
 

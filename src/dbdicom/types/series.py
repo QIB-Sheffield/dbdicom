@@ -239,11 +239,11 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
             source[i] = series.new_instance(MRImage())  
         if array.ndim > 2:
             source = source.reshape(array.shape[:-2])
-        series.set_pixel_array(array, source)
+        set_pixel_array(series, array, source)
         #source = instance_array(series)
 
     # Return with error message if dataset and array do not match.
-    nr_of_slices = np.prod(array.shape[:-2])
+    nr_of_slices = int(np.prod(array.shape[:-2]))
     if nr_of_slices != np.prod(source.shape):
         message = 'Error in set_array(): array and source do not match'
         message += '\n Array has ' + str(nr_of_slices) + ' elements'
