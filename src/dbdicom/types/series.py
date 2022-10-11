@@ -8,6 +8,12 @@ from dbdicom.ds import MRImage
 
 class Series(DbRecord):
 
+    def array(*args, **kwargs):
+        return get_pixel_array(*args, **kwargs)
+
+    def set_array(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
+
     def get_pixel_array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
