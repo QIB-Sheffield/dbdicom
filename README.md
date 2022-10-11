@@ -1,9 +1,3 @@
-# dbdicom
-
-`dbdicom` is a Python interface for reading and writing DICOM databases. 
-
-***CAUTION: dbdicom is work in progress!!!***
-
 ## Installation
 Run `pip install dbdicom`.
 
