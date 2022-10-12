@@ -182,30 +182,44 @@ def set_values(ds, tags, values):
         values = [values]
     for i, tag in enumerate(tags):
         if values[i] is None:
-            if hasattr(ds, tag):
-                # Setting standard DICOM attribute to None
-                del ds[tag]
-            else:
-                # Setting custom attribute to None
-                if isinstance(tag, str):
+            if isinstance(tag, str):
+                if hasattr(ds, tag):
+                    # Setting standard DICOM attribute to None
+                    del ds[tag]
+                else:
+                    # Setting custom attribute to None
                     if hasattr(ds, 'set_attribute_' + tag):
-                        getattr(ds, 'set_attribute_' + tag)(values[i])                
+                        getattr(ds, 'set_attribute_' + tag)(values[i])  
+            else: # hexadecimal tuple
+                if tag in ds:
+                    del ds[tag]
         else:
-            if hasattr(ds, tag):
-            #if tag in ds:
-                ds[tag].value = values[i]
-            else:
-                if isinstance(tag, str):
+            if isinstance(tag, str):
+                if hasattr(ds, tag):
+                #if tag in ds:
+                    ds[tag].value = values[i]
+                else:
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
                         continue
-                if not isinstance(tag, pydicom.tag.BaseTag):
-                    tag = pydicom.tag.Tag(tag)
-                if not tag.is_private: # Add a new data element
-                    VR = pydicom.datadict.dictionary_VR(tag)
-                    ds.add_new(tag, VR, values[i])
+                    if not isinstance(tag, pydicom.tag.BaseTag):
+                        tag = pydicom.tag.Tag(tag)
+                    if not tag.is_private: # Add a new data element
+                        VR = pydicom.datadict.dictionary_VR(tag)
+                        ds.add_new(tag, VR, values[i])
+                    else:
+                        pass # for now
+            else: # hexadecimal tuple
+                if tag in ds:
+                    ds[tag].value = values[i]
                 else:
-                    pass # for now
+                    if not isinstance(tag, pydicom.tag.BaseTag):
+                        tag = pydicom.tag.Tag(tag)
+                    if not tag.is_private: # Add a new data element
+                        VR = pydicom.datadict.dictionary_VR(tag)
+                        ds.add_new(tag, VR, values[i])
+                    else:
+                        pass # for now
     return ds
 
 
@@ -214,28 +228,20 @@ def get_values(ds, tags):
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 
-        #if tags not in ds:
-        if not hasattr(ds, tags):
-            value = None
-            if isinstance(tags, str):
-                if hasattr(ds, 'get_attribute_' + tags):
-                    value = getattr(ds, 'get_attribute_' + tags)()
-            return value
-        else:
-        #    return ds[tags].value
-            return to_set_type(ds[tags].value)
+        return get_values(ds, [tags])[0]
             
     row = []  
     for tag in tags:
-        #if tag not in ds:
-        if not hasattr(ds, tag):
-            value = None
-            if isinstance(tag, str):
+        value = None
+        if isinstance(tag, str):
+            if not hasattr(ds, tag):
                 if hasattr(ds, 'get_attribute_' + tag):
                     value = getattr(ds, 'get_attribute_' + tag)()
-        else:
-        #    value = ds[tag].value
-            value = to_set_type(ds[tag].value)
+            else:
+                value = to_set_type(ds[tag].value)
+        else: # tuple of hexadecimal values
+            if tag in ds:
+                value = to_set_type(ds[tag].value)
         row.append(value)
     return row
 

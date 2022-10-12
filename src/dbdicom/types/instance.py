@@ -13,6 +13,12 @@ import dbdicom.utils.image as image
 
 class Instance(DbRecord):
 
+    def array(self):
+        return self.get_pixel_array()
+
+    def set_array(self, array):
+        self.set_pixel_array(array)
+        
     def get_pixel_array(self):
         ds = self.get_dataset()
         return ds.get_pixel_array()

@@ -568,42 +568,6 @@ series = db.series((10, 128, 192))
 Currently, writing in data types other than 'MRImage' is not supported, so the data type argument is not necessary.
 
 
-# User interactions
-
-
-`dbdicom` can be used in standalone scripts or at command line. To streamline integration in a GUI, communication with the user is performed via two dedicated attributes `status` and `dialog`. dialog and status attributes are available to any DICOM object. The status attribute is used to send messages to the user, or update on progress of a calculation:
-
-```python
-series.status.message("Starting calculation...")
-```
-
-When operating in command line mode this will print the message to the terminal. If `dbdicom` is used in a compatible GUI, this will print the same message to the status bar. Equivalently, the user can be updated on the progress of a calculation via:
-
-```python
-series.status.message("Calculating..")
-for i in range(length):
-    series.status.progress(i, length)
-```
-
-This will print the message with a percentage progress at each iteration. When used in a GUI, this can be used to update the progress bar of the GUI. If messaging is not desired, and/or when it slows down the execution too much, it can be muted and unmuted:
-
-```python
-series.mute()
-compute(series)
-series.unmute()
-```
-
-In this case, even if the function `compute` directs messaging to the terminal, these will not be printed until the series is unmuted again.
-
-Dialogs can be used to send messages to the user or prompt for input. In some cases a dialog may halt the operation of te program until the user has performed the appropriate action, such as hitting enter or entering a value. In command line operator or scripts the user will be prompted for input at the terminal. When using in a GUI, these prompts can be redirected to a pop-up window:
-
-```python
-series.dialog.question("Do you wish to proceed?", cancel=True)
-```
-
-When used in a script, this will ask the user to enter either "y" (for yes), "n" (for no) or "c" (for cancel) and the program execution will depend on the answer. When the scame script is deployed in a GUI, the question will be asked via a pop-up window and a button push to answer. A number of different dialogs are available via the dialog attribute (see reference guide). 
-
-
 # About ***dbdicom***
 
 ## Why ***dbdicom***?

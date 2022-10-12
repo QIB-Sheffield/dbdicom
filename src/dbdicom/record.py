@@ -51,6 +51,9 @@ class DbRecord():
     def type(self):
         return self.manager.type(self.uid)
 
+    def empty(self):
+        return self.manager.instances(self.uid) == []
+
     def series_data(self):
         attr = dbdataset.module_series()
         vals = self[attr]
@@ -159,6 +162,7 @@ class DbRecord():
 
     def read(self):
         self.manager.read(self.uid)
+        return self
 
     def write(self, path=None):
         if path is not None:
