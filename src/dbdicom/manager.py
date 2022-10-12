@@ -542,6 +542,8 @@ class Manager():
         data[5] = None
         data[11] = 1 + len(self.instances(parent))
 
+        print('creating new instance ', self.value(key, 'SOPInstanceUID'))
+
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row
             self.register.loc[key, self.columns] = data
@@ -585,9 +587,7 @@ class Manager():
             return None
         keys = self.keys(uid)
         dataset = []
-        for i, key in enumerate(keys):
-            if message is not None:
-                self.status.progress(i, len(keys), message)
+        for key in keys:
             if key in self.dataset:
                 # If in memory, get from memory
                 ds = self.dataset[key]
@@ -602,7 +602,10 @@ class Manager():
                     ds = read_dataset(file, self.dialog)  
             dataset.append(ds)
         if self.type(uid) == 'Instance':
-            return dataset[0]
+            if dataset == []:
+                return
+            else:
+                return dataset[0]
         else:
             return dataset
 
@@ -705,7 +708,10 @@ class Manager():
             else:
                 ds = ds[0]
 
-        key = self.keys(instance)[0]
+        keys = self.keys(instance)
+        if keys == []: # instance does not exist
+            return
+        key = keys[0]
         data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
         if 'NumberOfFrames' in ds:
@@ -1294,6 +1300,16 @@ class Manager():
             return self.copy_to_series(source, target, **kwargs)
         if type == 'Instance':
             raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
+            
+
+    def drop_if_missing(self, key, missing='SOPInstanceUID'):
+        # If the series was empty - now it has an instance so the original row can be removed
+        if key in self.register.index:
+            if self.value(key, missing) is None:
+                if self.register.at[key, 'created']:
+                    self.register.drop(index=key, inplace=True)
+                else:
+                    self.register.at[key, 'removed'] == True
 
 
     def move_to_series(self, uid, target, **kwargs):
@@ -1319,9 +1335,10 @@ class Manager():
         copy_keys = []       
 
         keys = self.keys(uid)
+
         for i, key in enumerate(keys):
 
-            self.status.progress(i+1, len(keys), message='Moving dataset..')
+            #self.status.progress(i+1, len(keys), message='Moving dataset..')
 
             ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
 
@@ -1339,6 +1356,7 @@ class Manager():
                 row[11] = i+1 + max_number
                 if self.value(key, 'created'):
                     self.register.loc[key, self.columns] = row
+                    self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
                 else:
                     self.register.at[key,'removed'] = True
                     copy_data.append(row)
@@ -1356,6 +1374,7 @@ class Manager():
                     for i, col in enumerate(attributes):
                         if col in self.columns:
                             self.register.at[key,col] = values[i]
+                    self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
 
                 # If this is the first change, then save results in a copy.
                 else:  
@@ -1379,12 +1398,8 @@ class Manager():
 
         # If the series is empty and new instances have been added
         # then delete the row 
-        if self.value(target_keys[0], 'SOPInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
-                else:
-                    self.register.at[target_keys[0], 'removed'] == True
+        if copy_keys != []:
+            self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1445,6 +1460,7 @@ class Manager():
                     row[10] = new_number
                     if self.value(key, 'created'):
                         self.register.loc[key, self.columns] = row
+                        self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
                     else:
                         self.register.at[key,'removed'] = True
                         copy_data.append(row)
@@ -1462,6 +1478,7 @@ class Manager():
                         for i, col in enumerate(attributes):
                             if col in self.columns:
                                 self.register.at[key,col] = values[i]
+                        self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
 
                     # If this is the first change, then save results in a copy.
                     else:  
@@ -1485,12 +1502,8 @@ class Manager():
 
         # If the study is empty and new series have been added
         # then delete the row 
-        if self.value(target_keys[0], 'SeriesInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
-                else:
-                    self.register.at[target_keys[0], 'removed'] == True
+        if copy_keys != []:
+            self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1543,6 +1556,7 @@ class Manager():
                         row[6] = self.value(target_keys[0], 'PatientName')
                         if self.value(key, 'created'):
                             self.register.loc[key, self.columns] = row
+                            self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
                         else:
                             self.register.at[key,'removed'] = True
                             copy_data.append(row)
@@ -1558,6 +1572,7 @@ class Manager():
                             for i, col in enumerate(attributes):
                                 if col in self.columns:
                                     self.register.at[key,col] = values[i]
+                            self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
 
                         # If this is the first change, then save results in a copy.
                         else:  
@@ -1579,12 +1594,8 @@ class Manager():
 
             # If the patient is empty and new studies have been added
             # then delete the row 
-            if self.value(target_keys[0], 'StudyInstanceUID') is None:
-                if copy_keys != []:
-                    if self.register.at[target_keys[0], 'created']:
-                        self.register.drop(index=target_keys[0], inplace=True)
-                    else:
-                        self.register.at[target_keys[0], 'removed'] == True
+            if copy_keys != []:
+                self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
 
             self._new_keys += copy_keys
             self._new_data += copy_data
@@ -1626,14 +1637,31 @@ class Manager():
 
         keys = self.keys(uid)
         for i, key in enumerate(keys):
-
-            self.status.progress(i+1, len(keys), message='Setting values..')
+            # print('')
+            # print(attributes, values)
+            # print(key)
+            # print(self.register.loc[key,:])
 
             instance_uid = self.value(key, 'SOPInstanceUID')
             ds = self.get_dataset(instance_uid)
             if ds is None:
                 ds = new_dataset('MRImage')
-                self.set_dataset(instance_uid, ds)
+                if instance_uid is None: # instance not yet created
+                    series_uid = self.value(key, 'SeriesInstanceUID')
+                    if series_uid is None:
+                        study_uid = self.value(key, 'StudyInstanceUID')
+                        if study_uid is None:
+                            patient_uid = self.value(key, 'PatientUID')
+                            if patient_uid is None:
+                                instance_uid = self.new_instance('Database', ds)
+                            else:
+                                instance_uid = self.new_instance(patient_uid, ds)
+                        else:
+                            instance_uid = self.new_instance(study_uid, ds)
+                    else:
+                        instance_uid = self.new_instance(series_uid, ds)
+                else:
+                    self.set_dataset(instance_uid, ds)
             # If the value has changed before
             if self.value(key, 'created'): 
                 ds.set_values(attributes, values)

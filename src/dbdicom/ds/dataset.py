@@ -24,12 +24,6 @@ class DbDataset(Dataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-    # Redirect getattr/setattr/getitem/setim via get/set_valaues
-    # so that custom attributes can be accessed the same way as standard attributes
-    # reconsider conversion of standard pydicom data types.
-    # It is not logical to overrule essential pydicom behaviour.
-    # Can be implemented at record level if needed.
-
     def write(self, file, dialog=None):
         write(self, file, dialog=dialog)
 

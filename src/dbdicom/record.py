@@ -253,7 +253,7 @@ def read_dataframe(record, tags):
         indices.append(index)
         row = get_values(instance, tags)
         data.append(row)
-        record.status.progress(i+1, len(instances), 'Reading dataframe..')
+        #record.status.progress(i+1, len(instances), 'Reading dataframe..')
     return pd.DataFrame(data, index=indices, columns=tags)
 
 
