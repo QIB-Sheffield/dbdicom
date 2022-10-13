@@ -51,6 +51,9 @@ class DbRecord():
     def type(self):
         return self.manager.type(self.uid)
 
+    def in_database(self):
+        return self.manager.in_database(self.uid)
+
     def empty(self):
         return self.manager.instances(self.uid) == []
 

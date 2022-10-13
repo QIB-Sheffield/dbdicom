@@ -13,6 +13,9 @@ import dbdicom.utils.dcm4che as dcm4che
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds.create import read_dataset, SOPClass, new_dataset
 
+class DatabaseCorrupted(Exception):
+    pass
+
 
 class Manager(): 
     """Programming interface for reading and writing a DICOM folder."""
@@ -180,7 +183,11 @@ class Manager():
             return uid
 
         df = self.register
-        type = df.columns[df.isin([uid]).any()].values[0]
+        type = df.columns[df.isin([uid]).any()].values
+        if type.size == 0: # uid does not exists in the database
+            return None
+        else:
+            type = type[0]
 
         if type == 'PatientID':
             return 'Patient'
@@ -333,7 +340,9 @@ class Manager():
         if isinstance(uid, list):
             children = []
             for i in uid:
-                children += self.children(i, **kwargs)
+                children_i = self.children(i, **kwargs)
+                if children_i is not None:
+                    children += children_i
             return children
 
         if uid is None:
@@ -341,6 +350,8 @@ class Manager():
 
         # Get all children
         keys = self.keys(uid)
+        if keys == []:
+            return
         if uid == 'Database':
             children = list(set(self.value(keys, 'PatientID')))
         else:
@@ -542,8 +553,6 @@ class Manager():
         data[5] = None
         data[11] = 1 + len(self.instances(parent))
 
-        print('creating new instance ', self.value(key, 'SOPInstanceUID'))
-
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row
             self.register.loc[key, self.columns] = data
@@ -561,6 +570,10 @@ class Manager():
             self.set_dataset(data[3], dataset)
 
         return data[3]
+
+    def in_database(self, uid):
+        keys = self.keys(uid)
+        return keys != []
     
     def is_empty(self, instance):
         # Needs a unit test
@@ -601,6 +614,7 @@ class Manager():
                 else:
                     ds = read_dataset(file, self.dialog)  
             dataset.append(ds)
+
         if self.type(uid) == 'Instance':
             if dataset == []:
                 return
@@ -928,12 +942,14 @@ class Manager():
         """
         keys = self.keys(*args, **kwargs)
         for i, key in enumerate(keys):
-            if message is not None:
-                self.status.progress(i, len(keys), message)
+            #if message is not None:
+            #    self.status.progress(i, len(keys), message)
             # do not read if they are already in memory
             # this could overwrite changes made in memory only
             if not key in self.dataset:
-                self.dataset[key] = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                if ds is not None:
+                    self.dataset[key] = ds
 
     def write(self, *args, message=None, **kwargs):
         """Writing data from memory to disk.
@@ -942,8 +958,8 @@ class Manager():
         """
         keys = self.keys(*args, **kwargs)
         for i, key in enumerate(keys):
-            if message is not None:
-                self.status.progress(i, len(keys), message)
+            # if message is not None:
+            #     self.status.progress(i, len(keys), message)
             if key in self.dataset:
                 file = self.filepath(key)
                 self.dataset[key].write(file, self.dialog)
@@ -1316,6 +1332,9 @@ class Manager():
         """Copy datasets to another series"""
 
         target_keys = self.keys(series=target)
+        if target_keys == []:
+            msg = 'Moving data to a series that does not exist in the database'
+            raise ValueError(msg)
 
         attributes, values = self.series_header(target_keys[0])
         for key in kwargs:
@@ -1637,10 +1656,6 @@ class Manager():
 
         keys = self.keys(uid)
         for i, key in enumerate(keys):
-            # print('')
-            # print(attributes, values)
-            # print(key)
-            # print(self.register.loc[key,:])
 
             instance_uid = self.value(key, 'SOPInstanceUID')
             ds = self.get_dataset(instance_uid)
@@ -1735,7 +1750,14 @@ class Manager():
                 else:
                     v = np.empty((len(keys), len(attributes)), dtype=object)
                     for i, key in enumerate(keys):
-                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                        instance_uid = self.value(key, 'SOPInstanceUID')
+                        ds = self.get_dataset(instance_uid)
+                        if isinstance(ds, list):
+                            instances = self.register.SOPInstanceUID == instance_uid
+                            msg = 'Multiple instances with the same SOPInstanceUID \n'
+                            msg += instance_uid + '\n'
+                            msg += str(self.register.loc[instances].transpose())
+                            raise DatabaseCorrupted(msg)
                         if ds is None:
                             v[i,:] = [None] * len(attributes)
                         else:
@@ -1764,6 +1786,7 @@ class Manager():
                 v = self.get_values(id, attributes)
                 values.append(v)
             return values
+
 
     def save(self, uid=None): 
 
