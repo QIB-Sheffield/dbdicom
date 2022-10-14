@@ -9,6 +9,8 @@ from dbdicom.types.instance import Instance
 
 def create(manager, uid='Database', type=None, **kwargs):
 
+    if uid is None:
+        return
     if uid == 'Database':
         return Database(create, manager, **kwargs)
     if type is None:

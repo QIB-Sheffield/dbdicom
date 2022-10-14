@@ -103,23 +103,23 @@ class DbRecord():
 
     def new_patient(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_patient(parent=self.uid, 
-            PatientName = attr['PatientName'] if 'PatientName' in attr else 'New Patient',
-        )
+        #desc = attr['PatientName'] if 'PatientName' in attr else 'New Patient'
+        #uid = self.manager.new_patient(parent=self.uid, PatientName = desc)
+        uid = self.manager.new_patient(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Patient', **attr)
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_study(parent=self.uid, 
-            StudyDescription = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
-        )
+        #desc = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study'
+        #uid = self.manager.new_study(parent=self.uid, StudyDescription = desc)
+        uid = self.manager.new_study(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Study', **attr)
 
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_series(parent=self.uid,
-            SeriesDescription = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
-        )
+        #desc = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series'
+        #uid = self.manager.new_series(parent=self.uid, SeriesDescription = desc)
+        uid = self.manager.new_series(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Series', **attr)
 
     def new_instance(self, dataset=None, **kwargs):

@@ -453,8 +453,11 @@ class Manager():
         self._new_keys = []
 
 
-    def new_patient(self, parent='Database', PatientName='Anonymous'):
+    #def new_patient(self, parent='Database', PatientName='Anonymous'):
+    def new_patient(self, parent='Database', **kwargs):
         # Allow multiple to be made at the same time
+
+        PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
 
         data = [None] * len(self.columns)
         data[0] = dbdataset.new_uid()
@@ -464,15 +467,13 @@ class Manager():
         self._new_keys.append(self.new_key())
         self.extend()
 
-        # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.register = pd.concat([self.register, df])
-
         return data[0]
 
-    def new_study(self, parent=None, StudyDescription='New Study'):
+    #def new_study(self, parent=None, StudyDescription='New Study'):
+    def new_study(self, parent=None, **kwargs):
         # Allow multiple to be made at the same time
+
+        StudyDescription = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
 
         if parent is None:
             parent = self.new_patient()
@@ -496,15 +497,14 @@ class Manager():
             self._new_data.append(data)
             self._new_keys.append(self.new_key())
             self.extend()
-            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            # df['removed'] = False
-            # df['created'] = True
-            # self.register = pd.concat([self.register, df])
 
         return data[1]
 
-    def new_series(self, parent=None, SeriesDescription='New Series'):
+    #def new_series(self, parent=None, SeriesDescription='New Series'):
+    def new_series(self, parent=None, **kwargs):
         # Allow multiple to be made at the same time
+
+        SeriesDescription = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
 
         if parent is None:
             parent = self.new_study()
@@ -530,14 +530,11 @@ class Manager():
             self._new_data.append(data)
             self._new_keys.append(self.new_key())
             self.extend()
-            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            # df['removed'] = False
-            # df['created'] = True
-            # self.register = pd.concat([self.register, df])
 
         return data[2]
 
-    def new_instance(self, parent=None, dataset=None):
+    #def new_instance(self, parent=None, dataset=None):
+    def new_instance(self, parent=None, dataset=None, **kwargs):
         # Allow multiple to be made at the same time
 
         if parent is None:
@@ -561,15 +558,45 @@ class Manager():
             self._new_data.append(data)
             self._new_keys.append(self.new_key())
             self.extend()
-            # df = pd.DataFrame([data], index=[self.new_key()], columns=self.columns)
-            # df['removed'] = False
-            # df['created'] = True
-            # self.register = pd.concat([self.register, df])
 
         if dataset is not None:
             self.set_dataset(data[3], dataset)
 
         return data[3]
+
+    def new_child(self, uid=None, dataset=None, **kwargs):
+
+        if uid is None:
+            return None
+        parent_type = self.type(uid)
+        if parent_type == 'Database':
+            return self.new_patient(uid, **kwargs)
+        if parent_type == 'Patient':
+            return self.new_study(uid, **kwargs)
+        if parent_type == 'Study':
+            return self.new_series(uid, **kwargs)
+        if parent_type == 'Series':
+            return self.new_instance(uid, dataset=dataset, **kwargs)
+        if parent_type == 'Instance':
+            return None
+
+    def new_sibling(self, uid=None, **kwargs):
+
+        if uid is None:
+            return None
+        if uid == 'Database':
+            return None
+        parent = self.parent(uid)
+        return self.new_child(parent, **kwargs)
+
+    def new_pibling(self, uid=None, **kwargs):
+
+        if uid is None:
+            return None
+        if uid == 'Database':
+            return None
+        parent = self.parent(uid)
+        return self.new_sibling(parent, **kwargs)
 
     def in_database(self, uid):
         keys = self.keys(uid)
@@ -825,13 +852,7 @@ class Manager():
 
         self._new_keys += new_keys
         self._new_data += new_data
-        self.extend()
-
-        # if new_keys != []:
-        #     df = pd.DataFrame(new_data, index=new_keys, columns=self.columns)
-        #     df['removed'] = False
-        #     df['created'] = True
-        #     self.register = pd.concat([self.register, df])   
+        self.extend() 
 
 
     def in_memory(self, uid): # needs a test
@@ -839,39 +860,7 @@ class Manager():
         key = self.keys(uid)[0]
         return key in self.dataset
 
-    def new_child(self, uid=None, dataset=None, **kwargs):
 
-        if uid is None:
-            return None
-        parent_type = self.type(uid)
-        if parent_type == 'Database':
-            return self.new_patient(uid, **kwargs)
-        if parent_type == 'Patient':
-            return self.new_study(uid, **kwargs)
-        if parent_type == 'Study':
-            return self.new_series(uid, **kwargs)
-        if parent_type == 'Series':
-            return self.new_instance(uid, dataset=dataset, **kwargs)
-        if parent_type == 'Instance':
-            return None
-
-    def new_sibling(self, uid=None, **kwargs):
-
-        if uid is None:
-            return None
-        if uid == 'Database':
-            return None
-        parent = self.parent(uid)
-        return self.new_child(parent, **kwargs)
-
-    def new_pibling(self, uid=None):
-
-        if uid is None:
-            return None
-        if uid == 'Database':
-            return None
-        parent = self.parent(uid)
-        return self.new_sibling(parent)
 
     def label(self, uid=None, key=None, type=None):
         """Return a label to describe a row as Patient, Study, Series or Instance"""
@@ -1082,7 +1071,7 @@ class Manager():
 
         for i, key in enumerate(keys):
 
-            self.status.progress(i+1, len(keys), message='Copying..')
+            #self.status.progress(i+1, len(keys), message='Copying..')
 
             new_key = self.new_key()
             ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
@@ -1128,11 +1117,6 @@ class Manager():
         self._new_data += copy_data
         self.extend()
 
-        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.register = pd.concat([self.register, df])
-
         if len(new_instances) == 1:
             return new_instances[0]
         else:
@@ -1167,7 +1151,7 @@ class Manager():
 
         for s, series in enumerate(all_series):
 
-            self.status.progress(s+1, len(all_series), message='Copying..')
+            #self.status.progress(s+1, len(all_series), message='Copying..')
             new_number = s + 1 + max_number
 
             for key in self.keys(series):
@@ -1245,17 +1229,10 @@ class Manager():
 
         all_studies = self.studies(uid)
         new_studies = dbdataset.new_uid(len(all_studies))
-
         for s, study in enumerate(all_studies):
-            
-            self.status.progress(s+1, len(all_studies), message='Copying..')
-
             for series in self.series(study):
-
                 new_series_uid = dbdataset.new_uid()
-
                 for key in self.keys(series):
-
                     new_key = self.new_key()
                     ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
                     if ds is None:
@@ -1295,19 +1272,72 @@ class Manager():
         self._new_data += copy_data
         self.extend()
 
-        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.register = pd.concat([self.register, df])
-
         if len(new_studies) == 1:
             return new_studies[0]
         else:
             return new_studies
 
+
+    def copy_to_database(self, uid, target, **kwargs):
+        """Copy patient to the database"""
+
+        copy_data = []
+        copy_keys = []
+
+        all_patients = self.patients(uid)
+        new_patients = dbdataset.new_uid(len(all_patients))
+
+        for i, patient in enumerate(all_patients):
+            keys = self.keys(patient)
+            new_patient_uid = new_patients[i]
+            new_patient_name = 'Copy of ' + self.value(keys[0], 'PatientName')
+            for study in self.studies(patient):
+                new_study_uid = dbdataset.new_uid()
+                for sery in self.series(study):
+                    new_series_uid = dbdataset.new_uid()
+                    for key in self.keys(sery):
+                        new_instance_uid = dbdataset.new_uid()
+                        new_key = self.new_key()
+                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                        if ds is None:
+                            row = self.value(key, self.columns).tolist()
+                            row[0] = new_patient_uid
+                            row[1] = new_study_uid 
+                            row[2] = new_series_uid
+                            row[3] = new_instance_uid
+                            row[6] = new_patient_name
+                        else:
+                            if key in self.dataset:
+                                ds = copy.deepcopy(ds)
+                                self.dataset[new_key] = ds
+                            ds.set_values( 
+                                ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
+                                [new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
+                            if not key in self.dataset:
+                                ds.write(self.filepath(new_key), self.dialog)
+                            row = ds.get_values(self.columns)
+
+                # Get new data for the dataframe
+                copy_data.append(row)
+                copy_keys.append(new_key)
+
+        # Update the dataframe in the index
+
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+        if len(new_patients) == 1:
+            return new_patients[0]
+        else:
+            return new_patients
+            
+
     def copy_to(self, source, target, **kwargs):
 
         type = self.type(target)
+        if type == 'Database':
+            return self.copy_to_database(source, target, **kwargs)
         if type == 'Patient':
             return self.copy_to_patient(source, target, **kwargs)
         if type == 'Study':
