@@ -103,22 +103,16 @@ class DbRecord():
 
     def new_patient(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        #desc = attr['PatientName'] if 'PatientName' in attr else 'New Patient'
-        #uid = self.manager.new_patient(parent=self.uid, PatientName = desc)
         uid = self.manager.new_patient(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Patient', **attr)
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        #desc = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study'
-        #uid = self.manager.new_study(parent=self.uid, StudyDescription = desc)
         uid = self.manager.new_study(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Study', **attr)
 
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        #desc = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series'
-        #uid = self.manager.new_series(parent=self.uid, SeriesDescription = desc)
         uid = self.manager.new_series(parent=self.uid, **attr)
         return self.new(self.manager, uid, 'Series', **attr)
 
@@ -136,13 +130,13 @@ class DbRecord():
         uid = self.manager.new_sibling(uid=self.uid, **kwargs)
         return self.__class__(self.new, self.manager, uid)
 
-    def new_pibling(self):
+    def new_pibling(self, **kwargs):
         type = self.__class__.__name__
         if type == 'Database':
             return None
         if type == 'Patient':
             return None
-        uid = self.manager.new_pibling(uid=self.uid)
+        uid = self.manager.new_pibling(uid=self.uid, **kwargs)
         if type == 'Study':
             return self.new(self.manager, uid, 'Patient')
         if type == 'Series':

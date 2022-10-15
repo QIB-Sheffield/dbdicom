@@ -1317,9 +1317,9 @@ class Manager():
                                 ds.write(self.filepath(new_key), self.dialog)
                             row = ds.get_values(self.columns)
 
-                # Get new data for the dataframe
-                copy_data.append(row)
-                copy_keys.append(new_key)
+                        # Get new data for the dataframe
+                        copy_data.append(row)
+                        copy_keys.append(new_key)
 
         # Update the dataframe in the index
 
