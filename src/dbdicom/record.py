@@ -7,6 +7,7 @@ class DbRecord():
 
     def __init__(self, create, manager, uid='Database', **kwargs):   
 
+        self._mute = False
         self.uid = uid
         self.attributes = kwargs
         self.manager = manager
@@ -22,7 +23,7 @@ class DbRecord():
         return self.get_values(attributes)
 
     def __setattr__(self, attribute, value):
-        if attribute in ['uid', 'manager', 'attributes', 'new']:
+        if attribute in ['_mute', 'uid', 'manager', 'attributes', 'new']:
             self.__dict__[attribute] = value
         else:
             #self.set_values(attribute, value)
@@ -32,7 +33,7 @@ class DbRecord():
         self.set_values(attributes, values)
 
     @property
-    def status(self):
+    def status(self): 
         return self.manager.status
 
     @property
@@ -40,10 +41,18 @@ class DbRecord():
         return self.manager.dialog
 
     def mute(self):
-        self.status.mute()
+        self._mute = True
         
     def unmute(self):
-        self.status.unmute()
+        self._mute = False
+
+    def progress(self, *args, **kwargs):
+        if not self._mute:
+            self.manager.status.progress(*args, **kwargs)
+
+    def message(self, *args, **kwargs):
+        if not self._mute:
+            self.manager.status.message(*args, **kwargs)
 
     def files(self):
         return self.manager.filepaths(self.uid)
@@ -250,7 +259,7 @@ def read_dataframe(record, tags):
         indices.append(index)
         row = get_values(instance, tags)
         data.append(row)
-        #record.status.progress(i+1, len(instances), 'Reading dataframe..')
+        record.progress(i+1, len(instances), 'Reading dataframe..')
     return pd.DataFrame(data, index=indices, columns=tags)
 
 

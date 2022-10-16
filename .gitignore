@@ -4,6 +4,7 @@
 ### package builds
 .venv/*
 docs/*
+tests/tmp/*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
