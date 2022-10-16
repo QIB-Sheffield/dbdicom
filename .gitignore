@@ -5,6 +5,7 @@
 .venv/*
 docs/*
 tests/tmp/*
+tests/export/*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

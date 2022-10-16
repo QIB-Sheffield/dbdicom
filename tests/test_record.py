@@ -833,7 +833,7 @@ def test_merge_empty():
     database.save(tmp)
 
     database = db.database(tmp)
-    assert set(database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
+    assert set(database.PatientName) == set(['James Bond', 'Scarface', 'New Patient'])
     assert set(database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
 
     remove_tmp_database(tmp)

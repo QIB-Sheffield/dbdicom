@@ -29,6 +29,10 @@ def remove_tmp_database(tmp):
     shutil.rmtree(tmp)
 
 
+# CONSTANTS
+N_COLUMNS = 18
+
+
 def test_init():
 
     mgr = Manager()
@@ -47,7 +51,8 @@ def test_read_dataframe():
 
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
-    mgr.read_dataframe()
+    #mgr.read_dataframe()
+    mgr.scan()
     assert mgr.register.shape == (24, 2+len(mgr.columns))
     remove_tmp_database(tmp)
 
@@ -56,7 +61,8 @@ def test_read_write_df():
 
     tmp = create_tmp_database(twofiles)
     mgr = Manager(tmp)
-    mgr.read_dataframe()
+    #mgr.read_dataframe()
+    mgr.scan()
     mgr._write_df()
     df1 = mgr.register
     mgr._read_df()
@@ -70,10 +76,11 @@ def test_multiframe_to_singleframe():
 
     tmp = create_tmp_database(multiframe)
     mgr = Manager(tmp)
-    mgr.read_dataframe()
-    assert mgr.register.shape == (2, 14)
-    mgr._multiframe_to_singleframe()
-    assert mgr.register.shape == (124, 14)
+    # mgr.read_dataframe()
+    # assert mgr.register.shape == (2, 14)
+    # mgr._multiframe_to_singleframe()
+    mgr.scan()
+    assert mgr.register.shape == (124, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_scan():
@@ -81,7 +88,7 @@ def test_scan():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.scan()
-    assert mgr.register.shape == (24, 14)
+    assert mgr.register.shape == (24, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_type():
@@ -532,23 +539,23 @@ def test_set_dataset():
 
     # Save datasets in new instances
     dataset = mgr.get_dataset(series1)
-    dataset[0].AcquisitionTime = '000000'
+    dataset[0].ContentTime = '000000'
     n = len(mgr.instances(series2))
     mgr.set_dataset(series2, dataset[:2])
     assert len(mgr.instances(series2)) == n+2
-    assert '000000' in mgr.get_values(series2, 'AcquisitionTime')
+    assert '000000' in mgr.get_values(series2, 'ContentTime')
     mgr.restore('Database')
     assert len(mgr.instances(series2)) == n
-    assert '000000' not in mgr.get_values(series2, 'AcquisitionTime')
+    assert '000000' not in mgr.get_values(series2, 'ContentTime')
 
     # Save datasets in existing instances
     dataset = mgr.get_dataset(series2)
-    dataset[0].AcquisitionTime = '000000'
+    dataset[0].ContentTime = '000000'
     n = len(mgr.instances(series2))
     assert n == len(dataset)
     mgr.set_dataset(series2, dataset[:2])
     assert len(mgr.instances(series2)) == n
-    assert '000000' in mgr.get_values(series2, 'AcquisitionTime')
+    assert '000000' in mgr.get_values(series2, 'ContentTime')
     
     remove_tmp_database(tmp)
 
@@ -756,7 +763,7 @@ def test_open_close():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.open()
-    assert mgr.register.shape == (24, 14)
+    assert mgr.register.shape == (24, N_COLUMNS)
     mgr.save()
     mgr.close()
     assert mgr.register is None
@@ -771,7 +778,7 @@ def test_open_close():
 
     tmp = create_tmp_database(twofiles)
     mgr.open(tmp)
-    assert mgr.register.shape == (2, 14)
+    assert mgr.register.shape == (2, N_COLUMNS)
     mgr.save()
     mgr.close()
     assert mgr.register is None
@@ -788,22 +795,18 @@ def test_inmemory_vs_ondisk():
     mgr.open(tmp)   
     df = mgr.register
     mgr.close()
-    assert df.shape == (24, 14)
+    assert df.shape == (24, N_COLUMNS)
     assert mgr.register is None
 
     remove_tmp_database(tmp)
 
     # create a database in memory
     # Try to read a dataframe and check 
-    # that this produces an exception
+    # that this this is empty
     mgr.register = df
-    assert mgr.register.shape == (24, 14)
-    try:
-        mgr.read_dataframe()
-    except ValueError:
-        assert True
-    else:
-        assert False
+    assert mgr.register.shape == (24, N_COLUMNS)
+    mgr.scan()
+    assert mgr.register.empty
 
 
 def test_get_dataset():

@@ -22,12 +22,9 @@ class Manager():
 
     # The column labels of the dataframe as required by dbdicom
     columns = [    
-        'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 
-        'SOPClassUID','NumberOfFrames', 
-        'PatientName', 
-        'StudyDescription', 'StudyDate', 
-        'SeriesDescription', 'SeriesNumber',
-        'InstanceNumber', 
+        'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'SOPClassUID', 
+        'PatientName', 'StudyDescription', 'StudyDate', 'SeriesDescription', 'SeriesNumber', 'InstanceNumber', 
+        'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'AcquisitionTime',
     ]
 
     def __init__(self, path=None, dataframe=None, status=StatusBar(), dialog=Dialog()):
@@ -51,16 +48,75 @@ class Manager():
         self._new_keys = []
         self._new_data = []
 
-    def read_dataframe(self, message='Reading database..'):
+    def scan(self, unzip=False):
         """
         Reads all files in the folder and summarises key attributes in a table for faster access.
         """
+#       Take unzip out until test is developed - less essential feature
+#        if unzip:
+#            filetools._unzip_files(self.path, self.status)
+
+        #self.read_dataframe()
+
         if self.path is None:
-            raise ValueError('Cant read dataframe - index manages a database in memory')
+            self.register = pd.DataFrame(index=[], columns=self.columns)
+            self.dataset = {}
+            return
         files = filetools.all_files(self.path)
-        self.register = dbdataset.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
+        self.register = dbdataset.read_dataframe(files, self.columns+['NumberOfFrames'], self.status, path=self.path, message='Reading database..')
         self.register['removed'] = False
         self.register['created'] = False
+        # No support for multiframe data at the moment
+        self._multiframe_to_singleframe()
+        self.register.drop('NumberOfFrames', axis=1, inplace=True)
+        return self
+
+    def _multiframe_to_singleframe(self):
+        """Converts all multiframe files in the folder into single-frame files.
+        
+        Reads all the multi-frame files in the folder,
+        converts them to singleframe files, and delete the original multiframe file.
+        """
+        if self.path is None:
+            # Low priority - we are not create multiframe data from scratch 
+            # So will always be loaded from disk initially where the solution exists. 
+            # Solution: save data in a temporary file, use the filebased conversion, 
+            # the upload the solution and delete the temporary file.
+            raise ValueError('Multi-frame to single-frame conversion does not yet exist from data in memory')
+        singleframe = self.register.NumberOfFrames.isnull() 
+        multiframe = singleframe == False
+        nr_multiframe = multiframe.sum()
+        if nr_multiframe != 0: 
+            cnt=0
+            for relpath in self.register[multiframe].index.values:
+                cnt+=1
+                msg = "Converting multiframe file " + relpath
+                self.status.progress(cnt, nr_multiframe, message=msg)
+                #
+                # Create these in the dbdicom folder, not in the original folder.
+                #
+                filepath = os.path.join(self.path, relpath)
+                singleframe_files = dcm4che.split_multiframe(filepath)
+                if singleframe_files != []:                    
+                    # add the single frame files to the dataframe
+                    df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
+                    df['removed'] = False
+                    df['created'] = False
+                    self.register = pd.concat([self.register, df])
+                    # delete the original multiframe 
+                    os.remove(filepath)
+                    self.register.drop(index=relpath, inplace=True)
+
+    # def read_dataframe(self, message='Reading database..'):
+    #     """
+    #     Reads all files in the folder and summarises key attributes in a table for faster access.
+    #     """
+    #     if self.path is None:
+    #         raise ValueError('Cant read dataframe - index manages a database in memory')
+    #     files = filetools.all_files(self.path)
+    #     self.register = dbdataset.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
+    #     self.register['removed'] = False
+    #     self.register['created'] = False
 
     def _pkl(self):
         """ Returns the file path of the .pkl file"""
@@ -105,52 +161,6 @@ class Manager():
         # Needs a formal test for completeness
         return [self.filepath(key) for key in self.keys(*args, **kwargs)]
 
-    def _multiframe_to_singleframe(self):
-        """Converts all multiframe files in the folder into single-frame files.
-        
-        Reads all the multi-frame files in the folder,
-        converts them to singleframe files, and delete the original multiframe file.
-        """
-        if self.path is None:
-            # Low priority - we are not create multiframe data from scratch 
-            # So will always be loaded from disk initially where the solution exists. 
-            # Solution: save data in a temporary file, use the filebased conversion, 
-            # the upload the solution and delete the temporary file.
-            raise ValueError('Multi-frame to single-frame conversion does not yet exist from data in memory')
-        singleframe = self.register.NumberOfFrames.isnull() 
-        multiframe = singleframe == False
-        nr_multiframe = multiframe.sum()
-        if nr_multiframe != 0: 
-            cnt=0
-            for relpath in self.register[multiframe].index.values:
-                cnt+=1
-                msg = "Converting multiframe file " + relpath
-                self.status.progress(cnt, nr_multiframe, message=msg)
-                #
-                # Create these in the dbdicom folder, not in the original folder.
-                #
-                filepath = os.path.join(self.path, relpath)
-                singleframe_files = dcm4che.split_multiframe(filepath)
-                if singleframe_files != []:                    
-                    # add the single frame files to the dataframe
-                    df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
-                    df['removed'] = False
-                    df['created'] = False
-                    self.register = pd.concat([self.register, df])
-                    # delete the original multiframe 
-                    os.remove(filepath)
-                    self.register.drop(index=relpath, inplace=True)
-
-    def scan(self, unzip=False):
-        """
-        Reads all files in the folder and summarises key attributes in a table for faster access.
-        """
-#       Take unzip out until test is developed - less essential feature
-#        if unzip:
-#            filetools._unzip_files(self.path, self.status)
-        self.read_dataframe()
-        self._multiframe_to_singleframe()
-        return self
 
     def open(self, path=None, unzip=False):
         """Opens a DICOM folder for read and write.
@@ -461,7 +471,7 @@ class Manager():
 
         data = [None] * len(self.columns)
         data[0] = dbdataset.new_uid()
-        data[6] = PatientName
+        data[5] = PatientName
 
         self._new_data.append(data)
         self._new_keys.append(self.new_key())
@@ -486,8 +496,8 @@ class Manager():
         data = [None] * len(self.columns)
         data[0] = self.value(key, 'PatientID')
         data[1] = dbdataset.new_uid()
-        data[6] = self.value(key, 'PatientName')
-        data[7] = StudyDescription
+        data[5] = self.value(key, 'PatientName')
+        data[6] = StudyDescription
         
         if self.value(key, 'StudyInstanceUID') is None:
             # New patient without studies - use existing row
@@ -517,10 +527,9 @@ class Manager():
         data[2] = dbdataset.new_uid()
         data[3] = None
         data[4] = None
-        data[5] = None
-        data[9] = SeriesDescription
-        data[10] = 1 + len(self.series(parent))
-        data[11] = None
+        data[8] = SeriesDescription
+        data[9] = 1 + len(self.series(parent))
+        data[10] = None
 
         if self.value(key, 'SeriesInstanceUID') is None:
             # New study without series - use existing row
@@ -547,8 +556,7 @@ class Manager():
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
         data[4] = None
-        data[5] = None
-        data[11] = 1 + len(self.instances(parent))
+        data[10] = 1 + len(self.instances(parent))
 
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row
@@ -805,14 +813,12 @@ class Manager():
                 data = self.value(key, self.columns)
                 data[3] = dbdataset.new_uid()
                 data[4] = ds.SOPClassUID
-                if 'NumberOfFrames' in ds:
-                    data[5] = ds.NumberOfFrames
                 nrs = self.value(parent_keys, 'InstanceNumber')
                 nrs = [n for n in nrs if n is not None]
                 if nrs == []:
-                    data[11] = 1
+                    data[10] = 1
                 else:
-                    data[11] = 1 + max(nrs)
+                    data[10] = 1 + max(nrs)
                 ds.set_values(self.columns, data)
 
                 # Add to database in memory
@@ -826,8 +832,6 @@ class Manager():
                 key = self.keys(instances[ind])[0]
                 data = self.value(key, self.columns)
                 data[4] = ds.SOPClassUID
-                if 'NumberOfFrames' in ds:
-                    data[5] = ds.NumberOfFrames
                 if self.value(key, 'created'):
                     self.dataset[key] = ds
                 else:
@@ -1081,12 +1085,12 @@ class Manager():
                 row[1] = self.value(target_keys[0], 'StudyInstanceUID')
                 row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
                 row[3] = new_instances[i]
-                row[6] = self.value(target_keys[0], 'PatientName')
-                row[7] = self.value(target_keys[0], 'StudyDescription')
-                row[8] = self.value(target_keys[0], 'StudyDate')
-                row[9] = self.value(target_keys[0], 'SeriesDescription')
-                row[10] = self.value(target_keys[0], 'SeriesNumber')
-                row[11] = i+1+max_number
+                row[5] = self.value(target_keys[0], 'PatientName')
+                row[6] = self.value(target_keys[0], 'StudyDescription')
+                row[7] = self.value(target_keys[0], 'StudyDate')
+                row[8] = self.value(target_keys[0], 'SeriesDescription')
+                row[9] = self.value(target_keys[0], 'SeriesNumber')
+                row[10] = i+1+max_number
             else:
                 if key in self.dataset:
                     ds = copy.deepcopy(ds)
@@ -1164,10 +1168,10 @@ class Manager():
                     row[1] = self.value(target_keys[0], 'StudyInstanceUID')
                     row[2] = new_series[s]
                     row[3] = dbdataset.new_uid()
-                    row[6] = self.value(target_keys[0], 'PatientName')
-                    row[7] = self.value(target_keys[0], 'StudyDescription')
-                    row[8] = self.value(target_keys[0], 'StudyDate')
-                    row[10] = new_number
+                    row[5] = self.value(target_keys[0], 'PatientName')
+                    row[6] = self.value(target_keys[0], 'StudyDescription')
+                    row[7] = self.value(target_keys[0], 'StudyDate')
+                    row[8] = new_number
                 else:
                     if key in self.dataset:
                         ds = copy.deepcopy(ds)
@@ -1241,7 +1245,7 @@ class Manager():
                         row[1] = new_studies[s]
                         row[2] = new_series_uid
                         row[3] = dbdataset.new_uid()
-                        row[6] = self.value(target_keys[0], 'PatientName')
+                        row[5] = self.value(target_keys[0], 'PatientName')
                     else:
                         if key in self.dataset:
                             ds = copy.deepcopy(ds)
@@ -1305,7 +1309,7 @@ class Manager():
                             row[1] = new_study_uid 
                             row[2] = new_series_uid
                             row[3] = new_instance_uid
-                            row[6] = new_patient_name
+                            row[5] = new_patient_name
                         else:
                             if key in self.dataset:
                                 ds = copy.deepcopy(ds)
@@ -1397,12 +1401,12 @@ class Manager():
                 row[0] = self.value(target_keys[0], 'PatientID')
                 row[1] = self.value(target_keys[0], 'StudyInstanceUID')
                 row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
-                row[6] = self.value(target_keys[0], 'PatientName')
-                row[7] = self.value(target_keys[0], 'StudyDescription')
-                row[8] = self.value(target_keys[0], 'StudyDate')
-                row[9] = self.value(target_keys[0], 'SeriesDescription')
-                row[10] = self.value(target_keys[0], 'SeriesNumber')
-                row[11] = i+1 + max_number
+                row[5] = self.value(target_keys[0], 'PatientName')
+                row[6] = self.value(target_keys[0], 'StudyDescription')
+                row[7] = self.value(target_keys[0], 'StudyDate')
+                row[8] = self.value(target_keys[0], 'SeriesDescription')
+                row[9] = self.value(target_keys[0], 'SeriesNumber')
+                row[10] = i+1 + max_number
                 if self.value(key, 'created'):
                     self.register.loc[key, self.columns] = row
                     self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
@@ -1503,10 +1507,10 @@ class Manager():
                     row = self.value(key, self.columns).tolist()
                     row[0] = self.value(target_keys[0], 'PatientID')
                     row[1] = self.value(target_keys[0], 'StudyInstanceUID')
-                    row[6] = self.value(target_keys[0], 'PatientName')
-                    row[7] = self.value(target_keys[0], 'StudyDescription')
-                    row[8] = self.value(target_keys[0], 'StudyDate')
-                    row[10] = new_number
+                    row[5] = self.value(target_keys[0], 'PatientName')
+                    row[6] = self.value(target_keys[0], 'StudyDescription')
+                    row[7] = self.value(target_keys[0], 'StudyDate')
+                    row[9] = new_number
                     if self.value(key, 'created'):
                         self.register.loc[key, self.columns] = row
                         self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
@@ -1602,7 +1606,7 @@ class Manager():
 
                         row = self.value(key, self.columns).tolist()
                         row[0] = self.value(target_keys[0], 'PatientID')
-                        row[6] = self.value(target_keys[0], 'PatientName')
+                        row[5] = self.value(target_keys[0], 'PatientName')
                         if self.value(key, 'created'):
                             self.register.loc[key, self.columns] = row
                             self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
