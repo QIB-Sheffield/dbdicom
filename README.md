@@ -431,34 +431,34 @@ will save all changes made in the series (but not other objects in the database)
 
 A DICOM series typically represents images that are acquired together, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hierarchy. 
 
-To extract the images in a series as a numpy array, use `get_pixel_array`:
+To extract the images in a series as a numpy array, use `array()`:
 
 ```python
-array, _ = series.get_pixel_array()
+array, _ = series.array()
 ```
 
 This will return an array with dimensions `(n,x,y)` where `n` enumerates the images in the series. The array can also be returned with other dimensions:
 
 ```python
-array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
+array, _ = series.array(['SliceLocation', 'FlipAngle'])
 ```
 
 This returns an array with dimensions `(z,t,n,x,y)` where `z` corresponds to slice locations and `t` to flip angles. The 3d dimension `n` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way. If an application requires the pixels to be listed first, use the `pixels_first` keyword:
 
 ```python
-array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'], pixels_first=True)
+array, _ = series.array(['SliceLocation', 'FlipAngle'], pixels_first=True)
 ```
 
 In this case the array has dimensions `(x,y,z,t,n)`. Replacing the images of a series with a given numpy array works the same way:
 
 ```python
-series.set_pixel_array(array)
+series.array(array)
 ```
 
-The `get_pixel_array()` also returns the header information for each slice in a second return value:
+The function `array()` also returns the header information for each slice in a second return value:
 
 ```python
-array, header = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
+array, header = series.array(['SliceLocation', 'FlipAngle'])
 ```
 
 The header is a numpy array of instances with the same dimensions as the array - except for the pixel coordinates: in this case `(z,t,n)`. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice `z=0, n=0`:
@@ -472,9 +472,9 @@ The header array is also useful when a calculation is performed on the array and
 As an example, let's calculate a maximum intensity projection (MIP) of a 4D time series and write the result out in the same series:
 
 ```python
-array, header = series.get_pixel_array(['SliceLocation', 'AcquisitionTime'])
+array, header = series.array(['SliceLocation', 'AcquisitionTime'])
 mip = np.amax(array, axis=0)
-series.set_pixel_array(mip, header[0,:,:])
+series.set_array(mip, header[0,:,:])
 ```
 
 In this case the header information of the MIP is taken from the first image of the time series. Provding header information is not required - if the header argument is not specified then a template header is used.
