@@ -7,22 +7,27 @@ from dbdicom.types.series import Series
 from dbdicom.types.instance import Instance
 
 
-def create(manager, uid='Database', type=None, **kwargs):
+def create(manager, uid='Database', type=None, key=None, **kwargs):
 
     if uid is None:
         return
     if uid == 'Database':
         return Database(create, manager, **kwargs)
+
+    # This case is included for convenience but should be avoided 
+    # at all costs because the lookup of type at creation is very expensive.
+    # Considering removing and make type a requirement
     if type is None:
         type = manager.type(uid)
+
     if type == 'Patient':
-        return Patient(create, manager, uid, **kwargs)
+        return Patient(create, manager, uid, key=key, **kwargs)
     if type == 'Study':
-        return Study(create, manager, uid, **kwargs)
+        return Study(create, manager, uid, key=key, **kwargs)
     if type == 'Series':
-        return Series(create, manager, uid, **kwargs)
+        return Series(create, manager, uid, key=key, **kwargs)
     if type == 'Instance':
-        return Instance(create, manager, uid, **kwargs)
+        return Instance(create, manager, uid, key=key, **kwargs)
 
 
 def database(path=None, **kwargs):

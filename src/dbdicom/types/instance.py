@@ -13,6 +13,24 @@ import dbdicom.utils.image as image
 
 class Instance(DbRecord):
 
+    name = 'SOPInstanceUID'
+
+    def keys(self):
+        return [self.key()]
+
+    def parent(self):
+        uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        return self.record('Series', uid, key=self.key())
+
+    def children(self, **kwargs):
+        return
+
+    def new_child(self, **kwargs): 
+        return
+
+    def _copy_from(self, record):
+        return
+
     def array(self):
         return self.get_pixel_array()
 

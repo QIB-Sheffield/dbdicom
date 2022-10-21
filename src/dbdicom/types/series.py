@@ -8,6 +8,34 @@ from dbdicom.ds import MRImage
 
 class Series(DbRecord):
 
+    name = 'SeriesInstanceUID'
+
+    def _set_key(self):
+        self._key = self.keys()[0]
+
+    def parent(self):
+        uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        return self.record('Study', uid, key=self.key())
+
+    def children(self, **kwargs):
+        return self.instances(**kwargs)
+
+    def new_child(self, dataset=None, **kwargs): 
+        attr = {**kwargs, **self.attributes}
+        return self.new_instance(dataset=dataset, **attr)
+
+    def new_instance(self, dataset=None, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, key=self.key(), **attr)
+        return self.record('Instance', uid, key, **attr)
+
+    def _copy_from(self, record):
+        uids = self.manager.copy_to_series(record.uid, self.uid, **self.attributes)
+        if isinstance(uids, list):
+            return [self.record('Instance', uid) for uid in uids]
+        else:
+            return self.record('Instance', uids)
+
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
@@ -79,7 +107,7 @@ def map_mask_to(series, target):
     )
     for i, target_image in enumerate(target_images):
         series.status.progress(i, len(target_images))
-        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=np.bool) 
+        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=bool) 
         for j, source_image in enumerate(source_images):
             series.status.message(
                 'Mapping image ' + str(j) + 
@@ -88,7 +116,7 @@ def map_mask_to(series, target):
                 ' of ' + target.SeriesDescription 
             )
             im = source_image.map_mask_to(target_image)
-            array = im.get_pixel_array().astype(np.bool)
+            array = im.get_pixel_array().astype(bool)
             np.logical_or(pixel_array, array, out=pixel_array)
             im.remove()
         if pixel_array.any():
@@ -146,7 +174,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     array = []
     instances = source.ravel()
     for i, im in enumerate(instances):
-        record.status.progress(i, len(instances), 'Reading pixel data..')
+        record.progress(i, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
@@ -330,19 +358,20 @@ def instance_array(record, sortby=None, status=True):
             array[i] = instance
         return array
     else:
-        if set(sortby) <= set(record.manager.register):
-            df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
-            # df = record.manager.register.loc[record.register().index, sortby]
-        else:
-            ds = record.get_dataset()
-            df = dbdataset.get_dataframe(ds, sortby)
+        df = record.read_dataframe(sortby + ['SOPInstanceUID'])
+        # if set(sortby) <= set(record.manager.register):
+        #     df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
+        #     # df = record.manager.register.loc[record.register().index, sortby]
+        # else:
+        #     ds = record.get_dataset()
+        #     df = dbdataset.get_dataframe(ds, sortby)
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
-def dataframe(record): # OBSOLETE replace by record.register()
+# def dataframe(record): # OBSOLETE replace by record.register()
 
-    keys = record.manager.keys(record.uid)
-    return record.manager.register.loc[keys, :]
+#     keys = record.manager.keys(record.uid)
+#     return record.manager.register.loc[keys, :]
 
 
 def df_to_sorted_instance_array(record, df, sortby, status=True): 
@@ -351,7 +380,7 @@ def df_to_sorted_instance_array(record, df, sortby, status=True):
     vals = df[sortby[0]].unique()
     for i, c in enumerate(vals):
         if status: 
-            record.status.progress(i, len(vals), message='Sorting..')
+            record.progress(i, len(vals), message='Sorting..')
         dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
@@ -365,8 +394,10 @@ def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    for i, uid in enumerate(df.index.values): 
-        data[i] = record.instance(uid)
+    # for i, uid in enumerate(df.SOPInstanceUID.values): 
+    #     data[i] = record.instance(uid)
+    for i, item in enumerate(df.SOPInstanceUID.items()): 
+        data[i] = record.instance(item[1], item[0])
     return data
 
 def _stack(arrays, align_left=False):

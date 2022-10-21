@@ -52,6 +52,7 @@ def test_database():
     except:
         assert False
     assert 24 == len(database.instances())
+    assert 24 == len(database.files())
 
     database.close()
     remove_tmp_database(tmp)
@@ -65,7 +66,7 @@ def test_children():
     patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
     assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
     studies = patients[0].children()
-    assert (len(studies) == 4)
+    assert len(studies) == 4
 
     database.close()
     remove_tmp_database(tmp)

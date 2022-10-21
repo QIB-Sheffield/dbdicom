@@ -24,7 +24,7 @@ class Manager():
     columns = [    
         'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'SOPClassUID', 
         'PatientName', 'StudyDescription', 'StudyDate', 'SeriesDescription', 'SeriesNumber', 'InstanceNumber', 
-        'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'AcquisitionTime',
+        'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'SliceLocation', 'AcquisitionTime',
     ]
 
     def __init__(self, path=None, dataframe=None, status=StatusBar(), dialog=Dialog()):
@@ -161,7 +161,6 @@ class Manager():
         # Needs a formal test for completeness
         return [self.filepath(key) for key in self.keys(*args, **kwargs)]
 
-
     def open(self, path=None, unzip=False):
         """Opens a DICOM folder for read and write.
         
@@ -184,7 +183,7 @@ class Manager():
             self.scan(unzip=unzip)
         return self
 
-    def type(self, uid=None):
+    def type(self, uid=None, key=None):
         """Is the UID a patient, study, series or dataset"""
 
         if uid is None:
@@ -192,12 +191,16 @@ class Manager():
         if uid == 'Database':
             return uid
 
-        df = self.register
-        type = df.columns[df.isin([uid]).any()].values
-        if type.size == 0: # uid does not exists in the database
-            return None
+        if key is None:
+            df = self.register
+            type = df.columns[df.isin([uid]).any()].values
+            if type.size == 0: # uid does not exists in the database
+                return None
+            else:
+                type = type[0]
         else:
-            type = type[0]
+            df = self.register.loc[key,:]
+            type = df[df.isin([uid])].index[0]
 
         if type == 'PatientID':
             return 'Patient'
@@ -312,6 +315,8 @@ class Manager():
 
     def value(self, key, column):
         try:
+            if isinstance(key, pd.Index):
+                return self.register.loc[key, column].values
             if not isinstance(key, list) and not isinstance(column, list):
                 return self.register.at[key, column]
             else:
@@ -334,113 +339,123 @@ class Manager():
         else:
             return row[i-1]
 
-    def filter(self, uids, **kwargs):
-        """Filter a list by attributes"""
 
+
+    # def children(self, uid=None, **kwargs):
+    #     """Returns the UIDs of the children"""
+
+    #     if isinstance(uid, list):
+    #         children = []
+    #         for i in uid:
+    #             children_i = self.children(i, **kwargs)
+    #             if children_i is not None:
+    #                 children += children_i
+    #         return children
+
+    #     if uid is None:
+    #         return []
+
+    #     # Get all children
+    #     keys = self.keys(uid)
+    #     if keys == []:
+    #         return
+    #     if uid == 'Database':
+    #         children = list(set(self.value(keys, 'PatientID')))
+    #     else:
+    #         row = self.register.loc[keys[0]].values.tolist()
+    #         i = row.index(uid)
+    #         if self.columns[i] == 'SOPInstanceUID':
+    #             return []
+    #         else:
+    #             values = self.register.loc[keys,self.columns[i+1]].values
+    #             values = values[values != np.array(None)]
+    #             children = np.unique(values).tolist()
+
+    #     return self.filter(children, **kwargs)
+
+
+    # def siblings(self, uid=None, **kwargs):
+    #     if uid is None:
+    #         return None
+    #     if uid == 'Database':
+    #         return None
+    #     parent = self.parent(uid)
+    #     children = self.children(parent)
+    #     children.remove(uid)
+    #     return self.filter(children, **kwargs)
+
+    def filter(self, uids=None, **kwargs):
+        uids = [id for id in uids if id is not None]
         if not kwargs:
             return uids
-
         vals = list(kwargs.values())
         attr = list(kwargs.keys())
-        return [id for id in uids if self.get_values(id, attr) == vals]
+        return [id for id in uids if self.get_values(attr, uid=id) == vals]
 
-    def children(self, uid=None, **kwargs):
-        """Returns the UIDs of the children"""
+    def filter_instances(self, df, **kwargs):
+        df.dropna(inplace=True)
+        if not kwargs:
+            return df
+        vals = list(kwargs.values())
+        attr = list(kwargs.keys())
+        keys = [key for key in df.index if self.get_values(attr, [key]) == vals]
+        return df[keys]
 
-        if isinstance(uid, list):
-            children = []
-            for i in uid:
-                children_i = self.children(i, **kwargs)
-                if children_i is not None:
-                    children += children_i
-            return children
-
-        if uid is None:
-            return []
-
-        # Get all children
-        keys = self.keys(uid)
-        if keys == []:
-            return
-        if uid == 'Database':
-            children = list(set(self.value(keys, 'PatientID')))
+    def instances(self, uid=None, keys=None, sort=True, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
+            df = self.register.loc[keys, sortby + ['SOPInstanceUID']]
+            df.sort_values(sortby, inplace=True)
+            df = df.SOPInstanceUID
         else:
-            row = self.register.loc[keys[0]].values.tolist()
-            i = row.index(uid)
-            if self.columns[i] == 'SOPInstanceUID':
-                return []
-            else:
-                values = self.register.loc[keys,self.columns[i+1]].values
-                values = values[values != np.array(None)]
-                children = np.unique(values).tolist()
+            df = self.register.loc[keys,'SOPInstanceUID']
+        return self.filter_instances(df, **kwargs)
 
-        return self.filter(children, **kwargs)
+    def series(self, uid=None, keys=None, sort=True, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
+            df = self.register.loc[keys, sortby + ['SeriesInstanceUID']]
+            df.sort_values(sortby, inplace=True)
+            df = df.SeriesInstanceUID
+        else:
+            df = self.register.loc[keys,'SeriesInstanceUID']
+        uids = df.unique().tolist()
+        return self.filter(uids, **kwargs)
 
-    def siblings(self, uid=None, **kwargs):
+    def studies(self, uid=None, keys=None, sort=True, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            sortby = ['PatientName', 'StudyDescription']
+            df = self.register.loc[keys, sortby + ['StudyInstanceUID']]
+            df.sort_values(sortby, inplace=True)
+            df = df.StudyInstanceUID
+        else:
+            df = self.register.loc[keys,'StudyInstanceUID']
+        uids = df.unique().tolist()
+        return self.filter(uids, **kwargs)
 
-        if uid is None:
-            return None
-        if uid == 'Database':
-            return None
-        parent = self.parent(uid)
-        children = self.children(parent)
-        children.remove(uid)
-        return self.filter(children, **kwargs)
-
-    def instances(self, uid=None, **kwargs):
-
-        keys = self.keys(uid)
-        values = list(self.value(keys, 'SOPInstanceUID'))
-        values = [v for v in values if v is not None]
-        #return self.filter(values, **kwargs)
-        values = self.filter(values, **kwargs)
-        sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
-        df = self.register[(self.register.removed == False) & self.register.SOPInstanceUID.isin(values)]
-        df.sort_values(sortby, inplace=True)
-        return df.SOPInstanceUID.values.tolist()
-
-    def series(self, uid=None, **kwargs):
-
-        keys = self.keys(uid)
-        values = list(set(self.value(keys, 'SeriesInstanceUID')))
-        values = [v for v in values if v is not None]
-        #return self.filter(values, **kwargs)
-        values = self.filter(values, **kwargs)
-        sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
-        df = self.register[(self.register.removed == False) & self.register.SeriesInstanceUID.isin(values)]
-        df.sort_values(sortby, inplace=True)
-        return df.SeriesInstanceUID.unique().tolist()
-
-    def studies(self, uid=None, **kwargs):
-
-        keys = self.keys(uid)
-        values = list(set(self.value(keys, 'StudyInstanceUID')))
-        values = [v for v in values if v is not None]
-        #return self.filter(values, **kwargs)
-        values = self.filter(values, **kwargs)
-        sortby = ['PatientName', 'StudyDescription']
-        df = self.register[(self.register.removed == False) & self.register.StudyInstanceUID.isin(values)]
-        df.sort_values(sortby, inplace=True)
-        return df.StudyInstanceUID.unique().tolist()
-
-    def patients(self, uid=None, **kwargs):
-
-        keys = self.keys(uid)
-        values = list(set(self.value(keys, 'PatientID')))
-        values = [v for v in values if v is not None]
-        #return self.filter(values, **kwargs)
-        values = self.filter(values, **kwargs)
-        sortby = ['PatientName']
-        df = self.register[(self.register.removed == False) & self.register.PatientID.isin(values)]
-        df.sort_values(sortby, inplace=True)
-        return df.PatientID.unique().tolist()
+    def patients(self, uid=None, keys=None, sort=True, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            sortby = ['PatientName']
+            df = self.register.loc[keys, sortby + ['PatientID']]
+            df.sort_values(sortby, inplace=True)
+            df = df.PatientID
+        else:
+            df = self.register.loc[keys,'PatientID']
+        uids = df.unique().tolist()
+        return self.filter(uids, **kwargs)
 
     def pause_extensions(self):
-        
         self._pause_extensions = True
 
     def resume_extensions(self):
-
         self._pause_extensions = False
         self.extend()
 
@@ -473,25 +488,26 @@ class Manager():
         data[0] = dbdataset.new_uid()
         data[5] = PatientName
 
+        key = self.new_key()
         self._new_data.append(data)
-        self._new_keys.append(self.new_key())
+        self._new_keys.append(key)
         self.extend()
 
-        return data[0]
+        return data[0], key
 
     #def new_study(self, parent=None, StudyDescription='New Study'):
-    def new_study(self, parent=None, **kwargs):
+    def new_study(self, parent=None, key=None, **kwargs):
         # Allow multiple to be made at the same time
 
         StudyDescription = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
 
-        if parent is None:
-            parent = self.new_patient()
-        if self.type(parent) != 'Patient':
-            #parent = self.patients(parent)[0]
-            parent = self.new_patient(parent)
-
-        key = self.keys(patient=parent)[0]
+        if key is None:
+            if parent is None:
+                parent, key = self.new_patient()
+            elif self.type(parent) != 'Patient':
+                parent, key = self.new_patient(parent)
+            else:
+                key = self.keys(patient=parent)[0]
 
         data = [None] * len(self.columns)
         data[0] = self.value(key, 'PatientID')
@@ -504,25 +520,28 @@ class Manager():
             self.register.loc[key, self.columns] = data
         else:
             # Patient with existing study - create new row
+            key = self.new_key()
             self._new_data.append(data)
-            self._new_keys.append(self.new_key())
+            self._new_keys.append(key)
             self.extend()
 
-        return data[1]
+        return data[1], key
 
     #def new_series(self, parent=None, SeriesDescription='New Series'):
-    def new_series(self, parent=None, **kwargs):
+    def new_series(self, parent=None, key=None, **kwargs):
         # Allow multiple to be made at the same time
 
         SeriesDescription = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
 
-        if parent is None:
-            parent = self.new_study()
-        if self.type(parent) != 'Study':
-            #parent = self.studies(parent)[0]
-            parent = self.new_study(parent)
+        if key is None:
+            if parent is None:
+                parent, key = self.new_study()
+            elif self.type(parent) != 'Study':
+                #parent = self.studies(parent)[0]
+                parent, key = self.new_study(parent)
+            else:
+                key = self.keys(study=parent)[0]
 
-        key = self.keys(study=parent)[0]
         data = self.value(key, self.columns)
         data[2] = dbdataset.new_uid()
         data[3] = None
@@ -536,23 +555,26 @@ class Manager():
             self.register.loc[key, self.columns] = data
         else:
             # Study with existing series - create new row
+            key = self.new_key()
             self._new_data.append(data)
-            self._new_keys.append(self.new_key())
+            self._new_keys.append(key)
             self.extend()
 
-        return data[2]
+        return data[2], key
 
     #def new_instance(self, parent=None, dataset=None):
-    def new_instance(self, parent=None, dataset=None, **kwargs):
+    def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
         # Allow multiple to be made at the same time
 
-        if parent is None:
-            parent = self.new_series()
-        if self.type(parent) != 'Series':
-            # parent = self.series(parent)[0] 
-            parent = self.new_series(parent)
+        if key is None:
+            if parent is None:
+                parent, key = self.new_series()
+            elif self.type(parent) != 'Series':
+                # parent = self.series(parent)[0] 
+                parent, key = self.new_series(parent)
+            else:
+                key = self.keys(series=parent)[0]
 
-        key = self.keys(series=parent)[0]
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
         data[4] = None
@@ -563,48 +585,16 @@ class Manager():
             self.register.loc[key, self.columns] = data
         else:
             # Series with existing instances - create new row
+            key = self.new_key()
             self._new_data.append(data)
-            self._new_keys.append(self.new_key())
+            self._new_keys.append(key)
             self.extend()
 
         if dataset is not None:
             self.set_dataset(data[3], dataset)
 
-        return data[3]
+        return data[3], key
 
-    def new_child(self, uid=None, dataset=None, **kwargs):
-
-        if uid is None:
-            return None
-        parent_type = self.type(uid)
-        if parent_type == 'Database':
-            return self.new_patient(uid, **kwargs)
-        if parent_type == 'Patient':
-            return self.new_study(uid, **kwargs)
-        if parent_type == 'Study':
-            return self.new_series(uid, **kwargs)
-        if parent_type == 'Series':
-            return self.new_instance(uid, dataset=dataset, **kwargs)
-        if parent_type == 'Instance':
-            return None
-
-    def new_sibling(self, uid=None, **kwargs):
-
-        if uid is None:
-            return None
-        if uid == 'Database':
-            return None
-        parent = self.parent(uid)
-        return self.new_child(parent, **kwargs)
-
-    def new_pibling(self, uid=None, **kwargs):
-
-        if uid is None:
-            return None
-        if uid == 'Database':
-            return None
-        parent = self.parent(uid)
-        return self.new_sibling(parent, **kwargs)
 
     def in_database(self, uid):
         keys = self.keys(uid)
@@ -624,16 +614,17 @@ class Manager():
             else:
                 return False
 
-    def get_dataset(self, uid, message=None):
+    def get_dataset(self, uid, keys=None, message=None):
         """Gets a list of datasets for a single record
         
         Datasets in memory will be returned.
         If they are not in memory, and the database exists on disk, they will be read from disk.
         If they are not in memory, and the database does not exist on disk, an exception is raised.
         """
-        if uid is None:
-            return None
-        keys = self.keys(uid)
+        if uid is None: # empty record
+            return
+        if keys is None:
+            keys = self.keys(uid)
         dataset = []
         for key in keys:
             if key in self.dataset:
@@ -649,8 +640,8 @@ class Manager():
                 else:
                     ds = read_dataset(file, self.dialog)  
             dataset.append(ds)
-
-        if self.type(uid) == 'Instance':
+    
+        if self.type(uid, keys[0]) == 'Instance':
             if dataset == []:
                 return
             else:
@@ -661,8 +652,8 @@ class Manager():
     def _get_dataset(self, instances):
         """Helper function"""
 
-        for instance in instances:
-            ds = self.get_dataset(instance)
+        for key, uid in instances.items():
+            ds = self.get_dataset(uid, [key])
             if ds is not None:
                 return ds
         return None
@@ -685,13 +676,13 @@ class Manager():
 
         parent = self.register.at[key, 'SeriesInstanceUID']
         instances = self.instances(parent)
-        if instances != []:
+        if not instances.empty:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + dbdataset.module_series()))
             vals = self._get_values(instances, attr)
         else:
             parent = self.register.at[key, 'StudyInstanceUID']
             instances = self.instances(parent)
-            if instances != []:
+            if not instances.empty:
                 attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
                 vals = self._get_values(instances, attr)
                 attr += attr_series
@@ -699,7 +690,7 @@ class Manager():
             else:
                 parent = self.register.at[key, 'PatientID']
                 instances = self.instances(parent)
-                if instances != []:
+                if not instances.empty:
                     attr = dbdataset.module_patient()
                     vals = self._get_values(instances, attr)
                     attr += attr_study + attr_series
@@ -718,13 +709,13 @@ class Manager():
 
         parent = self.register.at[key, 'StudyInstanceUID']
         instances = self.instances(parent)
-        if instances != []:
+        if not instances.empty:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
             vals = self._get_values(instances, attr)
         else:
             parent = self.register.at[key, 'PatientID']
             instances = self.instances(parent)
-            if instances != []:
+            if not instances.empty:
                 attr = dbdataset.module_patient()
                 vals = self._get_values(instances, attr)
                 attr += attr_study
@@ -741,7 +732,7 @@ class Manager():
 
         parent = self.register.at[key, 'PatientID']
         instances = self.instances(parent)
-        if instances != []:
+        if not instances.empty:
             attr = dbdataset.module_patient()
             vals = self._get_values(instances, attr)
         else:
@@ -749,18 +740,20 @@ class Manager():
             vals = self.value(key, attr).tolist()
         return attr, vals
 
-    def set_instance_dataset(self, instance, ds):
+
+    def set_instance_dataset(self, instance, ds, key=None):
 
         if isinstance(ds, list):
             if len(ds) > 1:
                 raise ValueError('Cannot set multiple datasets to a single instance')
             else:
                 ds = ds[0]
+        if key is None:
+            keys = self.keys(instance)
+            if keys == []: # instance does not exist
+                return
+            key = keys[0]
 
-        keys = self.keys(instance)
-        if keys == []: # instance does not exist
-            return
-        key = keys[0]
         data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
         if 'NumberOfFrames' in ds:
@@ -777,23 +770,22 @@ class Manager():
             self._new_data.append(data)
             self._new_keys.append(new_key)
             self.extend()
-            
-            # df = pd.DataFrame([data], index=[new_key], columns=self.columns)
-            # df['removed'] = False
-            # df['created'] = True
-            # self.register = pd.concat([self.register, df])  
-                  
 
-    def set_dataset(self, uid, dataset):
 
-        if self.type(uid) == 'Instance':
-            self.set_instance_dataset(uid, dataset)
+    def set_dataset(self, uid, dataset, keys=None):
+
+        if keys is None:
+            parent_keys = self.keys(uid)
+        else:
+            parent_keys = keys
+
+        if self.type(uid, parent_keys[0]) == 'Instance':
+            self.set_instance_dataset(uid, dataset, parent_keys[0])
             return
 
         if not isinstance(dataset, list):
            dataset = [dataset]
          
-        parent_keys = self.keys(uid)
         attr, vals = self.series_header(parent_keys[0])
 
         new_data = []
@@ -829,7 +821,8 @@ class Manager():
 
             else: # If the dataset is already in the object
 
-                key = self.keys(instances[ind])[0]
+                #key = self.keys(instances[ind])[0]
+                key = parent_keys[ind]
                 data = self.value(key, self.columns)
                 data[4] = ds.SOPClassUID
                 if self.value(key, 'created'):
@@ -863,7 +856,6 @@ class Manager():
 
         key = self.keys(uid)[0]
         return key in self.dataset
-
 
 
     def label(self, uid=None, key=None, type=None):
@@ -922,34 +914,37 @@ class Manager():
         
         print('---------- DICOM FOLDER --------------')
         print('DATABASE: ' + self.path)
-        for i, patient in enumerate(self.children('Database')):
+        for i, patient in enumerate(self.patients('Database')):
             print('  PATIENT [' + str(i) + ']: ' + self.label(patient))
-            for j, study in enumerate(self.children(patient)):
+            for j, study in enumerate(self.studies(patient)):
                 print('    STUDY [' + str(j) + ']: ' + self.label(study))
-                for k, series in enumerate(self.children(study)):
+                for k, series in enumerate(self.series(study)):
                     print('      SERIES [' + str(k) + ']: ' + self.label(series))
-                    print('        Nr of instances: ' + str(len(self.children(series)))) 
+                    print('        Nr of instances: ' + str(len(self.instances(series)))) 
 
-    def read(self, *args, message=None, **kwargs):
+    def read(self, *args, keys=None, message=None, **kwargs):
         """Read the dataset from disk.
         """
-        keys = self.keys(*args, **kwargs)
+        if keys is None:
+            keys = self.keys(*args, **kwargs)
         for i, key in enumerate(keys):
             #if message is not None:
             #    self.status.progress(i, len(keys), message)
             # do not read if they are already in memory
             # this could overwrite changes made in memory only
             if not key in self.dataset:
-                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                instance_uid = self.value(key, 'SOPInstanceUID')
+                ds = self.get_dataset(instance_uid, [key])
                 if ds is not None:
                     self.dataset[key] = ds
 
-    def write(self, *args, message=None, **kwargs):
+    def write(self, *args, keys=None, message=None, **kwargs):
         """Writing data from memory to disk.
 
         This does nothing if the data are not in memory.
         """
-        keys = self.keys(*args, **kwargs)
+        if keys is None:
+            keys = self.keys(*args, **kwargs)
         for i, key in enumerate(keys):
             # if message is not None:
             #     self.status.progress(i, len(keys), message)
@@ -958,12 +953,14 @@ class Manager():
                 self.dataset[key].write(file, self.dialog)
         self.status.hide()
 
-    def clear(self, *args, **kwargs):
+    def clear(self, *args, keys=None, **kwargs):
         """Clear all data from memory"""
+        if keys is None:
+            keys = self.keys(*args, **kwargs)
         # write to disk first so that any changes made in memory are not lost
-        self.write(*args, **kwargs)
+        self.write(*args, keys=keys, **kwargs)
         # then delete the instances from memory
-        for key in self.keys(*args, **kwargs):
+        for key in keys:
             self.dataset.pop(key, None) 
 
     def close(self):
@@ -988,6 +985,7 @@ class Manager():
                     return False
                 self.path = path
                 self.save()
+                #self.save('Database')
                 return self.close()
             elif reply == "No":
                 return True
@@ -1002,6 +1000,7 @@ class Manager():
                 return False
             if reply == "Yes":
                 self.save()
+                #self.save('Database')
             elif reply == "No":
                 self.restore()
 
@@ -1033,13 +1032,14 @@ class Manager():
         # Needs a formal test for completeness
         return self.register is not None
       
-    def delete(self, *args, **kwargs):
+    def delete(self, *args, keys=None, **kwargs):
         """Deletes some datasets
         
         Deleted datasets are stashed and can be recovered with restore()
         Using save() will delete them permanently
         """
-        keys = self.keys(*args, **kwargs)
+        if keys is None:
+            keys = self.keys(*args, **kwargs)
         self.register.loc[keys,'removed'] = True
 
     def new_key(self):
@@ -1066,7 +1066,7 @@ class Manager():
         n = self.value(target_keys, 'InstanceNumber')
         n = n[n != np.array(None)]
         max_number=0 if n.size==0 else np.amax(n)
-   
+        
         copy_data = []
         copy_keys = []
 
@@ -1078,7 +1078,8 @@ class Manager():
             #self.status.progress(i+1, len(keys), message='Copying..')
 
             new_key = self.new_key()
-            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+            instance_uid = self.value(key, 'SOPInstanceUID')
+            ds = self.get_dataset(instance_uid, [key])
             if ds is None:
                 row = self.value(key, self.columns).tolist()
                 row[0] = self.value(target_keys[0], 'PatientID')
@@ -1127,13 +1128,13 @@ class Manager():
             return new_instances
 
 
-
     def copy_to_study(self, uid, target, **kwargs):
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
+        target_key = target_keys[0]
 
-        attributes, values = self.study_header(target_keys[0])
+        attributes, values = self.study_header(target_key)
         for key in kwargs:
             try:
                 ind = attributes.index(key)
@@ -1158,19 +1159,20 @@ class Manager():
             #self.status.progress(s+1, len(all_series), message='Copying..')
             new_number = s + 1 + max_number
 
-            for key in self.keys(series):
+            for key in self.keys(series=series):
 
                 new_key = self.new_key()
-                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                instance_uid = self.value(key, 'SOPInstanceUID')
+                ds = self.get_dataset(instance_uid, [key])
                 if ds is None:
                     row = self.value(key, self.columns).tolist()
-                    row[0] = self.value(target_keys[0], 'PatientID')
-                    row[1] = self.value(target_keys[0], 'StudyInstanceUID')
+                    row[0] = self.value(target_key, 'PatientID')
+                    row[1] = self.value(target_key, 'StudyInstanceUID')
                     row[2] = new_series[s]
                     row[3] = dbdataset.new_uid()
-                    row[5] = self.value(target_keys[0], 'PatientName')
-                    row[6] = self.value(target_keys[0], 'StudyDescription')
-                    row[7] = self.value(target_keys[0], 'StudyDate')
+                    row[5] = self.value(target_key, 'PatientName')
+                    row[6] = self.value(target_key, 'StudyDescription')
+                    row[7] = self.value(target_key, 'StudyDate')
                     row[8] = new_number
                 else:
                     if key in self.dataset:
@@ -1192,33 +1194,27 @@ class Manager():
 
         # If the study is empty and new series have been added
         # then delete the row 
-        if self.value(target_keys[0], 'SeriesInstanceUID') is None:
+        if self.value(target_key, 'SeriesInstanceUID') is None:
             if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_key, 'created']:
+                    self.register.drop(index=target_key, inplace=True)
                 else:
-                    self.register.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_key, 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
-
-        # df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        # df['removed'] = False
-        # df['created'] = True
-        # self.register = pd.concat([self.register, df])
 
         if len(new_series) == 1:
             return new_series[0]
         else:
             return new_series
 
-    def copy_to_patient(self, uid, target, **kwargs):
+
+    def copy_to_patient(self, uid, target_key, **kwargs):
         """Copy studies to another patient"""
 
-        target_keys = self.keys(patient=target)
-
-        attributes, values = self.patient_header(target_keys[0])
+        attributes, values = self.patient_header(target_key)
         for key in kwargs:
             try:
                 ind = attributes.index(key)
@@ -1236,16 +1232,17 @@ class Manager():
         for s, study in enumerate(all_studies):
             for series in self.series(study):
                 new_series_uid = dbdataset.new_uid()
-                for key in self.keys(series):
+                for key in self.keys(series=series):
                     new_key = self.new_key()
-                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                    instance_uid = self.value(key, 'SOPInstanceUID')
+                    ds = self.get_dataset(instance_uid, [key])
                     if ds is None:
                         row = self.value(key, self.columns).tolist()
-                        row[0] = self.value(target_keys[0], 'PatientID')
+                        row[0] = self.value(target_key, 'PatientID')
                         row[1] = new_studies[s]
                         row[2] = new_series_uid
                         row[3] = dbdataset.new_uid()
-                        row[5] = self.value(target_keys[0], 'PatientName')
+                        row[5] = self.value(target_key, 'PatientName')
                     else:
                         if key in self.dataset:
                             ds = copy.deepcopy(ds)
@@ -1265,12 +1262,12 @@ class Manager():
 
         # If the patient is empty and new studies have been added
         # then delete the row 
-        if self.value(target_keys[0], 'StudyInstanceUID') is None:
+        if self.value(target_key, 'StudyInstanceUID') is None:
             if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
+                if self.register.at[target_key, 'created']:
+                    self.register.drop(index=target_key, inplace=True)
                 else:
-                    self.register.at[target_keys[0], 'removed'] == True
+                    self.register.at[target_key, 'removed'] == True
 
         self._new_keys += copy_keys
         self._new_data += copy_data
@@ -1281,8 +1278,7 @@ class Manager():
         else:
             return new_studies
 
-
-    def copy_to_database(self, uid, target, **kwargs):
+    def copy_to_database(self, uid, **kwargs):
         """Copy patient to the database"""
 
         copy_data = []
@@ -1292,17 +1288,18 @@ class Manager():
         new_patients = dbdataset.new_uid(len(all_patients))
 
         for i, patient in enumerate(all_patients):
-            keys = self.keys(patient)
+            keys = self.keys(patient=patient)
             new_patient_uid = new_patients[i]
             new_patient_name = 'Copy of ' + self.value(keys[0], 'PatientName')
             for study in self.studies(patient):
                 new_study_uid = dbdataset.new_uid()
                 for sery in self.series(study):
                     new_series_uid = dbdataset.new_uid()
-                    for key in self.keys(sery):
+                    for key in self.keys(series=sery):
                         new_instance_uid = dbdataset.new_uid()
                         new_key = self.new_key()
-                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                        instance_uid = self.value(key, 'SOPInstanceUID')
+                        ds = self.get_dataset(instance_uid, [key])
                         if ds is None:
                             row = self.value(key, self.columns).tolist()
                             row[0] = new_patient_uid
@@ -1315,8 +1312,8 @@ class Manager():
                                 ds = copy.deepcopy(ds)
                                 self.dataset[new_key] = ds
                             ds.set_values( 
-                                ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
-                                [new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
+                                kwargs.keys()+['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
+                                kwargs.values()+[new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
                             if not key in self.dataset:
                                 ds.write(self.filepath(new_key), self.dialog)
                             row = ds.get_values(self.columns)
@@ -1337,19 +1334,19 @@ class Manager():
             return new_patients
             
 
-    def copy_to(self, source, target, **kwargs):
+    # def copy_to(self, source, target, target_type, **kwargs):
 
-        type = self.type(target)
-        if type == 'Database':
-            return self.copy_to_database(source, target, **kwargs)
-        if type == 'Patient':
-            return self.copy_to_patient(source, target, **kwargs)
-        if type == 'Study':
-            return self.copy_to_study(source, target, **kwargs)
-        if type == 'Series':
-            return self.copy_to_series(source, target, **kwargs)
-        if type == 'Instance':
-            raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
+    #     #type = self.type(target)
+    #     if target_type == 'Database':
+    #         return self.copy_to_database(source, target, **kwargs)
+    #     if target_type == 'Patient':
+    #         return self.copy_to_patient(source, target, **kwargs)
+    #     if target_type == 'Study':
+    #         return self.copy_to_study(source, target, **kwargs)
+    #     if target_type == 'Series':
+    #         return self.copy_to_series(source, target, **kwargs)
+    #     if target_type == 'Instance':
+    #         raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
             
 
     def drop_if_missing(self, key, missing='SOPInstanceUID'):
@@ -1393,7 +1390,8 @@ class Manager():
 
             #self.status.progress(i+1, len(keys), message='Moving dataset..')
 
-            ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+            instance_uid = self.value(key, 'SOPInstanceUID') 
+            ds = self.get_dataset(instance_uid, [key])
 
             if ds is None:
 
@@ -1500,7 +1498,8 @@ class Manager():
 
             for key in self.keys(series):
 
-                ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                instance_uid = self.value(key, 'SOPInstanceUID')
+                ds = self.get_dataset(instance_uid, [key])
 
                 if ds is None:
 
@@ -1600,7 +1599,8 @@ class Manager():
 
                 for key in self.keys(series):
 
-                    ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
+                    instance_uid = self.value(key, 'SOPInstanceUID')
+                    ds = self.get_dataset(instance_uid, [key])
 
                     if ds is None:
 
@@ -1654,12 +1654,6 @@ class Manager():
             self._new_data += copy_data
             self.extend()
 
-            # if copy_data != []:
-            #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-            #     df['removed'] = False
-            #     df['created'] = True
-            #     self.register = pd.concat([self.register, df])
-
         if len(all_studies) == 1:
             return all_studies[0]
         else:
@@ -1677,7 +1671,7 @@ class Manager():
         if type == 'Instance':
             raise ValueError('Cannot move to an instance. Please move to series, study or patient.')
 
-    def set_values(self, uid, attributes, values):
+    def set_values(self, attributes, values, keys=None, uid=None):
         """Set values in a dataset"""
 
         uids = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
@@ -1688,11 +1682,13 @@ class Manager():
         copy_data = []
         copy_keys = []
 
-        keys = self.keys(uid)
+        if keys is None:
+            keys = self.keys(uid)
+
         for i, key in enumerate(keys):
 
             instance_uid = self.value(key, 'SOPInstanceUID')
-            ds = self.get_dataset(instance_uid)
+            ds = self.get_dataset(instance_uid, [key])
             if ds is None:
                 ds = new_dataset('MRImage')
                 if instance_uid is None: # instance not yet created
@@ -1702,13 +1698,13 @@ class Manager():
                         if study_uid is None:
                             patient_uid = self.value(key, 'PatientUID')
                             if patient_uid is None:
-                                instance_uid = self.new_instance('Database', ds)
+                                instance_uid, _ = self.new_instance('Database', ds)
                             else:
-                                instance_uid = self.new_instance(patient_uid, ds)
+                                instance_uid, _ = self.new_instance(patient_uid, ds)
                         else:
-                            instance_uid = self.new_instance(study_uid, ds)
+                            instance_uid, _ = self.new_instance(study_uid, ds)
                     else:
-                        instance_uid = self.new_instance(series_uid, ds)
+                        instance_uid, _ = self.new_instance(series_uid, ds)
                 else:
                     self.set_dataset(instance_uid, ds)
             # If the value has changed before
@@ -1729,8 +1725,6 @@ class Manager():
                 ds.set_values(attributes, values)
                 if not key in self.dataset:
                     ds.write(self.filepath(new_key), self.dialog)
-                
-
                 # Get new data for the dataframe
                 self.register.at[key,'removed'] = True
                 row = ds.get_values(self.columns)
@@ -1741,99 +1735,83 @@ class Manager():
         self._new_data += copy_data
         self.extend()
 
-        # # Update the dataframe in the index
-        # if copy_data != []:
-        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        #     df['removed'] = False
-        #     df['created'] = True
-        #     self.register = pd.concat([self.register, df])
+ 
+    def get_values(self, attributes, keys=None, uid=None):
 
-    def get_values(self, uid, attributes):
-
-        if not isinstance(uid, list):
-
+        if keys is None:
             keys = self.keys(uid)
             if keys == []:
                 return
 
-            if not isinstance(attributes, list):
+        # Single attribute
+        if not isinstance(attributes, list):
 
-                if attributes in self.columns:
-                    value = self.value(keys, attributes)
-                    value = list(set(value))
-                else:
-                    value = []
-                    for i, key in enumerate(keys):
-                        ds = self.get_dataset(self.value(key, 'SOPInstanceUID'))
-                        if ds is None:
-                            v = None
-                        else:
-                            v = ds.get_values(attributes)
-                        if v not in value:
-                            value.append(v)
-                if len(value) == 1:
-                    return value[0]
-                else:
-                    return value
-
+            if attributes in self.columns:
+                value = self.value(keys, attributes)
+                value = list(set(value))
             else:
-
-                # Create a np array v with values for each instance and attribute
-                if set(attributes) <= set(self.columns):
-                    v = self.value(keys, attributes)
-                else:
-                    v = np.empty((len(keys), len(attributes)), dtype=object)
-                    for i, key in enumerate(keys):
-                        instance_uid = self.value(key, 'SOPInstanceUID')
-                        ds = self.get_dataset(instance_uid)
-                        if isinstance(ds, list):
-                            instances = self.register.SOPInstanceUID == instance_uid
-                            msg = 'Multiple instances with the same SOPInstanceUID \n'
-                            msg += instance_uid + '\n'
-                            msg += str(self.register.loc[instances].transpose())
-                            raise DatabaseCorrupted(msg)
-                        if ds is None:
-                            v[i,:] = [None] * len(attributes)
-                        else:
-                            v[i,:] = ds.get_values(attributes)
-
-                # Return a list with unique values for each attribute
-                values = []
-                for a in range(v.shape[1]):
-                    va = v[:,a]
-                    va = va[va != np.array(None)]
-                    va = np.unique(va)
-                    if va.size == 0:
-                        va = None
-                    elif va.size == 1:
-                        va = va[0]
+                value = []
+                for i, key in enumerate(keys):
+                    instance_uid = self.value(key, 'SOPInstanceUID')
+                    ds = self.get_dataset(instance_uid, [key])
+                    if ds is None:
+                        v = None
                     else:
-                        va = list(va)
-                    values.append(va)
-                return values
+                        v = ds.get_values(attributes)
+                    if v not in value:
+                        value.append(v)
+            if len(value) == 1:
+                return value[0]
+            return value
 
-        # If a list of UIDs is given, apply the function recursively
-        # and generate a list of results - one for each uid.
+        # Multiple attributes
+        # Create a np array v with values for each instance and attribute
+        if set(attributes) <= set(self.columns):
+            v = self.value(keys, attributes)
         else:
-            values = []
-            for id in uid:
-                v = self.get_values(id, attributes)
-                values.append(v)
-            return values
+            v = np.empty((len(keys), len(attributes)), dtype=object)
+            for i, key in enumerate(keys):
+                instance_uid = self.value(key, 'SOPInstanceUID')
+                ds = self.get_dataset(instance_uid, [key])
+                if isinstance(ds, list):
+                    instances = self.register.SOPInstanceUID == instance_uid
+                    msg = 'Multiple instances with the same SOPInstanceUID \n'
+                    msg += instance_uid + '\n'
+                    msg += str(self.register.loc[instances].transpose())
+                    raise DatabaseCorrupted(msg)
+                if ds is None:
+                    v[i,:] = [None] * len(attributes)
+                else:
+                    v[i,:] = ds.get_values(attributes)
+
+        # Return a list with unique values for each attribute
+        values = []
+        for a in range(v.shape[1]):
+            va = v[:,a]
+            va = va[va != np.array(None)]
+            va = np.unique(va)
+            if va.size == 0:
+                va = None
+            elif va.size == 1:
+                va = va[0]
+            else:
+                va = list(va)
+            values.append(va)
+        return values
 
 
-    def save(self, uid=None): 
+    def save(self, rows=None): 
 
-        if uid is None:
-            return
-        df = self.register
-        if uid != 'Database':
-            df = df[np.isin(df, uid).any(axis=1)]
-        created = df.created[df.created]   
-        removed = df.removed[df.removed]
+        created = self.register.created
+        removed = self.register.removed
+        if rows is not None:
+            created = created & rows
+            removed = removed & rows
+        created = created[created].index   
+        removed = removed[removed].index
 
         # delete datasets marked for removal
-        for key in removed.index.tolist():
+        for key in removed.tolist():
             # delete in memory
             if key in self.dataset:
                 del self.dataset[key]
@@ -1842,22 +1820,21 @@ class Manager():
             if os.path.exists(file): 
                 os.remove(file)
 
-        self.register.loc[created.index, 'created'] = False
-        self.register.drop(index=removed.index, inplace=True)
+        self.register.loc[created, 'created'] = False
+        self.register.drop(index=removed, inplace=True)
 
-    def restore(self, uid=None):  
+    def restore(self, rows=None):  
 
-        if uid is None:
-            return
-        df = self.register
-        if uid != 'Database':
-            # df = df[df[self.type(uid)] == uid]
-            df = df[np.isin(df, uid).any(axis=1)]
-        created = df.created[df.created]   
-        removed = df.removed[df.removed]
+        created = self.register.created
+        removed = self.register.removed
+        if rows is not None:
+            created = created & rows
+            removed = removed & rows
+        created = created[created].index   
+        removed = removed[removed].index
 
         # permanently delete newly created datasets
-        for key in created.index.tolist():
+        for key in created.tolist():
             # delete in memory
             if key in self.dataset:
                 del self.dataset[key]
@@ -1866,8 +1843,9 @@ class Manager():
             if os.path.exists(file): 
                 os.remove(file)
 
-        self.register.loc[removed.index, 'removed'] = False
-        self.register.drop(index=created.index, inplace=True)
+        self.register.loc[removed, 'removed'] = False
+        self.register.drop(index=created, inplace=True)
+
 
     def import_datasets(self, files):
 

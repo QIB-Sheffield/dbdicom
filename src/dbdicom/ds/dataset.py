@@ -127,6 +127,46 @@ def codify(source_file, save_file, **kwargs):
     file.write(str)
     file.close()
 
+# def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
+#     """Reads a list of tags in a list of files.
+
+#     Arguments
+#     ---------
+#     files : str or list
+#         A filepath or a list of filepaths
+#     tags : str or list 
+#         A DICOM tag or a list of DICOM tags
+#     status : StatusBar
+
+#     Creates
+#     -------
+#     dataframe : pandas.DataFrame
+#         A Pandas dataframe with one row per file
+#         The index is the file path 
+#         Each column corresponds to a Tag in the list of Tags
+#         The returned dataframe is sorted by the given tags.
+#     """
+#     if not isinstance(files, list):
+#         files = [files]
+#     if not isinstance(tags, list):
+#         tags = [tags]
+#     array = []
+#     dicom_files = []
+#     for i, file in enumerate(files):
+#         ds = pydicom.dcmread(file, force=True)
+#         if isinstance(ds, pydicom.dataset.FileDataset):
+#             if 'TransferSyntaxUID' in ds.file_meta:
+#                 row = get_values(ds, tags)
+#                 array.append(row)
+#                 if path is None:
+#                     index = file
+#                 else:
+#                     index = os.path.relpath(file, path)
+#                 dicom_files.append(index) 
+#         if status is not None: 
+#             status.progress(i+1, len(files), message)
+#     return pd.DataFrame(array, index = dicom_files, columns = tags)
+
 def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
     """Reads a list of tags in a list of files.
 
@@ -153,16 +193,20 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
     array = []
     dicom_files = []
     for i, file in enumerate(files):
-        ds = pydicom.dcmread(file, force=True)
-        if isinstance(ds, pydicom.dataset.FileDataset):
-            if 'TransferSyntaxUID' in ds.file_meta:
-                row = get_values(ds, tags)
-                array.append(row)
-                if path is None:
-                    index = file
-                else:
-                    index = os.path.relpath(file, path)
-                dicom_files.append(index) 
+        try:
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags)
+        except:
+            pass
+        else:
+            #if isinstance(ds, pydicom.dataset.FileDataset):
+                #if 'TransferSyntaxUID' in ds.file_meta:
+                    row = get_values(ds, tags)
+                    array.append(row)
+                    if path is None:
+                        index = file
+                    else:
+                        index = os.path.relpath(file, path)
+                    dicom_files.append(index) 
         if status is not None: 
             status.progress(i+1, len(files), message)
     return pd.DataFrame(array, index = dicom_files, columns = tags)
@@ -274,39 +318,39 @@ def new_uid(n=None):
         return [pydicom.uid.generate_uid() for _ in range(n)]
 
 
-def get_dataframe(datasets, tags):
-    """Reads a list of tags in a list of datasets.
+# def get_dataframe(datasets, tags):
+#     """Reads a list of tags in a list of datasets.
 
-    Arguments
-    ---------
-    files : str or list
-        A filepath or a list of filepaths
-    tags : str or list 
-        A DICOM tag or a list of DICOM tags
-    status : StatusBar
+#     Arguments
+#     ---------
+#     files : str or list
+#         A filepath or a list of filepaths
+#     tags : str or list 
+#         A DICOM tag or a list of DICOM tags
+#     status : StatusBar
 
-    Creates
-    -------
-    dataframe : pandas.DataFrame
-        A Pandas dataframe with one row per file
-        The index is the file path 
-        Each column corresponds to a Tag in the list of Tags
-        The returned dataframe is sorted by the given tags.
-    """
-    if not isinstance(datasets, list):
-        datasets = [datasets]
-    if not isinstance(tags, list):
-        tags = [tags]
-    array = []
-    indices = []
-    for ds in datasets:
-        # if isinstance(ds, pydicom.dataset.FileDataset):
-        #     if 'TransferSyntaxUID' in ds.file_meta:
-        row = get_values(ds, tags)
-        uid = get_values(ds, 'SOPInstanceUID')
-        array.append(row)
-        indices.append(uid) 
-    return pd.DataFrame(array, index=indices, columns=tags)
+#     Creates
+#     -------
+#     dataframe : pandas.DataFrame
+#         A Pandas dataframe with one row per file
+#         The index is the file path 
+#         Each column corresponds to a Tag in the list of Tags
+#         The returned dataframe is sorted by the given tags.
+#     """
+#     if not isinstance(datasets, list):
+#         datasets = [datasets]
+#     if not isinstance(tags, list):
+#         tags = [tags]
+#     array = []
+#     indices = []
+#     for ds in datasets:
+#         # if isinstance(ds, pydicom.dataset.FileDataset):
+#         #     if 'TransferSyntaxUID' in ds.file_meta:
+#         row = get_values(ds, tags)
+#         uid = get_values(ds, 'SOPInstanceUID')
+#         array.append(row)
+#         indices.append(uid) 
+#     return pd.DataFrame(array, index=indices, columns=tags)
 
 
 def affine_matrix(ds):
