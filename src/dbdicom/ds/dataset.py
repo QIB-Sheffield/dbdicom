@@ -198,8 +198,8 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
         except:
             pass
         else:
-            #if isinstance(ds, pydicom.dataset.FileDataset):
-                #if 'TransferSyntaxUID' in ds.file_meta:
+            if isinstance(ds, pydicom.dataset.FileDataset):
+                if 'TransferSyntaxUID' in ds.file_meta:
                     row = get_values(ds, tags)
                     array.append(row)
                     if path is None:
@@ -209,7 +209,8 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                     dicom_files.append(index) 
         if status is not None: 
             status.progress(i+1, len(files), message)
-    return pd.DataFrame(array, index = dicom_files, columns = tags)
+    df = pd.DataFrame(array, index = dicom_files, columns = tags)
+    return df
 
 
 def set_values(ds, tags, values):
@@ -289,6 +290,8 @@ def to_set_type(value):
     Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
 
+    if value.__class__.__name__ == 'MultiValue':
+        return [to_set_type(v) for v in value]
     if value.__class__.__name__ == 'PersonName':
         return str(value)
     if value.__class__.__name__ == 'Sequence':

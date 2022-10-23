@@ -396,8 +396,10 @@ def df_to_instance_array(record, df):
     data = np.empty(df.shape[0], dtype=object)
     # for i, uid in enumerate(df.SOPInstanceUID.values): 
     #     data[i] = record.instance(uid)
-    for i, item in enumerate(df.SOPInstanceUID.items()): 
-        data[i] = record.instance(item[1], item[0])
+    #for i, item in enumerate(df.SOPInstanceUID.items()): 
+    for i, item in enumerate(df.SOPInstanceUID.items()):
+        #data[i] = record.instance(item[1], item[0])
+        data[i] = record.instance(key=item[0])
     return data
 
 def _stack(arrays, align_left=False):

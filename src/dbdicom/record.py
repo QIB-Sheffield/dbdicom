@@ -98,20 +98,20 @@ class DbRecord():
     def label(self):
         return self.manager.label(self.uid, key=self.key(), type=self.__class__.__name__)
 
-    def instances(self, **kwargs):
-        inst = self.manager.instances(keys=self.keys(), **kwargs)
+    def instances(self, sort=True, **kwargs):
+        inst = self.manager.instances(keys=self.keys(), sort=sort, **kwargs)
         return [self.record('Instance', uid, key) for key, uid in inst.items()]
 
-    def series(self, **kwargs):
-        series = self.manager.series(keys=self.keys(), **kwargs)
+    def series(self, sort=True, **kwargs):
+        series = self.manager.series(keys=self.keys(), sort=sort, **kwargs)
         return [self.record('Series', uid) for uid in series]
 
-    def studies(self, **kwargs):
-        studies = self.manager.studies(keys=self.keys(), **kwargs)
+    def studies(self, sort=True, **kwargs):
+        studies = self.manager.studies(keys=self.keys(), sort=sort, **kwargs)
         return [self.record('Study', uid) for uid in studies]
 
-    def patients(self, **kwargs):
-        patients = self.manager.patients(keys=self.keys(), **kwargs)
+    def patients(self, sort=True, **kwargs):
+        patients = self.manager.patients(keys=self.keys(), sort=sort, **kwargs)
         return [self.record('Patient', uid) for uid in patients]
 
     def siblings(self, **kwargs):
@@ -144,7 +144,7 @@ class DbRecord():
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid, key = self.manager.new_study(parent=self.uid, **attr)
+        uid, key = self.manager.new_study(parent=self.uid, key=self.key(),**attr)
         return self.record('Study', uid, key, **attr)
 
     def new_series(self, **kwargs):
@@ -206,16 +206,56 @@ class DbRecord():
         self.manager.restore(rows)
         self.write()
 
-    def instance(self, uid, key=None):
+    # Needs a unit test
+    def instance(self, uid=None, key=None):
+        if key is not None:
+            uid = self.manager.register.at[key, 'SOPInstanceUID']
+            if uid is None:
+                return
+            return self.record('Instance', uid, key=key)
+        if uid is not None:
+            return self.record('Instance', uid)
+        key = self.key()
+        uid = self.manager.register.at[key, 'SOPInstanceUID']
         return self.record('Instance', uid, key=key)
 
-    def sery(self, uid, key=None):
+    # Needs a unit test
+    def sery(self, uid=None, key=None):
+        if key is not None:
+            uid = self.manager.register.at[key, 'SeriesInstanceUID']
+            if uid is None:
+                return
+            return self.record('Series', uid, key=key)
+        if uid is not None:
+            return self.record('Series', uid)
+        key = self.key()
+        uid = self.manager.register.at[key, 'SeriesInstanceUID']
         return self.record('Series', uid, key=key)
 
-    def study(self, uid, key=None):
+    # Needs a unit test
+    def study(self, uid=None, key=None):
+        if key is not None:
+            uid = self.manager.register.at[key, 'StudyInstanceUID']
+            if uid is None:
+                return
+            return self.record('Study', uid, key=key)
+        if uid is not None:
+            return self.record('Study', uid)
+        key = self.key()
+        uid = self.manager.register.at[key, 'StudyInstanceUID']
         return self.record('Study', uid, key=key)
 
-    def patient(self, uid, key=None):
+    # Needs a unit test
+    def patient(self, uid=None, key=None):
+        if key is not None:
+            uid = self.manager.register.at[key, 'PatientID']
+            if uid is None:
+                return
+            return self.record('Patient', uid, key=key)
+        if uid is not None:
+            return self.record('Patient', uid)
+        key = self.key()
+        uid = self.manager.register.at[key, 'PatientID']
         return self.record('Patient', uid, key=key)
 
     def database(self):
@@ -265,7 +305,6 @@ class DbRecord():
 #
 # Functions on a list of records of the same database
 #
-
 
 
 def copy_to(records, target):

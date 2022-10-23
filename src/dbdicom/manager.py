@@ -4,6 +4,7 @@ Maintains an index of all files on disk.
 
 import os
 import copy
+from tkinter import N
 import pandas as pd
 import numpy as np
 
@@ -20,12 +21,19 @@ class DatabaseCorrupted(Exception):
 class Manager(): 
     """Programming interface for reading and writing a DICOM folder."""
 
-    # The column labels of the dataframe as required by dbdicom
+    # The column labels of the register
     columns = [    
         'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'SOPClassUID', 
         'PatientName', 'StudyDescription', 'StudyDate', 'SeriesDescription', 'SeriesNumber', 'InstanceNumber', 
         'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'SliceLocation', 'AcquisitionTime',
     ]
+
+    # Default values for a row in the register
+    default = [None, None, None, None, None,
+        None, None, None, None, int(-1), int(-1),
+        None, None, None, float(-1.0), float(-1.0), None,
+    ]
+
 
     def __init__(self, path=None, dataframe=None, status=StatusBar(), dialog=Dialog()):
         """Initialise the folder with a path and objects to message to the user.
@@ -222,25 +230,27 @@ class Manager():
         
         database = {'uid': self.path}
         database['patients'] = []
-        for uid_patient in df.PatientID.unique():
+        for uid_patient in df.PatientID.dropna().unique():
             patient = {'uid': uid_patient}
             database['patients'].append(patient)
             if depth >= 1:
-                patient['studies'] = []
                 df_patient = df[df.PatientID == uid_patient]
-                for uid_study in df_patient.StudyInstanceUID.unique():
+                patient['key'] = df_patient.index[0]
+                patient['studies'] = []
+                for uid_study in df_patient.StudyInstanceUID.dropna().unique():
                     study = {'uid': uid_study}
                     patient['studies'].append(study)
                     if depth >= 2:
-                        study['series'] = []
                         df_study = df_patient[df_patient.StudyInstanceUID == uid_study]
-                        for uid_sery in df_study.SeriesInstanceUID.unique():
+                        study['key'] = df_study.index[0]
+                        study['series'] = []
+                        for uid_sery in df_study.SeriesInstanceUID.dropna().unique():
                             series = {'uid': uid_sery}
                             study['series'].append(series)
                             if depth == 3:
                                 df_series = df_study[df_study.SeriesInstanceUID == uid_sery]
-                                #series['instances'] = df_series.SOPInstanceUID.tolist()
-                                series['indices'] = df_series.index.values.tolist()
+                                series['key'] = df_series.index[0]
+        
         return database
 
 
@@ -470,21 +480,17 @@ class Manager():
         df['removed'] = False
         df['created'] = True
         self.register = pd.concat([self.register, df])
-        #sortby = ['PatientID', 'StudyInstanceUID', 'SeriesNumber', 'InstanceNumber']
-        #sortby = ['PatientID', 'StudyDescription', 'SeriesDescription', 'InstanceNumber']
-        #self.register.sort_values(sortby, inplace=True)
-
+       
         self._new_data = []
         self._new_keys = []
 
 
-    #def new_patient(self, parent='Database', PatientName='Anonymous'):
     def new_patient(self, parent='Database', **kwargs):
         # Allow multiple to be made at the same time
 
         PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
 
-        data = [None] * len(self.columns)
+        data = self.default
         data[0] = dbdataset.new_uid()
         data[5] = PatientName
 
@@ -495,7 +501,7 @@ class Manager():
 
         return data[0], key
 
-    #def new_study(self, parent=None, StudyDescription='New Study'):
+
     def new_study(self, parent=None, key=None, **kwargs):
         # Allow multiple to be made at the same time
 
@@ -509,12 +515,12 @@ class Manager():
             else:
                 key = self.keys(patient=parent)[0]
 
-        data = [None] * len(self.columns)
+        data = self.default
         data[0] = self.value(key, 'PatientID')
         data[1] = dbdataset.new_uid()
         data[5] = self.value(key, 'PatientName')
         data[6] = StudyDescription
-        
+
         if self.value(key, 'StudyInstanceUID') is None:
             # New patient without studies - use existing row
             self.register.loc[key, self.columns] = data
@@ -527,7 +533,7 @@ class Manager():
 
         return data[1], key
 
-    #def new_series(self, parent=None, SeriesDescription='New Series'):
+
     def new_series(self, parent=None, key=None, **kwargs):
         # Allow multiple to be made at the same time
 
@@ -544,11 +550,11 @@ class Manager():
 
         data = self.value(key, self.columns)
         data[2] = dbdataset.new_uid()
-        data[3] = None
-        data[4] = None
+        data[3] = self.default[3]
+        data[4] = self.default[4]
         data[8] = SeriesDescription
         data[9] = 1 + len(self.series(parent))
-        data[10] = None
+        data[10] = self.default[10]
 
         if self.value(key, 'SeriesInstanceUID') is None:
             # New study without series - use existing row
@@ -577,7 +583,7 @@ class Manager():
 
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
-        data[4] = None
+        data[4] = self.default[4]
         data[10] = 1 + len(self.instances(parent))
 
         if self.value(key, 'SOPInstanceUID') is None:
@@ -756,8 +762,6 @@ class Manager():
 
         data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
-        if 'NumberOfFrames' in ds:
-            data[5] = ds.NumberOfFrames
         ds.set_values(self.columns, data)
         if self.value(key, 'created'):
             self.register.loc[key, self.columns] = data
@@ -806,7 +810,7 @@ class Manager():
                 data[3] = dbdataset.new_uid()
                 data[4] = ds.SOPClassUID
                 nrs = self.value(parent_keys, 'InstanceNumber')
-                nrs = [n for n in nrs if n is not None]
+                nrs = [n for n in nrs if n != -1]
                 if nrs == []:
                     data[10] = 1
                 else:
@@ -1063,8 +1067,8 @@ class Manager():
             else:
                 values[ind] = kwargs[key]
 
-        n = self.value(target_keys, 'InstanceNumber')
-        n = n[n != np.array(None)]
+        n = self.register.loc[target_keys,'InstanceNumber'].values
+        n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
         
         copy_data = []
@@ -1145,7 +1149,7 @@ class Manager():
                 values[ind] = kwargs[key]
 
         n = self.value(target_keys, 'SeriesNumber')
-        n = n[n != np.array(None)]
+        n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
 
         copy_data = []
@@ -1312,8 +1316,8 @@ class Manager():
                                 ds = copy.deepcopy(ds)
                                 self.dataset[new_key] = ds
                             ds.set_values( 
-                                kwargs.keys()+['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
-                                kwargs.values()+[new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
+                                list(kwargs.keys())+['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
+                                list(kwargs.values())+[new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
                             if not key in self.dataset:
                                 ds.write(self.filepath(new_key), self.dialog)
                             row = ds.get_values(self.columns)
@@ -1378,7 +1382,7 @@ class Manager():
                 values[ind] = kwargs[key]
 
         n = self.value(target_keys, 'InstanceNumber')
-        n = n[n != np.array(None)]
+        n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
         
         copy_data = []
@@ -1484,7 +1488,7 @@ class Manager():
                 values[ind] = kwargs[key]
 
         n = self.value(target_keys, 'SeriesNumber')
-        n = n[n != np.array(None)]
+        n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
         
         copy_data = []

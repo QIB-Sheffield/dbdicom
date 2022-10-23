@@ -1,3 +1,4 @@
+import copy
 from dbdicom.record import DbRecord
 
 class Database(DbRecord):
