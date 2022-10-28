@@ -26,3 +26,4 @@ jobs:
           pytest --junitxml=junit/test-results.xml --cov=dbdicom tests/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        if: ${{ always() }}
