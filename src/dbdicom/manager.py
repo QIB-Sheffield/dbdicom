@@ -115,21 +115,10 @@ class Manager():
                     os.remove(filepath)
                     self.register.drop(index=relpath, inplace=True)
 
-    # def read_dataframe(self, message='Reading database..'):
-    #     """
-    #     Reads all files in the folder and summarises key attributes in a table for faster access.
-    #     """
-    #     if self.path is None:
-    #         raise ValueError('Cant read dataframe - index manages a database in memory')
-    #     files = filetools.all_files(self.path)
-    #     self.register = dbdataset.read_dataframe(files, self.columns, self.status, path=self.path, message=message)
-    #     self.register['removed'] = False
-    #     self.register['created'] = False
-
     def _pkl(self):
         """ Returns the file path of the .pkl file"""
         if self.path is None:
-            raise ValueError('Cant read index file - manager manages a database in memory')
+            return None
         filename = os.path.basename(os.path.normpath(self.path)) + ".pkl"
         return os.path.join(self.path, filename) 
 
@@ -143,11 +132,15 @@ class Manager():
 
     def _write_df(self):
         """ Writes the dataFrame as a .pkl file"""
+        if self.path is None:
+            return
         file = self._pkl()
         self.register.to_pickle(file)
 
     def _read_df(self):
         """Reads the dataFrame from a .pkl file """
+        if self.path is None:
+            return
         file = self._pkl()
         self.register = pd.read_pickle(file)
 
@@ -548,7 +541,8 @@ class Manager():
             else:
                 key = self.keys(study=parent)[0]
 
-        data = self.value(key, self.columns)
+        # data = self.value(key, self.columns)
+        data = self.register.loc[key, self.columns].values.tolist()
         data[2] = dbdataset.new_uid()
         data[3] = self.default[3]
         data[4] = self.default[4]
@@ -883,9 +877,9 @@ class Manager():
                 key = self.keys(patient=uid)[0]
             row = self.register.loc[key]
             name = row.PatientName
-            id = row.PatientID
+            #id = row.PatientID
             label = str(name)
-            label += ' [' + str(id) + ']'
+            #label += ' [' + str(id) + ']'
             return type + " {}".format(label)
         if type == 'Study':
             if key is None:
@@ -1046,9 +1040,60 @@ class Manager():
             keys = self.keys(*args, **kwargs)
         self.register.loc[keys,'removed'] = True
 
+
+    def delete_studies(self, studies: list):
+        """Delete a list of studies"""
+        copy_data = []
+        copy_keys = []
+        for study in studies:
+            keys = self.keys(study=study)
+            self.register.loc[keys,'removed'] = True
+            # If this was the last study in the patient
+            # keep the patient as an empty patient
+            patient = self.register.at[keys[0], 'PatientID']
+            patient = (self.register.removed == False) & (self.register.PatientID == patient)
+            patient_studies = self.register.StudyInstanceUID[patient]
+            patient_studies_cnt = len(patient_studies.unique())
+            if patient_studies_cnt == 0:
+                row = self.default
+                row[0] = self.register.at[keys[0], 'PatientID']
+                row[5] = self.register.at[keys[0], 'PatientName']
+                copy_data.append(row)
+                copy_keys.append(self.new_key())
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+      
+    def delete_series(self, series: list):
+        """Delete a list of series"""
+        copy_data = []
+        copy_keys = []
+        for sery in series:
+            keys = self.keys(series=sery)
+            self.register.loc[keys,'removed'] = True
+            # If this was the last series in the study
+            # keep the study as an empty study
+            study = self.register.at[keys[0], 'StudyInstanceUID']
+            study = (self.register.removed == False) & (self.register.StudyInstanceUID == study)
+            study_series = self.register.SeriesInstanceUID[study]
+            study_series_cnt = len(study_series.unique())
+            if study_series_cnt == 0:
+                row = self.default
+                row[0] = self.register.at[keys[0], 'PatientID']
+                row[1] = self.register.at[keys[0], 'StudyInstanceUID']
+                row[5] = self.register.at[keys[0], 'PatientName']
+                row[6] = self.register.at[keys[0], 'StudyDescription']
+                row[7] = self.register.at[keys[0], 'StudyDate']
+                copy_data.append(row)
+                copy_keys.append(self.new_key())
+        self._new_keys += copy_keys
+        self._new_data += copy_data
+        self.extend()
+
+
     def new_key(self):
         """Generate a new key"""
-
         return os.path.join('dbdicom', dbdataset.new_uid() + '.dcm') 
 
 
@@ -1392,7 +1437,27 @@ class Manager():
 
         for i, key in enumerate(keys):
 
-            #self.status.progress(i+1, len(keys), message='Moving dataset..')
+            # self.status.progress(i+1, len(keys), message='Moving dataset..')
+
+            # If this is the last instance in the series,
+            # keep the series as an empty series.
+            source_series = self.register.at[key, 'SeriesInstanceUID']
+            source_series = (self.register.removed == False) & (self.register.SeriesInstanceUID == source_series)
+            source_series_instances = self.register.SOPInstanceUID[source_series]
+            source_series_instances_cnt = source_series_instances.shape[0]
+            if source_series_instances_cnt == 1:
+                row = self.default
+                row[0] = self.register.at[key, 'PatientID']
+                row[1] = self.register.at[key, 'StudyInstanceUID']
+                row[2] = self.register.at[key, 'SeriesInstanceUID']
+                row[5] = self.register.at[key, 'PatientName']
+                row[6] = self.register.at[key, 'StudyDescription']
+                row[7] = self.register.at[key, 'StudyDate']
+                row[8] = self.register.at[key, 'SeriesDescription']
+                row[9] = self.register.at[key, 'SeriesNumber']
+                copy_keys.append(self.new_key())
+                copy_data.append(row)
+
 
             instance_uid = self.value(key, 'SOPInstanceUID') 
             ds = self.get_dataset(instance_uid, [key])
@@ -1460,12 +1525,6 @@ class Manager():
         self._new_data += copy_data
         self.extend()
 
-        # if copy_data != []:
-        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        #     df['removed'] = False
-        #     df['created'] = True
-        #     self.register = pd.concat([self.register, df])
-
         if len(keys) == 1:
             return self.value(keys, 'SOPInstanceUID')
         else:
@@ -1495,12 +1554,32 @@ class Manager():
         copy_keys = []       
 
         all_series = self.series(uid)
+
         for s, series in enumerate(all_series):
 
             self.status.progress(s+1, len(all_series), message='Moving series..')
             new_number = s + 1 + max_number
 
-            for key in self.keys(series):
+            keys = self.keys(series=series)
+
+            # If this is the last series in the study
+            # Keep the study as an empty study
+            source_study = self.register.at[keys[0], 'StudyInstanceUID']
+            source_study_series = (self.register.removed == False) & (self.register.StudyInstanceUID == source_study)
+            source_study_series = self.register.SeriesInstanceUID[source_study_series]
+            source_study_series_cnt = len(source_study_series.unique())
+            if source_study_series_cnt == 1:
+                row = self.default
+                row[0] = self.register.at[keys[0], 'PatientID']
+                row[1] = self.register.at[keys[0], 'StudyInstanceUID']
+                row[5] = self.register.at[keys[0], 'PatientName']
+                row[6] = self.register.at[keys[0], 'StudyDescription']
+                row[7] = self.register.at[keys[0], 'StudyDate']
+                copy_keys.append(self.new_key())
+                copy_data.append(row)
+                
+            # Now move the instances one by one
+            for key in keys:
 
                 instance_uid = self.value(key, 'SOPInstanceUID')
                 ds = self.get_dataset(instance_uid, [key])
@@ -1555,8 +1634,7 @@ class Manager():
                         copy_keys.append(new_key)
 
         # Update the dataframe in the index
-
-        # If the study is empty and new series have been added
+        # If the target study was empty and new series have been added
         # then delete the row 
         if copy_keys != []:
             self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
@@ -1564,12 +1642,6 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
-
-        # if copy_data != []:
-        #     df = pd.DataFrame(copy_data, index=copy_keys, columns=self.columns)
-        #     df['removed'] = False
-        #     df['created'] = True
-        #     self.register = pd.concat([self.register, df])
 
         if len(all_series) == 1:
             return all_series[0]
@@ -1599,9 +1671,25 @@ class Manager():
         for s, study in enumerate(all_studies):
             
             self.status.progress(s+1, len(all_studies), message='Moving study..')
-            for series in self.series(study):
 
-                for key in self.keys(series):
+            # If this is the last study in the patient
+            # Keep the patient as an empty patient
+            keys = self.keys(study=study)
+            source_patient = self.register.at[keys[0], 'PatientID']
+            source_patient = (self.register.removed == False) & (self.register.PatientID == source_patient)
+            source_patient_studies = self.register.StudyInstanceUID[source_patient]
+            source_patient_studies_cnt = len(source_patient_studies.unique())
+            if source_patient_studies_cnt == 1:
+                row = self.default
+                row[0] = self.register.at[keys[0], 'PatientID']
+                row[5] = self.register.at[keys[0], 'PatientName']
+                copy_keys.append(self.new_key())
+                copy_data.append(row)
+
+            #for series in self.series(study):
+            for series in self.series(keys=keys):
+
+                for key in self.keys(series=series):
 
                     instance_uid = self.value(key, 'SOPInstanceUID')
                     ds = self.get_dataset(instance_uid, [key])
@@ -1662,6 +1750,7 @@ class Manager():
             return all_studies[0]
         else:
             return all_studies
+
 
     def move_to(self, source, target, **kwargs):
 
@@ -1826,6 +1915,8 @@ class Manager():
 
         self.register.loc[created, 'created'] = False
         self.register.drop(index=removed, inplace=True)
+        self._write_df()
+        self.write()
 
     def restore(self, rows=None):  
 

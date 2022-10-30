@@ -5,6 +5,9 @@ class Study(DbRecord):
 
     name = 'StudyInstanceUID'
 
+    def remove(self):
+        self.manager.delete_studies([self.uid])
+
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid, key = self.manager.new_series(parent=self.uid, key=self.key(), **attr)

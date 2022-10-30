@@ -13,6 +13,9 @@ class Series(DbRecord):
     def _set_key(self):
         self._key = self.keys()[0]
 
+    def remove(self):
+        self.manager.delete_series([self.uid])
+
     def parent(self):
         uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
         return self.record('Study', uid, key=self.key())
