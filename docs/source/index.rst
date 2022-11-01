@@ -6,6 +6,8 @@
 Welcome to dbdicom's documentation!
 ===================================
 
+This is a test.
+
 ``dbdicom`` is a Python interface for reading and writing DICOM databases. 
 
 .. warning::
