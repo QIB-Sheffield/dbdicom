@@ -2,9 +2,10 @@ import os
 import sys
 import venv
 
+
 def distribute():
     """Upload new version on PyPI
-    
+
     IMPORTANT! First increment your version number in pyproject.toml:
     - Increment the MAJOR version when you make incompatible API changes.
     - Increment the MINOR version when you add functionality in a backwards compatible manner.
@@ -20,6 +21,7 @@ def distribute():
     os.system(activate() + ' && ' + 'pip install --upgrade twine')
     os.system(activate() + ' && ' + 'twine upload dist/*')
 
+
 def document():
     """Generate documentation"""
 
@@ -31,7 +33,13 @@ def document():
         os.mkdir(path)
 
     print('Generating documentation..')
-    os.system(activate() + ' && ' + 'pdoc --html -f -c sort_identifiers=False --output-dir ' + str(path) + ' dbdicom')
+    os.system(
+        activate() +
+        ' && ' +
+        'pdoc --html -f -c sort_identifiers=False --output-dir ' +
+        str(path) +
+        ' dbdicom')
+
 
 def activate():
     """Active virtual environment"""
@@ -39,11 +47,15 @@ def activate():
     venv_dir = os.path.join(os.getcwd(), ".venv")
     os.makedirs(venv_dir, exist_ok=True)
     venv.create(venv_dir, with_pip=True)
-    windows = (sys.platform == "win32") or (sys.platform == "win64") or (os.name == 'nt')
+    windows = (
+        sys.platform == "win32") or (
+        sys.platform == "win64") or (
+            os.name == 'nt')
     if windows:
         return os.path.join(venv_dir, "Scripts", "activate")
-    else: # MacOS and Linux
+    else:  # MacOS and Linux
         return '. "' + os.path.join(venv_dir, "bin", "activate")
+
 
 def install():
     """Install requirements to a virtual environment"""

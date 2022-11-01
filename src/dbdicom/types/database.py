@@ -1,5 +1,6 @@
 from dbdicom.record import DbRecord
 
+
 class Database(DbRecord):
 
     def open(self, path):
@@ -13,6 +14,3 @@ class Database(DbRecord):
 
     def import_dicom(self, files):
         self.manager.import_datasets(files)
-
-
-

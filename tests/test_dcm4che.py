@@ -10,6 +10,7 @@ multiframe = os.path.join(datapath, 'MULTIFRAME')
 
 # Helper functions
 
+
 def create_tmp_database(path):
     tmp = os.path.join(os.path.dirname(__file__), 'tmp')
     if os.path.isdir(tmp):
@@ -17,15 +18,21 @@ def create_tmp_database(path):
     shutil.copytree(path, tmp)
     return tmp
 
+
 def remove_tmp_database(tmp):
     shutil.rmtree(tmp)
-
 
 
 def test_multiframe_conversion():
 
     tmp = create_tmp_database(multiframe)
-    multiframe_files = [os.path.join(tmp, f) for f in os.listdir(tmp) if os.path.isfile(os.path.join(tmp, f))]
+    multiframe_files = [
+        os.path.join(
+            tmp,
+            f) for f in os.listdir(tmp) if os.path.isfile(
+            os.path.join(
+                tmp,
+                f))]
     for file in multiframe_files:
         singleframe_files = dcm4che.split_multiframe(file)
         assert [] != singleframe_files
@@ -37,7 +44,6 @@ def test_multiframe_conversion():
     remove_tmp_database(tmp)
 
 
-
 if __name__ == "__main__":
 
     test_multiframe_conversion()
@@ -45,4 +51,3 @@ if __name__ == "__main__":
     print('-------------------------')
     print('dcm4che passed all tests!')
     print('-------------------------')
-

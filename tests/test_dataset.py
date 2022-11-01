@@ -11,14 +11,19 @@ import dbdicom.utils.files as filetools
 #
 
 top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
+templates = os.path.join(
+    os.path.join(
+        os.path.join(
+            top,
+            'src'),
+        'dbdicom'),
+    'templates')
 datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
 zipped = os.path.join(datapath, 'ZIP')
 multiframe = os.path.join(datapath, 'MULTIFRAME')
-
 
 
 #
@@ -32,6 +37,7 @@ def create_tmp_database(path):
     shutil.copytree(path, tmp)
     return tmp
 
+
 def remove_tmp_database(tmp):
     shutil.rmtree(tmp)
 
@@ -39,11 +45,18 @@ def remove_tmp_database(tmp):
 # Tests
 #
 
+
 def test_read_dataframe():
 
     path = twofiles
     tmp = create_tmp_database(path)
-    files = [os.path.join(tmp, f) for f in os.listdir(tmp) if os.path.isfile(os.path.join(tmp, f))]
+    files = [
+        os.path.join(
+            tmp,
+            f) for f in os.listdir(tmp) if os.path.isfile(
+            os.path.join(
+                tmp,
+                f))]
 
     tags = ['InstanceNumber', 'PatientName', 'AcquisitionTime']
 
@@ -63,7 +76,7 @@ def test_read_dataframe():
 
 
 def test_codify():
-    
+
     output_folder = os.path.join(os.path.dirname(__file__), 'tmp')
     if os.path.isdir(output_folder):
         shutil.rmtree(output_folder)
@@ -94,6 +107,7 @@ def test_codify():
 
     shutil.rmtree(output_folder)
 
+
 def test_read_write():
 
     path = onefile
@@ -107,6 +121,7 @@ def test_read_write():
 
     assert ds.SOPInstanceUID == ds_copy.SOPInstanceUID
 
+
 def test_to_set_type():
 
     path = onefile
@@ -119,6 +134,7 @@ def test_to_set_type():
     assert isinstance(dbdataset.to_set_type(ds.AcquisitionTime), str)   # TM
 
     remove_tmp_database(tmp)
+
 
 def test_modules():
 
@@ -144,13 +160,15 @@ def test_get_values():
     files = filetools.all_files(tmp)
 
     ds = dbdataset.read(files[0])
-    values = ds.get_values(['ReferencedPatientSequence','PatientName', 'AcquisitionTime'])
+    values = ds.get_values(
+        ['ReferencedPatientSequence', 'PatientName', 'AcquisitionTime'])
 
     remove_tmp_database(tmp)
 
     assert values[0] is None
     assert values[1] == '281949'
     assert values[2] == '075649.057496'
+
 
 def test_set_values():
 
@@ -194,8 +212,9 @@ def test_set_values():
 
     remove_tmp_database(tmp)
 
+
 def test_MRImage():
-    
+
     # create from template
     ds = MRImage()
     assert ds.BodyPartExamined == 'FAKE'
@@ -208,22 +227,28 @@ def test_MRImage():
 
 
 def test_EnhancedMRImage():
-    
+
     # create from template
     ds = EnhancedMRImage()
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
-    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
-    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[0].ImagePositionPatient[2] == -49.157058715820
-    assert ds.ReferencedPerformedProcedureStepSequence[0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
+    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[
+        0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
+    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[
+        0].ImagePositionPatient[2] == -49.157058715820
+    assert ds.ReferencedPerformedProcedureStepSequence[
+        0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
 
     # create from file
     files = filetools.all_files(multiframe)
     ds = pydicom.dcmread(files[0])
     ds = EnhancedMRImage(ds)
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
-    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
-    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[0].ImagePositionPatient[2] == -49.157058715820
-    assert ds.ReferencedPerformedProcedureStepSequence[0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
+    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[
+        0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
+    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[
+        0].ImagePositionPatient[2] == -49.157058715820
+    assert ds.ReferencedPerformedProcedureStepSequence[
+        0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
 
 
 def test_read_dataset():
@@ -235,22 +260,27 @@ def test_read_dataset():
     files = filetools.all_files(multiframe)
     ds = read_dataset(files[0])
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
-    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
-    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[0].ImagePositionPatient[2] == -49.157058715820
-    assert ds.ReferencedPerformedProcedureStepSequence[0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
+    assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[
+        0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
+    assert ds.PerFrameFunctionalGroupsSequence[4].PlanePositionSequence[
+        0].ImagePositionPatient[2] == -49.157058715820
+    assert ds.ReferencedPerformedProcedureStepSequence[
+        0].ReferencedSOPInstanceUID == '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
 
 
 def test_create_dataset():
-    
+
     ds = new_dataset('MRImage')
 
+
 def test_get_colormap():
-    
+
     tmp = create_tmp_database(onefile)
     files = filetools.all_files(tmp)
     ds = read_dataset(files[0])
-    assert None == ds.get_attribute_lut()
+    assert None is ds.get_attribute_lut()
     assert 'gray' == ds.get_attribute_colormap()
+
 
 if __name__ == "__main__":
 
@@ -266,7 +296,7 @@ if __name__ == "__main__":
     test_read_dataset()
     test_create_dataset()
     test_get_colormap()
-    
+
     print('-------------------------')
     print('dataset passed all tests!')
     print('-------------------------')

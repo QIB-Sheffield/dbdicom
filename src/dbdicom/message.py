@@ -1,5 +1,6 @@
 import os
 
+
 class StatusBar():
     """
     Class with the same interface as StatusBar for use outside weasel.
@@ -14,31 +15,33 @@ class StatusBar():
     def message(self, message):
         self._message = message
         print(message)
-        
+
     def progress(self, value, maximum, message=None):
         if message is not None:
             self._message = message
-        perc = str(round(100*value/maximum))
+        perc = str(round(100 * value / maximum))
         print(self._message + ' [' + perc + ' %]')
-        
+
 
 class Dialog():
     """Class with the same interface as widgets.Dialog for commandline operation"""
 
     def information(self, message="Message in the box", title=""):
         """
-        Information message. 
+        Information message.
         """
         print("INFORMATION")
-        if title != "": print(title)
+        if title != "":
+            print(title)
         print(message)
 
     def warning(self, message="Message in the box", title=""):
         """
-        Warning message. 
+        Warning message.
         """
         print("WARNING!")
-        if title != "": print(title)
+        if title != "":
+            print(title)
         print(message)
 
     def error(self, message="Message in the box", title=""):
@@ -46,7 +49,8 @@ class Dialog():
         Error message.
         """
         print("ERROR!")
-        if title != "": print(title)
+        if title != "":
+            print(title)
         print(message)
 
     def directory(self, message='Please provide a folder', datafolder=None):
@@ -56,9 +60,9 @@ class Dialog():
         print(message)
         path = input()
         while not os.path.exists(path):
-            reply = self.question( 
-                title = 'Error!', 
-                message = path + ' does not exist. Select another?')
+            reply = self.question(
+                title='Error!',
+                message=path + ' does not exist. Select another?')
             if reply == "Yes":
                 print(message)
                 path = input()
@@ -66,10 +70,14 @@ class Dialog():
                 return None
         return path
 
-    def question(self, message="Do you wish to proceed?", title="Question", cancel=False):
+    def question(
+            self,
+            message="Do you wish to proceed?",
+            title="Question",
+            cancel=False):
         """
         Displays a question window in the User Interface.
-        
+
         The user has to click either "OK" or "Cancel" in order to continue using the interface.
         Returns False if reply is "Cancel" and True if reply is "OK".
         """
@@ -88,17 +96,30 @@ class Dialog():
             print(message)
             print(instructions)
             answer = input()
-        if answer == 'y': return "Yes"
-        if answer == 'n': return "No"
-        if answer == 'c': return "Cancel"
+        if answer == 'y':
+            return "Yes"
+        if answer == 'n':
+            return "No"
+        if answer == 'c':
+            return "Cancel"
 
-    def file_to_open(self, title='Open file..', initial_folder=None, extension="All files (*.*)", datafolder=None):
+    def file_to_open(
+            self,
+            title='Open file..',
+            initial_folder=None,
+            extension="All files (*.*)",
+            datafolder=None):
         """
         Select a file to read.
         """
         pass
 
-    def file_to_save(self, title='Save as ...', directory=None, filter="All files (*.*)", datafolder=None):
+    def file_to_save(
+            self,
+            title='Save as ...',
+            directory=None,
+            filter="All files (*.*)",
+            datafolder=None):
         """
         Select a filename to save.
         """

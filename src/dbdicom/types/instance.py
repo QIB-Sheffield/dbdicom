@@ -44,17 +44,17 @@ class Instance(DbRecord):
 
 def map_to(source, target):
     """Map non-zero image pixels onto a target image.
-    
+
     Overwrite pixel values in the target"""
 
     dss = source.get_dataset()
     dst = target.get_dataset()
 
     # Create a coordinate array for all pixels in the source
-    coords = np.empty((dss.Rows*dss.Columns, 3), dtype=np.uint16)
+    coords = np.empty((dss.Rows * dss.Columns, 3), dtype=np.uint16)
     for x in range(dss.Columns):
         for y in range(dss.Rows):
-            coords[x*dss.Columns+y,:] = [x,y,0]
+            coords[x * dss.Columns + y, :] = [x, y, 0]
 
     # Apply coordinate transformation from source to target
     affineSource = dss.affine_matrix()
@@ -69,8 +69,8 @@ def map_to(source, target):
     xs = tuple([c[0] for c in coords])
     ys = tuple([c[1] for c in coords])
 
-    ## COORDINATES DO NOT MATCH UP because of c[2] = 0 condition
-    ## Needs a different indexing approach
+    # COORDINATES DO NOT MATCH UP because of c[2] = 0 condition
+    # Needs a different indexing approach
 
     # Set values in the target image
     source_array = dss.get_pixel_array()
@@ -85,15 +85,15 @@ def map_to(source, target):
 
 def map_mask_to(record, target):
     """Map non-zero image pixels onto a target image.
-    
+
     Overwrite pixel values in the target"""
 
     dsr = record.get_dataset()
     dst = target.get_dataset()
 
     # Create a coordinate array of non-zero pixels
-    coords = np.transpose(np.where(dsr.get_pixel_array() != 0)) 
-    coords = [[coord[0], coord[1], 0] for coord in coords] 
+    coords = np.transpose(np.where(dsr.get_pixel_array() != 0))
+    coords = [[coord[0], coord[1], 0] for coord in coords]
     coords = np.array(coords)
 
     # Determine coordinate transformation matrix
@@ -120,7 +120,8 @@ def map_mask_to(record, target):
     # array = np.zeros((record.Rows, record.Columns))
     array = np.zeros((dst.Columns, dst.Rows))
     array[(x, y)] = 1.0
-    result = target.copy_to(record.parent()) # inherit geometry header from target
+    # inherit geometry header from target
+    result = target.copy_to(record.parent())
     result.set_pixel_array(array)
 
     return result
@@ -129,8 +130,9 @@ def map_mask_to(record, target):
 def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
     """Export 2D pixel Array in csv format"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the csv data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the csv data')
     if filename is None:
         filename = record.SeriesDescription
 
@@ -149,14 +151,15 @@ def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
 def export_as_png(record, directory=None, filename=None):
     """Export image in png format."""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the png data')
 
     colourTable = record.colormap
     pixelArray = np.transpose(record.get_pixel_array())
     centre, width = record.window
-    minValue = centre - width/2
-    maxValue = centre + width/2
+    minValue = centre - width / 2
+    maxValue = centre + width / 2
     cmap = plt.get_cmap(colourTable)
     plt.imshow(pixelArray, cmap=cmap)
     plt.clim(int(minValue), int(maxValue))
@@ -166,13 +169,15 @@ def export_as_png(record, directory=None, filename=None):
         filename = record.label()
     filename = os.path.join(directory, filename + '.png')
     plt.savefig(fname=filename + '.png')
-    plt.close() 
+    plt.close()
+
 
 def export_as_nifti(record, directory=None, filename=None):
     """Export series as a single Nifty file"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the nifty data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the nifty data')
     if filename is None:
         filename = record.SeriesDescription
 
@@ -182,5 +187,3 @@ def export_as_nifti(record, directory=None, filename=None):
     niftiObj = nib.Nifti1Image(array, ds.affine_matrix())
     niftiObj.header.extensions.append(dicomHeader)
     nib.save(niftiObj, directory + '/' + filename + '.nii')
-
-

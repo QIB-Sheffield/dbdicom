@@ -7,6 +7,7 @@ from pydicom.sequence import Sequence
 
 from dbdicom.ds.dataset import DbDataset
 
+
 class CTImage(DbDataset):
     def __init__(self, dataset=None, template=None):
         super().__init__()
@@ -17,8 +18,9 @@ class CTImage(DbDataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-        if template == 'VPH': 
+        if template == 'VPH':
             vph(self)
+
 
 def vph(ds):
 
@@ -64,7 +66,13 @@ def vph(ds):
     ds.SeriesNumber = '1'
     ds.InstanceNumber = '1000'
     ds.ImagePositionPatient = [0, 0, 999]
-    ds.ImageOrientationPatient = [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]
+    ds.ImageOrientationPatient = [
+        1.000000,
+        0.000000,
+        0.000000,
+        0.000000,
+        1.000000,
+        0.000000]
     ds.FrameOfReferenceUID = '1.2.826.0.1.3680043.2.1125.1.75064541463040.2005072610384286419'
     ds.PositionReferenceIndicator = 'SN'
     ds.SamplesPerPixel = 1
@@ -79,6 +87,6 @@ def vph(ds):
     ds.RescaleIntercept = '-1024.0'
     ds.RescaleSlope = '1.0'
     ds.add_new((0x7fe0, 0x0000), 'UL', 524300)
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)
+    ds.PixelData = np.arange(ds.Rows * ds.Columns, dtype=np.uint16)
 
     return ds

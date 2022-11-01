@@ -1,6 +1,6 @@
 """subpackage ds
 
-Can ultimately be extracted as a separate package ds, 
+Can ultimately be extracted as a separate package ds,
 extending pydicom Dataset with extra functionality"""
 
 from dbdicom.ds.types.mr_image import MRImage

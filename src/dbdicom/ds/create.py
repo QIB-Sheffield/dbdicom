@@ -7,6 +7,7 @@ from dbdicom.ds.types.mr_image import MRImage
 from dbdicom.ds.types.enhanced_mr_image import EnhancedMRImage
 from dbdicom.ds.types.ultrasound_multiframe_image import UltrasoundMultiFrameImage
 
+
 def SOPClass(SOPClassUID):
 
     if SOPClassUID == '1.2.840.10008.5.1.4.1.1.4':
@@ -22,16 +23,18 @@ def SOPClass(SOPClassUID):
     else:
         return 'Instance'
 
+
 def read_dataset(file, dialog=None):
 
     try:
         ds = pydicom.dcmread(file)
-        # ds = pydicom.dcmread(file, force=True) # more robust but hides corrupted data
+        # ds = pydicom.dcmread(file, force=True) # more robust but hides
+        # corrupted data
     except Exception as message:
         if dialog is not None:
-            dialog.information(message)  
+            dialog.information(message)
         raise FileNotFoundError(message)
-    
+
     type = SOPClass(ds.SOPClassUID)
     if type == 'MRImage':
         return MRImage(ds)
@@ -45,6 +48,7 @@ def read_dataset(file, dialog=None):
         return UltrasoundMultiFrameImage(ds)
     else:
         return ds
+
 
 def new_dataset(type):
 

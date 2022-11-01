@@ -1,4 +1,4 @@
-# Coded version of DICOM file 
+# Coded version of DICOM file
 # 'RIDER Neuro MRI-3369019796\03-21-1904-BRAINRESEARCH-00598\14.000000-sag 3d gre c-04769\1-010.dcm'
 # Produced by pydicom codify utility script
 import struct
@@ -22,7 +22,7 @@ class MRImage(DbDataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-        if template == 'RIDER': 
+        if template == 'RIDER':
             rider(self)
 
     def get_pixel_array(self):
@@ -44,8 +44,7 @@ class MRImage(DbDataset):
         set_attribute_signal_type(self, value)
 
 
-
-def rider(ds): # required only - check
+def rider(ds):  # required only - check
 
     # File meta info data elements
     ds.file_meta = FileMetaDataset()
@@ -126,7 +125,8 @@ def rider(ds): # required only - check
     ds.SeriesNumber = '14'
     ds.AcquisitionNumber = '1'
     ds.InstanceNumber = '1'
-    ds.ImagePositionPatient = [75.561665058136, -163.6216506958, 118.50172901154]
+    ds.ImagePositionPatient = [
+        75.561665058136, -163.6216506958, 118.50172901154]
     ds.ImageOrientationPatient = [0, 1, 0, 0, 0, -1]
     ds.FrameOfReferenceUID = '1.3.6.1.4.1.9328.50.16.22344679587635360510174487884943834158'
     ds.PositionReferenceIndicator = ''
@@ -156,7 +156,8 @@ def rider(ds): # required only - check
     ds.RequestAttributesSequence = Sequence()
     ds.RequestedProcedureID = '5133240'
     ds.StorageMediaFileSetUID = '1.3.6.1.4.1.9328.50.16.162890465625511526068665093825399871205'
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    ds.PixelData = np.arange(ds.Rows * ds.Columns, dtype=np.uint16) * \
+        ds.LargestImagePixelValue / (ds.Rows * ds.Columns)
 
     return ds
 
@@ -170,14 +171,14 @@ def get_pixel_array(ds):
     #array = array.astype(np.float32)
 
     array = ds.pixel_array.astype(np.float32)
-    if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
+    if [0x2005, 0x100E] in ds:  # 'Philips Rescale Slope'
         slope = ds[(0x2005, 0x100E)].value
         intercept = ds[(0x2005, 0x100D)].value
         array -= intercept
         array /= slope
     else:
-        slope = float(getattr(ds, 'RescaleSlope', 1)) 
-        intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
+        slope = float(getattr(ds, 'RescaleSlope', 1))
+        intercept = float(getattr(ds, 'RescaleIntercept', 0))
         array *= slope
         array += intercept
     return np.transpose(array)
@@ -185,18 +186,18 @@ def get_pixel_array(ds):
 
 def set_pixel_array(ds, array):
 
-    if (0x2005, 0x100E) in ds: 
+    if (0x2005, 0x100E) in ds:
         del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-    if (0x2005, 0x100D) in ds: 
+    if (0x2005, 0x100D) in ds:
         del ds[0x2005, 0x100D]
-    
-    if array.ndim >= 3: # remove spurious dimensions of 1
-        array = np.squeeze(array) 
+
+    if array.ndim >= 3:  # remove spurious dimensions of 1
+        array = np.squeeze(array)
 
     #ds.BitsAllocated = 32
     #ds.BitsStored = 32
     #ds.HighBit = 31
-    
+
     # room for speed up
     # clipping may slow down a lot
     # max/min are calculated multiple times
@@ -223,17 +224,17 @@ def get_attribute_image_type(ds):
 
     if (0x0043, 0x102f) in ds:
         private_ge = ds[0x0043, 0x102f]
-        try: 
+        try:
             value = struct.unpack('h', private_ge.value)[0]
-        except: 
+        except BaseException:
             value = private_ge.value
-        if value == 0: 
+        if value == 0:
             return 'MAGNITUDE'
-        if value == 1: 
+        if value == 1:
             return 'PHASE'
-        if value == 2: 
+        if value == 2:
             return 'REAL'
-        if value == 3: 
+        if value == 3:
             return 'IMAGINARY'
 
     if 'ImageType' in ds:

@@ -8,6 +8,7 @@ from pydicom.sequence import Sequence
 
 from dbdicom.ds.dataset import DbDataset
 
+
 class UltrasoundMultiFrameImage(DbDataset):
     def __init__(self, dataset=None, template=None):
         super().__init__()
@@ -18,8 +19,9 @@ class UltrasoundMultiFrameImage(DbDataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-        if template == 'DEFAULT': 
+        if template == 'DEFAULT':
             default(self)
+
 
 def default(ds):
 
@@ -81,5 +83,4 @@ def default(ds):
     ds.RedPaletteColorLookupTableData = np.arange(256, dtype=np.uint16)
     ds.GreenPaletteColorLookupTableData = np.arange(256, dtype=np.uint16)
     ds.BluePaletteColorLookupTableData = np.arange(256, dtype=np.uint16)
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)
-
+    ds.PixelData = np.arange(ds.Rows * ds.Columns, dtype=np.uint16)

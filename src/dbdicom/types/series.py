@@ -31,6 +31,7 @@ def import_dicom(series, files):
     uids = series.manager.import_datasets(files)
     series.manager.move_to(uids, series.uid)
 
+
 def subseries(record, **kwargs):
     """Extract subseries"""
 
@@ -38,6 +39,7 @@ def subseries(record, **kwargs):
     for instance in record.instances(**kwargs):
         instance.copy_to(series)
     return series
+
 
 def read_npy(record):
     # Not in use - loading of temporary numpy files
@@ -49,11 +51,17 @@ def read_npy(record):
     return array
 
 
-def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
+def export_as_npy(
+        record,
+        directory=None,
+        filename=None,
+        sortby=None,
+        pixels_first=False):
     """Export array in numpy format"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the png data')
     if filename is None:
         filename = record.SeriesDescription
     array, _ = record.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
@@ -66,19 +74,21 @@ def map_mask_to(series, target):
     """Map non-zero pixels onto another series"""
 
     source_images = series.instances()
-    target_images = target.instances() 
+    target_images = target.instances()
     mapped_series = series.new_sibling(
-        SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
-    )
+        SeriesDescription=series.SeriesDescription +
+        ' mapped to ' +
+        target.SeriesDescription)
     for i, target_image in enumerate(target_images):
         series.status.progress(i, len(target_images))
-        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=np.bool) 
+        pixel_array = np.zeros(
+            (target_image.Columns, target_image.Rows), dtype=np.bool)
         for j, source_image in enumerate(source_images):
             series.status.message(
-                'Mapping image ' + str(j) + 
-                ' of ' + series.SeriesDescription + 
-                ' to image ' + str(i) + 
-                ' of ' + target.SeriesDescription 
+                'Mapping image ' + str(j) +
+                ' of ' + series.SeriesDescription +
+                ' to image ' + str(i) +
+                ' of ' + target.SeriesDescription
             )
             im = source_image.map_mask_to(target_image)
             array = im.get_pixel_array().astype(np.bool)
@@ -90,13 +100,13 @@ def map_mask_to(series, target):
     return mapped_series
 
 
-def get_pixel_array(record, sortby=None, pixels_first=False): 
+def get_pixel_array(record, sortby=None, pixels_first=False):
     """Pixel values of the object as an ndarray
-    
+
     Args:
-        sortby: 
+        sortby:
             Optional list of DICOM keywords by which the volume is sorted
-        pixels_first: 
+        pixels_first:
             If True, the (x,y) dimensions are the first dimensions of the array.
             If False, (x,y) are the last dimensions - this is the default.
 
@@ -110,27 +120,27 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
         # return a 3D array (z,x,y)
         # with the pixel data for each slice
         # in no particular order (z)
-        array, _ = series.array()    
+        array, _ = series.array()
 
-        # return a 3D array (x,y,z)   
-        # with pixel data in the leading indices                               
-        array, _ = series.array(pixels_first = True)    
+        # return a 3D array (x,y,z)
+        # with pixel data in the leading indices
+        array, _ = series.array(pixels_first = True)
 
-        # Return a 4D array (x,y,t,k) sorted by acquisition time   
-        # The last dimension (k) enumerates all slices with the same acquisition time. 
-        # If there is only one image for each acquision time, 
-        # the last dimension is a dimension of 1                               
-        array, data = series.array('AcquisitionTime', pixels_first=True)                         
+        # Return a 4D array (x,y,t,k) sorted by acquisition time
+        # The last dimension (k) enumerates all slices with the same acquisition time.
+        # If there is only one image for each acquision time,
+        # the last dimension is a dimension of 1
+        array, data = series.array('AcquisitionTime', pixels_first=True)
         v = array[:,:,10,0]                 # First image at the 10th location
         t = data[10,0].AcquisitionTIme      # acquisition time of the same image
 
-        # Return a 4D array (loc, TI, x, y) 
+        # Return a 4D array (loc, TI, x, y)
         sortby = ['SliceLocation','InversionTime']
-        array, data = series.array(sortby) 
-        v = array[10,6,0,:,:]            # First slice at 11th slice location and 7th inversion time    
+        array, data = series.array(sortby)
+        v = array[10,6,0,:,:]            # First slice at 11th slice location and 7th inversion time
         Loc = data[10,6,0][sortby[0]]    # Slice location of the same slice
         TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
-        ```  
+        ```
     """
     if sortby is not None:
         if not isinstance(sortby, list):
@@ -141,7 +151,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     for i, im in enumerate(instances):
         record.status.progress(i, len(instances), 'Reading pixel data..')
         if im is None:
-            array.append(np.zeros((1,1)))
+            array.append(np.zeros((1, 1)))
         else:
             array.append(im.get_pixel_array())
     array = _stack(array)
@@ -149,44 +159,44 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     if pixels_first:
         array = np.moveaxis(array, -1, 0)
         array = np.moveaxis(array, -1, 0)
-    return array, source 
+    return array, source
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False): 
+def set_pixel_array(series, array, source=None, pixels_first=False):
     """
     Set pixel values of a series from a numpy ndarray.
 
-    Since the pixel data do not hold any information about the 
+    Since the pixel data do not hold any information about the
     image such as geometry, or other metainformation,
-    a dataset must be provided as well with the same 
-    shape as the array except for the slice dimensions. 
+    a dataset must be provided as well with the same
+    shape as the array except for the slice dimensions.
 
-    If a dataset is not provided, header info is 
+    If a dataset is not provided, header info is
     derived from existing instances in order.
 
     Args:
-        array: 
+        array:
             numpy ndarray with pixel data.
 
-        dataset: 
+        dataset:
             numpy ndarray
 
-            Instances holding the header information. 
+            Instances holding the header information.
             This *must* have the same shape as array, minus the slice dimensions.
 
-        pixels_first: 
+        pixels_first:
             bool
 
             Specifies whether the pixel dimensions are the first or last dimensions of the series.
             If not provided it is assumed the slice dimensions are the last dimensions
             of the array.
 
-        inplace: 
+        inplace:
             bool
 
-            If True (default) the current pixel values in the series 
+            If True (default) the current pixel values in the series
             are overwritten. If set to False, the new array is added to the series.
-    
+
     Examples:
         ```ruby
         # Invert all images in a series:
@@ -211,9 +221,9 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
 
         # In a series with multiple slice locations and inversion times,
         # replace all images for each slice location with that of the shortest inversion time.
-        array, data = series.array(['SliceLocation','InversionTime']) 
+        array, data = series.array(['SliceLocation','InversionTime'])
         for loc in range(array.shape[0]):               # loop over slice locations
-            slice0 = np.squeeze(array[loc,0,0,:,:])     # get the slice with shortest TI 
+            slice0 = np.squeeze(array[loc,0,0,:,:])     # get the slice with shortest TI
             TI0 = data[loc,0,0].InversionTime           # get the TI of that slice
             for TI in range(array.shape[1]):            # loop over TIs
                 array[loc,TI,0,:,:] = slice0            # replace each slice with shortest TI
@@ -229,8 +239,8 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
     if source is None:
         n = np.prod(array.shape[:-2])
         source = np.empty(n, dtype=object)
-        for i in range(n): 
-            source[i] = series.new_instance(MRImage())  
+        for i in range(n):
+            source[i] = series.new_instance(MRImage())
         source = source.reshape(array.shape[:-2])
         series.set_pixel_array(array, source)
         #source = instance_array(series)
@@ -245,8 +255,9 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         raise ValueError(message)
 
     # Flatten array and source for iterating
-    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    source = source.reshape(nr_of_slices) # shape (i,)
+    array = array.reshape(
+        (nr_of_slices, array.shape[-2], array.shape[-1]))  # shape (i,x,y)
+    source = source.reshape(nr_of_slices)  # shape (i,)
 
     # set_array replaces current array
     for i in series.instances():
@@ -254,7 +265,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
             i.remove()
     if series.instances() == []:
         copy = copy_to(source.tolist(), series)
-        #for i, s in enumerate(source.tolist()):
+        # for i, s in enumerate(source.tolist()):
         #    print(copy[i].SliceLocation, s.SliceLocation) # Not matching up
     else:
         copy = source.tolist()
@@ -262,15 +273,15 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
     series.manager.pause_extensions()
     for i, instance in enumerate(copy):
         series.status.progress(i, len(copy), 'Writing array to file..')
-        instance.set_pixel_array(array[i,...])
+        instance.set_pixel_array(array[i, ...])
     series.manager.resume_extensions()
 
 
 def amax(record, axis=None):
     """Calculate the maximum of the image array along a given dimension.
-    
-    This function is included as a placeholder reminder 
-    to build up functionality at series level that emulates 
+
+    This function is included as a placeholder reminder
+    to build up functionality at series level that emulates
     numpy behaviour.
 
     Args:
@@ -289,23 +300,22 @@ def amax(record, axis=None):
 
     array, header = record.get_pixel_array(axis)
     array = np.amax(array, axis=0)
-    header = np.squeeze(header[0,...])
+    header = np.squeeze(header[0, ...])
     series = record.new_sibling()
     series.set_pixel_array(array, header)
     return series
 
 
-
 ##
-## Helper functions
+# Helper functions
 ##
 
 
-def instance_array(record, sortby=None, status=True): 
+def instance_array(record, sortby=None, status=True):
     """Sort instances by a list of attributes.
-    
+
     Args:
-        sortby: 
+        sortby:
             List of DICOM keywords by which the series is sorted
     Returns:
         An ndarray holding the instances sorted by sortby.
@@ -313,52 +323,56 @@ def instance_array(record, sortby=None, status=True):
     if sortby is None:
         instances = record.instances()
         array = np.empty(len(instances), dtype=object)
-        for i, instance in enumerate(instances): 
+        for i, instance in enumerate(instances):
             array[i] = instance
         return array
     else:
         if set(sortby) <= set(record.manager.register):
-            df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
+            df = record.manager.register.loc[dataframe(
+                record).index, sortby]  # obsolete replace by below
             # df = record.manager.register.loc[record.register().index, sortby]
         else:
             ds = record.get_dataset()
             df = dbdataset.get_dataframe(ds, sortby)
-        df.sort_values(sortby, inplace=True) 
+        df.sort_values(sortby, inplace=True)
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
-def dataframe(record): # OBSOLETE replace by record.register()
+
+def dataframe(record):  # OBSOLETE replace by record.register()
 
     keys = record.manager.keys(record.uid)
     return record.manager.register.loc[keys, :]
 
 
-def df_to_sorted_instance_array(record, df, sortby, status=True): 
+def df_to_sorted_instance_array(record, df, sortby, status=True):
 
     data = []
     vals = df[sortby[0]].unique()
     for i, c in enumerate(vals):
-        if status: 
+        if status:
             record.status.progress(i, len(vals), message='Sorting..')
         dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
         else:
-            datac = df_to_sorted_instance_array(record, dfc, sortby[1:], status=False)
+            datac = df_to_sorted_instance_array(
+                record, dfc, sortby[1:], status=False)
         data.append(datac)
     return _stack(data, align_left=True)
 
 
-def df_to_instance_array(record, df): 
+def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    for i, uid in enumerate(df.index.values): 
+    for i, uid in enumerate(df.index.values):
         data[i] = record.instance(uid)
     return data
 
+
 def _stack(arrays, align_left=False):
     """Stack a list of arrays of different shapes but same number of dimensions.
-    
+
     This generalises numpy.stack to arrays of different sizes.
     The stack has the size of the largest array.
     If an array is smaller it is zero-padded and centred on the middle.
@@ -370,7 +384,8 @@ def _stack(arrays, align_left=False):
     dim = [0] * ndim
     for array in arrays:
         for i, d in enumerate(dim):
-            dim[i] = max((d, array.shape[i])) # changing the variable we are iterating over!!
+            # changing the variable we are iterating over!!
+            dim[i] = max((d, array.shape[i]))
     #    for i in range(ndim):
     #        dim[i] = max((dim[i], array.shape[i]))
 
@@ -385,11 +400,10 @@ def _stack(arrays, align_left=False):
         for i, d in enumerate(dim):
             if align_left:
                 i0 = 0
-            else: # align center and zero-pad missing values
-                i0 = math.floor((d-array.shape[i])/2)
+            else:  # align center and zero-pad missing values
+                i0 = math.floor((d - array.shape[i]) / 2)
             i1 = i0 + array.shape[i]
-            index.append(slice(i0,i1))
+            index.append(slice(i0, i1))
         stack[tuple(index)] = array
 
     return stack
-

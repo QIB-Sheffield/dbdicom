@@ -5,13 +5,13 @@ from dbdicom.manager import Manager
 
 class DbRecord():
 
-    def __init__(self, create, manager, uid='Database', **kwargs):   
+    def __init__(self, create, manager, uid='Database', **kwargs):
 
         self.uid = uid
         self.attributes = kwargs
         self.manager = manager
         self.new = create
-    
+
     def __eq__(self, other):
         return self.uid == other.uid
 
@@ -27,7 +27,7 @@ class DbRecord():
         else:
             #self.set_values(attribute, value)
             self.set_values([attribute], [value])
-        
+
     def __setitem__(self, attributes, values):
         self.set_values(attributes, values)
 
@@ -76,12 +76,16 @@ class DbRecord():
 
     def children(self, **kwargs):
         return children(self, **kwargs)
+
     def instances(self, **kwargs):
         return instances(self, **kwargs)
+
     def series(self, **kwargs):
         return series(self, **kwargs)
+
     def studies(self, **kwargs):
         return studies(self, **kwargs)
+
     def patients(self, **kwargs):
         return patients(self, **kwargs)
 
@@ -91,31 +95,35 @@ class DbRecord():
 
     def new_patient(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_patient(parent=self.uid, 
-            PatientName = attr['PatientName'] if 'PatientName' in attr else 'New Patient',
+        uid = self.manager.new_patient(
+            parent=self.uid,
+            PatientName=attr['PatientName'] if 'PatientName' in attr else 'New Patient',
         )
         return self.new(self.manager, uid, 'Patient', **attr)
 
     def new_study(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_study(parent=self.uid, 
-            StudyDescription = attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
+        uid = self.manager.new_study(
+            parent=self.uid,
+            StudyDescription=attr['StudyDescription'] if 'StudyDescription' in attr else 'New Study',
         )
         return self.new(self.manager, uid, 'Study', **attr)
 
     def new_series(self, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_series(parent=self.uid,
-            SeriesDescription = attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
+        uid = self.manager.new_series(
+            parent=self.uid,
+            SeriesDescription=attr['SeriesDescription'] if 'SeriesDescription' in attr else 'New Series',
         )
         return self.new(self.manager, uid, 'Series', **attr)
 
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
-        uid = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
+        uid = self.manager.new_instance(
+            parent=self.uid, dataset=dataset, **attr)
         return self.new(self.manager, uid, 'Instance', **attr)
 
-    def new_child(self, dataset=None, **kwargs): 
+    def new_child(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid = self.manager.new_child(uid=self.uid, dataset=dataset, **attr)
         return self.new(self.manager, uid, **attr)
@@ -143,13 +151,13 @@ class DbRecord():
 
     def register(self):
         keys = self.manager.keys(self.uid)
-        return self.manager.register.loc[keys,:]
-    
+        return self.manager.register.loc[keys, :]
+
     def label(self):
         return self.manager.label(self.uid)
 
     def print(self):
-        self.manager.print() # print self.uid only
+        self.manager.print()  # print self.uid only
 
     def read(self):
         self.manager.read(self.uid)
@@ -171,7 +179,7 @@ class DbRecord():
 
     def copy_to(self, target):
         return copy_to(self, target)[0]
-    
+
     def move_to(self, target):
         move_to(self, target)
         return self
@@ -191,23 +199,27 @@ class DbRecord():
     def save(self, path=None):
         self.manager.save(self.uid)
         self.write(path)
-        
+
     def restore(self):
         self.manager.restore(self.uid)
         self.write()
 
     def instance(self, uid):
         return self.new(self.manager, uid, 'Instance')
+
     def sery(self, uid):
         return self.new(self.manager, uid, 'Series')
+
     def study(self, uid):
         return self.new(self.manager, uid, 'Study')
+
     def patient(self, uid):
         return self.new(self.manager, uid, 'Patient')
+
     def database(self):
         return self.new(self.manager, 'Database')
 
-    def export_as_dicom(self, path): 
+    def export_as_dicom(self, path):
         mgr = Manager(path)
         mgr.open(path)
         uids = self.manager.instances(self.uid)
@@ -222,55 +234,58 @@ class DbRecord():
     def export_as_nifti(*args, **kwargs):
         export_as_nifti(*args, **kwargs)
 
-    def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
+    def sort(self, sortby=['StudyDate', 'SeriesNumber', 'InstanceNumber']):
         self.manager.register.sort_values(sortby, inplace=True)
 
     def read_dataframe(self, tags):
-        return dbdataset.read_dataframe(self.files(), tags, self.status, path=self.manager.path)
+        return dbdataset.read_dataframe(
+            self.files(), tags, self.status, path=self.manager.path)
 
     # def tree(*args, **kwargs):
     #     return tree(*args, **kwargs)
 
 
-
 def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
     """Export all images as csv files"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the csv data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the csv data')
     if filename is None:
         filename = record.SeriesDescription
     for i, instance in enumerate(record.instances()):
-        instance.export_as_csv( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']', 
-            columnHeaders = columnHeaders)
+        instance.export_as_csv(
+            directory=directory,
+            filename=filename + ' [' + str(i) + ']',
+            columnHeaders=columnHeaders)
+
 
 def export_as_png(record, directory=None, filename=None):
     """Export all images as png files"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the png data')
     if filename is None:
         filename = record.SeriesDescription
     for i, instance in enumerate(record.instances()):
-        instance.export_as_png( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
+        instance.export_as_png(
+            directory=directory,
+            filename=filename + ' [' + str(i) + ']')
+
 
 def export_as_nifti(record, directory=None, filename=None):
     """Export all images as nifti files"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
+    if directory is None:
+        directory = record.dialog.directory(
+            message='Please select a folder for the png data')
     if filename is None:
         filename = record.SeriesDescription
     for i, instance in enumerate(record.instances()):
-        instance.export_as_nifti( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
-
-
+        instance.export_as_nifti(
+            directory=directory,
+            filename=filename + ' [' + str(i) + ']')
 
 
 #
@@ -286,6 +301,7 @@ def get_values(records, attributes):
     mgr = records[0].manager
     return mgr.get_values(uids, attributes)
 
+
 def set_values(records, attributes, values):
 
     if not isinstance(records, list):
@@ -293,6 +309,7 @@ def set_values(records, attributes, values):
     uids = [rec.uid for rec in records]
     mgr = records[0].manager
     mgr.set_values(uids, attributes, values)
+
 
 def children(records, **kwargs):
 
@@ -303,6 +320,7 @@ def children(records, **kwargs):
     uids = mgr.children(uids, **kwargs)
     return [records[0].new(mgr, uid) for uid in uids]
 
+
 def instances(records, **kwargs):
 
     if not isinstance(records, list):
@@ -311,6 +329,7 @@ def instances(records, **kwargs):
     uids = [rec.uid for rec in records]
     uids = mgr.instances(uids, **kwargs)
     return [records[0].new(mgr, uid, 'Instance') for uid in uids]
+
 
 def series(records, **kwargs):
 
@@ -321,6 +340,7 @@ def series(records, **kwargs):
     uids = mgr.series(uids, **kwargs)
     return [records[0].new(mgr, uid, 'Series') for uid in uids]
 
+
 def studies(records, **kwargs):
 
     if not isinstance(records, list):
@@ -330,6 +350,7 @@ def studies(records, **kwargs):
     uids = mgr.studies(uids, **kwargs)
     return [records[0].new(mgr, uid, 'Study') for uid in uids]
 
+
 def patients(records, **kwargs):
 
     if not isinstance(records, list):
@@ -338,6 +359,7 @@ def patients(records, **kwargs):
     uids = [rec.uid for rec in records]
     uids = mgr.patients(uids, **kwargs)
     return [records[0].new(mgr, uid, 'Patient') for uid in uids]
+
 
 def copy_to(records, target):
 
@@ -351,6 +373,7 @@ def copy_to(records, target):
     else:
         return [records[0].new(mgr, uids)]
 
+
 def move_to(records, target):
 
     if not isinstance(records, list):
@@ -360,6 +383,7 @@ def move_to(records, target):
     mgr.move_to(uids, target.uid, **target.attributes)
     return records
 
+
 def group(records, into=None):
 
     if not isinstance(records, list):
@@ -368,6 +392,7 @@ def group(records, into=None):
         into = records[0].new_pibling()
     copy_to(records, into)
     return into
+
 
 def merge(records, into=None):
 

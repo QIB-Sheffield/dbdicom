@@ -30,7 +30,7 @@ def database(path=None, **kwargs):
     else:
         mgr = Manager(path, **kwargs)
         mgr.open(path)
-    return Database(create, mgr, **kwargs) 
+    return Database(create, mgr, **kwargs)
 
 
 def series(array, pixels_first=False, path=None):
@@ -41,5 +41,3 @@ def series(array, pixels_first=False, path=None):
     series = study.new_series()
     series.set_pixel_array(array, pixels_first=pixels_first)
     return series
-
-

@@ -7,6 +7,7 @@ from pydicom.sequence import Sequence
 
 from dbdicom.ds.dataset import DbDataset
 
+
 class XrayAngiographicImage(DbDataset):
     def __init__(self, dataset=None, template=None):
         super().__init__()
@@ -17,8 +18,9 @@ class XrayAngiographicImage(DbDataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-        if template == 'ANGIO': 
+        if template == 'ANGIO':
             angio(self)
+
 
 def angio(ds):
 
@@ -97,5 +99,4 @@ def angio(ds):
     ds.RepresentativeFrameNumber = 1
     ds.FrameNumbersOfInterest = 2
     ds.FrameOfInterestDescription = 'L1'
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)
-
+    ds.PixelData = np.arange(ds.Rows * ds.Columns, dtype=np.uint16)

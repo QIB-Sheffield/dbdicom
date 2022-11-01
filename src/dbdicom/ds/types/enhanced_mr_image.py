@@ -8,6 +8,7 @@ from pydicom.sequence import Sequence
 from dbdicom.ds.dataset import DbDataset
 import dbdicom.utils.image as image
 
+
 class EnhancedMRImage(DbDataset):
 
     def __init__(self, dataset=None, template=None):
@@ -51,7 +52,7 @@ def ukrin_maps(ds):
     ds.file_meta.TransferSyntaxUID = '1.2.840.10008.1.2.1'
     ds.file_meta.ImplementationClassUID = '1.3.46.670589.11.0.0.51.4.56.1'
     ds.file_meta.ImplementationVersionName = 'Philips MR 56.1'
-    
+
     ds.is_implicit_VR = False
     ds.is_little_endian = True
 
@@ -92,26 +93,43 @@ def ukrin_maps(ds):
     ds.ReferencedPerformedProcedureStepSequence[0].InstanceCreationTime = '105739.631'
     ds.ReferencedPerformedProcedureStepSequence[0].InstanceCreatorUID = '1.3.46.670589.11.89.5'
     ds.ReferencedPerformedProcedureStepSequence[0].ReferencedSOPClassUID = '1.2.840.10008.3.1.2.3.3'
-    ds.ReferencedPerformedProcedureStepSequence[0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
+    ds.ReferencedPerformedProcedureStepSequence[
+        0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.0.16828.2021061610573963005'
     ds.ReferencedPerformedProcedureStepSequence[0].InstanceNumber = '0'
-    ds.ReferencedImageEvidenceSequence = Sequence([Dataset() for _ in range(3)])
-    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
-    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
-    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence = Sequence(
+        [Dataset() for _ in range(3)])
+    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence = Sequence([
+                                                                              Dataset()])
+    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([
+                                                                                                       Dataset()])
+    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[
+        0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
+    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[0].ReferencedSOPSequence[
+        0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence[0].ReferencedSeriesSequence[
+        0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
     ds.ReferencedImageEvidenceSequence[0].StudyInstanceUID = '1.3.46.670589.11.71459.5.0.16828.2021061610573962004'
-    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
-    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
-    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence = Sequence([
+                                                                              Dataset()])
+    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([
+                                                                                                       Dataset()])
+    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[
+        0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
+    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[0].ReferencedSOPSequence[
+        0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence[1].ReferencedSeriesSequence[
+        0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
     ds.ReferencedImageEvidenceSequence[1].StudyInstanceUID = '1.3.46.670589.11.71459.5.0.16828.2021061610573962004'
-    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([Dataset()])
-    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
-    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
-    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence = Sequence([
+                                                                              Dataset()])
+    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence = Sequence([
+                                                                                                       Dataset()])
+    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[
+        0].ReferencedSOPSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
+    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence[
+        0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
+    ds.ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[
+        0].SeriesInstanceUID = '1.3.46.670589.11.71459.5.0.4024.2021061611103722062'
     ds.ReferencedImageEvidenceSequence[2].StudyInstanceUID = '1.3.46.670589.11.71459.5.0.16828.2021061610573962004'
     ds.CreatorVersionUID = '1.3.46.670589.11'
     ds.PixelPresentation = 'MONOCHROME'
@@ -290,7 +308,11 @@ def ukrin_maps(ds):
     ds.PresentationLUTShape = 'IDENTITY'
     ds.SharedFunctionalGroupsSequence = ukrin_maps_shared_functional_groups_sequence()
     ds.PerFrameFunctionalGroupsSequence = ukrin_maps_per_frame_functional_groups_sequence()
-    ds.PixelData = np.arange(ds.Rows*ds.Columns*ds.NumberOfFrames, dtype=np.uint16)
+    ds.PixelData = np.arange(
+        ds.Rows *
+        ds.Columns *
+        ds.NumberOfFrames,
+        dtype=np.uint16)
 
     return ds
 
@@ -309,7 +331,8 @@ def ukrin_maps_shared_functional_group():
     ds.ReferencedImageSequence[0].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
     ds.ReferencedImageSequence[0].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
     ds.ReferencedImageSequence[0].ReferencedFrameNumber = '10'
-    ds.ReferencedImageSequence[0].PurposeOfReferenceCodeSequence = Sequence([Dataset()])
+    ds.ReferencedImageSequence[0].PurposeOfReferenceCodeSequence = Sequence([
+                                                                            Dataset()])
     ds.ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].CodeValue = '121311'
     ds.ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].CodingSchemeDesignator = 'DCM'
     ds.ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].CodeMeaning = 'Localizer'
@@ -317,7 +340,8 @@ def ukrin_maps_shared_functional_group():
     ds.ReferencedImageSequence[1].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
     ds.ReferencedImageSequence[1].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
     ds.ReferencedImageSequence[1].ReferencedFrameNumber = '41'
-    ds.ReferencedImageSequence[1].PurposeOfReferenceCodeSequence = Sequence([Dataset()])
+    ds.ReferencedImageSequence[1].PurposeOfReferenceCodeSequence = Sequence([
+                                                                            Dataset()])
     ds.ReferencedImageSequence[1].PurposeOfReferenceCodeSequence[0].CodeValue = '121311'
     ds.ReferencedImageSequence[1].PurposeOfReferenceCodeSequence[0].CodingSchemeDesignator = 'DCM'
     ds.ReferencedImageSequence[1].PurposeOfReferenceCodeSequence[0].CodeMeaning = 'Localizer'
@@ -325,7 +349,8 @@ def ukrin_maps_shared_functional_group():
     ds.ReferencedImageSequence[2].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.4.1'
     ds.ReferencedImageSequence[2].ReferencedSOPInstanceUID = '1.3.46.670589.11.71459.5.20.1.1.4024.2021061611103722062'
     ds.ReferencedImageSequence[2].ReferencedFrameNumber = '49'
-    ds.ReferencedImageSequence[2].PurposeOfReferenceCodeSequence = Sequence([Dataset()])
+    ds.ReferencedImageSequence[2].PurposeOfReferenceCodeSequence = Sequence([
+                                                                            Dataset()])
     ds.ReferencedImageSequence[2].PurposeOfReferenceCodeSequence[0].CodeValue = '121311'
     ds.ReferencedImageSequence[2].PurposeOfReferenceCodeSequence[0].CodingSchemeDesignator = 'DCM'
     ds.ReferencedImageSequence[2].PurposeOfReferenceCodeSequence[0].CodeMeaning = 'Localizer'
@@ -343,7 +368,8 @@ def ukrin_maps_shared_functional_group():
     ds.MRReceiveCoilSequence[0].ReceiveCoilManufacturerName = ''
     ds.MRReceiveCoilSequence[0].ReceiveCoilType = 'MULTICOIL'
     ds.MRReceiveCoilSequence[0].QuadratureReceiveCoil = 'NO'
-    ds.MRReceiveCoilSequence[0].MultiCoilDefinitionSequence = Sequence([Dataset()])
+    ds.MRReceiveCoilSequence[0].MultiCoilDefinitionSequence = Sequence([
+                                                                       Dataset()])
     ds.MRReceiveCoilSequence[0].MultiCoilDefinitionSequence[0].MultiCoilElementName = 'MULTI ELEMENT'
     ds.MRReceiveCoilSequence[0].MultiCoilDefinitionSequence[0].MultiCoilElementUsed = 'YES'
 
@@ -356,7 +382,8 @@ def ukrin_maps_shared_functional_group():
     ds.MRTimingAndRelatedParametersSequence[0].RepetitionTime = '3.06139993667602'
     ds.MRTimingAndRelatedParametersSequence[0].EchoTrainLength = '76'
     ds.MRTimingAndRelatedParametersSequence[0].FlipAngle = '50.0'
-    ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence = Sequence([Dataset() for _ in range(3)])
+    ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence = Sequence(
+        [Dataset() for _ in range(3)])
     ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence[0].OperatingModeType = 'STATIC FIELD'
     ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence[0].OperatingMode = 'IEC_FIRST_LEVEL'
     ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence[1].OperatingModeType = 'RF'
@@ -365,9 +392,12 @@ def ukrin_maps_shared_functional_group():
     ds.MRTimingAndRelatedParametersSequence[0].OperatingModeSequence[2].OperatingMode = 'IEC_NORMAL'
     ds.MRTimingAndRelatedParametersSequence[0].GradientOutputType = 'DB_DT'
     ds.MRTimingAndRelatedParametersSequence[0].GradientOutput = 49.73076629638672
-    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence = Sequence([Dataset()])
-    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence[0].SpecificAbsorptionRateDefinition = 'IEC_WHOLE_BODY'
-    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence[0].SpecificAbsorptionRateValue = 2.69488263130188
+    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence = Sequence([
+                                                                                         Dataset()])
+    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence[
+        0].SpecificAbsorptionRateDefinition = 'IEC_WHOLE_BODY'
+    ds.MRTimingAndRelatedParametersSequence[0].SpecificAbsorptionRateSequence[
+        0].SpecificAbsorptionRateValue = 2.69488263130188
     ds.MRTimingAndRelatedParametersSequence[0].RFEchoTrainLength = 0
     ds.MRTimingAndRelatedParametersSequence[0].GradientEchoTrainLength = 76
 
@@ -417,31 +447,36 @@ def ukrin_maps_per_frame_functional_groups_sequence():
 
     fg[0].FrameContentSequence[0].InStackPositionNumber = 1
     fg[0].FrameContentSequence[0].DimensionIndexValues = [1, 1]
-    fg[0].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -77.157058715820]
+    fg[0].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -
+                                                           149.94026184082, -77.157058715820]
     fg[0].FrameVOILUTSequence[0].WindowCenter = '1070.0'
-    fg[0].FrameVOILUTSequence[0].WindowWidth = '1860.0' 
-       
+    fg[0].FrameVOILUTSequence[0].WindowWidth = '1860.0'
+
     fg[1].FrameContentSequence[0].InStackPositionNumber = 2
     fg[1].FrameContentSequence[0].DimensionIndexValues = [1, 2]
-    fg[1].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -70.157058715820]
+    fg[1].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -
+                                                           149.94026184082, -70.157058715820]
     fg[1].FrameVOILUTSequence[0].WindowCenter = '1089.0'
     fg[1].FrameVOILUTSequence[0].WindowWidth = '1893.0'
-    
+
     fg[2].FrameContentSequence[0].InStackPositionNumber = 3
     fg[2].FrameContentSequence[0].DimensionIndexValues = [1, 3]
-    fg[2].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -63.157058715820]
+    fg[2].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -
+                                                           149.94026184082, -63.157058715820]
     fg[2].FrameVOILUTSequence[0].WindowCenter = '1107.0'
     fg[2].FrameVOILUTSequence[0].WindowWidth = '1924.0'
-    
+
     fg[3].FrameContentSequence[0].InStackPositionNumber = 4
     fg[3].FrameContentSequence[0].DimensionIndexValues = [1, 4]
-    fg[3].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -56.157058715820]
+    fg[3].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -
+                                                           149.94026184082, -56.157058715820]
     fg[3].FrameVOILUTSequence[0].WindowCenter = '1135.0'
     fg[3].FrameVOILUTSequence[0].WindowWidth = '1974.0'
-    
+
     fg[4].FrameContentSequence[0].InStackPositionNumber = 5
     fg[4].FrameContentSequence[0].DimensionIndexValues = [1, 5]
-    fg[4].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -49.157058715820]
+    fg[4].PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -
+                                                           149.94026184082, -49.157058715820]
     fg[4].FrameVOILUTSequence[0].WindowCenter = '1094.0'
     fg[4].FrameVOILUTSequence[0].WindowWidth = '1902.0'
 
@@ -451,7 +486,7 @@ def ukrin_maps_per_frame_functional_groups_sequence():
 def ukrin_maps_per_frame_functional_group():
 
     ds = Dataset()
-    
+
     ds.MREchoSequence = Sequence([Dataset()])
     ds.MREchoSequence[0].EffectiveEchoTime = 1.531
 
@@ -459,7 +494,8 @@ def ukrin_maps_per_frame_functional_group():
     ds.MRMetaboliteMapSequence[0].MetaboliteMapDescription = 'WATER'
 
     ds.MRImageFrameTypeSequence = Sequence([Dataset()])
-    ds.MRImageFrameTypeSequence[0].FrameType = ['ORIGINAL', 'PRIMARY', 'T1', 'NONE']
+    ds.MRImageFrameTypeSequence[0].FrameType = [
+        'ORIGINAL', 'PRIMARY', 'T1', 'NONE']
     ds.MRImageFrameTypeSequence[0].PixelPresentation = 'MONOCHROME'
     ds.MRImageFrameTypeSequence[0].VolumetricProperties = 'VOLUME'
     ds.MRImageFrameTypeSequence[0].VolumeBasedCalculationTechnique = 'NONE'
@@ -476,7 +512,8 @@ def ukrin_maps_per_frame_functional_group():
     ds.FrameContentSequence[0].DimensionIndexValues = [1, 1]
 
     ds.PlanePositionSequence = Sequence([Dataset()])
-    ds.PlanePositionSequence[0].ImagePositionPatient = [-194.70974302291, -149.94026184082, -77.157058715820]
+    ds.PlanePositionSequence[0].ImagePositionPatient = [
+        -194.70974302291, -149.94026184082, -77.157058715820]
 
     ds.PlaneOrientationSequence = Sequence([Dataset()])
     ds.PlaneOrientationSequence[0].ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
@@ -497,24 +534,26 @@ def ukrin_maps_per_frame_functional_group():
 
     return ds
 
+
 def get_window(ds):
     """Centre and width of the pixel data after applying rescale slope and intercept.
-    
+
     In this case retrieve the centre and width values of the first frame
     NOT In USE
     """
 
-    centre = ds.PerFrameFunctionalGroupsSequence[0].FrameVOILUTSequence[0].WindowCenter 
+    centre = ds.PerFrameFunctionalGroupsSequence[0].FrameVOILUTSequence[0].WindowCenter
     width = ds.PerFrameFunctionalGroupsSequence[0].FrameVOILUTSequence[0].WindowWidth
     if centre is None or width is None:
         array = ds.get_pixel_array()
-    if centre is None: 
+    if centre is None:
         centre = np.median(array)
-    if width is None: 
+    if width is None:
         p = np.percentile(array, [25, 75])
         width = p[1] - p[0]
-    
+
     return centre, width
+
 
 def get_pixel_array(ds):
 
@@ -522,25 +561,25 @@ def get_pixel_array(ds):
     frames = ds.PerFrameFunctionalGroupsSequence
     for index, frame in enumerate(frames):
         slice = np.squeeze(array[index, ...])
-        if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
+        if [0x2005, 0x100E] in ds:  # 'Philips Rescale Slope'
             slope = ds[(0x2005, 0x100E)].value
             intercept = ds[(0x2005, 0x100D)].value
             slice = (slice - intercept) / slope
         else:
             transform = frame.PixelValueTransformationSequence[0]
-            slope = float(getattr(transform, 'RescaleSlope', 1)) 
-            intercept = float(getattr(transform, 'RescaleIntercept', 0)) 
+            slope = float(getattr(transform, 'RescaleSlope', 1))
+            intercept = float(getattr(transform, 'RescaleIntercept', 0))
             slice = slice * slope + intercept
         array[index, ...] = np.transpose(slice)
-    
+
     return array
 
 
 def set_pixel_array(ds, array, value_range=None):
 
-    if (0x2005, 0x100E) in ds: 
+    if (0x2005, 0x100E) in ds:
         del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-    if (0x2005, 0x100D) in ds: 
+    if (0x2005, 0x100D) in ds:
         del ds[0x2005, 0x100D]
 
     array = image.clip(array, value_range=value_range)
@@ -621,15 +660,16 @@ def signal_type(ds):
 
     return signal_type
 
+
 def affine_matrix(ds):
     """Affine transformation matrix for all images in a multiframe image"""
 
     affineList = []
     for frame in ds.PerFrameFunctionalGroupsSequence:
         affine = image.affine_matrix(
-            frame.PlaneOrientationSequence[0].ImageOrientationPatient, 
-            frame.PlanePositionSequence[0].ImagePositionPatient, 
-            frame.PixelMeasuresSequence[0].PixelSpacing, 
+            frame.PlaneOrientationSequence[0].ImageOrientationPatient,
+            frame.PlanePositionSequence[0].ImagePositionPatient,
+            frame.PixelMeasuresSequence[0].PixelSpacing,
             frame.PixelMeasuresSequence[0].SpacingBetweenSlices)
         affineList.append(affine)
     return np.squeeze(np.array(affineList))
