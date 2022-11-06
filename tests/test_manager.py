@@ -638,7 +638,7 @@ def test_label():
     mgr.open(tmp)
 
     patient = mgr.patients('Database')[0]
-    assert mgr.label(patient) in ['Patient 281949 [RIDER Neuro MRI-3369019796]','Patient 281949 [RIDER Neuro MRI-5244517593]']
+    assert mgr.label(patient) == 'Patient 281949'
     study = mgr.studies(patient)[0]
     try:
         mgr.label(study)
@@ -963,11 +963,20 @@ def test_move_to_series():
 
     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
     orig_keys = mgr.keys(patient='RIDER Neuro MRI-5244517593')
+    nr_instances_in_patient_before_move = len(mgr.instances('RIDER Neuro MRI-5244517593'))
+    nr_instances_in_other_patient_before_move = len(mgr.instances('RIDER Neuro MRI-3369019796'))
+    nr_instances_in_series_before_move =  len(mgr.instances(series))
+    nr_instances_in_database_before_move =  len(mgr.instances('Database'))
     instances = mgr.move_to_series('RIDER Neuro MRI-5244517593', series)
-    assert len(mgr.keys(series)) == 14
-    assert len(mgr.keys('RIDER Neuro MRI-5244517593')) == 0
-    assert len(mgr.keys('RIDER Neuro MRI-3369019796')) == 24
-    assert len(mgr.keys('Database')) == 24
+    nr_instances_in_patient_after_move = len(mgr.instances('RIDER Neuro MRI-5244517593'))
+    nr_instances_in_other_patient_after_move = len(mgr.instances('RIDER Neuro MRI-3369019796'))
+    nr_instances_in_series_after_move =  len(mgr.instances(series))
+    nr_instances_in_database_after_move =  len(mgr.instances('Database'))
+    assert nr_instances_in_patient_after_move == 0
+    assert nr_instances_in_series_after_move == nr_instances_in_series_before_move + nr_instances_in_patient_before_move    
+    assert nr_instances_in_other_patient_after_move == nr_instances_in_other_patient_before_move + nr_instances_in_patient_before_move
+    assert nr_instances_in_database_after_move == nr_instances_in_database_before_move
+    # Check that the patient name is updated in the move
     assert mgr.value(orig_keys[0], 'PatientID') == 'RIDER Neuro MRI-5244517593'
     assert mgr.value(mgr.keys(instances)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
     # Check that all new instance numbers are unique
@@ -992,8 +1001,11 @@ def test_move_to_study():
     assert len(mgr.instances(patient)) == 0
     assert len(mgr.instances('RIDER Neuro MRI-3369019796')) == 24
     assert len(mgr.instances('Database')) == 24
-    assert mgr.get_values('PatientID', uid=patient) is None
+    # Check that the empty patient still exists
+    assert mgr.get_values('PatientID', uid=patient) == 'RIDER Neuro MRI-5244517593'
+    # Check that patient ID is correctly updated
     assert mgr.value(mgr.keys(series)[0], 'PatientID') == 'RIDER Neuro MRI-3369019796'
+    # Check that all series numbers are unique
     nrs = mgr.get_values('SeriesNumber', uid=study)
     assert len(nrs) == len(mgr.series(study))
     remove_tmp_database(tmp)
@@ -1346,13 +1358,10 @@ def test_tree():
     for patient in tree['patients']:
         for study in patient['studies']:
             for series in study['series']:
-                for ind in series['indices']:
-                    print('Patient: ', patient['uid'])
-                    print('Study: ', study['uid'])
-                    print('Series: ', series['uid'])
-                    print('Index: ', ind)
-
-    print(tree['patients'][0]['studies'][0]['series'][0]['indices'][0])
+                print('Patient: ', patient['uid'])
+                print('Study: ', study['uid'])
+                print('Series: ', series['uid'])
+    print(tree['patients'][0]['studies'][0]['series'][0])
 
     assert len(tree) == 2
     assert stop-start <= 0.5
@@ -1372,8 +1381,6 @@ if __name__ == "__main__":
     test_keys()
     test_value()
     test_parent()
-    #test_children()
-    #test_siblings()
     test_instances()
     test_series()
     test_studies()
@@ -1385,9 +1392,6 @@ if __name__ == "__main__":
     test_series_header()
     test_set_instance_dataset()
     test_set_dataset()
-    #test_new_child()
-    #test_new_sibling()
-    #test_new_pibling()
     test_label()
     test_print()
     test_read_and_clear()
@@ -1399,7 +1403,6 @@ if __name__ == "__main__":
     test_copy_to_series()
     test_copy_to_study()
     test_copy_to_patient()
-    #test_copy_to()
     test_move_to_series()
     test_move_to_study()
     test_move_to_patient()

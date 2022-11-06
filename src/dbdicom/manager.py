@@ -28,11 +28,11 @@ class Manager():
         'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'SliceLocation', 'AcquisitionTime',
     ]
 
-    # Default values for a row in the register
-    default = [None, None, None, None, None,
-        None, None, None, None, int(-1), int(-1),
-        None, None, None, float(-1.0), float(-1.0), None,
-    ]
+    def default(self):
+        return [None, None, None, None, None,
+            None, None, None, None, int(-1), int(-1),
+            None, None, None, float(-1.0), float(-1.0), None,
+        ]
 
 
     def __init__(self, path=None, dataframe=None, status=StatusBar(), dialog=Dialog()):
@@ -483,7 +483,7 @@ class Manager():
 
         PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
 
-        data = self.default
+        data = self.default()
         data[0] = dbdataset.new_uid()
         data[5] = PatientName
 
@@ -508,7 +508,7 @@ class Manager():
             else:
                 key = self.keys(patient=parent)[0]
 
-        data = self.default
+        data = self.default()
         data[0] = self.value(key, 'PatientID')
         data[1] = dbdataset.new_uid()
         data[5] = self.value(key, 'PatientName')
@@ -544,11 +544,11 @@ class Manager():
         # data = self.value(key, self.columns)
         data = self.register.loc[key, self.columns].values.tolist()
         data[2] = dbdataset.new_uid()
-        data[3] = self.default[3]
-        data[4] = self.default[4]
+        data[3] = self.default()[3]
+        data[4] = self.default()[4]
         data[8] = SeriesDescription
         data[9] = 1 + len(self.series(parent))
-        data[10] = self.default[10]
+        data[10] = self.default()[10]
 
         if self.value(key, 'SeriesInstanceUID') is None:
             # New study without series - use existing row
@@ -577,7 +577,7 @@ class Manager():
 
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
-        data[4] = self.default[4]
+        data[4] = self.default()[4]
         data[10] = 1 + len(self.instances(parent))
 
         if self.value(key, 'SOPInstanceUID') is None:
@@ -1055,7 +1055,7 @@ class Manager():
             patient_studies = self.register.StudyInstanceUID[patient]
             patient_studies_cnt = len(patient_studies.unique())
             if patient_studies_cnt == 0:
-                row = self.default
+                row = self.default()
                 row[0] = self.register.at[keys[0], 'PatientID']
                 row[5] = self.register.at[keys[0], 'PatientName']
                 copy_data.append(row)
@@ -1079,7 +1079,7 @@ class Manager():
             study_series = self.register.SeriesInstanceUID[study]
             study_series_cnt = len(study_series.unique())
             if study_series_cnt == 0:
-                row = self.default
+                row = self.default()
                 row[0] = self.register.at[keys[0], 'PatientID']
                 row[1] = self.register.at[keys[0], 'StudyInstanceUID']
                 row[5] = self.register.at[keys[0], 'PatientName']
@@ -1446,7 +1446,7 @@ class Manager():
             source_series_instances = self.register.SOPInstanceUID[source_series]
             source_series_instances_cnt = source_series_instances.shape[0]
             if source_series_instances_cnt == 1:
-                row = self.default
+                row = self.default()
                 row[0] = self.register.at[key, 'PatientID']
                 row[1] = self.register.at[key, 'StudyInstanceUID']
                 row[2] = self.register.at[key, 'SeriesInstanceUID']
@@ -1569,7 +1569,7 @@ class Manager():
             source_study_series = self.register.SeriesInstanceUID[source_study_series]
             source_study_series_cnt = len(source_study_series.unique())
             if source_study_series_cnt == 1:
-                row = self.default
+                row = self.default()
                 row[0] = self.register.at[keys[0], 'PatientID']
                 row[1] = self.register.at[keys[0], 'StudyInstanceUID']
                 row[5] = self.register.at[keys[0], 'PatientName']
@@ -1680,7 +1680,7 @@ class Manager():
             source_patient_studies = self.register.StudyInstanceUID[source_patient]
             source_patient_studies_cnt = len(source_patient_studies.unique())
             if source_patient_studies_cnt == 1:
-                row = self.default
+                row = self.default()
                 row[0] = self.register.at[keys[0], 'PatientID']
                 row[5] = self.register.at[keys[0], 'PatientName']
                 copy_keys.append(self.new_key())
