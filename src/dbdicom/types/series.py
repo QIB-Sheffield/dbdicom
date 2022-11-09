@@ -1,8 +1,8 @@
 import os
 import math
+import timeit
 import numpy as np
 from dbdicom.record import DbRecord, copy_to
-import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds import MRImage
 
 
@@ -259,6 +259,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         series.set_array(array, data)
         ```
     """
+
     if pixels_first:    # Move to the end (default)
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)

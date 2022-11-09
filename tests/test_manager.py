@@ -30,7 +30,7 @@ def remove_tmp_database(tmp):
 
 
 # CONSTANTS
-N_COLUMNS = 19
+N_COLUMNS = 20
 
 
 def test_init():
@@ -53,7 +53,7 @@ def test_read_dataframe():
     mgr = Manager(tmp)
     #mgr.read_dataframe()
     mgr.scan()
-    assert mgr.register.shape == (24, 2+len(mgr.columns))
+    assert mgr.register.shape == (24*2, N_COLUMNS)
     remove_tmp_database(tmp)
 
 
@@ -76,11 +76,8 @@ def test_multiframe_to_singleframe():
 
     tmp = create_tmp_database(multiframe)
     mgr = Manager(tmp)
-    # mgr.read_dataframe()
-    # assert mgr.register.shape == (2, 14)
-    # mgr._multiframe_to_singleframe()
     mgr.scan()
-    assert mgr.register.shape == (124, N_COLUMNS)
+    assert mgr.register.shape == (124*2, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_scan():
@@ -88,7 +85,7 @@ def test_scan():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.scan()
-    assert mgr.register.shape == (24, N_COLUMNS)
+    assert mgr.register.shape == (24*2, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_type():
@@ -558,78 +555,7 @@ def test_set_dataset():
     
     remove_tmp_database(tmp)
 
-# def test_new_child():
 
-#     tmp = create_tmp_database(rider)
-#     mgr = Manager()
-#     mgr.open(tmp)
-
-#     # Three objects that are not nested: study not in patient and series not in study.
-#     patient = 'RIDER Neuro MRI-5244517593'
-#     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
-#     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
-#     instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
-
-#     new_patient, _ = mgr.new_child('Database')
-#     assert mgr.parent(new_patient) == 'Database'
-#     new_study, _ = mgr.new_child(patient)
-#     assert mgr.parent(new_study) == patient
-#     new_series, _ = mgr.new_child(study)
-#     assert mgr.parent(new_series) == study
-#     new_instance, _ = mgr.new_child(series)
-#     assert mgr.parent(new_instance) == series
-#     new_instance, _ = mgr.new_child(new_series)
-#     assert mgr.parent(new_instance) == new_series
-#     assert None is mgr.new_child(instance)
-
-#     remove_tmp_database(tmp)
-
-# def test_new_sibling():
-
-#     tmp = create_tmp_database(rider)
-#     mgr = Manager()
-#     mgr.open(tmp)
-
-#     # Three objects that are not nested: study not in patient and series not in study.
-#     patient = 'RIDER Neuro MRI-5244517593'
-#     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
-#     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
-#     instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
-
-#     assert mgr.new_sibling('Database') is None
-#     new_patient = mgr.new_sibling(patient)
-#     assert patient in mgr.children(mgr.parent(new_patient))
-#     new_study = mgr.new_sibling(study)
-#     assert study in mgr.children(mgr.parent(new_study))
-#     new_series = mgr.new_sibling(series)
-#     assert series in mgr.children(mgr.parent(new_series))
-#     new_instance = mgr.new_sibling(instance)
-#     assert instance in mgr.children(mgr.parent(new_instance))
-
-#     remove_tmp_database(tmp)
-
-# def test_new_pibling():
-
-#     tmp = create_tmp_database(rider)
-#     mgr = Manager()
-#     mgr.open(tmp)
-
-#     # Three objects that are not nested: study not in patient and series not in study.
-#     patient = 'RIDER Neuro MRI-5244517593'
-#     study = '1.3.6.1.4.1.9328.50.16.168701627691879645008036315574545460110'
-#     series = '1.3.6.1.4.1.9328.50.16.63380113333602578570923656300898710242'
-#     instance = '1.3.6.1.4.1.9328.50.16.251746227724893696781798455517674264022'
-
-#     assert mgr.new_pibling('Database') is None
-#     assert mgr.new_pibling(patient) is None
-#     new_patient = mgr.new_pibling(study)
-#     assert new_patient in mgr.siblings(mgr.parent(study))
-#     new_study = mgr.new_pibling(series)
-#     assert new_study in mgr.siblings(mgr.parent(series))
-#     new_series = mgr.new_pibling(instance)
-#     assert new_series in mgr.siblings(mgr.parent(instance))
-
-#     remove_tmp_database(tmp)
 
 def test_label():
 
@@ -762,7 +688,7 @@ def test_open_close():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.open()
-    assert mgr.register.shape == (24, N_COLUMNS)
+    assert mgr.register.shape == (24*2, N_COLUMNS)
     mgr.save()
     #mgr.save('Database')
     mgr.close()
@@ -778,7 +704,7 @@ def test_open_close():
 
     tmp = create_tmp_database(twofiles)
     mgr.open(tmp)
-    assert mgr.register.shape == (2, N_COLUMNS)
+    assert mgr.register.shape == (2*2, N_COLUMNS)
     mgr.save()
     #mgr.save('Database')
     mgr.close()
@@ -796,7 +722,7 @@ def test_inmemory_vs_ondisk():
     mgr.open(tmp)   
     df = mgr.register
     mgr.close()
-    assert df.shape == (24, N_COLUMNS)
+    assert df.shape == (24*2, N_COLUMNS)
     assert mgr.register is None
 
     remove_tmp_database(tmp)
@@ -805,7 +731,7 @@ def test_inmemory_vs_ondisk():
     # Try to read a dataframe and check 
     # that this this is empty
     mgr.register = df
-    assert mgr.register.shape == (24, N_COLUMNS)
+    assert mgr.register.shape == (24*2, N_COLUMNS)
     mgr.scan()
     assert mgr.register.empty
 

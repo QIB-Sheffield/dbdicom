@@ -907,7 +907,7 @@ def test_read_write_dataset():
     instance3 = instance.parent().new_instance()
     assert instance3.Rows is None
     database.save()
-    instance3.Rows = 256 
+    instance3.Rows = 256
     assert instance3.Rows == 256
     database.restore()
     assert instance3.Rows is None

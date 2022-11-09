@@ -1,3 +1,4 @@
+import timeit
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.manager import Manager
@@ -28,7 +29,7 @@ class DbRecord():
             self.__dict__[attribute] = value
         else:
             self.set_values([attribute], [value])
-        
+           
     def __setitem__(self, attributes, values):
         self.set_values(attributes, values)
 
@@ -37,12 +38,12 @@ class DbRecord():
         return (df.removed==False) & (df[self.name]==self.uid)
 
     def keys(self):
-        return self.manager.register.index[self.loc()]
+        keys = self.manager.register.index[self.loc()]
+        self._key = keys[0]
+        return keys
 
     def _set_key(self):
         self._key = self.manager.register.index[self.loc()][0]
-        #Does this work? Is this faster??
-        #self._key = self.manager.register.index[self.loc().iloc[0]]
 
     def key(self):
         try:
@@ -82,8 +83,8 @@ class DbRecord():
     def files(self):
         return [self.manager.filepath(key) for key in self.keys()]
 
-    def in_database(self):
-        return self.keys() != []
+    # def in_database(self):
+    #     return self.keys() != []
 
     def empty(self):
         return not self.loc().any()
@@ -185,7 +186,7 @@ class DbRecord():
         return self
 
     def set_values(self, attributes, values):
-        self.manager.set_values(attributes, values, self.keys())
+        self._key = self.manager.set_values(attributes, values, self.keys())
 
     def get_values(self, attributes):
         return self.manager.get_values(attributes, self.keys())

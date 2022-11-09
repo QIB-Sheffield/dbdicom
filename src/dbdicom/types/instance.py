@@ -1,3 +1,4 @@
+import timeit
 import os
 import numpy as np
 import nibabel as nib
@@ -31,6 +32,13 @@ class Instance(DbRecord):
     def _copy_from(self, record):
         return
 
+    def copy_to_series(self, series):
+        t = timeit.default_timer()
+        uid = self.manager.copy_instance_to_series(self.key(), series.keys())
+        rec = self.record('Instance', uid)
+        print('Copy to series..', timeit.default_timer()-t)
+        return rec
+
     def array(self):
         return self.get_pixel_array()
 
@@ -47,6 +55,9 @@ class Instance(DbRecord):
             ds = new_dataset('MRImage')
         ds.set_pixel_array(array)
         self.set_dataset(ds)
+
+    def set_dataset(self, dataset):
+        self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())
 
     def map_to(self, target):
         return map_to(self, target)
