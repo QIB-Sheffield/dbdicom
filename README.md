@@ -8,9 +8,13 @@
 Run `pip install dbdicom`.
 
 
-# Summary of functionality
+# Summary
 
-The excellent python package `pydicom` has become a standard for reading and writing data in DICOM format, but it is limited to reading and writing individual files, and still requires a fairly high level of understanding of DICOM to ensure compliance with the standard. `dbdicom` provides an intuitive programming interface for reading and writing data from entire DICOM databases, replacing unfamiliar DICOM-native concepts by language and notations that will be more familiar to data scientists. 
+The DICOM format is the universally recognised standard for medical imaging, but reading and writing DICOM data remains a challenging task for most data scientists. 
+
+The excellent python package `pydicom` is very commonly used and well-supported, but it is limited to reading and writing individual files, and still requires a fairly high level of understanding of DICOM to ensure compliance with the standard. 
+
+`dbdicom` wraps around `pydicom` to provide an intuitive programming interface for reading and writing data from entire DICOM databases, replacing unfamiliar DICOM-native concepts by language and notations that will be more familiar to data scientists. 
 
 The sections below list some basic uses of `dbdicom`. The package is currently deployed in several larger scale multicentre clinical studies led by the authors, such as the [iBEAt study](https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-020-01901-x) and the [AFiRM study](https://www.uhdb.nhs.uk/afirm-study/). The package will continue to be shaped through use in these studies and we expect it will attain a more final form when these analysis pipelines are fully operational.
 
@@ -99,15 +103,7 @@ Or all instances of a study:
 instances = study.instances()
 ```
 
-And so on for all other levels in the hierarchy. These can be chained together for convencience, 
-e.g. to get all instances instance of series 5 in study 1 of patient 2:
-
-```python
-instance = database.patients()[2].studies()[1].series()[5].instances()
-```
-
-These functions also work to find objects higher up in the hierarchy. 
-For instance, to find the patient of a given series:
+And so on for all other levels in the hierarchy. These functions also work to find objects higher up in the hierarchy. For instance, to find the patient of a given series:
 
 ```python
 patient = series.patients()
@@ -117,7 +113,7 @@ In this case the function will return a single item.
 
 ### Finding DICOM objects in the folder
 
-Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here]: (https://dicom.innolitics.com/). 
+Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here](https://dicom.innolitics.com/):
 
 Each known attribute is identified most easily by a keyword, which has a capitalised notation. Objects in the folder can be can also be listed by searching on any DICOM tag:
 
@@ -617,7 +613,7 @@ DICOM does this well and has for that reason grown to be the single accepted sta
 
 ## Why ***dbdicom***?
 
-Reading and especially writing DICOM data remains a challenging enterprise for the practicing data scientist. A typical image processing pipeline might use the excellent python package `pydicom` for extracting image arrays and any required header information from DICOM data, but will then write out the results in more manageable format such as nifty. However, in the process the majority of header information will have to be discarded, including detailed imaging parameters and linkage between original and derived images, follow-up studies, etc.
+Reading and especially writing DICOM data remains a challenging enterprise for the practicing data scientist. A typical image processing pipeline might use the excellent python package `pydicom` for extracting image arrays and any required header information from DICOM data, but will then write out the results in more manageable format such as nifty. In the process the majority of header information will have to be discarded, including detailed imaging parameters and linkage between original and derived images, follow-up studies, etc.
 
 The practice of converting outputs in a lossy image format may be sufficient in the early stages of method development, but forms a major barrier to research or deployment of these processing methods in a real-world context. This requires results in DICOM format so they can be linked to other data of the same patients, integrated in the radiological workflow, and reviewed and edited through integrated radiological viewers. Integration of datasets ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It also allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. 
 

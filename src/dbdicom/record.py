@@ -83,8 +83,11 @@ class DbRecord():
     def files(self):
         return [self.manager.filepath(key) for key in self.keys()]
 
-    # def in_database(self):
-    #     return self.keys() != []
+    def exists(self):
+        if self.manager.register is None:
+            return False
+        keys = self.keys().tolist()
+        return keys != []
 
     def empty(self):
         return not self.loc().any()
@@ -95,7 +98,6 @@ class DbRecord():
     def register(self):
         return self.manager.register.loc[self.keys(),:]
     
-
     def label(self):
         return self.manager.label(self.uid, key=self.key(), type=self.__class__.__name__)
 

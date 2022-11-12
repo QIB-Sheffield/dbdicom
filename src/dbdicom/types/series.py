@@ -52,7 +52,7 @@ class Series(DbRecord):
         set_pixel_array(*args, **kwargs)
 
     def map_mask_to(*args, **kwargs):
-        map_mask_to(*args, **kwargs)
+        return map_mask_to(*args, **kwargs)
 
     def export_as_npy(*args, **kwargs):
         export_as_npy(*args, **kwargs)
@@ -102,29 +102,28 @@ def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_fir
 
 def map_mask_to(series, target):
     """Map non-zero pixels onto another series"""
-
+    
     source_images = series.instances()
     target_images = target.instances() 
     mapped_series = series.new_sibling(
         SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
     )
     for i, target_image in enumerate(target_images):
-        series.status.progress(i, len(target_images))
-        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=bool) 
+        series.status.progress(i+1, len(target_images))
+        ds_target = target_image.get_dataset()
+        pixel_array = np.zeros((ds_target.Columns, ds_target.Rows), dtype=bool) 
         for j, source_image in enumerate(source_images):
             series.status.message(
-                'Mapping image ' + str(j) + 
-                ' of ' + series.SeriesDescription + 
-                ' to image ' + str(i) + 
-                ' of ' + target.SeriesDescription 
+                'Mapping source image ' + str(j) + 
+                ' to target image ' + str(i)
             )
-            im = source_image.map_mask_to(target_image)
-            array = im.get_pixel_array().astype(bool)
+            ds_source = source_image.get_dataset()
+            array = ds_source.map_mask_to(ds_target)
             np.logical_or(pixel_array, array, out=pixel_array)
-            im.remove()
         if pixel_array.any():
             mapped_image = target_image.copy_to(mapped_series)
             mapped_image.set_pixel_array(pixel_array.astype(np.float32))
+
     return mapped_series
 
 

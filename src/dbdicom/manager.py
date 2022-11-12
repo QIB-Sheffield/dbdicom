@@ -263,7 +263,8 @@ class Manager():
         patient = None,
         study = None,
         series = None,
-        instance = None): 
+        instance = None, 
+        dropna = False): 
         """Return a list of indices for all dicom datasets managed by the index.
         
         These indices are strings with unique relative paths 
@@ -275,18 +276,21 @@ class Manager():
         if df is None:
             raise ValueError('Cant return dicom files - no database open')
 
-        not_deleted = df.removed == False
-
         # If no arguments are provided
         if (uid is None) & (patient is None) & (study is None) & (series is None) & (instance is None):
             return []
 
-        if uid == 'Database':
-            return not_deleted[not_deleted].index.tolist()
-
         if isinstance(uid, list):
             if 'Database' in uid:
-                return not_deleted[not_deleted].index.tolist()
+                return self.keys('Database', dropna=dropna)
+
+        not_deleted = df.removed == False
+
+        if uid == 'Database':
+            keys = not_deleted[not_deleted].index.tolist()
+            if dropna:
+                keys = [key for key in keys if self.register.at[key,'SOPInstanceUID'] is not None]
+            return keys
 
         # If arguments are provided, create a list of unique datasets
         # keys = []
@@ -295,37 +299,35 @@ class Manager():
                 uid = [uid]
             uid = [i for i in uid if i is not None]
             rows = np.isin(df, uid).any(axis=1) & not_deleted
-            return df[rows].index.tolist()
-            # keys += df[rows].index.tolist()
         if patient is not None:
             if not isinstance(patient, list):
-                patient = [patient]
-            patient = [i for i in patient if i is not None]
-            rows = df.PatientID.isin(patient) & not_deleted
-            return df[rows].index.tolist()
-            # keys += rows[rows].index.tolist()
+                rows = (df.PatientID==patient) & not_deleted
+            else:
+                patient = [i for i in patient if i is not None]
+                rows = df.PatientID.isin(patient) & not_deleted
         if study is not None:
             if not isinstance(study, list):
-                study = [study]
-            study = [i for i in study if i is not None]
-            rows = df.StudyInstanceUID.isin(study) & not_deleted
-            return df[rows].index.tolist()
-            # keys += rows[rows].index.tolist()
+                rows = (df.StudyInstanceUID==study) & not_deleted
+            else:
+                study = [i for i in study if i is not None]
+                rows = df.StudyInstanceUID.isin(study) & not_deleted
         if series is not None:
             if not isinstance(series, list):
-                series = [series]
-            series = [i for i in series if i is not None]
-            rows = df.SeriesInstanceUID.isin(series) & not_deleted
-            return df[rows].index.tolist()
-            # keys += rows[rows].index.tolist()
+                rows = (df.SeriesInstanceUID==series) & not_deleted
+            else:
+                series = [i for i in series if i is not None]
+                rows = df.SeriesInstanceUID.isin(series) & not_deleted
         if instance is not None: 
             if not isinstance(instance, list):
-                instance = [instance]
-            instance = [i for i in instance if i is not None]
-            rows = df.SOPInstanceUID.isin(instance) & not_deleted
-            return df[rows].index.tolist()
-            # keys += rows[rows].index.tolist()
-        # return list(set(keys))
+                rows = (df.SOPInstanceUID==instance) & not_deleted
+            else:
+                instance = [i for i in instance if i is not None]
+                rows = df.SOPInstanceUID.isin(instance) & not_deleted
+
+        keys = df.index[rows].tolist()
+        if dropna:
+            keys = [key for key in keys if self.register.at[key,'SOPInstanceUID'] is not None]
+        return keys
 
     def value(self, key, column):
         try:
@@ -589,6 +591,25 @@ class Manager():
     #         else:
     #             return False
 
+    def get_instance_dataset(self, key):
+    
+        """Gets a datasets for a single instance
+        
+        Datasets in memory will be returned.
+        If they are not in memory, and the database exists on disk, they will be read from disk.
+        If they are not in memory, and the database does not exist on disk, an exception is raised.
+        """
+        if key in self.dataset:
+            # If in memory, get from memory
+            return self.dataset[key]
+        # If not in memory, read from disk
+        file = self.filepath(key)
+        if file is None: # No dataset assigned yet
+            return
+        if not os.path.exists(file):  # New instance, series, study or patient 
+            return 
+        return read_dataset(file, self.dialog)  
+
 
     def get_dataset(self, uid, keys=None, message=None):
         """Gets a list of datasets for a single record
@@ -603,20 +624,8 @@ class Manager():
             keys = self.keys(uid)
         dataset = []
         for key in keys:
-            if key in self.dataset:
-                # If in memory, get from memory
-                ds = self.dataset[key]
-            else:
-                # If not in memory, read from disk
-                file = self.filepath(key)
-                if file is None: # No dataset assigned yet
-                    ds = None
-                elif not os.path.exists(file):  # New instance, series, study or patient 
-                    ds = None 
-                else:
-                    ds = read_dataset(file, self.dialog)  
+            ds = self.get_instance_dataset(key) 
             dataset.append(ds)
-    
         if self.type(uid, keys[0]) == 'Instance':
             if dataset == []:
                 return
@@ -626,20 +635,40 @@ class Manager():
             return dataset
 
 
-    def _get_dataset(self, instances):
+    # def _get_dataset(self, instances):
+    #     """Helper function"""
+
+    #     for key, uid in instances.items():
+    #         ds = self.get_dataset(uid, [key])
+    #         if ds is not None:
+    #             return ds
+    #     return None
+
+
+    # def _get_values(self, instances, attr):
+    #     """Helper function"""
+
+    #     #ds = self._get_dataset(instances)
+    #     ds = None
+    #     for key, uid in instances.items():
+    #         ds = self.get_dataset(uid, [key])
+    #         if ds is not None:
+    #             break
+    #     if ds is None:
+    #         return [None] * len(attr)
+    #     else:
+    #         return ds.get_values(attr)
+
+
+    def _get_values(self, keys, attr):
         """Helper function"""
 
-        for key, uid in instances.items():
-            ds = self.get_dataset(uid, [key])
+        #ds = self._get_dataset(instances)
+        ds = None
+        for key in keys:
+            ds = self.get_instance_dataset(key)
             if ds is not None:
-                return ds
-        return None
-
-
-    def _get_values(self, instances, attr):
-        """Helper function"""
-
-        ds = self._get_dataset(instances)
+                break
         if ds is None:
             return [None] * len(attr)
         else:
@@ -654,24 +683,24 @@ class Manager():
         attr_series = ['SeriesInstanceUID', 'SeriesDescription', 'SeriesNumber'] 
 
         parent = self.register.at[key, 'SeriesInstanceUID']
-        instances = self.instances(parent)
-        if not instances.empty:
+        keys = self.keys(series=parent, dropna=True)
+        if keys != []:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study() + dbdataset.module_series()))
-            vals = self._get_values(instances, attr)
+            vals = self._get_values(keys, attr)
         else:
             parent = self.register.at[key, 'StudyInstanceUID']
-            instances = self.instances(parent)
-            if not instances.empty:
+            keys = self.keys(study=parent, dropna=True)
+            if keys != []:
                 attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
-                vals = self._get_values(instances, attr)
+                vals = self._get_values(keys, attr)
                 attr += attr_series
                 vals += self.value(key, attr_series).tolist()
             else:
                 parent = self.register.at[key, 'PatientID']
-                instances = self.instances(parent)
-                if not instances.empty:
+                keys = self.keys(patient=parent, dropna=True)
+                if keys != []:
                     attr = dbdataset.module_patient()
-                    vals = self._get_values(instances, attr)
+                    vals = self._get_values(keys, attr)
                     attr += attr_study + attr_series
                     vals += self.value(key, attr_study + attr_series).tolist()
                 else:
@@ -687,16 +716,16 @@ class Manager():
         attr_study = ['StudyInstanceUID', 'StudyDescription', 'StudyDate']
 
         parent = self.register.at[key, 'StudyInstanceUID']
-        instances = self.instances(parent)
-        if not instances.empty:
+        keys = self.keys(study=parent, dropna=True)
+        if keys != []:
             attr = list(set(dbdataset.module_patient() + dbdataset.module_study()))
-            vals = self._get_values(instances, attr)
+            vals = self._get_values(keys, attr)
         else:
             parent = self.register.at[key, 'PatientID']
-            instances = self.instances(parent)
-            if not instances.empty:
+            keys = self.keys(patient=parent, dropna=True)
+            if keys != []:
                 attr = dbdataset.module_patient()
-                vals = self._get_values(instances, attr)
+                vals = self._get_values(keys, attr)
                 attr += attr_study
                 vals += self.value(key, attr_study).tolist()
             else:
@@ -711,10 +740,10 @@ class Manager():
         attr_patient = ['PatientID', 'PatientName']
 
         parent = self.register.at[key, 'PatientID']
-        instances = self.instances(parent)
-        if not instances.empty:
+        keys = self.keys(patient=parent, dropna=True)
+        if keys != []:
             attr = dbdataset.module_patient()
-            vals = self._get_values(instances, attr)
+            vals = self._get_values(keys, attr)
         else:
             attr = attr_patient
             vals = self.value(key, attr).tolist()
@@ -1188,12 +1217,11 @@ class Manager():
         return os.path.join('dbdicom', dbdataset.new_uid() + '.dcm') 
 
 
-    def copy_instance_to_series(self, instance_key, target_keys, **kwargs):
+    def copy_instance_to_series(self, instance_key, target_keys, tmp, **kwargs):
         """Copy instances to another series"""
 
-        #target_keys = self.keys(series=target)
-
         attributes, values = self.series_header(target_keys[0])
+        
         for key in kwargs:
             try:
                 ind = attributes.index(key)
@@ -1207,14 +1235,13 @@ class Manager():
         n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
         
-        copy_data = []
-        copy_keys = []
+        #copy_data = []
+        #copy_keys = []
 
         new_instance = dbdataset.new_uid()
-
         new_key = self.new_key()
-        instance_uid = self.value(instance_key, 'SOPInstanceUID')
-        ds = self.get_dataset(instance_uid, [instance_key])
+        ds = self.get_instance_dataset(instance_key)
+
         if ds is None:
             row = self.value(instance_key, self.columns).tolist()
             row[0] = self.value(target_keys[0], 'PatientID')
@@ -1226,7 +1253,7 @@ class Manager():
             row[7] = self.value(target_keys[0], 'StudyDate')
             row[8] = self.value(target_keys[0], 'SeriesDescription')
             row[9] = self.value(target_keys[0], 'SeriesNumber')
-            row[10] = 1+max_number
+            row[10] = 1 + max_number
         else:
             if instance_key in self.dataset:
                 ds = copy.deepcopy(ds)
@@ -1239,8 +1266,10 @@ class Manager():
             row = ds.get_values(self.columns)
 
         # Get new data for the dataframe
-        copy_data.append(row)
-        copy_keys.append(new_key)
+        #copy_data.append(row)
+        #copy_keys.append(new_key)
+        copy_data = [row]
+        copy_keys = [new_key]
 
         # Update the dataframe in the index
 
@@ -1256,8 +1285,9 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
-
+        
         return new_instance
+
 
     def copy_to_series(self, uids, target, **kwargs):
         """Copy instances to another series"""
@@ -2117,8 +2147,10 @@ class Manager():
         if not isinstance(attributes, list):
 
             if attributes in self.columns:
-                value = self.value(keys, attributes)
-                value = list(set(value))
+                value = [self.register.at[key, attributes] for key in keys]
+                # trick to get unique elements
+                value = [x for i, x in enumerate(value) if i==value.index(x)]
+                
             else:
                 value = []
                 for i, key in enumerate(keys):

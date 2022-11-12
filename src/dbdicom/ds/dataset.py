@@ -1,13 +1,12 @@
 """A colections of tools to extend functionality of pydicom datasets."""
 
 import os
-import struct
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 from matplotlib import cm
-
+import nibabel as nib
 import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
@@ -72,6 +71,9 @@ class DbDataset(Dataset):
     def get_attribute_window(self):
         return get_window(self)
 
+    def map_mask_to(self, ds_target):
+        return map_mask_to(self, ds_target)
+
 
 def get_window(ds):
     """Centre and width of the pixel data after applying rescale slope and intercept"""
@@ -120,6 +122,7 @@ def write(ds, file, dialog=None):
         else:
             print(message) 
 
+
 def codify(source_file, save_file, **kwargs):
     
     str = code_file(source_file, **kwargs)
@@ -127,45 +130,6 @@ def codify(source_file, save_file, **kwargs):
     file.write(str)
     file.close()
 
-# def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
-#     """Reads a list of tags in a list of files.
-
-#     Arguments
-#     ---------
-#     files : str or list
-#         A filepath or a list of filepaths
-#     tags : str or list 
-#         A DICOM tag or a list of DICOM tags
-#     status : StatusBar
-
-#     Creates
-#     -------
-#     dataframe : pandas.DataFrame
-#         A Pandas dataframe with one row per file
-#         The index is the file path 
-#         Each column corresponds to a Tag in the list of Tags
-#         The returned dataframe is sorted by the given tags.
-#     """
-#     if not isinstance(files, list):
-#         files = [files]
-#     if not isinstance(tags, list):
-#         tags = [tags]
-#     array = []
-#     dicom_files = []
-#     for i, file in enumerate(files):
-#         ds = pydicom.dcmread(file, force=True)
-#         if isinstance(ds, pydicom.dataset.FileDataset):
-#             if 'TransferSyntaxUID' in ds.file_meta:
-#                 row = get_values(ds, tags)
-#                 array.append(row)
-#                 if path is None:
-#                     index = file
-#                 else:
-#                     index = os.path.relpath(file, path)
-#                 dicom_files.append(index) 
-#         if status is not None: 
-#             status.progress(i+1, len(files), message)
-#     return pd.DataFrame(array, index = dicom_files, columns = tags)
 
 def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
     """Reads a list of tags in a list of files.
@@ -313,47 +277,13 @@ def to_set_type(value):
     else:
         return value
 
+
 def new_uid(n=None):
     
     if n is None:
         return pydicom.uid.generate_uid()
     else:
         return [pydicom.uid.generate_uid() for _ in range(n)]
-
-
-# def get_dataframe(datasets, tags):
-#     """Reads a list of tags in a list of datasets.
-
-#     Arguments
-#     ---------
-#     files : str or list
-#         A filepath or a list of filepaths
-#     tags : str or list 
-#         A DICOM tag or a list of DICOM tags
-#     status : StatusBar
-
-#     Creates
-#     -------
-#     dataframe : pandas.DataFrame
-#         A Pandas dataframe with one row per file
-#         The index is the file path 
-#         Each column corresponds to a Tag in the list of Tags
-#         The returned dataframe is sorted by the given tags.
-#     """
-#     if not isinstance(datasets, list):
-#         datasets = [datasets]
-#     if not isinstance(tags, list):
-#         tags = [tags]
-#     array = []
-#     indices = []
-#     for ds in datasets:
-#         # if isinstance(ds, pydicom.dataset.FileDataset):
-#         #     if 'TransferSyntaxUID' in ds.file_meta:
-#         row = get_values(ds, tags)
-#         uid = get_values(ds, 'SOPInstanceUID')
-#         array.append(row)
-#         indices.append(uid) 
-#     return pd.DataFrame(array, index=indices, columns=tags)
 
 
 def affine_matrix(ds):
@@ -364,6 +294,43 @@ def affine_matrix(ds):
         ds.ImagePositionPatient, 
         ds.PixelSpacing, 
         ds.SliceThickness)
+
+def map_mask_to(ds_source, ds_target):
+    """Map non-zero image pixels onto a target image.
+    
+    Overwrite pixel values in the target"""
+
+    # Create a coordinate array of non-zero pixels
+    coords = np.transpose(np.where(ds_source.get_pixel_array() != 0)) 
+    coords = [[coord[0], coord[1], 0] for coord in coords] 
+    coords = np.array(coords)
+
+    # Determine coordinate transformation matrix
+    affine_source = ds_source.affine_matrix()
+    affine_target = ds_target.affine_matrix()
+    source_to_target = np.linalg.inv(affine_target).dot(affine_source)
+
+    # Apply coordinate transformation and interpolate (nearest neighbour)
+    coords = nib.affines.apply_affine(source_to_target, coords)
+    coords = np.round(coords).astype(int)
+    # x = y = []
+    # for r in coords:
+    #     if r[2] == 0:
+    #         if (0 <= r[0]) & (r[0] < dst.Columns):
+    #             if (0 <= r[1]) & (r[1] < dst.Rows):
+    #                 x.append(r[0])
+    #                 y.append(r[1])
+    # x = tuple(x)
+    # y = tuple(y)
+    x = tuple([c[0] for c in coords if c[2] == 0])
+    y = tuple([c[1] for c in coords if c[2] == 0])
+
+    # Set values in the target image
+    # array = np.zeros((record.Rows, record.Columns))
+    array = np.zeros((ds_target.Columns, ds_target.Rows))
+    array[(x, y)] = 1.0
+
+    return array
 
 # List of all supported (matplotlib) colormaps
 
@@ -512,10 +479,6 @@ def set_pixel_array(ds, array, value_range=None):
     ds.PixelData = array.tobytes()
 
 
-
- 
-
-
 def module_patient():
 
     return [
@@ -566,6 +529,7 @@ def module_patient():
         'ClinicalTrialProtocolEthicsCommitteeName',
         'ClinicalTrialProtocolEthicsCommitteeApprovalNumber',
     ]
+
 
 def module_study():
 
@@ -622,6 +586,7 @@ def module_study():
         'ConsentForClinicalTrialUseSequence',
     ]   
 
+
 def module_series():
 
     return [
@@ -662,40 +627,40 @@ def module_series():
     ]
 
 
-def _initialize(ds, UID=None, ref=None): # ds is pydicom dataset
+# def _initialize(ds, UID=None, ref=None): # ds is pydicom dataset
 
-    # Date and Time of Creation
-    dt = datetime.now()
-    timeStr = dt.strftime('%H%M%S')  # long format with micro seconds
+#     # Date and Time of Creation
+#     dt = datetime.now()
+#     timeStr = dt.strftime('%H%M%S')  # long format with micro seconds
 
-    ds.ContentDate = dt.strftime('%Y%m%d')
-    ds.ContentTime = timeStr
-    ds.AcquisitionDate = dt.strftime('%Y%m%d')
-    ds.AcquisitionTime = timeStr
-    ds.SeriesDate = dt.strftime('%Y%m%d')
-    ds.SeriesTime = timeStr
-    ds.InstanceCreationDate = dt.strftime('%Y%m%d')
-    ds.InstanceCreationTime = timeStr
+#     ds.ContentDate = dt.strftime('%Y%m%d')
+#     ds.ContentTime = timeStr
+#     ds.AcquisitionDate = dt.strftime('%Y%m%d')
+#     ds.AcquisitionTime = timeStr
+#     ds.SeriesDate = dt.strftime('%Y%m%d')
+#     ds.SeriesTime = timeStr
+#     ds.InstanceCreationDate = dt.strftime('%Y%m%d')
+#     ds.InstanceCreationTime = timeStr
 
-    if UID is not None:
+#     if UID is not None:
 
-        # overwrite UIDs
-        ds.PatientID = UID[0]
-        ds.StudyInstanceUID = UID[1]
-        ds.SeriesInstanceUID = UID[2]
-        ds.SOPInstanceUID = UID[3]
+#         # overwrite UIDs
+#         ds.PatientID = UID[0]
+#         ds.StudyInstanceUID = UID[1]
+#         ds.SeriesInstanceUID = UID[2]
+#         ds.SOPInstanceUID = UID[3]
 
-    if ref is not None: 
+#     if ref is not None: 
 
-        # Series, Instance and Class for Reference
-        refd_instance = Dataset()
-        refd_instance.ReferencedSOPClassUID = ref.SOPClassUID
-        refd_instance.ReferencedSOPInstanceUID = ref.SOPInstanceUID
+#         # Series, Instance and Class for Reference
+#         refd_instance = Dataset()
+#         refd_instance.ReferencedSOPClassUID = ref.SOPClassUID
+#         refd_instance.ReferencedSOPInstanceUID = ref.SOPInstanceUID
 
-        refd_series = Dataset()
-        refd_series.ReferencedInstanceSequence = Sequence([refd_instance])
-        refd_series.SeriesInstanceUID = ds.SeriesInstanceUID
+#         refd_series = Dataset()
+#         refd_series.ReferencedInstanceSequence = Sequence([refd_instance])
+#         refd_series.SeriesInstanceUID = ds.SeriesInstanceUID
 
-        ds.ReferencedSeriesSequence = Sequence([refd_series])
+#         ds.ReferencedSeriesSequence = Sequence([refd_series])
 
-    return ds
+#     return ds

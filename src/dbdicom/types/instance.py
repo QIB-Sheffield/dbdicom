@@ -4,7 +4,7 @@ import numpy as np
 import nibabel as nib
 import pandas as pd
 import matplotlib.pyplot as plt
-import nibabel as nib
+
 
 from dbdicom.record import DbRecord
 from dbdicom.ds.create import new_dataset
@@ -33,11 +33,8 @@ class Instance(DbRecord):
         return
 
     def copy_to_series(self, series):
-        t = timeit.default_timer()
-        uid = self.manager.copy_instance_to_series(self.key(), series.keys())
-        rec = self.record('Instance', uid)
-        print('Copy to series..', timeit.default_timer()-t)
-        return rec
+        uid = self.manager.copy_instance_to_series(self.key(), series.keys(), series)
+        return self.record('Instance', uid)
 
     def array(self):
         return self.get_pixel_array()
@@ -121,44 +118,12 @@ def map_to(source, target):
 
 def map_mask_to(record, target):
     """Map non-zero image pixels onto a target image.
-    
     Overwrite pixel values in the target"""
-
     dsr = record.get_dataset()
     dst = target.get_dataset()
-
-    # Create a coordinate array of non-zero pixels
-    coords = np.transpose(np.where(dsr.get_pixel_array() != 0)) 
-    coords = [[coord[0], coord[1], 0] for coord in coords] 
-    coords = np.array(coords)
-
-    # Determine coordinate transformation matrix
-    affineSource = dsr.affine_matrix()
-    affineTarget = dst.affine_matrix()
-    sourceToTarget = np.linalg.inv(affineTarget).dot(affineSource)
-
-    # Apply coordinate transformation and interpolate (nearest neighbour)
-    coords = nib.affines.apply_affine(sourceToTarget, coords)
-    coords = np.round(coords).astype(int)
-    x = y = []
-    for r in coords:
-        if r[2] == 0:
-            if (0 <= r[0]) & (r[0] < dst.Columns):
-                if (0 <= r[1]) & (r[1] < dst.Rows):
-                    x.append(r[0])
-                    y.append(r[1])
-    x = tuple(x)
-    y = tuple(y)
-    #x = tuple([c[0] for c in coords if c[2] == 0])
-    #y = tuple([c[1] for c in coords if c[2] == 0])
-
-    # Set values in the target image
-    # array = np.zeros((record.Rows, record.Columns))
-    array = np.zeros((dst.Columns, dst.Rows))
-    array[(x, y)] = 1.0
+    array = dsr.map_mask_to(dst)
     result = target.copy_to(record.parent()) # inherit geometry header from target
     result.set_pixel_array(array)
-
     return result
 
 
