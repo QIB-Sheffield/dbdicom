@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 from dbdicom.record import DbRecord
 from dbdicom.ds.create import new_dataset
-import dbdicom.ds.dataset as dbdataset
 import dbdicom.utils.image as image
 
 
@@ -71,8 +70,13 @@ class Instance(DbRecord):
     def export_as_nifti(*args, **kwargs):
         export_as_nifti(*args, **kwargs)
 
-    def BGRA_array(*args, **kwargs):
-        return get_BGRA_array(*args, **kwargs)
+    def BGRA_array(self):
+        return image.BGRA(
+            self.get_pixel_array(),
+            self.lut, 
+            width = self.WindowWidth,
+            center = self.WindowCenter,
+        )
 
 
 def map_to(source, target):
@@ -153,14 +157,18 @@ def export_as_png(record, directory=None, filename=None):
     if directory is None: 
         directory = record.dialog.directory(message='Please select a folder for the png data')
 
-    colourTable = record.colormap
     pixelArray = np.transpose(record.get_pixel_array())
     centre, width = record.window
     minValue = centre - width/2
     maxValue = centre + width/2
-    cmap = plt.get_cmap(colourTable)
-    plt.imshow(pixelArray, cmap=cmap)
-    plt.clim(int(minValue), int(maxValue))
+    #cmap = plt.get_cmap(colourTable)
+    cmap = record.colormap
+    if cmap is None:
+        cmap='gray'
+    #plt.imshow(pixelArray, cmap=cmap)
+    plt.imshow(pixelArray, cmap=cmap, vmin=minValue, vmax=maxValue)
+    #plt.imshow(pixelArray, cmap=colourTable)
+    #plt.clim(int(minValue), int(maxValue))
     cBar = plt.colorbar()
     cBar.minorticks_on()
     if filename is None:
@@ -179,50 +187,9 @@ def export_as_nifti(record, directory=None, filename=None):
 
     ds = record.get_dataset()
     dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
-    array = np.flipud(np.rot90(record.get_pixel_array()))
+    array = record.get_pixel_array()
     niftiObj = nib.Nifti1Image(array, ds.affine_matrix())
     niftiObj.header.extensions.append(dicomHeader)
     nib.save(niftiObj, directory + '/' + filename + '.nii')
-
-
-def get_BGRA_array(image):
-    array = image.get_pixel_array()
-    width = image.WindowWidth
-    center = image.WindowCenter
-    min = center-width/2
-    max = center+width/2
-
-    if (width is None) or (center is None):
-        max = np.amax(array)
-        min = np.amin(array)
-    if width is None: 
-        width = max-min
-    if center is None: 
-        center = (max-min)/2
-
-    # Scale pixel array into byte range
-    array = np.clip(array, min, max)
-    array -= min
-    if max > min:
-        array *= 255/(max-min)
-    array = array.astype(np.ubyte)
-
-    BGRA = np.empty(array.shape[:2]+(4,), dtype=np.ubyte)
-    BGRA[:,:,3] = 255 # Alpha channel
-
-    RGBlut = image.lut
-    if RGBlut is None:
-        # Greyscale image
-        for c in range(3):
-            BGRA[:,:,c] = array
-    else:
-        # Scale LUT into byte range
-        RGBlut *= 255
-        RGBlut = RGBlut.astype(np.ubyte)       
-        # Create RGB array by indexing LUT with pixel array
-        for c in range(3):
-            BGRA[:,:,c] = RGBlut[array,2-c]
-
-    return BGRA
 
 

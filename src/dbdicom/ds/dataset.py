@@ -172,7 +172,7 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                         index = os.path.relpath(file, path)
                     dicom_files.append(index) 
         if status is not None: 
-            status.progress(i+1, len(files), message)
+            status.progress(i+1, len(files))
     df = pd.DataFrame(array, index = dicom_files, columns = tags)
     return df
 

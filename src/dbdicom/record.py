@@ -375,7 +375,9 @@ def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
         directory = record.dialog.directory(message='Please select a folder for the csv data')
     if filename is None:
         filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
+    instances = record.instances()
+    for i, instance in enumerate(instances):
+        instance.status.progress(i+1, len(instances))
         instance.export_as_csv( 
             directory = directory, 
             filename = filename + ' [' + str(i) + ']', 
@@ -388,7 +390,9 @@ def export_as_png(record, directory=None, filename=None):
         directory = record.dialog.directory(message='Please select a folder for the png data')
     if filename is None:
         filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
+    instances = record.instances()
+    for i, instance in enumerate(instances):
+        instance.status.progress(i+1, len(instances))
         instance.export_as_png( 
             directory = directory, 
             filename = filename + ' [' + str(i) + ']')
@@ -400,7 +404,9 @@ def export_as_nifti(record, directory=None, filename=None):
         directory = record.dialog.directory(message='Please select a folder for the png data')
     if filename is None:
         filename = record.SeriesDescription
-    for i, instance in enumerate(record.instances()):
+    instances = record.instances()
+    for i, instance in enumerate(instances):
+        instance.status.progress(i+1, len(instances))
         instance.export_as_nifti( 
             directory = directory, 
             filename = filename + ' [' + str(i) + ']')
