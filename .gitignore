@@ -3,7 +3,6 @@
 
 ### package builds
 .venv/*
-docs/*
 tests/tmp/*
 tests/export/*
 docs/build
