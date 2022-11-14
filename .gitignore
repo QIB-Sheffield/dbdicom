@@ -6,6 +6,7 @@
 docs/*
 tests/tmp/*
 tests/export/*
+docs/build
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
