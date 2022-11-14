@@ -3,7 +3,7 @@ nibabel
 numpy
 pandas
 pydicom
-GDCM
+python-gdcm
 pylibjpeg-libjpeg
 importlib-resources
 sphinx

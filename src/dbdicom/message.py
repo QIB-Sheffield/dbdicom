@@ -7,19 +7,27 @@ class StatusBar():
 
     def __init__(self):
         self._message = ''
+        self.muted = False # Needs adding in wezel status as well.
+
+    def mute(self):
+        self.muted = True
+    def unmute(self):
+        self.muted = False
 
     def hide(self):
         pass
 
     def message(self, message):
         self._message = message
-        print(message)
+        if not self.muted:
+            print(message)
         
     def progress(self, value, maximum, message=None):
         if message is not None:
             self._message = message
-        perc = str(round(100*value/maximum))
-        print(self._message + ' [' + perc + ' %]')
+        if not self.muted:
+            perc = str(round(100*value/maximum))
+            print(self._message + ' [' + perc + ' %]')
         
 
 class Dialog():

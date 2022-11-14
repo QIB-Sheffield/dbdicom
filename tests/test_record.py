@@ -52,6 +52,7 @@ def test_database():
     except:
         assert False
     assert 24 == len(database.instances())
+    assert 24 == len(database.files())
 
     database.close()
     remove_tmp_database(tmp)
@@ -63,9 +64,9 @@ def test_children():
     database = db.database(tmp)
 
     patients = database.children(PatientID='RIDER Neuro MRI-3369019796')
-    assert patients[0].label() == 'Patient 281949 [RIDER Neuro MRI-3369019796]'
+    assert patients[0].label() == 'Patient 281949'
     studies = patients[0].children()
-    assert (len(studies) == 4)
+    assert len(studies) == 4
 
     database.close()
     remove_tmp_database(tmp)
@@ -649,7 +650,6 @@ def test_copy_remove():
 
     assert len(patient1_study.series()) == nr_patient1_study
     assert len(new_patient0_study.series()) == 1 + nr_new_patient0_study
-    assert len(new_patient0_study.series()) == 1 
     assert patient1_series.SeriesDescription in patient1_study.SeriesDescription
     assert copy_patient1_series.SeriesDescription in new_patient0_study.SeriesDescription
 
@@ -721,19 +721,18 @@ def test_merge():
     patient2 = database.new_child()
     series = database.series(SeriesDescription = 'sag 3d gre +c')
     for s in series:
-        study = patient1.new_child()
-        s.copy_to(study)
+        new_study = patient1.new_child()
+        s.copy_to(new_study)
     for s in database.series(SeriesDescription = 'ax 5 flip'):
-        s.copy_to(patient2.new_child()) 
+        new_study = patient2.new_child()
+        s.copy_to(new_study) 
 
     n_instances = len(patient1.instances()) + len(patient2.instances())
     n_studies = len(patient1.studies()) + len(patient2.studies())
     n_series = len(patient1.series()) + len(patient2.series())
 
     # merge the two patients into a third
-
     patient3 = db.merge([patient1, patient2])
-
     assert len(patient3.studies()) == n_studies
     assert len(patient3.series()) == n_series
     assert len(patient3.instances()) == n_instances
@@ -833,7 +832,7 @@ def test_merge_empty():
     database.save(tmp)
 
     database = db.database(tmp)
-    assert set(database.PatientName) == set(['James Bond', 'Scarface', 'Anonymous'])
+    assert set(database.PatientName) == set(['James Bond', 'Scarface', 'New Patient'])
     assert set(database.StudyDescription) == set(['MRI', 'Xray', 'New Study'])
 
     remove_tmp_database(tmp)
@@ -908,7 +907,7 @@ def test_read_write_dataset():
     instance3 = instance.parent().new_instance()
     assert instance3.Rows is None
     database.save()
-    instance3.Rows = 256 
+    instance3.Rows = 256
     assert instance3.Rows == 256
     database.restore()
     assert instance3.Rows is None
@@ -1040,6 +1039,7 @@ def test_series_map_mask_to():
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     series = database.series()
+    map = series[0].map_mask_to(series[1])
     try:
         map = series[0].map_mask_to(series[1])
     except:
@@ -1051,8 +1051,8 @@ def test_set_colormap():
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     images = database.instances()
-    images[0].colormap = 'gray'
-    assert images[0].colormap == 'gray'
+    images[0].colormap = 'viridis'
+    assert images[0].colormap == 'viridis'
     remove_tmp_database(tmp)
 
 def test_instance_export_as_csv():
@@ -1208,7 +1208,7 @@ def test_custom_attributes():
     series = database.series()
     for i in series[0].instances():
         assert i.image_type == 'MAGNITUDE'
-        assert i.colormap == 'gray'
+        assert i.colormap is None
         assert i.lut is None
     for i in series[0].instances():
         i.image_type = 'PHASE'

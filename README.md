@@ -2,6 +2,17 @@
 Run `pip install dbdicom`.
 
 
+# Summary
+
+The DICOM format is the universally recognised standard for medical imaging, but reading and writing DICOM data remains a challenging task for most data scientists. 
+
+The excellent python package `pydicom` is very commonly used and well-supported, but it is limited to reading and writing individual files, and still requires a fairly high level of understanding of DICOM to ensure compliance with the standard. 
+
+`dbdicom` wraps around `pydicom` to provide an intuitive programming interface for reading and writing data from entire DICOM databases, replacing unfamiliar DICOM-native concepts by language and notations that will be more familiar to data scientists. 
+
+The sections below list some basic uses of `dbdicom`. The package is currently deployed in several larger scale multicentre clinical studies led by the authors, such as the [iBEAt study](https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-020-01901-x) and the [AFiRM study](https://www.uhdb.nhs.uk/afirm-study/). The package will continue to be shaped through use in these studies and we expect it will attain a more final form when these analysis pipelines are fully operational.
+
+
 # Browsing a DICOM folder
 
 ### Reading and opening a DICOM database
@@ -86,15 +97,7 @@ Or all instances of a study:
 instances = study.instances()
 ```
 
-And so on for all other levels in the hierarchy. These can be chained together for convencience, 
-e.g. to get all instances instance of series 5 in study 1 of patient 2:
-
-```python
-instance = database.patients()[2].studies()[1].series()[5].instances()
-```
-
-These functions also work to find objects higher up in the hierarchy. 
-For instance, to find the patient of a given series:
+And so on for all other levels in the hierarchy. These functions also work to find objects higher up in the hierarchy. For instance, to find the patient of a given series:
 
 ```python
 patient = series.patients()
@@ -104,7 +107,7 @@ In this case the function will return a single item.
 
 ### Finding DICOM objects in the folder
 
-Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here]: (https://dicom.innolitics.com/). 
+Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here](https://dicom.innolitics.com/):
 
 Each known attribute is identified most easily by a keyword, which has a capitalised notation. Objects in the folder can be can also be listed by searching on any DICOM tag:
 
@@ -425,34 +428,34 @@ will save all changes made in the series (but not other objects in the database)
 
 A DICOM series typically represents images that are acquired together, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hierarchy. 
 
-To extract the images in a series as a numpy array, use `get_pixel_array`:
+To extract the images in a series as a numpy array, use `array()`:
 
 ```python
-array, _ = series.get_pixel_array()
+array, _ = series.array()
 ```
 
 This will return an array with dimensions `(n,x,y)` where `n` enumerates the images in the series. The array can also be returned with other dimensions:
 
 ```python
-array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
+array, _ = series.array(['SliceLocation', 'FlipAngle'])
 ```
 
 This returns an array with dimensions `(z,t,n,x,y)` where `z` corresponds to slice locations and `t` to flip angles. The 3d dimension `n` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way. If an application requires the pixels to be listed first, use the `pixels_first` keyword:
 
 ```python
-array, _ = series.get_pixel_array(['SliceLocation', 'FlipAngle'], pixels_first=True)
+array, _ = series.array(['SliceLocation', 'FlipAngle'], pixels_first=True)
 ```
 
 In this case the array has dimensions `(x,y,z,t,n)`. Replacing the images of a series with a given numpy array works the same way:
 
 ```python
-series.set_pixel_array(array)
+series.array(array)
 ```
 
-The `get_pixel_array()` also returns the header information for each slice in a second return value:
+The function `array()` also returns the header information for each slice in a second return value:
 
 ```python
-array, header = series.get_pixel_array(['SliceLocation', 'FlipAngle'])
+array, header = series.array(['SliceLocation', 'FlipAngle'])
 ```
 
 The header is a numpy array of instances with the same dimensions as the array - except for the pixel coordinates: in this case `(z,t,n)`. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice `z=0, n=0`:
@@ -466,9 +469,9 @@ The header array is also useful when a calculation is performed on the array and
 As an example, let's calculate a maximum intensity projection (MIP) of a 4D time series and write the result out in the same series:
 
 ```python
-array, header = series.get_pixel_array(['SliceLocation', 'AcquisitionTime'])
+array, header = series.array(['SliceLocation', 'AcquisitionTime'])
 mip = np.amax(array, axis=0)
-series.set_pixel_array(mip, header[0,:,:])
+series.set_array(mip, header[0,:,:])
 ```
 
 In this case the header information of the MIP is taken from the first image of the time series. Provding header information is not required - if the header argument is not specified then a template header is used.
@@ -543,25 +546,43 @@ scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
 scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
 ```
 
+### Work in progress: a numpy-like interface
+
+We are currently building a `numpy`-type interface for creating new DICOM objects. For instance to create a new series with given dimensions in a study you can do:
+
+```python
+img = study.zeros((10, 128, 192), dtype='mri')
+```
+
+This will create a DICOM series of type 'MRImage' (shorthand 'mri') with 10 slices of 128 columns and 192 rows each. This can also be done from scratch:
+
+```python
+import dbdicom as db
+
+series = db.series((10, 128, 192))
+```
+
+Currently, writing in data types other than 'MRImage' is not supported, so the data type argument is not necessary.
 
 # User interactions
 
 
-`dbdicom` can be used in standalone scripts or at command line. To streamline integration in a GUI, communication with the user is performed via two dedicated attributes `status` and `dialog`. dialog and status attributes are available to any DICOM object. The status attribute is used to send messages to the user, or update on progress of a calculation:
+`dbdicom` can be used in standalone scripts or interactively. To streamline integration in a GUI, communication with the user is performed via two dedicated attributes `status` and `dialog`. dialog and status attributes are available to any DICOM object. The status attribute is used to send messages to the user, or update on progress of a calculation:
 
 ```python
-series.status.message("Starting calculation...")
+series.message("Starting calculation...")
 ```
 
 When operating in command line mode this will print the message to the terminal. If `dbdicom` is used in a compatible GUI, this will print the same message to the status bar. Equivalently, the user can be updated on the progress of a calculation via:
 
 ```python
-series.status.message("Calculating..")
 for i in range(length):
-    series.status.progress(i, length)
+    series.progress(i, length, 'Calculating..)
 ```
 
-This will print the message with a percentage progress at each iteraion. When used in a GUI, this will update the progress bar of the GUI. 
+This will print the message with a percentage progress at each iteration. When used in a GUI, this will update the progress bar of the GUI. 
+
+By default a dbdicom record will always update the user on progress of any calculation. When this beaviour is undersired, the record can be muted as in via `series.mute()`. After this the user will no longer recieve updates. In order to turn messages back on, unmute the record via `series.unmute()`.
 
 Dialogs can be used to send messages to the user or prompt for input. In some cases a dialog may halt the operation of te program until the user has performed the appropriate action, such as hitting enter or entering a value. In command line operator or scripts the user will be prompted for input at the terminal. When using in a GUI, the user will be prompted via a pop-up:
 
@@ -574,32 +595,32 @@ When used in a script, this will ask the user to enter either "y" (for yes), "n"
 
 # About ***dbdicom***
 
-## Why ***dbdicom***?
-
-This statement echoes a common frustration for anyone who has ever had a closer to look at DICOM: 
+## Why DICOM?
 
 ``*[...] after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*''. Robert W. Cox, PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health [link](https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html).
 
-DICOM is scary. But it has also been the universally accepted standard for medical images for decades. Why is that? DICOM is extremely detailed and rigorous in the description of its terminology and structure. It has to be, because DICOM deals with the most complex and sensitive data possible: your body. All of it. Every single one of your DICOM images in a clinical archive contains the key to access all of your medical details. This allows doctors to link your images to your blood tests, family history, previous diagnosis treatments, other imaging, and so on. And this is important to make the best possible informed decisions when it comes to your health. 
+This echoes a common frustration for anyone who has ever had a closer to look at DICOM. DICOM seems to make simple things very difficult, and the language often feels outdated to modern data scientists. 
 
-In medical imaging research this additional information is often seen as a nuisance and discarded prior to processing of the images. Typically a data array of some sort is extracted, perhaps also some key geometrical descriptors such as pixel sizes or a transformation matrix, and all the other information is ignored. Conversion into such a *lossy* data format may be sufficient for method development or basic scientific research, but when it comes to deploying these methods in clinical studies, all this additional information is just as important as in clinical practice. It ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. 
+But there are good reasons for that. DICOM not only retains imaging data, but also all other relevant data about the subject and context in which the data are taken. Detailing provenance of the data and linkage to other data is critical in radiology, but the nature of these meta data is very broad, complex and constantly changing. Storing them in some consistent and standardised way that is future proof therefore requires a systematic approach and some necessary level of abstraction. 
 
-And so, if we accept that new image analysis methods ultimately will need to be tested clinically (and ideally sooner rather than later), then we simply can't avoid the need to convert results back to DICOM. In practice this step often requires a major rewrite of image processing pipelines set up for basic research, creating a significant barrier to deployment of new methods in clinical trials. 
+DICOM does this well and has for that reason grown to be the single accepted standard in medical imaging. This also explains the outdated look and feel. DICOM standardises not only the format, but also the language of medical imaging. And successful standards, by definition, don't change.
 
-Quantitative imaging is another area where the information discarded by conversion to lossy formats is important. Quantification involves the application of complex signal models to multi-dimensional imaging data. These are acquired by varying contrast parameters such as (in MRI) echo times, b-values, gradient directions, inversion times, flip angle etc. Often many of these are varied at the same time, and not necessarily in some clean incremental order -  as in MR fingerprinting. The models that interpret these data need access to this information. When DICOM data have been converted to some lossy data format, this then requires ad-hoc solutions retaining part of the original DICOM information in unstructured free text fields or separate newly defined header files. 
+## Why ***dbdicom***?
 
-All these problems can be solved, for current and any imaginable or unimaginable future applications, by dropping conversions into lossy image formats and simply reading from DICOM and writing to DICOM. 
+Reading and especially writing DICOM data remains a challenging enterprise for the practicing data scientist. A typical image processing pipeline might use the excellent python package `pydicom` for extracting image arrays and any required header information from DICOM data, but will then write out the results in more manageable format such as nifty. In the process the majority of header information will have to be discarded, including detailed imaging parameters and linkage between original and derived images, follow-up studies, etc.
 
-If only DICOM wasn't so scary!!
+The practice of converting outputs in a lossy image format may be sufficient in the early stages of method development, but forms a major barrier to research or deployment of these processing methods in a real-world context. This requires results in DICOM format so they can be linked to other data of the same patients, integrated in the radiological workflow, and reviewed and edited through integrated radiological viewers. Integration of datasets ensures that all derived data are properly traceable to the source, and can be compared between subjects and within a subject over time. It also allows to test for instance whether a new (expensive) imaging method provides an *additive* benefit over and above (cheap) data from medical history, clinical exams or blood tests. 
+
+DICOM integration of processing outputs is typically performed by DICOM specialists in the private sector, for new products that have proven clinical utility. However, this requires a major separate investment, delays the point of real-world validation until after commercialisation and massively increases the risk of costly late-stage failures. 
+
 
 ## What is ***dbdicom***?
 
-`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive for the practicing medical imaging scientist working in Python. We promise you won't even know it's DICOM. In fact the documentation hardly even mentions DICOM at all. It will certainly not mention things like composite information object definitions, application entities, service-object pairs, unique identifiers, etc etc. This is the language of DICOM, and it's confusing in part because the concepts date back to the 1970's and 1980's when the standard was developed. But then again, that is exactly what you would expect from a successful standard. It doesn't change. It shouldn't change. But we *can* wrap it up real nice.
+`dbdicom` is a programming interface that makes reading and writing DICOM data intuitive for the practicing medical imaging scientist working in Python. DICOM-native language and terminology is hidden and replaced by concepts that are more natural for those developing in Python. The documentation therefore does not reference confusing DICOM concepts such as composite information object definitions, application entities, service-object pairs, unique identifiers, etc.
 
-`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. It allows you to develop your medical imaging methods using DICOM files only, which means your prototypes of new analysis methods can be deployed in clinical trials just like that. It also means that any result you generate can easily be integrated in open access DICOM databases and can be visualised along with any other images of the same subject by anyone with a DICOM viewer (i.e. literally anyone).
+`dbdicom` wraps around DICOM using a language and code structure that is native to the 2020's. This should allow DICOM integration from the very beginning of development of new image processing methods, which means they can be deployed in clinical workflows from the very beginning. It also means that any result you generate can easily be integrated in open access DICOM databases and can be visualised along with any other images of the same subject with a standard DICOM viewer such as [OHIF](https://ohif.org/).
 
-Since `dbdicom` is primarily a development tool, it can be used from command line or to write stand-alone scripts. However, since `dbdicom` is all about facilitating translation into clinical trials and ultimately clinical practice, all scripts written in `dbdicom` are set up for deployment in a graphical user interface. Convenience classes are provided for user interaction that print to a terminal when used 
-in a script, but will automatically generate pop-up windows or progress bars when the same script is deployed inside a `dbdicom` compatible graphical user interface. 
+`dbdicom` is developed by through the [UKRIN-MAPS](https://www.nottingham.ac.uk/research/groups/spmic/research/uk-renal-imaging-network/ukrin-maps.aspx) project of the UK renal imaging network, which aims to provide clinical translation of quantitative renal MRI on a multi-vendor platform. UKRIN-MAPS is funded by the UK's [Medical Research Council](https://gtr.ukri.org/projects?ref=MR%2FR02264X%2F1).
 
 ## Acknowledgements
 
