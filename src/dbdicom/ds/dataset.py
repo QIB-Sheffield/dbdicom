@@ -316,14 +316,16 @@ def map_mask_to(ds_source, ds_target):
     # x = y = []
     # for r in coords:
     #     if r[2] == 0:
-    #         if (0 <= r[0]) & (r[0] < dst.Columns):
-    #             if (0 <= r[1]) & (r[1] < dst.Rows):
+    #         if (0 <= r[0]) & (r[0] < ds_target.Columns):
+    #             if (0 <= r[1]) & (r[1] < ds_target.Rows):
     #                 x.append(r[0])
     #                 y.append(r[1])
     # x = tuple(x)
     # y = tuple(y)
-    x = tuple([c[0] for c in coords if c[2] == 0])
-    y = tuple([c[1] for c in coords if c[2] == 0])
+    x = tuple([c[0] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+    y = tuple([c[1] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+    # x = tuple([c[0] for c in coords if c[2] == 0])
+    # y = tuple([c[1] for c in coords if c[2] == 0])
 
     # Set values in the target image
     # array = np.zeros((record.Rows, record.Columns))

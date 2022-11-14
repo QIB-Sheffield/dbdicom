@@ -1039,6 +1039,7 @@ def test_series_map_mask_to():
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     series = database.series()
+    map = series[0].map_mask_to(series[1])
     try:
         map = series[0].map_mask_to(series[1])
     except:
