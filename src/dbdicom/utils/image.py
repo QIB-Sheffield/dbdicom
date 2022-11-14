@@ -57,5 +57,39 @@ def scale_to_range(array, bits_allocated):
         return array.astype(np.uint64), slope, intercept
 
 
+def BGRA(array, RGBlut=None, width=None, center=None):
+
+    if (width is None) or (center is None):
+        max = np.amax(array)
+        min = np.amin(array)
+    else:
+        max = center+width/2
+        min = center-width/2
+
+    # Scale pixel array into byte range
+    array = np.clip(array, min, max)
+    array -= min
+    if max > min:
+        array *= 255/(max-min)
+    array = array.astype(np.ubyte)
+
+    BGRA = np.empty(array.shape[:2]+(4,), dtype=np.ubyte)
+    BGRA[:,:,3] = 255 # Alpha channel
+
+    if RGBlut is None:
+        # Greyscale image
+        for c in range(3):
+            BGRA[:,:,c] = array
+    else:
+        # Scale LUT into byte range
+        RGBlut *= 255
+        RGBlut = RGBlut.astype(np.ubyte)       
+        # Create RGB array by indexing LUT with pixel array
+        for c in range(3):
+            BGRA[:,:,c] = RGBlut[array,2-c]
+
+    return BGRA
+
+
 
 

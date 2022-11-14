@@ -1,8 +1,13 @@
 import os
+import platform
 import zipfile
 
 def all_files(path):
-    return [item.path for item in scan_tree(path) if item.is_file()]
+    files = [item.path for item in scan_tree(path) if item.is_file()]
+    # Windows has maximum path length of 260 - ignore any files that are longer
+    if platform.system() == 'Windows':
+        files = [f for f in files if len(f) <= 260]
+    return files
 
 def _unzip_files(path, status):
     """

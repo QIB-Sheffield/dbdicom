@@ -1,12 +1,49 @@
 import os
 import math
+import timeit
 import numpy as np
 from dbdicom.record import DbRecord, copy_to
-import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds import MRImage
 
 
 class Series(DbRecord):
+
+    name = 'SeriesInstanceUID'
+
+    def _set_key(self):
+        self._key = self.keys()[0]
+
+    def remove(self):
+        self.manager.delete_series([self.uid])
+
+    def parent(self):
+        uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        return self.record('Study', uid, key=self.key())
+
+    def children(self, **kwargs):
+        return self.instances(**kwargs)
+
+    def new_child(self, dataset=None, **kwargs): 
+        attr = {**kwargs, **self.attributes}
+        return self.new_instance(dataset=dataset, **attr)
+
+    def new_instance(self, dataset=None, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, key=self.key(), **attr)
+        return self.record('Instance', uid, key, **attr)
+
+    def _copy_from(self, record):
+        uids = self.manager.copy_to_series(record.uid, self.uid, **self.attributes)
+        if isinstance(uids, list):
+            return [self.record('Instance', uid) for uid in uids]
+        else:
+            return self.record('Instance', uids)
+
+    def array(*args, **kwargs):
+        return get_pixel_array(*args, **kwargs)
+
+    def set_array(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
 
     def get_pixel_array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
@@ -15,7 +52,7 @@ class Series(DbRecord):
         set_pixel_array(*args, **kwargs)
 
     def map_mask_to(*args, **kwargs):
-        map_mask_to(*args, **kwargs)
+        return map_mask_to(*args, **kwargs)
 
     def export_as_npy(*args, **kwargs):
         export_as_npy(*args, **kwargs)
@@ -25,6 +62,7 @@ class Series(DbRecord):
 
     def import_dicom(*args, **kwargs):
         import_dicom(*args, **kwargs)
+
 
 
 def import_dicom(series, files):
@@ -64,29 +102,28 @@ def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_fir
 
 def map_mask_to(series, target):
     """Map non-zero pixels onto another series"""
-
+    
     source_images = series.instances()
     target_images = target.instances() 
     mapped_series = series.new_sibling(
         SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
     )
     for i, target_image in enumerate(target_images):
-        series.status.progress(i, len(target_images))
-        pixel_array = np.zeros((target_image.Columns, target_image.Rows), dtype=np.bool) 
+        series.status.progress(i+1, len(target_images))
+        ds_target = target_image.get_dataset()
+        pixel_array = np.zeros((ds_target.Columns, ds_target.Rows), dtype=bool) 
         for j, source_image in enumerate(source_images):
             series.status.message(
-                'Mapping image ' + str(j) + 
-                ' of ' + series.SeriesDescription + 
-                ' to image ' + str(i) + 
-                ' of ' + target.SeriesDescription 
+                'Mapping source image ' + str(j) + 
+                ' to target image ' + str(i)
             )
-            im = source_image.map_mask_to(target_image)
-            array = im.get_pixel_array().astype(np.bool)
+            ds_source = source_image.get_dataset()
+            array = ds_source.map_mask_to(ds_target)
             np.logical_or(pixel_array, array, out=pixel_array)
-            im.remove()
         if pixel_array.any():
             mapped_image = target_image.copy_to(mapped_series)
             mapped_image.set_pixel_array(pixel_array.astype(np.float32))
+
     return mapped_series
 
 
@@ -139,7 +176,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     array = []
     instances = source.ravel()
     for i, im in enumerate(instances):
-        record.status.progress(i, len(instances), 'Reading pixel data..')
+        record.progress(i, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
@@ -221,22 +258,29 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         series.set_array(array, data)
         ```
     """
+
     if pixels_first:    # Move to the end (default)
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
     # if no header data is provided, use template headers.
+    # Note - looses information on dimensionality of array
+    # Everything is reduced to 3D
     if source is None:
-        n = np.prod(array.shape[:-2])
+        if array.ndim <= 2:
+            n = 1
+        else:
+            n = np.prod(array.shape[:-2])
         source = np.empty(n, dtype=object)
         for i in range(n): 
             source[i] = series.new_instance(MRImage())  
-        source = source.reshape(array.shape[:-2])
-        series.set_pixel_array(array, source)
+        if array.ndim > 2:
+            source = source.reshape(array.shape[:-2])
+        set_pixel_array(series, array, source)
         #source = instance_array(series)
 
     # Return with error message if dataset and array do not match.
-    nr_of_slices = np.prod(array.shape[:-2])
+    nr_of_slices = int(np.prod(array.shape[:-2]))
     if nr_of_slices != np.prod(source.shape):
         message = 'Error in set_array(): array and source do not match'
         message += '\n Array has ' + str(nr_of_slices) + ' elements'
@@ -317,19 +361,20 @@ def instance_array(record, sortby=None, status=True):
             array[i] = instance
         return array
     else:
-        if set(sortby) <= set(record.manager.register):
-            df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
-            # df = record.manager.register.loc[record.register().index, sortby]
-        else:
-            ds = record.get_dataset()
-            df = dbdataset.get_dataframe(ds, sortby)
+        df = record.read_dataframe(sortby + ['SOPInstanceUID'])
+        # if set(sortby) <= set(record.manager.register):
+        #     df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
+        #     # df = record.manager.register.loc[record.register().index, sortby]
+        # else:
+        #     ds = record.get_dataset()
+        #     df = dbdataset.get_dataframe(ds, sortby)
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
-def dataframe(record): # OBSOLETE replace by record.register()
+# def dataframe(record): # OBSOLETE replace by record.register()
 
-    keys = record.manager.keys(record.uid)
-    return record.manager.register.loc[keys, :]
+#     keys = record.manager.keys(record.uid)
+#     return record.manager.register.loc[keys, :]
 
 
 def df_to_sorted_instance_array(record, df, sortby, status=True): 
@@ -338,7 +383,7 @@ def df_to_sorted_instance_array(record, df, sortby, status=True):
     vals = df[sortby[0]].unique()
     for i, c in enumerate(vals):
         if status: 
-            record.status.progress(i, len(vals), message='Sorting..')
+            record.progress(i, len(vals), message='Sorting..')
         dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
@@ -352,8 +397,12 @@ def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    for i, uid in enumerate(df.index.values): 
-        data[i] = record.instance(uid)
+    # for i, uid in enumerate(df.SOPInstanceUID.values): 
+    #     data[i] = record.instance(uid)
+    #for i, item in enumerate(df.SOPInstanceUID.items()): 
+    for i, item in enumerate(df.SOPInstanceUID.items()):
+        #data[i] = record.instance(item[1], item[0])
+        data[i] = record.instance(key=item[0])
     return data
 
 def _stack(arrays, align_left=False):

@@ -1,30 +1,59 @@
+import timeit
 import os
 import numpy as np
 import nibabel as nib
 import pandas as pd
 import matplotlib.pyplot as plt
-import nibabel as nib
+
 
 from dbdicom.record import DbRecord
 from dbdicom.ds.create import new_dataset
-import dbdicom.ds.dataset as dbdataset
 import dbdicom.utils.image as image
 
 
 class Instance(DbRecord):
 
-    def get_pixel_array(self):
+    name = 'SOPInstanceUID'
 
+    def keys(self):
+        return [self.key()]
+
+    def parent(self):
+        uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        return self.record('Series', uid, key=self.key())
+
+    def children(self, **kwargs):
+        return
+
+    def new_child(self, **kwargs): 
+        return
+
+    def _copy_from(self, record):
+        return
+
+    def copy_to_series(self, series):
+        uid = self.manager.copy_instance_to_series(self.key(), series.keys(), series)
+        return self.record('Instance', uid)
+
+    def array(self):
+        return self.get_pixel_array()
+
+    def set_array(self, array):
+        self.set_pixel_array(array)
+        
+    def get_pixel_array(self):
         ds = self.get_dataset()
         return ds.get_pixel_array()
 
     def set_pixel_array(self, array):
-
         ds = self.get_dataset()
         if ds is None:
             ds = new_dataset('MRImage')
         ds.set_pixel_array(array)
         self.set_dataset(ds)
+
+    def set_dataset(self, dataset):
+        self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())
 
     def map_to(self, target):
         return map_to(self, target)
@@ -40,6 +69,14 @@ class Instance(DbRecord):
 
     def export_as_nifti(*args, **kwargs):
         export_as_nifti(*args, **kwargs)
+
+    def BGRA_array(self):
+        return image.BGRA(
+            self.get_pixel_array(),
+            self.lut, 
+            width = self.WindowWidth,
+            center = self.WindowCenter,
+        )
 
 
 def map_to(source, target):
@@ -85,44 +122,12 @@ def map_to(source, target):
 
 def map_mask_to(record, target):
     """Map non-zero image pixels onto a target image.
-    
     Overwrite pixel values in the target"""
-
     dsr = record.get_dataset()
     dst = target.get_dataset()
-
-    # Create a coordinate array of non-zero pixels
-    coords = np.transpose(np.where(dsr.get_pixel_array() != 0)) 
-    coords = [[coord[0], coord[1], 0] for coord in coords] 
-    coords = np.array(coords)
-
-    # Determine coordinate transformation matrix
-    affineSource = dsr.affine_matrix()
-    affineTarget = dst.affine_matrix()
-    sourceToTarget = np.linalg.inv(affineTarget).dot(affineSource)
-
-    # Apply coordinate transformation and interpolate (nearest neighbour)
-    coords = nib.affines.apply_affine(sourceToTarget, coords)
-    coords = np.round(coords).astype(int)
-    x = y = []
-    for r in coords:
-        if r[2] == 0:
-            if (0 <= r[0]) & (r[0] < dst.Columns):
-                if (0 <= r[1]) & (r[1] < dst.Rows):
-                    x.append(r[0])
-                    y.append(r[1])
-    x = tuple(x)
-    y = tuple(y)
-    #x = tuple([c[0] for c in coords if c[2] == 0])
-    #y = tuple([c[1] for c in coords if c[2] == 0])
-
-    # Set values in the target image
-    # array = np.zeros((record.Rows, record.Columns))
-    array = np.zeros((dst.Columns, dst.Rows))
-    array[(x, y)] = 1.0
+    array = dsr.map_mask_to(dst)
     result = target.copy_to(record.parent()) # inherit geometry header from target
     result.set_pixel_array(array)
-
     return result
 
 
@@ -152,14 +157,18 @@ def export_as_png(record, directory=None, filename=None):
     if directory is None: 
         directory = record.dialog.directory(message='Please select a folder for the png data')
 
-    colourTable = record.colormap
     pixelArray = np.transpose(record.get_pixel_array())
     centre, width = record.window
     minValue = centre - width/2
     maxValue = centre + width/2
-    cmap = plt.get_cmap(colourTable)
-    plt.imshow(pixelArray, cmap=cmap)
-    plt.clim(int(minValue), int(maxValue))
+    #cmap = plt.get_cmap(colourTable)
+    cmap = record.colormap
+    if cmap is None:
+        cmap='gray'
+    #plt.imshow(pixelArray, cmap=cmap)
+    plt.imshow(pixelArray, cmap=cmap, vmin=minValue, vmax=maxValue)
+    #plt.imshow(pixelArray, cmap=colourTable)
+    #plt.clim(int(minValue), int(maxValue))
     cBar = plt.colorbar()
     cBar.minorticks_on()
     if filename is None:
@@ -178,7 +187,7 @@ def export_as_nifti(record, directory=None, filename=None):
 
     ds = record.get_dataset()
     dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
-    array = np.flipud(np.rot90(record.get_pixel_array()))
+    array = record.get_pixel_array()
     niftiObj = nib.Nifti1Image(array, ds.affine_matrix())
     niftiObj.header.extensions.append(dicomHeader)
     nib.save(niftiObj, directory + '/' + filename + '.nii')

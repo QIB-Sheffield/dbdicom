@@ -1,13 +1,12 @@
 """A colections of tools to extend functionality of pydicom datasets."""
 
 import os
-import struct
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 from matplotlib import cm
-
+import nibabel as nib
 import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
@@ -24,12 +23,6 @@ class DbDataset(Dataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-    # Redirect getattr/setattr/getitem/setim via get/set_valaues
-    # so that custom attributes can be accessed the same way as standard attributes
-    # reconsider conversion of standard pydicom data types.
-    # It is not logical to overrule essential pydicom behaviour.
-    # Can be implemented at record level if needed.
-
     def write(self, file, dialog=None):
         write(self, file, dialog=dialog)
 
@@ -38,6 +31,18 @@ class DbDataset(Dataset):
 
     def set_values(self, tags, values):
         return set_values(self, tags, values)
+
+    def get_lut(self): 
+        return get_lut(self)
+
+    def set_lut(*args, **kwargs): 
+        set_lut(*args, **kwargs)
+
+    def get_colormap(self):
+        return get_colormap(self)
+
+    def set_colormap(*args, **kwargs):
+        set_colormap(*args, **kwargs)
 
     def get_attribute_lut(self): # use _get_attribute to encode these
         return get_lut(self)
@@ -66,6 +71,9 @@ class DbDataset(Dataset):
     def get_attribute_window(self):
         return get_window(self)
 
+    def map_mask_to(self, ds_target):
+        return map_mask_to(self, ds_target)
+
 
 def get_window(ds):
     """Centre and width of the pixel data after applying rescale slope and intercept"""
@@ -76,11 +84,15 @@ def get_window(ds):
         width = ds.WindowWidth
     if centre is None or width is None:
         array = ds.get_pixel_array()
+        #p = np.percentile(array, [25, 50, 75])
+        min = np.min(array)
+        max = np.max(array)
     if centre is None: 
-        centre = np.median(array)
+        centre = (max+min)/2
+        #centre = p[1]
     if width is None: 
-        p = np.percentile(array, [25, 75])
-        width = p[1] - p[0]
+        width = 0.9*(max-min)
+        #width = p[2] - p[0]
     return centre, width
 
 
@@ -110,12 +122,14 @@ def write(ds, file, dialog=None):
         else:
             print(message) 
 
+
 def codify(source_file, save_file, **kwargs):
     
     str = code_file(source_file, **kwargs)
     file = open(save_file, "w")
     file.write(str)
     file.close()
+
 
 def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
     """Reads a list of tags in a list of files.
@@ -143,48 +157,72 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
     array = []
     dicom_files = []
     for i, file in enumerate(files):
-        ds = pydicom.dcmread(file, force=True)
-        if isinstance(ds, pydicom.dataset.FileDataset):
-            if 'TransferSyntaxUID' in ds.file_meta:
-                row = get_values(ds, tags)
-                array.append(row)
-                if path is None:
-                    index = file
-                else:
-                    index = os.path.relpath(file, path)
-                dicom_files.append(index) 
+        try:
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags)
+        except:
+            pass
+        else:
+            if isinstance(ds, pydicom.dataset.FileDataset):
+                if 'TransferSyntaxUID' in ds.file_meta:
+                    row = get_values(ds, tags)
+                    array.append(row)
+                    if path is None:
+                        index = file
+                    else:
+                        index = os.path.relpath(file, path)
+                    dicom_files.append(index) 
         if status is not None: 
-            status.progress(i+1, len(files), message)
-    return pd.DataFrame(array, index = dicom_files, columns = tags)
+            status.progress(i+1, len(files))
+    df = pd.DataFrame(array, index = dicom_files, columns = tags)
+    return df
 
 
 def set_values(ds, tags, values):
     """Sets DICOM tags in the pydicom dataset in memory"""
-
-    # TODO: Automatically convert datatypes to the correct ones required by pydicom for setting (above)
 
     if not isinstance(tags, list): 
         tags = [tags]
         values = [values]
     for i, tag in enumerate(tags):
         if values[i] is None:
-            if tag in ds:
-                del ds[tag]
+            if isinstance(tag, str):
+                if hasattr(ds, tag):
+                    # Setting standard DICOM attribute to None
+                    del ds[tag]
+                else:
+                    # Setting custom attribute to None
+                    if hasattr(ds, 'set_attribute_' + tag):
+                        getattr(ds, 'set_attribute_' + tag)(values[i])  
+            else: # hexadecimal tuple
+                if tag in ds:
+                    del ds[tag]
         else:
-            if tag in ds:
-                ds[tag].value = values[i]
-            else:
-                if isinstance(tag, str):
+            if isinstance(tag, str):
+                if hasattr(ds, tag):
+                #if tag in ds:
+                    ds[tag].value = values[i]
+                else:
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
                         continue
-                if not isinstance(tag, pydicom.tag.BaseTag):
-                    tag = pydicom.tag.Tag(tag)
-                if not tag.is_private: # Add a new data element
-                    VR = pydicom.datadict.dictionary_VR(tag)
-                    ds.add_new(tag, VR, values[i])
+                    if not isinstance(tag, pydicom.tag.BaseTag):
+                        tag = pydicom.tag.Tag(tag)
+                    if not tag.is_private: # Add a new data element
+                        VR = pydicom.datadict.dictionary_VR(tag)
+                        ds.add_new(tag, VR, values[i])
+                    else:
+                        pass # for now
+            else: # hexadecimal tuple
+                if tag in ds:
+                    ds[tag].value = values[i]
                 else:
-                    pass # for now
+                    if not isinstance(tag, pydicom.tag.BaseTag):
+                        tag = pydicom.tag.Tag(tag)
+                    if not tag.is_private: # Add a new data element
+                        VR = pydicom.datadict.dictionary_VR(tag)
+                        ds.add_new(tag, VR, values[i])
+                    else:
+                        pass # for now
     return ds
 
 
@@ -193,26 +231,20 @@ def get_values(ds, tags):
 
     # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
     if not isinstance(tags, list): 
-        if tags not in ds:
-            value = None
-            if isinstance(tags, str):
-                if hasattr(ds, 'get_attribute_' + tags):
-                    value = getattr(ds, 'get_attribute_' + tags)()
-            return value
-        else:
-        #    return ds[tags].value
-            return to_set_type(ds[tags].value)
+        return get_values(ds, [tags])[0]
             
     row = []  
     for tag in tags:
-        if tag not in ds:
-            value = None
-            if isinstance(tag, str):
+        value = None
+        if isinstance(tag, str):
+            if not hasattr(ds, tag):
                 if hasattr(ds, 'get_attribute_' + tag):
                     value = getattr(ds, 'get_attribute_' + tag)()
-        else:
-        #    value = ds[tag].value
-            value = to_set_type(ds[tag].value)
+            else:
+                value = to_set_type(ds[tag].value)
+        else: # tuple of hexadecimal values
+            if tag in ds:
+                value = to_set_type(ds[tag].value)
         row.append(value)
     return row
 
@@ -222,6 +254,8 @@ def to_set_type(value):
     Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
 
+    if value.__class__.__name__ == 'MultiValue':
+        return [to_set_type(v) for v in value]
     if value.__class__.__name__ == 'PersonName':
         return str(value)
     if value.__class__.__name__ == 'Sequence':
@@ -243,47 +277,13 @@ def to_set_type(value):
     else:
         return value
 
+
 def new_uid(n=None):
     
     if n is None:
         return pydicom.uid.generate_uid()
     else:
         return [pydicom.uid.generate_uid() for _ in range(n)]
-
-
-def get_dataframe(datasets, tags):
-    """Reads a list of tags in a list of datasets.
-
-    Arguments
-    ---------
-    files : str or list
-        A filepath or a list of filepaths
-    tags : str or list 
-        A DICOM tag or a list of DICOM tags
-    status : StatusBar
-
-    Creates
-    -------
-    dataframe : pandas.DataFrame
-        A Pandas dataframe with one row per file
-        The index is the file path 
-        Each column corresponds to a Tag in the list of Tags
-        The returned dataframe is sorted by the given tags.
-    """
-    if not isinstance(datasets, list):
-        datasets = [datasets]
-    if not isinstance(tags, list):
-        tags = [tags]
-    array = []
-    indices = []
-    for ds in datasets:
-        # if isinstance(ds, pydicom.dataset.FileDataset):
-        #     if 'TransferSyntaxUID' in ds.file_meta:
-        row = get_values(ds, tags)
-        uid = get_values(ds, 'SOPInstanceUID')
-        array.append(row)
-        indices.append(uid) 
-    return pd.DataFrame(array, index=indices, columns=tags)
 
 
 def affine_matrix(ds):
@@ -295,88 +295,154 @@ def affine_matrix(ds):
         ds.PixelSpacing, 
         ds.SliceThickness)
 
+def map_mask_to(ds_source, ds_target):
+    """Map non-zero image pixels onto a target image.
+    
+    Overwrite pixel values in the target"""
+
+    # Create a coordinate array of non-zero pixels
+    coords = np.transpose(np.where(ds_source.get_pixel_array() != 0)) 
+    coords = [[coord[0], coord[1], 0] for coord in coords] 
+    coords = np.array(coords)
+
+    # Determine coordinate transformation matrix
+    affine_source = ds_source.affine_matrix()
+    affine_target = ds_target.affine_matrix()
+    source_to_target = np.linalg.inv(affine_target).dot(affine_source)
+
+    # Apply coordinate transformation and interpolate (nearest neighbour)
+    coords = nib.affines.apply_affine(source_to_target, coords)
+    coords = np.round(coords).astype(int)
+    # x = y = []
+    # for r in coords:
+    #     if r[2] == 0:
+    #         if (0 <= r[0]) & (r[0] < ds_target.Columns):
+    #             if (0 <= r[1]) & (r[1] < ds_target.Rows):
+    #                 x.append(r[0])
+    #                 y.append(r[1])
+    # x = tuple(x)
+    # y = tuple(y)
+    x = tuple([c[0] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+    y = tuple([c[1] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+    # x = tuple([c[0] for c in coords if c[2] == 0])
+    # y = tuple([c[1] for c in coords if c[2] == 0])
+
+    # Set values in the target image
+    # array = np.zeros((record.Rows, record.Columns))
+    array = np.zeros((ds_target.Columns, ds_target.Rows))
+    array[(x, y)] = 1.0
+
+    return array
+
+# List of all supported (matplotlib) colormaps
+
+COLORMAPS =  ['cividis',  'magma', 'plasma', 'viridis', 
+    'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+    'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn',
+    'binary', 'gist_yarg', 'gist_gray', 'bone', 'pink',
+    'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
+    'hot', 'afmhot', 'gist_heat', 'copper',
+    'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+    'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic',
+    'twilight', 'twilight_shifted', 'hsv',
+    'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
+    'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg', 'turbo',
+    'gist_rainbow', 'rainbow', 'jet', 'nipy_spectral', 'gist_ncar']
+
+# Include support for DICOM natiove colormaps (see pydicom guide on working with pixel data)
 
 def get_colormap(ds):
     """Returns the colormap if there is any."""
-    # This is not correctly encoded - needs revision
 
-    colormap = 'gray' # default
-    if hasattr(ds, 'ContentLabel'):
-        if ds.PhotometricInterpretation == 'PALETTE COLOR':
-            colormap = ds.ContentLabel
-        elif 'MONOCHROME' in ds.PhotometricInterpretation:
-            colormap = 'gray'
-    elif len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR':
-        colormap = 'custom'  
-
-    return colormap
+    # Hijacking this free text field to store the colormap
+    # This should use ContentDescription instead (0070, 0081)
+    # 
+    if 'WindowCenterWidthExplanation' in ds:
+        if ds.WindowCenterWidthExplanation in COLORMAPS:
+            return ds.WindowCenterWidthExplanation
 
 
-def set_colormap(ds, colormap):
-    # This is not correctly encoded - needs revision
-    # Content label is Code String - can't be just anything
+def set_colormap(ds, colormap=None):
 
-    #and (colormap != 'gray') removed from If statement below, so as to save gray colour tables
-    if (colormap == 'gray'):
+    if colormap is None:
         ds.PhotometricInterpretation = 'MONOCHROME2'
-        ds.ContentLabel = ''
+        if hasattr(ds, 'WindowCenterWidthExplanation'):
+            del ds.WindowCenterWidthExplanation
+        if hasattr(ds, 'RGBLUTTransferFunction'):
+            del ds.RGBLUTTransferFunction
+        if hasattr(ds, 'GreenPaletteColorLookupTableData'):
+            del ds.GreenPaletteColorLookupTableData
         if hasattr(ds, 'RedPaletteColorLookupTableData'):
-            del (ds.RGBLUTTransferFunction, ds.RedPaletteColorLookupTableData,
-                ds.GreenPaletteColorLookupTableData, ds.BluePaletteColorLookupTableData,
-                ds.RedPaletteColorLookupTableDescriptor, ds.GreenPaletteColorLookupTableDescriptor,
-                ds.BluePaletteColorLookupTableDescriptor)
-    if ((colormap is not None)  and (colormap != 'custom') and (colormap != 'gray') 
-        and (colormap != 'default') and isinstance(colormap, str)):
-        ds.PhotometricInterpretation = 'PALETTE COLOR'
-        ds.RGBLUTTransferFunction = 'TABLE'
-        ds.ContentLabel = colormap
-        stringType = 'US' # ('SS' if minValue < 0 else 'US')
-        ds.PixelRepresentation = 0 # (1 if minValue < 0 else 0)
-        pixelArray = ds.get_pixel_array()
-        minValue = int(np.amin(pixelArray))
-        maxValue = int(np.amax(pixelArray))
-        numberOfValues = int(maxValue - minValue)
-        arrayForRGB = np.arange(0, numberOfValues)
-        colorsList = cm.ScalarMappable(cmap=colormap).to_rgba(np.array(arrayForRGB), bytes=False)
-        totalBytes = ds.BitsAllocated
-        ds.add_new('0x00281101', stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new('0x00281102', stringType, [numberOfValues, minValue, totalBytes])
-        ds.add_new('0x00281103', stringType, [numberOfValues, minValue, totalBytes])
-        ds.RedPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 0].flatten()]).astype('uint'+str(totalBytes)))
-        ds.GreenPaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 1].flatten()]).astype('uint'+str(totalBytes)))
-        ds.BluePaletteColorLookupTableData = bytes(np.array([int((np.power(
-            2, totalBytes) - 1) * value) for value in colorsList[:, 2].flatten()]).astype('uint'+str(totalBytes)))
+            del ds.RedPaletteColorLookupTableData
+        if hasattr(ds, 'BluePaletteColorLookupTableData'):
+            del ds.BluePaletteColorLookupTableData
+        if hasattr(ds, 'RedPaletteColorLookupTableDescriptor'):
+            del ds.RedPaletteColorLookupTableDescriptor
+        if hasattr(ds, 'GreenPaletteColorLookupTableDescriptor'):
+            del ds.GreenPaletteColorLookupTableDescriptor
+        if hasattr(ds, 'BluePaletteColorLookupTableDescriptor'):
+            del ds.BluePaletteColorLookupTableDescriptor
+    else:
+        ds.WindowCenterWidthExplanation = colormap
+        # Get a LUT as float numpy array with values in the range [0,1]
+        RGBA = cm.ScalarMappable(cmap=colormap).to_rgba(np.arange(256))
+        set_lut(ds, RGBA[:,:3])
+
+
+def set_lut(ds, RGB):
+    """Set RGB as float with values in range [0,1]"""
+
+    ds.PhotometricInterpretation = 'PALETTE COLOR'
+
+    RGB *= (np.power(2, ds.BitsAllocated) - 1)
+
+    if ds.BitsAllocated == 8:
+        RGB = RGB.astype(np.ubyte)
+    elif ds.BitsAllocated == 16:
+        RGB = RGB.astype(np.uint16)
+
+    # Define the properties of the LUT
+    ds.add_new('0x00281101', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281102', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281103', 'US', [255, 0, ds.BitsAllocated])
+
+    # Scale the colorsList to the available range
+    ds.RedPaletteColorLookupTableData = bytes(RGB[:,0])
+    ds.GreenPaletteColorLookupTableData = bytes(RGB[:,1])
+    ds.BluePaletteColorLookupTableData = bytes(RGB[:,2])
 
 
 def get_lut(ds):
-    # Needs testing
+    """Return RGB as float with values in [0,1]"""
 
-    if len(ds.dir("PaletteColor"))>=3 and ds.PhotometricInterpretation == 'PALETTE COLOR': 
-        redColour = list(ds.RedPaletteColorLookupTableData)
-        greenColour = list(ds.GreenPaletteColorLookupTableData)
-        blueColour = list(ds.BluePaletteColorLookupTableData)
-        redLut = list(struct.unpack('<' + ('H' * ds.RedPaletteColorLookupTableDescriptor[0]), bytearray(redColour)))
-        greenLut = list(struct.unpack('<' + ('H' * ds.GreenPaletteColorLookupTableDescriptor[0]), bytearray(greenColour)))
-        blueLut = list(struct.unpack('<' + ('H' * ds.BluePaletteColorLookupTableDescriptor[0]), bytearray(blueColour)))
-        colourTable = np.transpose([redLut, greenLut, blueLut])
-        normaliseFactor = int(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]))
-        # Fast ColourTable loading
-        colourTable = np.around(colourTable/normaliseFactor, decimals = 2)
-        indexes = np.unique(colourTable, axis=0, return_index=True)[1]
-        lut = [colourTable[index].tolist() for index in sorted(indexes)]
-        # Full / Complete Colourmap - takes 20 seconds to load each image
-        # lut = (colours/normaliseFactor).tolist()   
-    else:
-        lut = None
+    if 'PhotometricInterpretation' not in ds:
+        return None
+    if ds.PhotometricInterpretation != 'PALETTE COLOR':
+        return None
+
+    if ds.BitsAllocated == 8:
+        dtype = np.ubyte
+    elif ds.BitsAllocated == 16:
+        dtype = np.uint16
     
-    return lut
+    R = ds.RedPaletteColorLookupTableData
+    G = ds.GreenPaletteColorLookupTableData
+    B = ds.BluePaletteColorLookupTableData
 
+    R = np.frombuffer(R, dtype=dtype)
+    G = np.frombuffer(G, dtype=dtype)
+    B = np.frombuffer(B, dtype=dtype)
 
-def set_lut(ds, lut):
-    # Still needs to be implemented
-    pass
+    R = R.astype(np.float32)
+    G = G.astype(np.float32)
+    B = B.astype(np.float32)
+
+    R *= 1.0/(np.power(2, ds.RedPaletteColorLookupTableDescriptor[2]) - 1)
+    G *= 1.0/(np.power(2, ds.GreenPaletteColorLookupTableDescriptor[2]) - 1)
+    B *= 1.0/(np.power(2, ds.BluePaletteColorLookupTableDescriptor[2]) - 1)
+    
+    return np.transpose([R, G, B])
 
 
 def get_pixel_array(ds):
@@ -395,7 +461,7 @@ def set_pixel_array(ds, array, value_range=None):
     
     if array.ndim >= 3: # remove spurious dimensions of 1
         array = np.squeeze(array) 
-    array = image.clip(array, value_range=value_range)
+    array = image.clip(array.astype(np.float32), value_range=value_range)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
@@ -413,10 +479,6 @@ def set_pixel_array(ds, array, value_range=None):
     ds.Rows = shape[0]
     ds.Columns = shape[1]
     ds.PixelData = array.tobytes()
-
-
-
- 
 
 
 def module_patient():
@@ -469,6 +531,7 @@ def module_patient():
         'ClinicalTrialProtocolEthicsCommitteeName',
         'ClinicalTrialProtocolEthicsCommitteeApprovalNumber',
     ]
+
 
 def module_study():
 
@@ -525,6 +588,7 @@ def module_study():
         'ConsentForClinicalTrialUseSequence',
     ]   
 
+
 def module_series():
 
     return [
@@ -565,40 +629,40 @@ def module_series():
     ]
 
 
-def _initialize(ds, UID=None, ref=None): # ds is pydicom dataset
+# def _initialize(ds, UID=None, ref=None): # ds is pydicom dataset
 
-    # Date and Time of Creation
-    dt = datetime.now()
-    timeStr = dt.strftime('%H%M%S')  # long format with micro seconds
+#     # Date and Time of Creation
+#     dt = datetime.now()
+#     timeStr = dt.strftime('%H%M%S')  # long format with micro seconds
 
-    ds.ContentDate = dt.strftime('%Y%m%d')
-    ds.ContentTime = timeStr
-    ds.AcquisitionDate = dt.strftime('%Y%m%d')
-    ds.AcquisitionTime = timeStr
-    ds.SeriesDate = dt.strftime('%Y%m%d')
-    ds.SeriesTime = timeStr
-    ds.InstanceCreationDate = dt.strftime('%Y%m%d')
-    ds.InstanceCreationTime = timeStr
+#     ds.ContentDate = dt.strftime('%Y%m%d')
+#     ds.ContentTime = timeStr
+#     ds.AcquisitionDate = dt.strftime('%Y%m%d')
+#     ds.AcquisitionTime = timeStr
+#     ds.SeriesDate = dt.strftime('%Y%m%d')
+#     ds.SeriesTime = timeStr
+#     ds.InstanceCreationDate = dt.strftime('%Y%m%d')
+#     ds.InstanceCreationTime = timeStr
 
-    if UID is not None:
+#     if UID is not None:
 
-        # overwrite UIDs
-        ds.PatientID = UID[0]
-        ds.StudyInstanceUID = UID[1]
-        ds.SeriesInstanceUID = UID[2]
-        ds.SOPInstanceUID = UID[3]
+#         # overwrite UIDs
+#         ds.PatientID = UID[0]
+#         ds.StudyInstanceUID = UID[1]
+#         ds.SeriesInstanceUID = UID[2]
+#         ds.SOPInstanceUID = UID[3]
 
-    if ref is not None: 
+#     if ref is not None: 
 
-        # Series, Instance and Class for Reference
-        refd_instance = Dataset()
-        refd_instance.ReferencedSOPClassUID = ref.SOPClassUID
-        refd_instance.ReferencedSOPInstanceUID = ref.SOPInstanceUID
+#         # Series, Instance and Class for Reference
+#         refd_instance = Dataset()
+#         refd_instance.ReferencedSOPClassUID = ref.SOPClassUID
+#         refd_instance.ReferencedSOPInstanceUID = ref.SOPInstanceUID
 
-        refd_series = Dataset()
-        refd_series.ReferencedInstanceSequence = Sequence([refd_instance])
-        refd_series.SeriesInstanceUID = ds.SeriesInstanceUID
+#         refd_series = Dataset()
+#         refd_series.ReferencedInstanceSequence = Sequence([refd_instance])
+#         refd_series.SeriesInstanceUID = ds.SeriesInstanceUID
 
-        ds.ReferencedSeriesSequence = Sequence([refd_series])
+#         ds.ReferencedSeriesSequence = Sequence([refd_series])
 
-    return ds
+#     return ds
