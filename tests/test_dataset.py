@@ -250,7 +250,7 @@ def test_get_colormap():
     files = filetools.all_files(tmp)
     ds = read_dataset(files[0])
     assert None == ds.get_attribute_lut()
-    assert 'gray' == ds.get_attribute_colormap()
+    assert None == ds.get_attribute_colormap()
 
 if __name__ == "__main__":
 
