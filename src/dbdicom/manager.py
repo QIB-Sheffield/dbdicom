@@ -363,6 +363,7 @@ class Manager():
         vals = list(kwargs.values())
         attr = list(kwargs.keys())
         return [id for id in uids if self.get_values(attr, uid=id) == vals]
+        #return [id for id in uids if function(self.get_values(attr, uid=id), vals)]
 
 
     def filter_instances(self, df, **kwargs):

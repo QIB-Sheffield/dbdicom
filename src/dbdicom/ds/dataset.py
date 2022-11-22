@@ -65,6 +65,9 @@ class DbDataset(Dataset):
     def set_pixel_array(self, array, value_range=None):
         set_pixel_array(self, array, value_range=value_range)
 
+    def get_attribute_affine_matrix(self):
+        return affine_matrix(self)
+
     def affine_matrix(self):
         return affine_matrix(self)
 
