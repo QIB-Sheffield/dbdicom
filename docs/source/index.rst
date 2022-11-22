@@ -6,8 +6,6 @@
 Welcome to dbdicom's documentation!
 ===================================
 
-This is a test.
-Hello
 ``dbdicom`` is a Python interface for reading and writing DICOM databases. 
 
 .. warning::
@@ -20,7 +18,6 @@ Hello
    :caption: Contents:
 
    readme
-   modules
 
 
 Indices and tables
