@@ -2,6 +2,7 @@ import os
 import sys
 import pathlib
 import subprocess
+import shutil
 import pydicom
 
 import sys
@@ -54,6 +55,9 @@ def split_multiframe(filepath):
             ds.SliceLocation = ds[0x2001,0x100a].value
         ds.save_as(output_files[i])
         os.remove(file)
+
+    if output_files == []:
+        os.rmdir(outputDir)
 
     return output_files
 

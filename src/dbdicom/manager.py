@@ -114,8 +114,8 @@ class Manager():
                 # Create these in the dbdicom folder, not in the original folder.
                 #
                 filepath = os.path.join(self.path, relpath)
-                singleframe_files = dcm4che.split_multiframe(filepath)
-                if singleframe_files != []:                    
+                singleframe_files = dcm4che.split_multiframe(filepath) 
+                if singleframe_files != []:            
                     # add the single frame files to the dataframe
                     df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
                     df['removed'] = False
@@ -124,7 +124,8 @@ class Manager():
                     self.register = pd.concat([self.register, df])
                     # delete the original multiframe 
                     os.remove(filepath)
-                    self.register.drop(index=relpath, inplace=True)
+                # drop the file also if the conversion has failed
+                self.register.drop(index=relpath, inplace=True)
 
     def _pkl(self):
         """ Returns the file path of the .pkl file"""
@@ -992,7 +993,7 @@ class Manager():
             #     self.status.progress(i, len(keys), message)
             if key in self.dataset:
                 file = self.filepath(key)
-                self.dataset[key].write(file, self.dialog)
+                self.dataset[key].write(file, self.status)
         #self.status.hide()
 
     def clear(self, *args, keys=None, **kwargs):
@@ -1263,7 +1264,7 @@ class Manager():
                 attributes + ['SOPInstanceUID', 'InstanceNumber'], 
                 values + [new_instance, 1+max_number])
             if not instance_key in self.dataset:
-                ds.write(self.filepath(new_key), self.dialog)
+                ds.write(self.filepath(new_key), self.status)
             row = ds.get_values(self.columns)
 
         # Get new data for the dataframe
@@ -1342,7 +1343,7 @@ class Manager():
                     attributes + ['SOPInstanceUID', 'InstanceNumber'], 
                     values + [new_instances[i], i+1+max_number])
                 if not key in self.dataset:
-                    ds.write(self.filepath(new_key), self.dialog)
+                    ds.write(self.filepath(new_key), self.status)
                 row = ds.get_values(self.columns)
 
             # Get new data for the dataframe
@@ -1424,7 +1425,7 @@ class Manager():
                         attributes + ['SeriesInstanceUID', 'SeriesNumber', 'SOPInstanceUID'], 
                         values + [new_series[s], new_number, dbdataset.new_uid()])
                     if not key in self.dataset:
-                        ds.write(self.filepath(new_key), self.dialog)
+                        ds.write(self.filepath(new_key), self.status)
                     row = ds.get_values(self.columns)
 
                 # Get new data for the dataframe
@@ -1493,7 +1494,7 @@ class Manager():
                             attributes + ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'], 
                             values + [new_studies[s], new_series_uid, dbdataset.new_uid()])
                         if not key in self.dataset:
-                            ds.write(self.filepath(new_key), self.dialog)
+                            ds.write(self.filepath(new_key), self.status)
                         row = ds.get_values(self.columns)
 
                     # Get new data for the dataframe
@@ -1557,7 +1558,7 @@ class Manager():
                                 list(kwargs.keys())+['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PatientName'], 
                                 list(kwargs.values())+[new_patient_uid, new_study_uid, new_series_uid, new_instance_uid, new_patient_name])
                             if not key in self.dataset:
-                                ds.write(self.filepath(new_key), self.dialog)
+                                ds.write(self.filepath(new_key), self.status)
                             row = ds.get_values(self.columns)
 
                         # Get new data for the dataframe
@@ -1699,7 +1700,7 @@ class Manager():
                         attributes + ['InstanceNumber'], 
                         values + [i+1 + max_number])
                     if not key in self.dataset:
-                        ds.write(self.filepath(key), self.dialog)
+                        ds.write(self.filepath(key), self.status)
                     for i, col in enumerate(attributes):
                         if col in self.columns:
                             self.register.at[key,col] = values[i]
@@ -1722,7 +1723,7 @@ class Manager():
                         attributes + ['InstanceNumber'], 
                         values + [i+1+max_number])
                     if not key in self.dataset:
-                        ds.write(self.filepath(new_key), self.dialog)
+                        ds.write(self.filepath(new_key), self.status)
 
                     # Get new data for the dataframe
                     row = ds.get_values(self.columns)
@@ -1849,7 +1850,7 @@ class Manager():
                             attributes + ['SeriesNumber'], 
                             values + [new_number])
                         if not key in self.dataset:
-                            ds.write(self.filepath(key), self.dialog)
+                            ds.write(self.filepath(key), self.status)
                         for i, col in enumerate(attributes):
                             if col in self.columns:
                                 self.register.at[key,col] = values[i]
@@ -1872,7 +1873,7 @@ class Manager():
                             attributes + ['SeriesNumber'], 
                             values + [new_number])
                         if not key in self.dataset:
-                            ds.write(self.filepath(new_key), self.dialog)
+                            ds.write(self.filepath(new_key), self.status)
 
                         # Get new data for the dataframe
                         row = ds.get_values(self.columns)
@@ -1984,7 +1985,7 @@ class Manager():
                         if self.value(key, 'created'): 
                             ds.set_values(attributes, values)
                             if not key in self.dataset:
-                                ds.write(self.filepath(key), self.dialog)
+                                ds.write(self.filepath(key), self.status)
                             for i, col in enumerate(attributes):
                                 if col in self.columns:
                                     self.register.at[key,col] = values[i]
@@ -2006,7 +2007,7 @@ class Manager():
                                 self.dataset[new_key] = ds
                             ds.set_values(attributes, values)
                             if not key in self.dataset:
-                                ds.write(self.filepath(new_key), self.dialog)
+                                ds.write(self.filepath(new_key), self.status)
 
                             # Get new data for the dataframe
                             row = ds.get_values(self.columns)
@@ -2093,7 +2094,7 @@ class Manager():
             if self.value(key, 'created'): 
                 ds.set_values(attributes, values)
                 if not key in self.dataset:
-                    ds.write(self.filepath(key), self.dialog)
+                    ds.write(self.filepath(key), self.status)
                 for i, col in enumerate(attributes):
                     if col in self.columns:
                         self.register.at[key,col] = values[i]
@@ -2113,7 +2114,7 @@ class Manager():
                     self.dataset[new_key] = ds
                 ds.set_values(attributes, values)
                 if not key in self.dataset:
-                    ds.write(self.filepath(new_key), self.dialog)
+                    ds.write(self.filepath(new_key), self.status)
 
                 # Get new data for the dataframe
                 row = ds.get_values(self.columns)
@@ -2224,7 +2225,7 @@ class Manager():
         for file in df.index.tolist():
             new_key = self.new_key()
             ds = dbdataset.read(file)
-            ds.write(self.filepath(new_key), self.dialog)
+            ds.write(self.filepath(new_key), self.status)
             df.rename(index={file:new_key}, inplace=True)
         self.register = pd.concat([self.register, df])
 

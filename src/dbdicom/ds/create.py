@@ -1,6 +1,7 @@
 import pydicom
 
 from pydicom.dataset import Dataset
+from dbdicom.ds.dataset import DbDataset
 from dbdicom.ds.types.xray_angiographic_image import XrayAngiographicImage
 from dbdicom.ds.types.ct_image import CTImage
 from dbdicom.ds.types.mr_image import MRImage
@@ -44,7 +45,7 @@ def read_dataset(file, dialog=None):
     elif type == 'UltrasoundMultiFrameImage':
         return UltrasoundMultiFrameImage(ds)
     else:
-        return ds
+        return DbDataset(ds)
 
 def new_dataset(type):
 
