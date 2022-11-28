@@ -19,7 +19,6 @@ Welcome to dbdicom's documentation!
 
    readme
 
-
 Indices and tables
 ==================
 
