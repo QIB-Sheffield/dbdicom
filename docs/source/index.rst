@@ -6,7 +6,7 @@
 Welcome to dbdicom's documentation!
 ===================================
 
-``dbdicom`` is a Python interface for reading and writing DICOM databases. 
+``dbdicom`` is a new Python interface for reading and writing DICOM databases. 
 
 .. warning::
 
