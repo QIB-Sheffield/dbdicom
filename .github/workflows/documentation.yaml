@@ -1,9 +1,9 @@
 name: Docs
-run-name: "Updating Docs as ${{ github.actor }} has pushed changes to main"
+run-name: "Updating Docs as ${{ github.actor }} has pushed changes to development"
 on:
   push:
     branches: 
-    - main
+    - development
 
 jobs:
   docs:
@@ -34,7 +34,7 @@ jobs:
 
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v3
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/development' }}
         with:
           publish_branch: gh-pages  # default: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
