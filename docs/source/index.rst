@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to dbdicom's documentation!
-===================================
+Welcome to the dbdicom documentation!
+=====================================
 
 ``dbdicom`` is a new Python interface for reading and writing DICOM databases. 
 
