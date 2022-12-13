@@ -235,6 +235,7 @@ def test_read_dataset():
     assert ds.BodyPartExamined == 'BRAIN'
 
     files = filetools.all_files(multiframe)
+    files = [f for f in files if os.path.basename(f) == 'IM_0010']
     ds = read_dataset(files[0])
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
     assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'
