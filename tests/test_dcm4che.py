@@ -27,6 +27,7 @@ def test_multiframe_conversion():
 
     tmp = create_tmp_database(multiframe)
     multiframe_files = [os.path.join(tmp, f) for f in os.listdir(tmp) if os.path.isfile(os.path.join(tmp, f))]
+    multiframe_files = [f for f in multiframe_files if os.path.basename(f) in ['IM_0010','IM_0014']]
     for file in multiframe_files:
         singleframe_files = dcm4che.split_multiframe(file)
         assert [] != singleframe_files
