@@ -230,6 +230,7 @@ def test_EnhancedMRImage():
 def test_read_dataset():
 
     files = filetools.all_files(onefile)
+    files = [f for f in files if os.path.basename(f) == '1-011.dcm']
     ds = read_dataset(files[0])
     assert ds.BodyPartExamined == 'BRAIN'
 
