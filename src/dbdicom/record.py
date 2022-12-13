@@ -42,8 +42,11 @@ class DbRecord():
 
     def keys(self):
         keys = self.manager.register.index[self.loc()]
-        self._key = keys[0]
-        return keys
+        if len(keys) == 0:
+            raise Exception("DICOM record has been deleted")
+        else:
+            self._key = keys[0]
+            return keys
 
     def _set_key(self):
         self._key = self.manager.register.index[self.loc()][0]
