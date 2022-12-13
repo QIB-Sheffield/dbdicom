@@ -24,7 +24,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+#lib/ # taken out as this ignores dcm4che lib folder in external
 lib64/
 parts/
 sdist/
