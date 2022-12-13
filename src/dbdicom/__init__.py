@@ -11,3 +11,4 @@ from dbdicom.record import (
     group, 
     merge, 
 )
+from dbdicom.utils import image

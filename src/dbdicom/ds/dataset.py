@@ -23,8 +23,8 @@ class DbDataset(Dataset):
         if dataset is not None:
             self.__dict__ = dataset.__dict__
 
-    def write(self, file, dialog=None):
-        write(self, file, dialog=dialog)
+    def write(self, file, status=None):
+        write(self, file, status=status)
 
     def get_values(self, tags):
         return get_values(self, tags)
@@ -65,6 +65,9 @@ class DbDataset(Dataset):
     def set_pixel_array(self, array, value_range=None):
         set_pixel_array(self, array, value_range=value_range)
 
+    def get_attribute_affine_matrix(self):
+        return affine_matrix(self)
+
     def affine_matrix(self):
         return affine_matrix(self)
 
@@ -97,7 +100,6 @@ def get_window(ds):
 
 
 def read(file, dialog=None):
-
     try:
         ds = pydicom.dcmread(file)
         return DbDataset(ds)
@@ -108,19 +110,19 @@ def read(file, dialog=None):
         raise FileNotFoundError(message)
 
 
-def write(ds, file, dialog=None): 
-
+def write(ds, file, status=None):
     try:
         # check if directory exists and create it if not
         dir = os.path.dirname(file)
         if not os.path.exists(dir):
             os.makedirs(dir)
-        ds.save_as(file, write_like_original=False) 
-    except Exception as message:
-        if dialog is not None:
-            dialog.information(message) 
+        ds.save_as(file, write_like_original=False)
+    except:
+        msg = 'Cannot write to file \n' + file
+        if status is not None:
+            status.message(msg)
         else:
-            print(message) 
+            print(msg)
 
 
 def codify(source_file, save_file, **kwargs):

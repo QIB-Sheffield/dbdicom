@@ -33,6 +33,9 @@ class DbRecord():
     def __setitem__(self, attributes, values):
         self.set_values(attributes, values)
 
+    def path(self):
+        return self.manager.path
+
     def loc(self):
         df = self.manager.register
         return (df.removed==False) & (df[self.name]==self.uid)
