@@ -10,9 +10,9 @@ import dbdicom.utils.files as filetools
 # data
 #
 
-top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+# top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+# templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
+datapath = os.path.join(os.path.dirname(__file__), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
