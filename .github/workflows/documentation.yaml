@@ -23,9 +23,10 @@ jobs:
         with:
           python-version: '3.7'
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt -r docs/requirements.txt
+      - name: Install Python dependencies
+        uses: py-actions/py-dependency-install@v4
+        with:
+          path: "docs/requirements.txt"
 
       - name: Update Sphinx htmls
         run: |
