@@ -5,7 +5,7 @@ import pydicom
 
 import dbdicom.utils.dcm4che as dcm4che
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+datapath = os.path.join(os.path.dirname(__file__), 'data')
 multiframe = os.path.join(datapath, 'MULTIFRAME')
 MOLLI_enhanced = os.path.join(datapath, 'MOLLI_enhanced')
 

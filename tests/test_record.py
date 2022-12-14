@@ -9,7 +9,7 @@ from dbdicom.ds import MRImage
 
 
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+datapath = os.path.join(os.path.dirname(__file__), 'data')
 ct = os.path.join(datapath, '2_skull_ct')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
