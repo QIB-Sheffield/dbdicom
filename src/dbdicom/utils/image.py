@@ -25,34 +25,27 @@ def affine_matrix(      # single slice function
     return affine 
 
 def affine_matrix_multislice(
-    image_orientation,  # ImageOrientationPatient
-    image_position,     # ImagePositionPatient
+    image_orientation,  # ImageOrientationPatient (same for all slices)
     pixel_spacing,      # PixelSpacing
-    slice_spacing,     # SliceThickness
-    image_position_last_slice,
-    image_position_first_slice,
+    image_position_last_slice, # ImagePositionPatient (last)
+    image_position_first_slice, # ImagePositionPatient (first)
     number_of_slices,
     ):
 
     image_position_last_slice = np.array(image_position_last_slice)
     image_position_first_slice = np.array(image_position_first_slice)
-    substracted_array = np.subtract(image_position_last_slice-image_position_first_slice)
-
-    colm_3D_num = substracted_array
-    colm_3D_den = number_of_slices -1 
-    colm_3D = colm_3D_num / colm_3D_den
+    subtracted_array = np.subtract(image_position_last_slice, image_position_first_slice)
 
     row_spacing = pixel_spacing[0]
     column_spacing = pixel_spacing[1]
 
-    row_cosine = np.array(image_orientation[:3])        # ok
-    column_cosine = np.array(image_orientation[3:])     # ok
-    slice_cosine = np.cross(row_cosine, column_cosine)
+    row_cosine = np.array(image_orientation[:3])    
+    column_cosine = np.array(image_orientation[3:]) 
 
     affine = np.identity(4, dtype=np.float32)
-    affine[:3, 0] = row_cosine * column_spacing         # ok
-    affine[:3, 1] = column_cosine * row_spacing         # ok
-    affine[:3, 2] = colm_3D        # 
+    affine[:3, 0] = row_cosine * column_spacing 
+    affine[:3, 1] = column_cosine * row_spacing
+    affine[:3, 2] = subtracted_array / (number_of_slices-1) 
     affine[:3, 3] = image_position_first_slice
     
     return affine

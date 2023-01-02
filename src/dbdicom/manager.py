@@ -1318,7 +1318,8 @@ class Manager():
 
         for i, key in enumerate(keys):
 
-            #self.status.progress(i+1, len(keys), message='Copying..')
+            if len(keys) > 1:
+                self.status.progress(i+1, len(keys), message='Copying to series..')
 
             new_key = self.new_key()
             instance_uid = self.value(key, 'SOPInstanceUID')
@@ -1364,6 +1365,7 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
+        self.status.hide()
 
         if len(new_instances) == 1:
             return new_instances[0]
@@ -1399,10 +1401,15 @@ class Manager():
 
         for s, series in enumerate(all_series):
 
-            #self.status.progress(s+1, len(all_series), message='Copying..')
             new_number = s + 1 + max_number
 
-            for key in self.keys(series=series):
+            series_keys = self.keys(series=series)
+            for k, key in enumerate(series_keys):
+
+                #msg = 'Copying series ' + str(s+1) + ' of ' + str(len(all_series))
+                msg = 'Copying series ' + self.value(key, 'SeriesDescription')
+                msg += ' (' + str(s+1) + '/' + str(len(all_series)) + ')'
+                self.status.progress(k+1, len(series_keys), msg)
 
                 new_key = self.new_key()
                 instance_uid = self.value(key, 'SOPInstanceUID')
@@ -1447,6 +1454,7 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
+        self.status.hide()
 
         if len(new_series) == 1:
             return new_series[0]
@@ -2166,6 +2174,7 @@ class Manager():
                         value.append(v)
             if len(value) == 1:
                 return value[0]
+            value.sort() # added 30/12/22
             return value
 
         # Multiple attributes
@@ -2200,6 +2209,7 @@ class Manager():
                 va = va[0]
             else:
                 va = list(va)
+                va.sort() # added 30/12/22
             values.append(va)
         return values
 

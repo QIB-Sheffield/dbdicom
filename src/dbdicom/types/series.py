@@ -1,9 +1,13 @@
 import os
 import math
-import timeit
+
+import scipy
 import numpy as np
+import nibabel as nib
+
 from dbdicom.record import DbRecord, copy_to
 from dbdicom.ds import MRImage
+import dbdicom.utils.image as image_utils
 
 
 class Series(DbRecord):
@@ -32,23 +36,29 @@ class Series(DbRecord):
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, key=self.key(), **attr)
         return self.record('Instance', uid, key, **attr)
 
-    def _copy_from(self, record):
-        uids = self.manager.copy_to_series(record.uid, self.uid, **self.attributes)
+    def adopt(self, instances):
+        uids = [i.uid for i in instances]
+        uids = self.manager.copy_to_series(uids, self.uid, **self.attributes)
+        if isinstance(uids, list):
+            return [self.record('Instance', uid) for uid in uids]
+        else:
+            return self.record('Instance', uids)        
+
+    def _copy_from(self, record, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uids = self.manager.copy_to_series(record.uid, self.uid, **attr)
         if isinstance(uids, list):
             return [self.record('Instance', uid) for uid in uids]
         else:
             return self.record('Instance', uids)
 
+    def affine_matrix(self):
+        return affine_matrix(self)
+
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
     def set_array(*args, **kwargs):
-        set_pixel_array(*args, **kwargs)
-
-    def get_pixel_array(*args, **kwargs):
-        return get_pixel_array(*args, **kwargs)
-
-    def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
     def map_mask_to(*args, **kwargs):
@@ -63,6 +73,16 @@ class Series(DbRecord):
     def import_dicom(*args, **kwargs):
         import_dicom(*args, **kwargs)
 
+    #
+    # Following APIs are obsolete and will be removed in future versions
+    #
+
+    def get_pixel_array(*args, **kwargs): 
+        return get_pixel_array(*args, **kwargs)
+
+    def set_pixel_array(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
+
 
 
 def import_dicom(series, files):
@@ -71,10 +91,12 @@ def import_dicom(series, files):
 
 def subseries(record, **kwargs):
     """Extract subseries"""
-
     series = record.new_sibling()
     for instance in record.instances(**kwargs):
         instance.copy_to(series)
+    # This should be faster:
+    # instances = record.instances(**kwargs)
+    # series.adopt(instances)
     return series
 
 def read_npy(record):
@@ -85,7 +107,6 @@ def read_npy(record):
     with open(file, 'rb') as f:
         array = np.load(f)
     return array
-
 
 def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
     """Export array in numpy format"""
@@ -99,32 +120,117 @@ def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_fir
     with open(file, 'wb') as f:
         np.save(f, array)
 
+def affine_matrix(series):
+    """Returns the affine matrix of a series.
+    
+    If the series consists of multiple slice groups with different 
+    image orientations, then a list of affine matrices is returned,
+    one for each slice orientation.
+    """
+    image_orientation = series.ImageOrientationPatient
+    # Multiple slice groups in series - return list of affine matrices
+    if isinstance(image_orientation[0], list):
+        affine_matrices = []
+        for dir in image_orientation:
+            slice_group = series.instances(ImageOrientationPatient=dir)
+            mat = slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append(mat)
+        return affine_matrices
+    # Single slice group in series - return a single affine matrix
+    else:
+        slice_group = series.instances()
+        return slice_group_affine_matrix(slice_group, image_orientation)
+
+
+def slice_group_affine_matrix(slice_group, image_orientation):
+    """Return the affine matrix of a slice group"""
+
+    # single slice
+    if len(slice_group) == 1:
+        return slice_group[0].affine_matrix()
+    # multi slice
+    else:
+        loc = [s.SliceLocation for s in slice_group]
+        # all slices have the same location
+        if len(loc) == 1: 
+            return slice_group[0].affine_matrix()
+        # Slices with different locations
+        else:
+            first = slice_group[loc.index(min(loc))]
+            last = slice_group[loc.index(max(loc))]
+            matrix = image_utils.affine_matrix_multislice(
+                image_orientation,                  
+                first.PixelSpacing,            
+                last.ImagePositionPatient,   
+                first.ImagePositionPatient,  
+                len(slice_group),
+                ) 
+            return matrix 
+
+
+def map_to(series, target, return_array=False, mask=False):
+    """Map non-zero pixels onto another series"""
+
+    # Assume for now 3D series with a single slice group
+    
+    affine_source = series.affine_matrix()
+    affine_target = target.affine_matrix() 
+    source_to_target = np.linalg.inv(affine_source).dot(affine_target) 
+
+    array_source, _ = series.array('SliceLocation', pixels_first=True)
+    array_target, target_headers = target.array('SliceLocation', pixels_first=True)   
+    matrix, offset = nib.affines.to_matvec(source_to_target)
+    mapped = scipy.ndimage.affine_transform(
+        np.squeeze(array_source[:,:,:,0]),
+        #np.squeeze(array_source, axis=3),
+        #array_source[:,:,:,0],
+        matrix = matrix,
+        offset = offset,
+        output_shape = array_target.shape[:3])
+
+    if mask:
+        mapped[mapped > 0.5] = 1
+        mapped[mapped <= 0.5] = 0
+    if return_array:
+        return mapped
+    
+    desc = series.instance().SeriesDescription 
+    desc += ' mapped to ' + target.instance().SeriesDescription
+    mapped_series = series.new_sibling(SeriesDescription = desc)
+    mapped_series.set_array(mapped, target_headers, pixels_first=True)
+    return mapped_series
+
 
 def map_mask_to(series, target):
     """Map non-zero pixels onto another series"""
-    
-    source_images = series.instances()
-    target_images = target.instances() 
-    mapped_series = series.new_sibling(
-        SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
-    )
-    for i, target_image in enumerate(target_images):
-        series.status.progress(i+1, len(target_images))
-        ds_target = target_image.get_dataset()
-        pixel_array = np.zeros((ds_target.Columns, ds_target.Rows), dtype=bool) 
-        for j, source_image in enumerate(source_images):
-            series.status.message(
-                'Mapping source image ' + str(j) + 
-                ' to target image ' + str(i)
-            )
-            ds_source = source_image.get_dataset()
-            array = ds_source.map_mask_to(ds_target)
-            np.logical_or(pixel_array, array, out=pixel_array)
-        if pixel_array.any():
-            mapped_image = target_image.copy_to(mapped_series)
-            mapped_image.set_pixel_array(pixel_array.astype(np.float32))
 
-    return mapped_series
+    return map_to(series, target, mask=True)
+
+# def map_mask_to(series, target):
+#     """Map non-zero pixels onto another series"""
+    
+#     source_images = series.instances()
+#     target_images = target.instances() 
+#     mapped_series = series.new_sibling(
+#         SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
+#     )
+#     for i, target_image in enumerate(target_images):
+#         series.status.progress(i+1, len(target_images))
+#         ds_target = target_image.get_dataset()
+#         pixel_array = np.zeros((ds_target.Columns, ds_target.Rows), dtype=bool) 
+#         for j, source_image in enumerate(source_images):
+#             series.status.message(
+#                 'Mapping source image ' + str(j) + 
+#                 ' to target image ' + str(i)
+#             )
+#             ds_source = source_image.get_dataset()
+#             array = ds_source.map_mask_to(ds_target)
+#             np.logical_or(pixel_array, array, out=pixel_array)
+#         if pixel_array.any():
+#             mapped_image = target_image.copy_to(mapped_series)
+#             mapped_image.set_pixel_array(pixel_array.astype(np.float32))
+
+#     return mapped_series
 
 
 def get_pixel_array(record, sortby=None, pixels_first=False): 
@@ -181,6 +287,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
             array.append(np.zeros((1,1)))
         else:
             array.append(im.get_pixel_array())
+    record.status.hide()
     array = _stack(array)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:

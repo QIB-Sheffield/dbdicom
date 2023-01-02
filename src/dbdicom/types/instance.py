@@ -28,7 +28,7 @@ class Instance(DbRecord):
     def new_child(self, **kwargs): 
         return
 
-    def _copy_from(self, record):
+    def _copy_from(self, record, **kwargs):
         return
 
     def copy_to_series(self, series):
@@ -51,6 +51,9 @@ class Instance(DbRecord):
             ds = new_dataset('MRImage')
         ds.set_pixel_array(array)
         self.set_dataset(ds)
+
+    def affine_matrix(self):
+        return self.get_dataset().affine_matrix()
 
     def set_dataset(self, dataset):
         self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())

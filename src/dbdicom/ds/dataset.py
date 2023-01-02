@@ -111,18 +111,24 @@ def read(file, dialog=None):
 
 
 def write(ds, file, status=None):
-    try:
-        # check if directory exists and create it if not
-        dir = os.path.dirname(file)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        ds.save_as(file, write_like_original=False)
-    except:
-        msg = 'Cannot write to file \n' + file
-        if status is not None:
-            status.message(msg)
-        else:
-            print(msg)
+    # check if directory exists and create it if not
+    dir = os.path.dirname(file)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    ds.save_as(file, write_like_original=False)
+    # try:
+    #     # check if directory exists and create it if not
+    #     dir = os.path.dirname(file)
+    #     if not os.path.exists(dir):
+    #         os.makedirs(dir)
+    #     ds.save_as(file, write_like_original=False)
+    # except:
+    #     msg = 'Cannot write to file \n' + file
+    #     if status is not None:
+    #         status.message(msg)
+    #     else:
+    #         print(msg)
+    #     raise RuntimeError
 
 
 def codify(source_file, save_file, **kwargs):
@@ -202,7 +208,7 @@ def set_values(ds, tags, values):
             if isinstance(tag, str):
                 if hasattr(ds, tag):
                 #if tag in ds:
-                    ds[tag].value = values[i]
+                    ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
@@ -211,18 +217,18 @@ def set_values(ds, tags, values):
                         tag = pydicom.tag.Tag(tag)
                     if not tag.is_private: # Add a new data element
                         VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, values[i])
+                        ds.add_new(tag, VR, format_value(values[i], VR))
                     else:
                         pass # for now
             else: # hexadecimal tuple
                 if tag in ds:
-                    ds[tag].value = values[i]
+                    ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if not isinstance(tag, pydicom.tag.BaseTag):
                         tag = pydicom.tag.Tag(tag)
                     if not tag.is_private: # Add a new data element
                         VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, values[i])
+                        ds.add_new(tag, VR, format_value(values[i], VR))
                     else:
                         pass # for now
     return ds
@@ -249,6 +255,18 @@ def get_values(ds, tags):
                 value = to_set_type(ds[tag].value)
         row.append(value)
     return row
+
+
+def format_value(value, VR=None, tag=None):
+
+    if VR is None:
+        VR = pydicom.datadict.dictionary_VR(tag)
+
+    if VR == 'LO':
+        if len(value) > 64:
+            return value[:64]
+
+    return value
 
 
 def to_set_type(value):
@@ -461,19 +479,22 @@ def get_pixel_array(ds):
 
 def set_pixel_array(ds, array, value_range=None):
     
-    if array.ndim >= 3: # remove spurious dimensions of 1
-        array = np.squeeze(array) 
+    # if array.ndim >= 3: # remove spurious dimensions of 1
+    #     array = np.squeeze(array) 
+
     array = image.clip(array.astype(np.float32), value_range=value_range)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
-    maximum = np.amax(array)
-    minimum = np.amin(array)
+    #maximum = np.amax(array)
+    #minimum = np.amin(array)
     shape = np.shape(array)
 
     ds.PixelRepresentation = 0
-    ds.SmallestImagePixelValue = int(maximum)
-    ds.LargestImagePixelValue = int(minimum)
+    #ds.SmallestImagePixelValue = int(maximum)
+    #ds.LargestImagePixelValue = int(minimum)
+    ds.SmallestImagePixelValue = int(0)
+    ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

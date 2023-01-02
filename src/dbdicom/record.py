@@ -92,7 +92,10 @@ class DbRecord():
     def exists(self):
         if self.manager.register is None:
             return False
-        keys = self.keys().tolist()
+        try:
+            keys = self.keys().tolist()
+        except:
+            return False
         return keys != []
 
     def empty(self):
@@ -183,11 +186,11 @@ class DbRecord():
     def print(self):
         self.manager.print() # print self.uid only
 
-    def copy(self):
-        return self.copy_to(self.parent())
+    def copy(self, **kwargs):
+        return self.copy_to(self.parent(), **kwargs)
 
-    def copy_to(self, target):
-        return target._copy_from(self)
+    def copy_to(self, target, **kwargs):
+        return target._copy_from(self, **kwargs)
     
     def move_to(self, target):
         move_to(self, target)
