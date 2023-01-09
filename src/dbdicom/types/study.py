@@ -24,8 +24,9 @@ class Study(DbRecord):
         attr = {**kwargs, **self.attributes}
         return self.new_series(**attr)
 
-    def _copy_from(self, record):
-        uids = self.manager.copy_to_study(record.uid, self.uid, **self.attributes)
+    def _copy_from(self, record, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uids = self.manager.copy_to_study(record.uid, self.uid, **attr)
         if isinstance(uids, list):
             return [self.record('Series', uid) for uid in uids]
         else:

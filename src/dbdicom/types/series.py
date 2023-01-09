@@ -1,9 +1,12 @@
 import os
 import math
-import timeit
+
 import numpy as np
-from dbdicom.record import DbRecord, copy_to
+
+from dbdicom.record import DbRecord
 from dbdicom.ds import MRImage
+import dbdicom.utils.image as image_utils
+import dbdicom.utils.scipy as scipy_utils
 
 
 class Series(DbRecord):
@@ -32,12 +35,25 @@ class Series(DbRecord):
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, key=self.key(), **attr)
         return self.record('Instance', uid, key, **attr)
 
-    def _copy_from(self, record):
-        uids = self.manager.copy_to_series(record.uid, self.uid, **self.attributes)
+    # replace by clone(). Adopt implies move rather than copy
+    def adopt(self, instances): 
+        uids = [i.uid for i in instances]
+        uids = self.manager.copy_to_series(uids, self.uid, **self.attributes)
+        if isinstance(uids, list):
+            return [self.record('Instance', uid) for uid in uids]
+        else:
+            return self.record('Instance', uids)        
+
+    def _copy_from(self, record, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uids = self.manager.copy_to_series(record.uid, self.uid, **attr)
         if isinstance(uids, list):
             return [self.record('Instance', uid) for uid in uids]
         else:
             return self.record('Instance', uids)
+
+    def affine_matrix(self):
+        return affine_matrix(self)
 
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
@@ -45,23 +61,32 @@ class Series(DbRecord):
     def set_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
-    def get_pixel_array(*args, **kwargs):
-        return get_pixel_array(*args, **kwargs)
-
-    def set_pixel_array(*args, **kwargs):
-        set_pixel_array(*args, **kwargs)
+    def map_to(*args, **kwargs):
+        return scipy_utils.map_to(*args, **kwargs)
 
     def map_mask_to(*args, **kwargs):
-        return map_mask_to(*args, **kwargs)
+        return scipy_utils.map_mask_to(*args, **kwargs)
 
     def export_as_npy(*args, **kwargs):
         export_as_npy(*args, **kwargs)
 
-    def subseries(*args, **kwargs):
-        return subseries(*args, **kwargs)
+    def subseries(*args, move=False, **kwargs):
+        return subseries(*args, move=move, **kwargs)
 
     def import_dicom(*args, **kwargs):
         import_dicom(*args, **kwargs)
+
+    #
+    # Following APIs are obsolete and will be removed in future versions
+    #
+
+    # Obsolete - use array()
+    def get_pixel_array(*args, **kwargs): 
+        return get_pixel_array(*args, **kwargs)
+
+    # Obsolete - use set_array()
+    def set_pixel_array(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
 
 
 
@@ -69,12 +94,17 @@ def import_dicom(series, files):
     uids = series.manager.import_datasets(files)
     series.manager.move_to(uids, series.uid)
 
-def subseries(record, **kwargs):
+def subseries(record, move=False, **kwargs):
     """Extract subseries"""
-
     series = record.new_sibling()
     for instance in record.instances(**kwargs):
-        instance.copy_to(series)
+        if move:
+            instance.move_to(series)
+        else:
+            instance.copy_to(series)
+    # This should be faster:
+    # instances = record.instances(**kwargs)
+    # series.adopt(instances)
     return series
 
 def read_npy(record):
@@ -85,7 +115,6 @@ def read_npy(record):
     with open(file, 'rb') as f:
         array = np.load(f)
     return array
-
 
 def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
     """Export array in numpy format"""
@@ -99,32 +128,46 @@ def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_fir
     with open(file, 'wb') as f:
         np.save(f, array)
 
-
-def map_mask_to(series, target):
-    """Map non-zero pixels onto another series"""
+def affine_matrix(series):
+    """Returns the affine matrix of a series.
     
-    source_images = series.instances()
-    target_images = target.instances() 
-    mapped_series = series.new_sibling(
-        SeriesDescription = series.SeriesDescription + ' mapped to ' + target.SeriesDescription
-    )
-    for i, target_image in enumerate(target_images):
-        series.status.progress(i+1, len(target_images))
-        ds_target = target_image.get_dataset()
-        pixel_array = np.zeros((ds_target.Columns, ds_target.Rows), dtype=bool) 
-        for j, source_image in enumerate(source_images):
-            series.status.message(
-                'Mapping source image ' + str(j) + 
-                ' to target image ' + str(i)
-            )
-            ds_source = source_image.get_dataset()
-            array = ds_source.map_mask_to(ds_target)
-            np.logical_or(pixel_array, array, out=pixel_array)
-        if pixel_array.any():
-            mapped_image = target_image.copy_to(mapped_series)
-            mapped_image.set_pixel_array(pixel_array.astype(np.float32))
+    If the series consists of multiple slice groups with different 
+    image orientations, then a list of affine matrices is returned,
+    one for each slice orientation.
+    """
+    image_orientation = series.ImageOrientationPatient
+    # Multiple slice groups in series - return list of affine matrices
+    if isinstance(image_orientation[0], list):
+        affine_matrices = []
+        for dir in image_orientation:
+            slice_group = series.instances(ImageOrientationPatient=dir)
+            mat = _slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append(mat)
+        return affine_matrices
+    # Single slice group in series - return a single affine matrix
+    else:
+        slice_group = series.instances()
+        return _slice_group_affine_matrix(slice_group, image_orientation)
 
-    return mapped_series
+
+def _slice_group_affine_matrix(slice_group, image_orientation):
+    """Return the affine matrix of a slice group"""
+
+    # single slice
+    if len(slice_group) == 1:
+        return slice_group[0].affine_matrix
+    # multi slice
+    else:
+        image_position_patient = [s.ImagePositionPatient for s in slice_group]
+        if len(image_position_patient) == 1: 
+            return slice_group[0].affine_matrix
+        # Slices with different locations
+        else:
+            return image_utils.affine_matrix_multislice(
+                image_orientation,
+                image_position_patient,
+                slice_group[0].PixelSpacing)    # assume all the same pixel spacing
+
 
 
 def get_pixel_array(record, sortby=None, pixels_first=False): 
@@ -181,6 +224,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
             array.append(np.zeros((1,1)))
         else:
             array.append(im.get_pixel_array())
+    record.status.hide()
     array = _stack(array)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:
@@ -290,53 +334,55 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
 
     # Flatten array and source for iterating
     array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    source = source.reshape(nr_of_slices) # shape (i,)
+    source = source.reshape(nr_of_slices).tolist() # shape (i,)
 
     # set_array replaces current array
+    # -> remove all instances not in the source
+    instances = series.instances()
     for i in series.instances():
-        if i not in source.tolist():
+        if i not in source:
             i.remove()
-    if series.instances() == []:
-        copy = copy_to(source.tolist(), series)
-        #for i, s in enumerate(source.tolist()):
-        #    print(copy[i].SliceLocation, s.SliceLocation) # Not matching up
-    else:
-        copy = source.tolist()
+
+    # Any sources currently not in the series
+    # -> replace by a copy in the series
+    instances = series.instances()
+    copy_source = []
+    for i, s in enumerate(source):
+        series.status.progress(i+1, len(source), 'Saving array (1/2): Copying series..')
+        if s in instances:
+            copy_source.append(s)
+        else:
+            copy_source.append(s.copy_to(series))
+    # if series.instances() == []:
+    #     copy = copy_to(source.tolist(), series)
+    # else:
+    #     copy = source.tolist()
 
     series.manager.pause_extensions()
-    for i, instance in enumerate(copy):
-        series.status.progress(i, len(copy), 'Writing array to file..')
-        instance.set_pixel_array(array[i,...])
+    for i, s in enumerate(copy_source):
+        series.status.progress(i+1, len(copy_source), 'Saving array (2/2): Writing array..')
+        s.set_pixel_array(array[i,...])
     series.manager.resume_extensions()
 
+    # Then replace array
+    # series.manager.pause_extensions()
+    # for i, instance in enumerate(copy):
+    #     series.status.progress(i+1, len(copy), 'Writing array to file..')
+    #     instance.set_pixel_array(array[i,...])
+    # series.manager.resume_extensions()
 
-def amax(record, axis=None):
-    """Calculate the maximum of the image array along a given dimension.
-    
-    This function is included as a placeholder reminder 
-    to build up functionality at series level that emulates 
-    numpy behaviour.
 
-    Args:
-        axis: DICOM KeyWord string to specify the dimension
-        along which the maximum is taken.
+    # More compact but does not work with pause extensions
+    # series.manager.pause_extensions()
+    # for i, s in enumerate(source):
+    #     series.status.progress(i+1, len(source), 'Writing array..')
+    #     if s not in instances:
+    #         s.copy_to(series).set_pixel_array(array[i,...])
+    #     else:
+    #         s.set_pixel_array(array[i,...])
+    # series.manager.resume_extensions()
 
-    Returns:
-        a new sibling series holding the result.
 
-    Example:
-    ```ruby
-    # Create a maximum intensity projection along the slice dimension:
-    mip = series.amax(axis='SliceLocation')
-    ```
-    """
-
-    array, header = record.get_pixel_array(axis)
-    array = np.amax(array, axis=0)
-    header = np.squeeze(header[0,...])
-    series = record.new_sibling()
-    series.set_pixel_array(array, header)
-    return series
 
 
 

@@ -19,8 +19,9 @@ class Patient(DbRecord):
         attr = {**kwargs, **self.attributes}
         return self.new_study(**attr)
 
-    def _copy_from(self, record):
-        uids = self.manager.copy_to_patient(record.uid, self.key(), **self.attributes)
+    def _copy_from(self, record, **kwargs):
+        attr = {**kwargs, **self.attributes}
+        uids = self.manager.copy_to_patient(record.uid, self.key(), **attr)
         if isinstance(uids, list):
             return [self.record('Study', uid) for uid in uids]
         else:
