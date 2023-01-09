@@ -3,11 +3,12 @@
 
 [project]
 name = "dbdicom"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [ 
     "matplotlib",
     "nibabel",
     "numpy",
+    "scipy",
     "pandas",
     "pydicom", 
     "python-gdcm",

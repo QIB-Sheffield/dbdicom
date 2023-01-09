@@ -1,5 +1,6 @@
 import timeit
 import pandas as pd
+import numpy as np
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.manager import Manager
 
@@ -16,6 +17,8 @@ class DbRecord():
         self.new = create
     
     def __eq__(self, other):
+        if other is None:
+            return False
         return self.uid == other.uid
 
     def __getattr__(self, attribute):
@@ -110,8 +113,8 @@ class DbRecord():
     def label(self):
         return self.manager.label(self.uid, key=self.key(), type=self.__class__.__name__)
 
-    def instances(self, sort=True, **kwargs):
-        inst = self.manager.instances(keys=self.keys(), sort=sort, **kwargs)
+    def instances(self, sort=True, sortby=None, **kwargs): # added sortby keyword 09/01/2023
+        inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
         return [self.record('Instance', uid, key) for key, uid in inst.items()]
 
     def series(self, sort=True, **kwargs):
@@ -323,15 +326,20 @@ def copy_to(records, target):
     if not isinstance(records, list):
         return records.copy_to(target)
     copy = []
-    for record in records:
+    desc = target.label()
+    for r, record in enumerate(records):
+        record.status.progress(r+1, len(records), 'Copying ' + desc)
         copy_record = record.copy_to(target)
         if isinstance(copy_record, list):
             copy += copy_record
         else:
             copy.append(copy_record)
+    record.status.hide()
     return copy
 
 def move_to(records, target):
+    #if type(records) is np.ndarray:
+    #    records = records.tolist()
     if not isinstance(records, list):
         records = [records]
     mgr = records[0].manager
@@ -339,21 +347,28 @@ def move_to(records, target):
     mgr.move_to(uids, target.uid, **target.attributes)
     return records
 
-def group(records, into=None):
+def group(records, into=None, inplace=False):
     if not isinstance(records, list):
         records = [records]
     if into is None:
         into = records[0].new_pibling()
-    copy_to(records, into)
+    if inplace:
+        move_to(records, into)
+    else:
+        copy_to(records, into)
     return into
 
-def merge(records, into=None):
+def merge(records, into=None, inplace=False):
     if not isinstance(records, list):
         records = [records]
     children = []
     for record in records:
         children += record.children()
-    return group(children, into=into)
+    new_series = group(children, into=into, inplace=inplace)
+    if inplace:
+        for record in records:
+            record.remove()
+    return new_series
 
 
 # 

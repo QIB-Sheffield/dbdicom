@@ -1217,6 +1217,59 @@ def test_custom_attributes():
 
     remove_tmp_database(tmp)
 
+def test_affine_matrix():
+    tmp = create_tmp_database(rider)
+    database = db.database(tmp)
+    series = database.series()
+
+    # Now do the same thing but on a copy of the instance
+    instance = series[0].instance().copy()
+    new_row_cosine = [0,-1,0]
+    matrix = instance.affine_matrix
+    matrix[:3, 0] = new_row_cosine
+    instance.affine_matrix = matrix
+    assert instance.ImageOrientationPatient[:3] == new_row_cosine
+
+    # Now do the same thing but with acquisition time
+    instance = series[0].instance().copy()
+    new_acq_time = '000000.00'
+    instance.AcquisitionTime = new_acq_time
+    assert instance.AcquisitionTime == new_acq_time
+
+    # Now do the same thing but with image orientation
+    instance = series[0].instance().copy()
+    new_orientation = [0,0,-1, 0, -1, 0]
+    instance.ImageOrientationPatient = new_orientation
+    assert instance.ImageOrientationPatient == new_orientation
+
+    # Now do the same thing again but with the custom attribute colormap
+    instance = series[0].instance().copy()
+    new_colormap = 'viridis'
+    instance.colormap = new_colormap
+    assert instance.colormap == new_colormap
+
+    # Read the affine matrix, change it, write it and check if the change was made
+    instance = series[0].instance()
+    new_row_cosine = [-1,0,0]
+    matrix = instance.affine_matrix
+    matrix[:3, 0] = new_row_cosine
+    instance.affine_matrix = matrix
+    assert instance.ImageOrientationPatient[:3] == new_row_cosine
+
+
+
+
+
+    remove_tmp_database(tmp)
+
+def test_read_time():
+    tmp = create_tmp_database(rider)
+    database = db.database(tmp)
+    series = database.series()
+    instance = series[0].instance()
+    acq_time = instance.AcquisitionTime
+    print(acq_time, type(acq_time))
+
 
 if __name__ == "__main__":
 
@@ -1265,6 +1318,8 @@ if __name__ == "__main__":
     test_import_dicom()
     test_series()
     test_custom_attributes()
+    test_affine_matrix()
+    # test_read_time()
 
 
     print('------------------------')

@@ -52,9 +52,6 @@ class Instance(DbRecord):
         ds.set_pixel_array(array)
         self.set_dataset(ds)
 
-    def affine_matrix(self):
-        return self.get_dataset().affine_matrix()
-
     def set_dataset(self, dataset):
         self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())
 
@@ -97,8 +94,8 @@ def map_to(source, target):
             coords[x*dss.Columns+y,:] = [x,y,0]
 
     # Apply coordinate transformation from source to target
-    affineSource = dss.affine_matrix()
-    affineTarget = dst.affine_matrix()
+    affineSource = dss.get_affine_matrix()
+    affineTarget = dst.get_affine_matrix()
     sourceToTarget = np.linalg.inv(affineTarget).dot(affineSource)
     coords_target = nib.affines.apply_affine(sourceToTarget, coords)
 
@@ -191,7 +188,7 @@ def export_as_nifti(record, directory=None, filename=None):
     ds = record.get_dataset()
     dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
     array = record.get_pixel_array()
-    niftiObj = nib.Nifti1Image(array, ds.affine_matrix())
+    niftiObj = nib.Nifti1Image(array, ds.get_values('affine_matrix'))
     niftiObj.header.extensions.append(dicomHeader)
     nib.save(niftiObj, directory + '/' + filename + '.nii')
 

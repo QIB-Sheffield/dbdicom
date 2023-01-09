@@ -621,7 +621,7 @@ def signal_type(ds):
 
     return signal_type
 
-def affine_matrix(ds):
+def get_affine_matrix(ds):
     """Affine transformation matrix for all images in a multiframe image"""
 
     affineList = []

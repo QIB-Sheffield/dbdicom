@@ -57,4 +57,5 @@ def install():
 
 if __name__ == '__main__':
 
-    distribute()
+    install()
+    #distribute()
