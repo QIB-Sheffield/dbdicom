@@ -44,6 +44,34 @@ class DbDataset(Dataset):
     def set_colormap(*args, **kwargs):
         set_colormap(*args, **kwargs)
 
+    # Should be just pixel_array to fit in with logic 
+    # of custom attributes but conflicts with pydicom definition
+    # go back to just array?
+    def get_pixel_array(self):
+        return get_pixel_array(self)
+
+    def set_pixel_array(self, array, value_range=None):
+        set_pixel_array(self, array, value_range=value_range)
+
+    def map_mask_to(self, ds_target):
+        return map_mask_to(self, ds_target)
+
+    ##
+    ## CUSTOM ATTRIBUTES
+    ## 
+
+    def get_attribute_affine_matrix(self):
+        return get_affine_matrix(self)
+
+    def set_attribute_affine_matrix(*args, **kwargs):
+        set_affine_matrix(*args, **kwargs)
+
+    def get_attribute_window(self):
+        return get_window(self)
+
+    def set_attribute_window(self):
+        set_window(self)
+
     def get_attribute_lut(self): # use _get_attribute to encode these
         return get_lut(self)
 
@@ -56,26 +84,6 @@ class DbDataset(Dataset):
     def set_attribute_colormap(*args, **kwargs):
         set_colormap(*args, **kwargs)
 
-    # Should be just pixel_array to fit in with logic 
-    # of custom attributes but conflicts with pydicom definition
-    # go back to just array?
-    def get_pixel_array(self):
-        return get_pixel_array(self)
-
-    def set_pixel_array(self, array, value_range=None):
-        set_pixel_array(self, array, value_range=value_range)
-
-    def get_attribute_affine_matrix(self):
-        return affine_matrix(self)
-
-    def affine_matrix(self):
-        return affine_matrix(self)
-
-    def get_attribute_window(self):
-        return get_window(self)
-
-    def map_mask_to(self, ds_target):
-        return map_mask_to(self, ds_target)
 
 
 def get_window(ds):
@@ -98,6 +106,10 @@ def get_window(ds):
         #width = p[2] - p[0]
     return centre, width
 
+def set_window(ds, center, width):
+    ds.WindowCenter = center
+    ds.WindowWidth = width
+
 
 def read(file, dialog=None):
     try:
@@ -111,18 +123,24 @@ def read(file, dialog=None):
 
 
 def write(ds, file, status=None):
-    try:
-        # check if directory exists and create it if not
-        dir = os.path.dirname(file)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        ds.save_as(file, write_like_original=False)
-    except:
-        msg = 'Cannot write to file \n' + file
-        if status is not None:
-            status.message(msg)
-        else:
-            print(msg)
+    # check if directory exists and create it if not
+    dir = os.path.dirname(file)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    ds.save_as(file, write_like_original=False)
+    # try:
+    #     # check if directory exists and create it if not
+    #     dir = os.path.dirname(file)
+    #     if not os.path.exists(dir):
+    #         os.makedirs(dir)
+    #     ds.save_as(file, write_like_original=False)
+    # except:
+    #     msg = 'Cannot write to file \n' + file
+    #     if status is not None:
+    #         status.message(msg)
+    #     else:
+    #         print(msg)
+    #     raise RuntimeError
 
 
 def codify(source_file, save_file, **kwargs):
@@ -202,7 +220,7 @@ def set_values(ds, tags, values):
             if isinstance(tag, str):
                 if hasattr(ds, tag):
                 #if tag in ds:
-                    ds[tag].value = values[i]
+                    ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
@@ -211,18 +229,18 @@ def set_values(ds, tags, values):
                         tag = pydicom.tag.Tag(tag)
                     if not tag.is_private: # Add a new data element
                         VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, values[i])
+                        ds.add_new(tag, VR, format_value(values[i], VR))
                     else:
                         pass # for now
             else: # hexadecimal tuple
                 if tag in ds:
-                    ds[tag].value = values[i]
+                    ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if not isinstance(tag, pydicom.tag.BaseTag):
                         tag = pydicom.tag.Tag(tag)
                     if not tag.is_private: # Add a new data element
                         VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, values[i])
+                        ds.add_new(tag, VR, format_value(values[i], VR))
                     else:
                         pass # for now
     return ds
@@ -249,6 +267,19 @@ def get_values(ds, tags):
                 value = to_set_type(ds[tag].value)
         row.append(value)
     return row
+
+
+def format_value(value, VR=None, tag=None):
+
+    if VR is None:
+        VR = pydicom.datadict.dictionary_VR(tag)
+
+    if VR == 'LO':
+        if len(value) > 64:
+            return value[-64:]
+            #return value[:64]
+
+    return value
 
 
 def to_set_type(value):
@@ -288,14 +319,23 @@ def new_uid(n=None):
         return [pydicom.uid.generate_uid() for _ in range(n)]
 
 
-def affine_matrix(ds):
+def get_affine_matrix(ds):
     """Affine transformation matrix for a DICOM image"""
 
     return image.affine_matrix(
-        ds.ImageOrientationPatient, 
-        ds.ImagePositionPatient, 
-        ds.PixelSpacing, 
-        ds.SliceThickness)
+        get_values(ds, 'ImageOrientationPatient'), 
+        get_values(ds, 'ImagePositionPatient'), 
+        get_values(ds, 'PixelSpacing'), 
+        get_values(ds, 'SliceThickness'))
+
+
+def set_affine_matrix(ds, affine):
+    v = image.dismantle_affine_matrix(affine)
+    set_values(ds, 'PixelSpacing', v['PixelSpacing'])
+    set_values(ds, 'SliceThickness', v['SliceThickness'])
+    set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
+    set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
+
 
 def map_mask_to(ds_source, ds_target):
     """Map non-zero image pixels onto a target image.
@@ -308,8 +348,8 @@ def map_mask_to(ds_source, ds_target):
     coords = np.array(coords)
 
     # Determine coordinate transformation matrix
-    affine_source = ds_source.affine_matrix()
-    affine_target = ds_target.affine_matrix()
+    affine_source = ds_source.get_values('affine_matrix')
+    affine_target = ds_target.get_values('affine_matrix')
     source_to_target = np.linalg.inv(affine_target).dot(affine_source)
 
     # Apply coordinate transformation and interpolate (nearest neighbour)
@@ -461,19 +501,22 @@ def get_pixel_array(ds):
 
 def set_pixel_array(ds, array, value_range=None):
     
-    if array.ndim >= 3: # remove spurious dimensions of 1
-        array = np.squeeze(array) 
+    # if array.ndim >= 3: # remove spurious dimensions of 1
+    #     array = np.squeeze(array) 
+
     array = image.clip(array.astype(np.float32), value_range=value_range)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
-    maximum = np.amax(array)
-    minimum = np.amin(array)
+    #maximum = np.amax(array)
+    #minimum = np.amin(array)
     shape = np.shape(array)
 
     ds.PixelRepresentation = 0
-    ds.SmallestImagePixelValue = int(maximum)
-    ds.LargestImagePixelValue = int(minimum)
+    #ds.SmallestImagePixelValue = int(maximum)
+    #ds.LargestImagePixelValue = int(minimum)
+    ds.SmallestImagePixelValue = int(0)
+    ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

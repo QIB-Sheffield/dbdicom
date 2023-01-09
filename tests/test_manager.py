@@ -6,7 +6,7 @@ import numpy as np
 from dbdicom.manager import Manager
 from dbdicom.ds import MRImage
 
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+datapath = os.path.join(os.path.dirname(__file__), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')

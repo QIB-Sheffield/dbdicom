@@ -10,9 +10,9 @@ import dbdicom.utils.files as filetools
 # data
 #
 
-top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
-datapath = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+# top = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+# templates = os.path.join(os.path.join(os.path.join(top, 'src'), 'dbdicom'), 'templates')
+datapath = os.path.join(os.path.dirname(__file__), 'data')
 twofiles = os.path.join(datapath, 'TWOFILES')
 onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
@@ -218,6 +218,7 @@ def test_EnhancedMRImage():
 
     # create from file
     files = filetools.all_files(multiframe)
+    files = [f for f in files if os.path.basename(f) == 'IM_0010']
     ds = pydicom.dcmread(files[0])
     ds = EnhancedMRImage(ds)
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
@@ -229,10 +230,12 @@ def test_EnhancedMRImage():
 def test_read_dataset():
 
     files = filetools.all_files(onefile)
+    files = [f for f in files if os.path.basename(f) == '1-011.dcm']
     ds = read_dataset(files[0])
     assert ds.BodyPartExamined == 'BRAIN'
 
     files = filetools.all_files(multiframe)
+    files = [f for f in files if os.path.basename(f) == 'IM_0010']
     ds = read_dataset(files[0])
     assert ds.file_meta.ImplementationVersionName == 'Philips MR 56.1'
     assert ds.SharedFunctionalGroupsSequence[0].ReferencedImageSequence[0].PurposeOfReferenceCodeSequence[0].ContextUID == '1.2.840.10008.6.1.508'

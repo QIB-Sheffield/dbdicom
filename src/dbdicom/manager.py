@@ -191,7 +191,12 @@ class Manager():
         if self.path is None:
             raise ValueError('Cannot open database - no path is specified')
         if os.path.exists(self._pkl()):
-            self._read_df()
+            try:
+                self._read_df()
+            except:
+                # If the file is corrupted, delete it and load again
+                os.remove(self._pkl())
+                self.scan(unzip=unzip)
         else:
             self.scan(unzip=unzip)
         return self
@@ -377,11 +382,12 @@ class Manager():
         return df[keys]
 
 
-    def instances(self, uid=None, keys=None, sort=True, **kwargs):
+    def instances(self, uid=None, keys=None, sort=True, sortby=None, **kwargs): # added sortby 09/01/2023
         if keys is None:
             keys = self.keys(uid)
         if sort:
-            sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
+            if sortby is None:
+                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
             df = self.register.loc[keys, sortby + ['SOPInstanceUID']]
             df.sort_values(sortby, inplace=True)
             df = df.SOPInstanceUID
@@ -635,31 +641,6 @@ class Manager():
                 return dataset[0]
         else:
             return dataset
-
-
-    # def _get_dataset(self, instances):
-    #     """Helper function"""
-
-    #     for key, uid in instances.items():
-    #         ds = self.get_dataset(uid, [key])
-    #         if ds is not None:
-    #             return ds
-    #     return None
-
-
-    # def _get_values(self, instances, attr):
-    #     """Helper function"""
-
-    #     #ds = self._get_dataset(instances)
-    #     ds = None
-    #     for key, uid in instances.items():
-    #         ds = self.get_dataset(uid, [key])
-    #         if ds is not None:
-    #             break
-    #     if ds is None:
-    #         return [None] * len(attr)
-    #     else:
-    #         return ds.get_values(attr)
 
 
     def _get_values(self, keys, attr):
@@ -1318,7 +1299,8 @@ class Manager():
 
         for i, key in enumerate(keys):
 
-            #self.status.progress(i+1, len(keys), message='Copying..')
+            if len(keys) > 1:
+                self.status.progress(i+1, len(keys), message='Copying to series..')
 
             new_key = self.new_key()
             instance_uid = self.value(key, 'SOPInstanceUID')
@@ -1364,6 +1346,8 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
+        if len(keys) > 1:
+            self.status.hide()
 
         if len(new_instances) == 1:
             return new_instances[0]
@@ -1399,10 +1383,15 @@ class Manager():
 
         for s, series in enumerate(all_series):
 
-            #self.status.progress(s+1, len(all_series), message='Copying..')
             new_number = s + 1 + max_number
 
-            for key in self.keys(series=series):
+            series_keys = self.keys(series=series)
+            for k, key in enumerate(series_keys):
+
+                #msg = 'Copying series ' + str(s+1) + ' of ' + str(len(all_series))
+                msg = 'Copying series ' + self.value(key, 'SeriesDescription')
+                msg += ' (' + str(s+1) + '/' + str(len(all_series)) + ')'
+                self.status.progress(k+1, len(series_keys), msg)
 
                 new_key = self.new_key()
                 instance_uid = self.value(key, 'SOPInstanceUID')
@@ -1447,6 +1436,7 @@ class Manager():
         self._new_keys += copy_keys
         self._new_data += copy_data
         self.extend()
+        self.status.hide()
 
         if len(new_series) == 1:
             return new_series[0]
@@ -1701,9 +1691,12 @@ class Manager():
                         values + [i+1 + max_number])
                     if not key in self.dataset:
                         ds.write(self.filepath(key), self.status)
-                    for i, col in enumerate(attributes):
-                        if col in self.columns:
-                            self.register.at[key,col] = values[i]
+                    row = ds.get_values(self.columns)
+                    for i, c in enumerate(self.columns): 
+                        self.register.at[key, c] = row[i]
+                    # for i, col in enumerate(attributes):
+                    #     if col in self.columns:
+                    #         self.register.at[key,col] = values[i]
                     self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
 
                 # If this is the first change, then save results in a copy.
@@ -1851,9 +1844,12 @@ class Manager():
                             values + [new_number])
                         if not key in self.dataset:
                             ds.write(self.filepath(key), self.status)
-                        for i, col in enumerate(attributes):
-                            if col in self.columns:
-                                self.register.at[key,col] = values[i]
+                        row = ds.get_values(self.columns)
+                        for i, c in enumerate(self.columns): 
+                            self.register.at[key, c] = row[i]
+                        # for i, col in enumerate(attributes):
+                        #     if col in self.columns:
+                        #         self.register.at[key,col] = values[i]
                         self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
 
                     # If this is the first change, then save results in a copy.
@@ -1986,9 +1982,12 @@ class Manager():
                             ds.set_values(attributes, values)
                             if not key in self.dataset:
                                 ds.write(self.filepath(key), self.status)
-                            for i, col in enumerate(attributes):
-                                if col in self.columns:
-                                    self.register.at[key,col] = values[i]
+                            row = ds.get_values(self.columns)
+                            for i, c in enumerate(self.columns): 
+                                self.register.at[key, c] = row[i]
+                            # for i, col in enumerate(attributes):
+                            #     if col in self.columns:
+                            #         self.register.at[key,col] = values[i]
                             self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
 
                         # If this is the first change, then save results in a copy.
@@ -2095,9 +2094,16 @@ class Manager():
                 ds.set_values(attributes, values)
                 if not key in self.dataset:
                     ds.write(self.filepath(key), self.status)
-                for i, col in enumerate(attributes):
-                    if col in self.columns:
-                        self.register.at[key,col] = values[i]
+                # Get new data for the dataframe
+                # The variable values can't be used - if it is a custom attribute
+                # such as affine_matrix the this will have made other changes on the fly
+                # such as ImageOrientationPatient and SliceLocation
+                row = ds.get_values(self.columns)
+                for i, c in enumerate(self.columns): 
+                    self.register.at[key, c] = row[i]
+                # for i, col in enumerate(attributes):
+                #     if col in self.columns:
+                #         self.register.at[key,col] = values[i]
                 new_key = key
             # If this is the first change, then save results in a copy
             else:  
@@ -2166,6 +2172,10 @@ class Manager():
                         value.append(v)
             if len(value) == 1:
                 return value[0]
+            try: 
+                value.sort() # added 30/12/22
+            except:
+                pass
             return value
 
         # Multiple attributes
@@ -2200,6 +2210,10 @@ class Manager():
                 va = va[0]
             else:
                 va = list(va)
+                try: 
+                    va.sort() # added 30/12/22
+                except:
+                    pass
             values.append(va)
         return values
 

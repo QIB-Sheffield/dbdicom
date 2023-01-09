@@ -1,10 +1,12 @@
 matplotlib
 nibabel
 numpy
+scipy
 pandas
 pydicom
 python-gdcm
 pylibjpeg-libjpeg
+importlib-resources
 sphinx
 sphinx_rtd_theme
 myst-parser
