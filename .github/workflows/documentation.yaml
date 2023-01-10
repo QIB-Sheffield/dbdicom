@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r docs/requirements.txt
 
       - name: Update Sphinx htmls
         run: |
