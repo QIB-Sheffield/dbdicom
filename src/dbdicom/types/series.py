@@ -76,6 +76,9 @@ class Series(DbRecord):
     def import_dicom(*args, **kwargs):
         import_dicom(*args, **kwargs)
 
+    def slice_groups(*args, **kwargs):
+        return slice_groups(*args, **kwargs)
+
     #
     # Following APIs are obsolete and will be removed in future versions
     #
@@ -93,6 +96,13 @@ class Series(DbRecord):
 def import_dicom(series, files):
     uids = series.manager.import_datasets(files)
     series.manager.move_to(uids, series.uid)
+
+def slice_groups(series): # not yet in use
+    slice_groups = []
+    for orientation in series.ImageOrientationPatient:
+        sg = series.instances(ImageOrientationPatient=orientation)
+        slice_groups.append(sg)
+    return slice_groups
 
 def subseries(record, move=False, **kwargs):
     """Extract subseries"""
@@ -141,13 +151,14 @@ def affine_matrix(series):
         affine_matrices = []
         for dir in image_orientation:
             slice_group = series.instances(ImageOrientationPatient=dir)
-            mat = _slice_group_affine_matrix(slice_group, dir)
-            affine_matrices.append(mat)
+            affine = _slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append((affine, slice_group))
         return affine_matrices
     # Single slice group in series - return a single affine matrix
     else:
         slice_group = series.instances()
-        return _slice_group_affine_matrix(slice_group, image_orientation)
+        affine = _slice_group_affine_matrix(slice_group, image_orientation)
+        return affine, slice_group
 
 
 def _slice_group_affine_matrix(slice_group, image_orientation):
