@@ -142,14 +142,11 @@ def map_mask_to(source, target):
         mapped_arrays = []
         mapped_headers = []
         for affine_slice_group_target in affine_target:
-#            v = image_utils.dismantle_affine_matrix(affine_slice_group_target)
-#            slice_group_target = target.subseries(move=True, ImageOrientationPatient = v['ImageOrientationPatient'])
             slice_group_target = target.new_sibling()
             slice_group_target.adopt(affine_slice_group_target[1])
             mapped, headers = _map_mask_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group_target[0])
             mapped_arrays.append(mapped)
             mapped_headers.append(headers)
-            #move_to(slice_group_target, target)
             slice_group_target.remove()
     else:
         mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(source, target, affine_source, affine_target[0])
@@ -162,8 +159,6 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
     if isinstance(affine_source, list):
         mapped_arrays = []
         for affine_slice_group in affine_source:
-            #v = image_utils.dismantle_affine_matrix(affine_slice_group)
-            #slice_group_source = source.subseries(ImageOrientationPatient = v['ImageOrientationPatient'])
             slice_group_source = source.new_sibling()
             slice_group_source.adopt(affine_slice_group[1])
             mapped, headers = _map_mask_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target)

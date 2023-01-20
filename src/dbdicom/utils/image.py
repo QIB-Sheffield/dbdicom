@@ -216,8 +216,9 @@ def affine_matrix_multislice(
     column_cosine = np.array(image_orientation[3:]) 
     slice_cosine = np.cross(row_cosine, column_cosine)
 
-    number_of_slices = len(image_positions)
     image_locations = [np.dot(np.array(pos), slice_cosine) for pos in image_positions]
+    #number_of_slices = len(image_positions)
+    number_of_slices = np.unique(image_locations).size
     slab_thickness = max(image_locations) - min(image_locations)
     slice_spacing = slab_thickness / (number_of_slices - 1)
     image_position_first_slice = image_positions[image_locations.index(min(image_locations))]
@@ -250,7 +251,20 @@ def dismantle_affine_matrix(affine):
         'slice_cosine': slice_cosine.tolist()} 
     
 
-
+def image_position_patient(affine, number_of_slices):
+    slab = dismantle_affine_matrix(affine)
+    image_positions = []
+    image_locations = []
+    for s in range(number_of_slices):
+        pos = [
+            slab['ImagePositionPatient'][i] 
+            + s*slab['SliceThickness']*slab['slice_cosine'][i]
+            for i in range(3)
+        ]
+        loc = np.dot(np.array(pos), np.array(slab['slice_cosine']))
+        image_positions.append(pos)
+        image_locations.append(loc)
+    return image_positions, image_locations
 
 
 def clip(array, value_range = None):

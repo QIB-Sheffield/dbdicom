@@ -20,7 +20,8 @@ class Series(DbRecord):
         self.manager.delete_series([self.uid])
 
     def parent(self):
-        uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        #uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        uid = self.manager._at(self.key(), 'StudyInstanceUID')
         return self.record('Study', uid, key=self.key())
 
     def children(self, **kwargs):
@@ -146,6 +147,8 @@ def affine_matrix(series):
     one for each slice orientation.
     """
     image_orientation = series.ImageOrientationPatient
+    if image_orientation is None:
+        return
     # Multiple slice groups in series - return list of affine matrices
     if isinstance(image_orientation[0], list):
         affine_matrices = []
@@ -166,7 +169,7 @@ def _slice_group_affine_matrix(slice_group, image_orientation):
 
     # single slice
     if len(slice_group) == 1:
-        return slice_group[0].affine_matrix
+        return slice_group[0].affine_matrix # PROBLEM HERE pixel_spacing not found
     # multi slice
     else:
         image_position_patient = [s.ImagePositionPatient for s in slice_group]
@@ -237,6 +240,8 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
             array.append(im.get_pixel_array())
     record.status.hide()
     array = _stack(array)
+    if array is None:
+        return None, None
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:
         array = np.moveaxis(array, -1, 0)
@@ -244,7 +249,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False): 
+def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -314,73 +319,60 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         ```
     """
 
-    if pixels_first:    # Move to the end (default)
+    # Move pixels to the end (default)
+    if pixels_first:    
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
-    # if no header data is provided, use template headers.
-    # Note - looses information on dimensionality of array
-    # Everything is reduced to 3D
-    if source is None:
-        if array.ndim <= 2:
-            n = 1
-        else:
-            n = np.prod(array.shape[:-2])
-        source = np.empty(n, dtype=object)
-        for i in range(n): 
-            source[i] = series.new_instance(MRImage())  
-        if array.ndim > 2:
-            source = source.reshape(array.shape[:-2])
-        set_pixel_array(series, array, source)
-        #source = instance_array(series)
-
-    # Return with error message if dataset and array do not match.
+    # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
-    if nr_of_slices != np.prod(source.shape):
-        message = 'Error in set_array(): array and source do not match'
-        message += '\n Array has ' + str(nr_of_slices) + ' elements'
-        message += '\n Source has ' + str(np.prod(source.shape)) + ' elements'
-        series.dialog.error(message)
-        raise ValueError(message)
+    if source is None:
+        image = series.new_instance(MRImage())
+        source = [image] * nr_of_slices
 
-    # Flatten array and source for iterating
-    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    source = source.reshape(nr_of_slices).tolist() # shape (i,)
+    # If the header data are not the same size, use only the first one.
+    else:
+        if isinstance(source, list):
+            pass
+        elif isinstance(source, np.ndarray):
+            source = source.ravel().tolist()
+        else: # assume scalar
+            source = [source] * nr_of_slices
+        if nr_of_slices != len(source):
+            source = [source[0]] * nr_of_slices
 
-    # set_array replaces current array
-    # -> remove all instances not in the source
-    instances = series.instances()
-    for i in series.instances():
-        if i not in source:
-            i.remove()
-
-    # Any sources currently not in the series
-    # -> replace by a copy in the series
-    instances = series.instances()
+    # Copy all sources to the series, if they are not part of it
     copy_source = []
+    instances = series.instances()
     for i, s in enumerate(source):
         series.status.progress(i+1, len(source), 'Saving array (1/2): Copying series..')
         if s in instances:
             copy_source.append(s)
         else:
             copy_source.append(s.copy_to(series))
-    # if series.instances() == []:
-    #     copy = copy_to(source.tolist(), series)
-    # else:
-    #     copy = source.tolist()
 
+    # Faster but does not work if all sources are the same
+    # series.status.message('Saving array (1/2): Copying series..')
+    # instances = series.instances()
+    # to_copy = [i for i in range(len(source)) if source[i] not in instances]
+    # copied = series.adopt([source[i] for i in to_copy])
+    # for i, c in enumerate(copied):
+    #     source[to_copy[i]] = c
+
+    # Flatten array for iterating
+    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
     series.manager.pause_extensions()
-    for i, s in enumerate(copy_source):
+    for i, image in enumerate(copy_source):
         series.status.progress(i+1, len(copy_source), 'Saving array (2/2): Writing array..')
-        s.set_pixel_array(array[i,...])
+        image.read()
+        for attr, vals in kwargs.items():
+            if isinstance(vals, list):
+                setattr(image, attr, vals[i])
+            else:
+                setattr(image, attr, vals)
+        image.set_pixel_array(array[i,...])
+        image.clear()
     series.manager.resume_extensions()
-
-    # Then replace array
-    # series.manager.pause_extensions()
-    # for i, instance in enumerate(copy):
-    #     series.status.progress(i+1, len(copy), 'Writing array to file..')
-    #     instance.set_pixel_array(array[i,...])
-    # series.manager.resume_extensions()
 
 
     # More compact but does not work with pause extensions
@@ -419,19 +411,8 @@ def instance_array(record, sortby=None, status=True):
         return array
     else:
         df = record.read_dataframe(sortby + ['SOPInstanceUID'])
-        # if set(sortby) <= set(record.manager.register):
-        #     df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
-        #     # df = record.manager.register.loc[record.register().index, sortby]
-        # else:
-        #     ds = record.get_dataset()
-        #     df = dbdataset.get_dataframe(ds, sortby)
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
-
-# def dataframe(record): # OBSOLETE replace by record.register()
-
-#     keys = record.manager.keys(record.uid)
-#     return record.manager.register.loc[keys, :]
 
 
 def df_to_sorted_instance_array(record, df, sortby, status=True): 
@@ -441,7 +422,16 @@ def df_to_sorted_instance_array(record, df, sortby, status=True):
     for i, c in enumerate(vals):
         if status: 
             record.progress(i, len(vals), message='Sorting..')
-        dfc = df[df[sortby[0]] == c]
+        # if a type is not supported by np.isnan()
+        # assume it is not a nan
+        try: 
+            nan = np.isnan(c)
+        except: 
+            nan = False
+        if nan:
+            dfc = df[df[sortby[0]].isnull()]
+        else:
+            dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
         else:
@@ -462,16 +452,21 @@ def df_to_instance_array(record, df):
         data[i] = record.instance(key=item[0])
     return data
 
+
 def _stack(arrays, align_left=False):
     """Stack a list of arrays of different shapes but same number of dimensions.
     
     This generalises numpy.stack to arrays of different sizes.
     The stack has the size of the largest array.
     If an array is smaller it is zero-padded and centred on the middle.
+    None items are removed first before stacking
     """
 
     # Get the dimensions of the stack
     # For each dimension, look for the largest values across all arrays
+    arrays = [a for a in arrays if a is not None]
+    if arrays == []:
+        return
     ndim = len(arrays[0].shape)
     dim = [0] * ndim
     for array in arrays:

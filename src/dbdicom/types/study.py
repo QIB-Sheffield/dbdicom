@@ -14,7 +14,8 @@ class Study(DbRecord):
         return self.record('Series', uid, key, **attr)
 
     def parent(self):
-        uid = self.manager.register.at[self.key(), 'PatientID']
+        #uid = self.manager.register.at[self.key(), 'PatientID']
+        uid = self.manager._at(self.key(), 'PatientID')
         return self.record('Patient', uid, key=self.key())
 
     def children(self, **kwargs):

@@ -4,12 +4,15 @@ from dbdicom.record import DbRecord
 class Database(DbRecord):
 
     def loc(self):
-        df = self.manager.register
-        return df.removed==False
+        return self.manager._dbloc()
+        # df = self.manager.register
+        # return df.removed==False
 
     def _set_key(self):
-        if not self.manager.register.empty:
-            self._key = self.manager.register.index[0]
+        #if not self.manager.register.empty:
+        if not self.manager._empty():
+            self._key = self.manager._keys(0)
+            #self._key = self.manager.register.index[0]
         else:
             self._key = None
 

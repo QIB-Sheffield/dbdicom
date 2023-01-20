@@ -19,6 +19,7 @@ class DatabaseCorrupted(Exception):
     pass
 
 
+
 class Manager(): 
     """Programming interface for reading and writing a DICOM folder."""
 
@@ -72,7 +73,13 @@ class Manager():
             self.dataset = {}
             return
         files = filetools.all_files(self.path)
-        self.register = dbdataset.read_dataframe(files, self.columns+['NumberOfFrames'], self.status, path=self.path, message='Reading database..')
+        self.register = dbdataset.read_dataframe(
+            files, 
+            self.columns+['NumberOfFrames'], 
+            self.status, 
+            path=self.path, 
+            message='Reading database..', 
+            images_only = True)
         self.register['removed'] = False
         self.register['created'] = False
         self.register['placeholder'] = False
@@ -86,8 +93,41 @@ class Manager():
         df.created = True
         df.placeholder = True
         self.register = pd.concat([self.register, df])
+        self._split_series()
+        self.save()
         return self
 
+
+    def _split_series(self):
+        """
+        Split series with multiple SOP Classes.
+
+        If a series contain instances from different SOP Classes, 
+        these are separated out into multiple series with identical SOP Classes.
+        """
+        df = self.register
+        df = df[df.removed == False]
+
+        # For each series, check if there are multiple
+        # SOP Classes in the series and split them if yes.
+        all_series = df.SeriesInstanceUID.unique()
+        for s, series in enumerate(all_series):
+            msg = 'Splitting series with multiple data types'
+            self.status.progress(s+1, len(all_series), message=msg)
+            df_series = df[df.SeriesInstanceUID == series]
+            sop_classes = df_series.SOPClassUID.unique()
+            if len(sop_classes) > 1:
+                # For each sop_class, create a new series and move all
+                # instances of that sop_class to the new series
+                study = self.parent(series)
+                series_desc = df_series.SeriesDescription.values[0]
+                for i, sop_class in enumerate(sop_classes[1:]):
+                    desc = series_desc + ' [' + str(i+1) + ']'
+                    new_series, _ = self.new_series(parent=study, SeriesDescription=desc)
+                    df_sop_class = df_series[df_series.SOPClassUID == sop_class]
+                    instances = df_sop_class.SOPInstanceUID.values.tolist()
+                    moved = self.move_to_series(instances, new_series)
+                    
 
     def _multiframe_to_singleframe(self):
         """Converts all multiframe files in the folder into single-frame files.
@@ -382,7 +422,7 @@ class Manager():
         return df[keys]
 
 
-    def instances(self, uid=None, keys=None, sort=True, sortby=None, **kwargs): # added sortby 09/01/2023
+    def instances(self, uid=None, keys=None, sort=True, sortby=None, images=False, **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:
@@ -393,13 +433,21 @@ class Manager():
             df = df.SOPInstanceUID
         else:
             df = self.register.loc[keys,'SOPInstanceUID']
-        return self.filter_instances(df, **kwargs)
+        df = self.filter_instances(df, **kwargs)
+        if images == True:
+            keys = [key for key in df.index if self.get_values('Rows', [key]) is not None]
+            df = df[keys]
+        return df
 
 
-    def series(self, uid=None, keys=None, sort=True, **kwargs):
+    def series(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:
+            if sortby is None:
+                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
+            if not isinstance(sortby, list):
+                sortby = [sortby]
             sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
             df = self.register.loc[keys, sortby + ['SeriesInstanceUID']]
             df.sort_values(sortby, inplace=True)
@@ -1074,6 +1122,8 @@ class Manager():
 
     def save(self, rows=None): 
 
+        self.status.message('Saving changes..')
+
         no_placeholder = self.register.placeholder==False
         created = self.register.created & (self.register.removed==False) & no_placeholder
         removed = self.register.removed & no_placeholder
@@ -1565,21 +1615,6 @@ class Manager():
             return new_patients[0]
         else:
             return new_patients
-            
-
-    # def copy_to(self, source, target, target_type, **kwargs):
-
-    #     #type = self.type(target)
-    #     if target_type == 'Database':
-    #         return self.copy_to_database(source, target, **kwargs)
-    #     if target_type == 'Patient':
-    #         return self.copy_to_patient(source, target, **kwargs)
-    #     if target_type == 'Study':
-    #         return self.copy_to_study(source, target, **kwargs)
-    #     if target_type == 'Series':
-    #         return self.copy_to_series(source, target, **kwargs)
-    #     if target_type == 'Instance':
-    #         raise ValueError('Cannot copy to an instance. Please copy to series, study or patient.')
             
 
     def drop_if_missing(self, key, missing='SOPInstanceUID'):
@@ -2251,3 +2286,30 @@ class Manager():
         
         files = self.filepaths(uids)
         database.import_datasets(files)
+
+
+#   Helper functions to hide the register from classes other than manager
+#   Consider removing after eliminating dataframe
+
+    def _empty(self):
+        return self.register.empty
+
+    def _dbloc(self):
+        return self.register.removed==False
+
+    def _keys(self, loc):
+        return self.register.index[loc]
+
+    def _at(self, row, col):
+        return self.register.at[row, col]
+
+    def _extract(self, rows):
+        return self.register.loc[rows,:]
+
+    def _loc(self, name, uid):
+        df = self.register
+        return (df.removed==False) & (df[name]==uid)  
+
+    def _extract_record(self, name, uid):
+        return self.register[name] == uid
+
