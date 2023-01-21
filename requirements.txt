@@ -1,7 +1,7 @@
 matplotlib
 nibabel
 numpy
-scipy
+# scipy
 pandas
 pydicom
 python-gdcm

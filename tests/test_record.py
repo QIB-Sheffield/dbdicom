@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 import dbdicom as db
 from dbdicom.ds import MRImage
+from dbdicom.wrappers import scipy
 
 
 
@@ -1016,7 +1017,9 @@ def test_instance_map_to():
     database = db.database(tmp)
     images = database.instances()
     try:
-        map = images[0].map_to(images[1])
+        # map = images[0].map_to(images[1])
+        # this does not yet exist
+        map = scipy.map_to(images[0], images[1])
     except:
         assert False
 

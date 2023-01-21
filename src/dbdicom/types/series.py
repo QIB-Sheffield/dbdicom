@@ -6,7 +6,7 @@ import numpy as np
 from dbdicom.record import DbRecord
 from dbdicom.ds import MRImage
 import dbdicom.utils.image as image_utils
-import dbdicom.utils.scipy as scipy_utils
+# import dbdicom.wrappers.scipy as scipy_utils
 
 
 class Series(DbRecord):
@@ -62,11 +62,15 @@ class Series(DbRecord):
     def set_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
-    def map_to(*args, **kwargs):
-        return scipy_utils.map_to(*args, **kwargs)
+    # Deprecated - replace by
+    # dbdicom.wrappers.scipy.map_to()
+    # def map_to(*args, **kwargs):
+    #     return scipy_utils.map_to(*args, **kwargs)
 
-    def map_mask_to(*args, **kwargs):
-        return scipy_utils.map_mask_to(*args, **kwargs)
+    # Deprecated - replace by
+    # dbdicom.wrappers.scipy.map_mask_to()
+    # def map_mask_to(*args, **kwargs):
+    #     return scipy_utils.map_mask_to(*args, **kwargs)
 
     def export_as_npy(*args, **kwargs):
         export_as_npy(*args, **kwargs)

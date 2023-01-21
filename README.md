@@ -494,6 +494,9 @@ Another useful feature at series level is to overlay one series on another.
 
 ```python
 overlay = series.map_to(target)
+# replaced by:
+from dbdicom.wrappers import scipy
+overlay = scipy.map_to(series, target)
 ```
 
 If series is a binary mask (or can be interpreted as one), a similar function can be used to overlay the mask on another series:
