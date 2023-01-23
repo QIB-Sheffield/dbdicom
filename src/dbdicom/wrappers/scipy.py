@@ -72,8 +72,6 @@ def _map_series_to_slice_group(source, target, affine_source, affine_target):
     if isinstance(affine_source, list):
         mapped_series = []
         for affine_slice_group in affine_source:
-            #v = image_utils.dismantle_affine_matrix(affine_slice_group)
-            #slice_group_source = source.subseries(ImageOrientationPatient = v['ImageOrientationPatient'])
             slice_group_source = source.new_sibling()
             slice_group_source.adopt(affine_slice_group[1])
             mapped = _map_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target)
@@ -768,6 +766,45 @@ def fourier_shift(input, shift, **kwargs):
 
 
 # RESCALE AND RESLICE
+
+
+def image_calculator(series1, series2, operation='series 1 - series 2'):
+
+    desc1 = series1.instance().SeriesDescription
+    result = series1.copy(SeriesDescription = desc1 + ' [' + operation + ']')
+    images1 = result.images(sortby=['SliceLocation', 'AcquisitionTime'])
+    images2 = series2.images(sortby=['SliceLocation', 'AcquisitionTime'])
+    for i, img1 in enumerate(images1):
+        series1.status.progress(i+1, len(images1), 'Calculating..')
+        if i > len(images2)-1:
+            break
+        img1.read()
+        img2 = images2[i]
+        array1 = img1.array()
+        array2 = img2.array()
+        if array2.shape != array1.shape:
+            zoom_factor = (
+                array1.shape[0]/array2.shape[0], 
+                array1.shape[1]/array2.shape[1])
+            array2 = zoom(array2, zoom_factor)
+        if operation == 'series 1 + series 2':
+            array = array1 + array2
+        elif operation == 'series 1 - series 2':
+            array = array1 - array2
+        elif operation == 'series 1 / series 2':
+            array = array1 / array2
+        elif operation == 'series 1 * series 2':
+            array = array1 * array2
+        elif operation == '(series 1 - series 2)/series 2':
+            array = (array1 - array2)/array2
+        elif operation == 'average(series 1, series 2)':
+            array = (array1 + array2)/2
+        array[~np.isfinite(array)] = 0
+        img1.set_array(array)
+        _reset_window(img1, array.astype(np.ubyte))
+        img1.clear()
+    series1.status.hide()
+    return result
 
 
 
