@@ -600,17 +600,27 @@ class Manager():
         if key is None:
             if parent is None:
                 parent, key = self.new_series()
+                keys = self.keys(series=parent)
             elif self.type(parent) != 'Series':
                 # parent = self.series(parent)[0] 
                 parent, key = self.new_series(parent)
+                keys = self.keys(series=parent)
             else:
-                key = self.keys(series=parent)[0]
+                keys = self.keys(series=parent)
+                key = keys[0]
 
+        # Find largest instance number
+        n = self.register.loc[keys,'InstanceNumber'].values
+        n = n[n != -1]
+        max_number=0 if n.size==0 else np.amax(n)
+
+        # Populate attributes in index file
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
         data[4] = self.default()[4]
         #data[10] = 1 + len(self.instances(parent))
-        data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
+        #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
+        data[10] = 1 + max_number
 
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row

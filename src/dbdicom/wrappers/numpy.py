@@ -7,6 +7,10 @@ A set of dbdicom wrappers for numpy
 import numpy as np
 
 
+def image_calculator(series1, series2, operation='Subtract'):
+    pass
+
+
 def threshold(input, low_threshold=0, high_threshold=1, method='absolute'):
     """
     Segment by thresholding
