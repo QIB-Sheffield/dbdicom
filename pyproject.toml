@@ -8,7 +8,6 @@ dependencies = [
     "matplotlib",
     "nibabel",
     "numpy",
-    "scipy",
     "pandas",
     "pydicom", 
     "python-gdcm",
@@ -54,13 +53,18 @@ requires-python = ">=3.6"
 where = ["src"]
 
 [project.optional-dependencies]
-# importlib-resources # removed - necessary? where?
 docs = [
     "sphinx",
     "sphinx_rtd_theme",
     "myst-parser", 
     "sphinx-copybutton",
     "sphinx-remove-toctrees",
+]
+wrappers = [
+    "scipy",
+    "skimage",
+    "SimpleITK", "itk-elastix",
+    "dipy",
 ]
 
 

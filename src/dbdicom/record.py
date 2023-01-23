@@ -40,11 +40,13 @@ class DbRecord():
         return self.manager.path
 
     def loc(self):
-        df = self.manager.register
-        return (df.removed==False) & (df[self.name]==self.uid)
+        return self.manager._loc(self.name, self.uid)
+        # df = self.manager.register
+        # return (df.removed==False) & (df[self.name]==self.uid)
 
     def keys(self):
-        keys = self.manager.register.index[self.loc()]
+        keys = self.manager._keys(self.loc())
+#        keys = self.manager.register.index[self.loc()]
         if len(keys) == 0:
             raise Exception("DICOM record has been deleted")
         else:
@@ -52,11 +54,13 @@ class DbRecord():
             return keys
 
     def _set_key(self):
-        self._key = self.manager.register.index[self.loc()][0]
+        self._key = self.manager._keys(self.loc())[0]
+        #self._key = self.manager.register.index[self.loc()][0]
 
     def key(self):
         try:
-            key_removed = self.manager.register.at[self._key, 'removed']
+            key_removed = self.manager._at(self._key, 'removed')
+#         key_removed = self.manager.register.at[self._key, 'removed']
         except:
             self._set_key()
         else:
@@ -93,7 +97,8 @@ class DbRecord():
         return [self.manager.filepath(key) for key in self.keys()]
 
     def exists(self):
-        if self.manager.register is None:
+        #if self.manager.register is None:
+        if not self.manager.is_open():
             return False
         try:
             keys = self.keys().tolist()
@@ -108,13 +113,18 @@ class DbRecord():
         return self.new(self.manager, uid, type, key=key, **kwargs)
 
     def register(self):
-        return self.manager.register.loc[self.keys(),:]
+        return self.manager._extract(self.keys())
+        #return self.manager.register.loc[self.keys(),:]
     
     def label(self):
         return self.manager.label(self.uid, key=self.key(), type=self.__class__.__name__)
 
-    def instances(self, sort=True, sortby=None, **kwargs): # added sortby keyword 09/01/2023
+    def instances(self, sort=True, sortby=None, **kwargs): 
         inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+        return [self.record('Instance', uid, key) for key, uid in inst.items()]
+
+    def images(self, sort=True, sortby=None, **kwargs): 
+        inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, images=True, **kwargs)
         return [self.record('Instance', uid, key) for key, uid in inst.items()]
 
     def series(self, sort=True, **kwargs):
@@ -206,71 +216,82 @@ class DbRecord():
         return self.manager.get_values(attributes, self.keys())
 
     def get_dataset(self):
-        return self.manager.get_dataset(self.uid, self.keys())
+        ds = self.manager.get_dataset(self.uid, self.keys())
+        return ds
 
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
 
     def save(self, path=None):
-        rows = self.manager.register[self.name] == self.uid
+        #rows = self.manager.register[self.name] == self.uid
+        rows = self.manager._extract_record(self.name, self.uid)
         self.manager.save(rows)
         self.write(path)
         
     def restore(self):
-        rows = self.manager.register[self.name] == self.uid
+        #rows = self.manager.register[self.name] == self.uid
+        rows = self.manager._extract_record(self.name, self.uid)
         self.manager.restore(rows)
         self.write()
 
     # Needs a unit test
     def instance(self, uid=None, key=None):
         if key is not None:
-            uid = self.manager.register.at[key, 'SOPInstanceUID']
+            #uid = self.manager.register.at[key, 'SOPInstanceUID']
+            uid = self.manager._at(key, 'SOPInstanceUID')
             if uid is None:
                 return
             return self.record('Instance', uid, key=key)
         if uid is not None:
             return self.record('Instance', uid)
         key = self.key()
-        uid = self.manager.register.at[key, 'SOPInstanceUID']
+        #uid = self.manager.register.at[key, 'SOPInstanceUID']
+        uid = self.manager._at(key, 'SOPInstanceUID')
         return self.record('Instance', uid, key=key)
 
     # Needs a unit test
     def sery(self, uid=None, key=None):
         if key is not None:
-            uid = self.manager.register.at[key, 'SeriesInstanceUID']
+            #uid = self.manager.register.at[key, 'SeriesInstanceUID']
+            uid = self.manager._at(key, 'SeriesInstanceUID')
             if uid is None:
                 return
             return self.record('Series', uid, key=key)
         if uid is not None:
             return self.record('Series', uid)
         key = self.key()
-        uid = self.manager.register.at[key, 'SeriesInstanceUID']
+        #uid = self.manager.register.at[key, 'SeriesInstanceUID']
+        uid = self.manager._at(key, 'SeriesInstanceUID')
         return self.record('Series', uid, key=key)
 
     # Needs a unit test
     def study(self, uid=None, key=None):
         if key is not None:
-            uid = self.manager.register.at[key, 'StudyInstanceUID']
+            #uid = self.manager.register.at[key, 'StudyInstanceUID']
+            uid = self.manager._at(key, 'StudyInstanceUID')
             if uid is None:
                 return
             return self.record('Study', uid, key=key)
         if uid is not None:
             return self.record('Study', uid)
         key = self.key()
-        uid = self.manager.register.at[key, 'StudyInstanceUID']
+        #uid = self.manager.register.at[key, 'StudyInstanceUID']
+        uid = self.manager._at(key, 'StudyInstanceUID')
         return self.record('Study', uid, key=key)
 
     # Needs a unit test
     def patient(self, uid=None, key=None):
         if key is not None:
-            uid = self.manager.register.at[key, 'PatientID']
+            #uid = self.manager.register.at[key, 'PatientID']
+            uid = self.manager._at(key, 'PatientID')
             if uid is None:
                 return
             return self.record('Patient', uid, key=key)
         if uid is not None:
             return self.record('Patient', uid)
         key = self.key()
-        uid = self.manager.register.at[key, 'PatientID']
+        #uid = self.manager.register.at[key, 'PatientID']
+        uid = self.manager._at(key, 'PatientID')
         return self.record('Patient', uid, key=key)
 
     def database(self):

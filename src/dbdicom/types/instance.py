@@ -19,7 +19,8 @@ class Instance(DbRecord):
         return [self.key()]
 
     def parent(self):
-        uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        #uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        uid = self.manager._at(self.key(), 'SeriesInstanceUID')
         return self.record('Series', uid, key=self.key())
 
     def children(self, **kwargs):
@@ -38,13 +39,13 @@ class Instance(DbRecord):
     def array(self):
         return self.get_pixel_array()
 
-    def set_array(self, array):
-        self.set_pixel_array(array)
-        
     def get_pixel_array(self):
         ds = self.get_dataset()
         return ds.get_pixel_array()
 
+    def set_array(self, array):
+        self.set_pixel_array(array)
+        
     def set_pixel_array(self, array):
         ds = self.get_dataset()
         if ds is None:

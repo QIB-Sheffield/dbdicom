@@ -32,6 +32,8 @@ def split_multiframe(filepath):
     description = os.path.basename(filepath)
     multiframeDir = os.path.dirname(filepath)
     outputDir = os.path.join(multiframeDir, description + '_sf') 
+    if os.path.isdir(outputDir):
+        shutil.rmtree(outputDir)
     os.mkdir(outputDir)
 
     fileBase = 'single_frame_'

@@ -151,7 +151,53 @@ def codify(source_file, save_file, **kwargs):
     file.close()
 
 
-def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
+def read_data(files, tags, status=None, path=None, message='Reading DICOM folder..', images_only=False):
+    """Reads a list of tags in a list of files.
+
+    Arguments
+    ---------
+    files : str or list
+        A filepath or a list of filepaths
+    tags : str or list 
+        A DICOM tag or a list of DICOM tags
+    status : StatusBar
+
+    Creates
+    -------
+    dataframe : pandas.DataFrame
+        A Pandas dataframe with one row per file
+        The index is the file path 
+        Each column corresponds to a Tag in the list of Tags
+        The returned dataframe is sorted by the given tags.
+    """
+    if not isinstance(files, list):
+        files = [files]
+    if not isinstance(tags, list):
+        tags = [tags]
+    dict = {}
+    for i, file in enumerate(files):
+        if status is not None: 
+            status.progress(i+1, len(files))
+        try:
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags+['Rows'])
+        except:
+            pass
+        else:
+            if isinstance(ds, pydicom.dataset.FileDataset):
+                if 'TransferSyntaxUID' in ds.file_meta:
+                    if images_only:
+                        if not 'Rows' in ds:
+                            continue
+                    row = get_values(ds, tags)
+                    if path is None:
+                        index = file
+                    else:
+                        index = os.path.relpath(file, path)
+                    dict[index] = row 
+    return dict
+
+
+def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..', images_only=False):
     """Reads a list of tags in a list of files.
 
     Arguments
@@ -177,13 +223,18 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
     array = []
     dicom_files = []
     for i, file in enumerate(files):
+        if status is not None: 
+            status.progress(i+1, len(files))
         try:
-            ds = pydicom.dcmread(file, force=True, specific_tags=tags)
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags+['Rows'])
         except:
             pass
         else:
             if isinstance(ds, pydicom.dataset.FileDataset):
                 if 'TransferSyntaxUID' in ds.file_meta:
+                    if images_only:
+                        if not 'Rows' in ds:
+                            continue
                     row = get_values(ds, tags)
                     array.append(row)
                     if path is None:
@@ -191,18 +242,29 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                     else:
                         index = os.path.relpath(file, path)
                     dicom_files.append(index) 
-        if status is not None: 
-            status.progress(i+1, len(files))
     df = pd.DataFrame(array, index = dicom_files, columns = tags)
     return df
 
 
-def set_values(ds, tags, values):
-    """Sets DICOM tags in the pydicom dataset in memory"""
+def set_values(ds, tags, values, VR=None):
+    """
+    Sets DICOM tags in the pydicom dataset in memory
+    
+    Private and standard tags can both be set.
+    tags, values and VR must either be lists of equal lengths,
+    or single values.
+    VR is required for private tags. 
+    If private and standard tags are set in the same function call, 
+    VR can be set to any value for the standard tags: e.g. 
+        set_values(ds, ['Rows', (0x0019, 0x0100)], [128, 'Hello'], [None, 'LO'])
+    """
 
     if not isinstance(tags, list): 
         tags = [tags]
         values = [values]
+        VR = [VR]
+    elif VR is None:
+        VR = [None] * len(tags)
     for i, tag in enumerate(tags):
         if values[i] is None:
             if isinstance(tag, str):
@@ -225,25 +287,32 @@ def set_values(ds, tags, values):
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
                         continue
-                    if not isinstance(tag, pydicom.tag.BaseTag):
-                        tag = pydicom.tag.Tag(tag)
-                    if not tag.is_private: # Add a new data element
-                        VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, format_value(values[i], VR))
-                    else:
-                        pass # for now
+                    _add_new(ds, tag, values[i], VR=VR[i])
             else: # hexadecimal tuple
                 if tag in ds:
                     ds[tag].value = format_value(values[i], tag=tag)
                 else:
-                    if not isinstance(tag, pydicom.tag.BaseTag):
-                        tag = pydicom.tag.Tag(tag)
-                    if not tag.is_private: # Add a new data element
-                        VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, format_value(values[i], VR))
-                    else:
-                        pass # for now
+                    _add_new(ds, tag, values[i], VR=VR[i])
     return ds
+
+
+def _add_new(ds, tag, value, VR='OW'):
+    if not isinstance(tag, pydicom.tag.BaseTag):
+        tag = pydicom.tag.Tag(tag)
+    if not tag.is_private: # Add a new data element
+        value_repr = pydicom.datadict.dictionary_VR(tag)
+        if value_repr == 'US or SS':
+            if value >= 0:
+                value_repr = 'US'
+            else:
+                value_repr = 'SS'
+        elif value_repr == 'OB or OW':
+            value_repr = 'OW'
+        ds.add_new(tag, value_repr, format_value(value, value_repr))
+    else:
+        if (tag.group, 0x0010) not in ds:
+            ds.private_block(tag.group, 'Wezel ' + str(tag.group), create=True)
+        ds.add_new(tag, VR, format_value(value, VR))
 
 
 def get_values(ds, tags):
@@ -490,7 +559,11 @@ def get_lut(ds):
 def get_pixel_array(ds):
     """Read the pixel array from an image"""
 
-    array = ds.pixel_array.astype(np.float32)
+    try:
+        array = ds.pixel_array
+    except:
+        return None
+    array = array.astype(np.float32)
     slope = float(getattr(ds, 'RescaleSlope', 1)) 
     intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
     array *= slope
@@ -513,10 +586,10 @@ def set_pixel_array(ds, array, value_range=None):
     shape = np.shape(array)
 
     ds.PixelRepresentation = 0
-    #ds.SmallestImagePixelValue = int(maximum)
-    #ds.LargestImagePixelValue = int(minimum)
-    ds.SmallestImagePixelValue = int(0)
-    ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
+    #ds.SmallestImagePixelValue = int(0)
+    #ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
+    ds.set_values('SmallestImagePixelValue', int(0))
+    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

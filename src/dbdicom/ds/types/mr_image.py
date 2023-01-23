@@ -191,28 +191,14 @@ def set_pixel_array(ds, array):
     if (0x2005, 0x100D) in ds: 
         del ds[0x2005, 0x100D]
     
-    # remove spurious dimensions of 1
-    # This does not belong here
-    # if array.ndim >= 3: 
-    #     array = np.squeeze(array) 
-
-    #ds.BitsAllocated = 32
-    #ds.BitsStored = 32
-    #ds.HighBit = 31
-    
-    # room for speed up
     # clipping may slow down a lot
     array = image.clip(array.astype(np.float32))
-    #maximum = np.amax(array)
-    #minimum = np.amin(array)
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
     ds.PixelRepresentation = 0
-    #ds.SmallestImagePixelValue = int(maximum)
-    #ds.LargestImagePixelValue = int(minimum)
-    ds.SmallestImagePixelValue = int(0)
-    ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
+    ds.set_values('SmallestImagePixelValue', int(0))
+    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2
