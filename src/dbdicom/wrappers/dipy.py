@@ -16,7 +16,7 @@ def median_otsu(series, **kwargs):
     for z in range(array.shape[2]):
         for k in range(array.shape[3]):
             cnt+=1
-            array.status.progress(cnt, array.shape[2]*array.shape[3], 'Applying Otsu segmentation..')
+            series.status.progress(cnt, array.shape[2]*array.shape[3], 'Applying Otsu segmentation..')
             image = np.squeeze(array[:,:,z,k])
             array[:,:,z,k], mask[:,:,z,k] = median_otsu_np(image, **kwargs)
 
@@ -25,9 +25,9 @@ def median_otsu(series, **kwargs):
     desc = series.instance().SeriesDescription  
     masked_series = series.new_sibling(SeriesDescription = desc +' [masked]')
     masked_series.set_array(array, headers, pixels_first=True)
-    masked = series.new_sibling(SeriesDescription = desc + ' [otsu mask]')
-    masked.set_array(mask, headers, pixels_first=True)
-    return masked_series, mask
+    otsu_mask = series.new_sibling(SeriesDescription = desc + ' [otsu mask]')
+    otsu_mask.set_array(mask, headers, pixels_first=True)
+    return masked_series, otsu_mask
 
 
 def coregister(moving, fixed, **kwargs):
