@@ -152,7 +152,10 @@ def affine_matrix(series):
     """
     image_orientation = series.ImageOrientationPatient
     if image_orientation is None:
-        return
+        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
+        msg = 'This is a required DICOM field \n'
+        msg += 'The data may be corrupted - please check'
+        raise ValueError(msg)
     # Multiple slice groups in series - return list of affine matrices
     if isinstance(image_orientation[0], list):
         affine_matrices = []
@@ -173,17 +176,18 @@ def _slice_group_affine_matrix(slice_group, image_orientation):
 
     # single slice
     if len(slice_group) == 1:
-        return slice_group[0].affine_matrix # PROBLEM HERE pixel_spacing not found
+        return slice_group[0].affine_matrix
     # multi slice
     else:
-        image_position_patient = [s.ImagePositionPatient for s in slice_group]
-        if len(image_position_patient) == 1: 
+        pos = [s.ImagePositionPatient for s in slice_group]
+        # Find unique elements
+        pos = [x for i, x in enumerate(pos) if i==pos.index(x)]
+        if len(pos) == 1: 
             return slice_group[0].affine_matrix
         # Slices with different locations
         else:
             return image_utils.affine_matrix_multislice(
-                image_orientation,
-                image_position_patient,
+                image_orientation, pos,
                 slice_group[0].PixelSpacing)    # assume all the same pixel spacing
 
 

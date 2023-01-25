@@ -94,7 +94,7 @@ class Manager():
         df.placeholder = True
         self.register = pd.concat([self.register, df])
         self._split_series()
-        self.save()
+        #self.save()
         return self
 
 
@@ -595,7 +595,6 @@ class Manager():
 
     
     def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
-        # Allow multiple to be made at the same time
 
         if key is None:
             if parent is None:
@@ -608,6 +607,10 @@ class Manager():
             else:
                 keys = self.keys(series=parent)
                 key = keys[0]
+        else:
+            if parent is None:
+                parent = self.register.at[key, 'SeriesInstanceUID']
+            keys = self.keys(series=parent)
 
         # Find largest instance number
         n = self.register.loc[keys,'InstanceNumber'].values
@@ -1032,7 +1035,8 @@ class Manager():
             #     self.status.progress(i, len(keys), message)
             if key in self.dataset:
                 file = self.filepath(key)
-                self.dataset[key].write(file, self.status)
+                if file is not None:
+                    self.dataset[key].write(file, self.status)
         #self.status.hide()
 
     def clear(self, *args, keys=None, **kwargs):
@@ -2201,7 +2205,7 @@ class Manager():
 
             if attributes in self.columns:
                 value = [self.register.at[key, attributes] for key in keys]
-                # trick to get unique elements
+                # Get unique elements
                 value = [x for i, x in enumerate(value) if i==value.index(x)]
                 
             else:
@@ -2248,13 +2252,18 @@ class Manager():
         for a in range(v.shape[1]):
             va = v[:,a]
             va = va[va != np.array(None)]
-            va = np.unique(va)
-            if va.size == 0:
+            #va = np.unique(va)
+            va = list(va)
+            # Get unique values
+            va = [x for i, x in enumerate(va) if i==va.index(x)]
+            #if va.size == 0:
+            if len(va) == 0:
                 va = None
-            elif va.size == 1:
+            elif len(va) == 1:
+            #elif va.size == 1:
                 va = va[0]
             else:
-                va = list(va)
+                #va = list(va)
                 try: 
                     va.sort() # added 30/12/22
                 except:
