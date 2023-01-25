@@ -219,9 +219,14 @@ def affine_matrix_multislice(
     image_locations = [np.dot(np.array(pos), slice_cosine) for pos in image_positions]
     #number_of_slices = len(image_positions)
     number_of_slices = np.unique(image_locations).size
-    slab_thickness = max(image_locations) - min(image_locations)
+    if number_of_slices == 1:
+        msg = 'Cannot calculate affine matrix for the slice group. \n'
+        msg += 'All slices have the same location. \n'
+        msg += 'Use the single-slice affine formula instead.'
+        raise ValueError(msg)
+    slab_thickness = np.amax(image_locations) - np.amin(image_locations)
     slice_spacing = slab_thickness / (number_of_slices - 1)
-    image_position_first_slice = image_positions[image_locations.index(min(image_locations))]
+    image_position_first_slice = image_positions[image_locations.index(np.amin(image_locations))]
 
     affine = np.identity(4, dtype=np.float32)
     affine[:3, 0] = row_cosine * column_spacing 
