@@ -1,13 +1,13 @@
 
-from dbdicom.create import (
+from .create import (
     database,
     series, 
     zeros,
 )
-from dbdicom.record import (
+from .record import (
     copy_to, 
     move_to, 
     group, 
     merge, 
 )
-from dbdicom.utils import image
+from .utils import image

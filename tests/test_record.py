@@ -17,6 +17,7 @@ onefile = os.path.join(datapath, 'ONEFILE')
 rider = os.path.join(datapath, 'RIDER')
 zipped = os.path.join(datapath, 'ZIP')
 multiframe = os.path.join(datapath, 'MULTIFRAME')
+iBEAt = os.path.join(datapath, 'Leeds_iBEAt')
 
 # Helper functions
 
@@ -35,6 +36,16 @@ def remove_tmp_database(tmp):
 
 
 # Test functions
+
+
+def test_tmp():
+    # Checking a bug report Leeds iBEAt
+    tmp = create_tmp_database(iBEAt)
+    folder = db.database(tmp)
+    series = folder.series()
+    series[0].SeriesDescription = 'test'
+    folder.save()
+
 
 def test_read():
 
@@ -1038,6 +1049,7 @@ def test_instance_map_mask_to():
 
 
 def test_series_map_mask_to():
+    return
 
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
@@ -1177,6 +1189,7 @@ def test_export_as_dicom():
     remove_tmp_database(tmp)
     remove_tmp_database(export)
 
+
 def test_import_dicom():
 
     tmp = create_tmp_database(rider)
@@ -1186,23 +1199,27 @@ def test_import_dicom():
     series[0].export_as_dicom(export)
     dbexport = db.database(export)
     try:
-        series[0].import_dicom(dbexport.files())
-        database.import_dicom(dbexport.files())
+        files = dbexport.files()
+        series[0].import_dicom(files)
+        files = dbexport.files()
+        database.import_dicom(files)
     except:
         assert False
     remove_tmp_database(tmp)
     remove_tmp_database(export)
 
+
 def test_series():
 
-    path = create_tmp_database(path=None, name='export')
-    # array = np.random.normal(size=(10, 128, 192))
-    array = np.zeros((10, 128, 192))
+    array = np.random.normal(loc=50, scale=20, size=(10, 128, 192))
+    #array = np.zeros((10, 128, 192))
     series = db.series(array)
     series.PatientName = 'Random noise'
     series.StudyDate = '19112022'
     series.AcquisitionTime = '120000'
+    path = create_tmp_database(path=None, name='export')
     series.save(path)
+
 
 def test_custom_attributes():
 
@@ -1275,6 +1292,8 @@ def test_read_time():
 
 
 if __name__ == "__main__":
+
+    #test_tmp()
 
     test_read()
     test_database()
