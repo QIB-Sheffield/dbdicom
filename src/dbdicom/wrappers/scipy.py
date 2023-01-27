@@ -786,7 +786,7 @@ def image_calculator(series1, series2, operation='series 1 - series 2'):
             zoom_factor = (
                 array1.shape[0]/array2.shape[0], 
                 array1.shape[1]/array2.shape[1])
-            array2 = zoom(array2, zoom_factor)
+            zoomed_series2, array2 = zoom_image_calculator(series2, zoom_factor)
         if operation == 'series 1 + series 2':
             array = array1 + array2
         elif operation == 'series 1 - series 2':
@@ -834,11 +834,50 @@ def zoom(input, zoom, **kwargs):
         array = scipy.ndimage.zoom(array, zoom, **kwargs)
         image.set_array(array)
         pixel_spacing = image.PixelSpacing
-        image.PixelSpacing = [p/zoom for p in pixel_spacing]
+        if type(zoom) is tuple:
+           image.PixelSpacing[0] = pixel_spacing[0]/zoom[0] 
+           image.PixelSpacing[1] = pixel_spacing[1]/zoom[1]
+        else:
+           image.PixelSpacing = [p/zoom for p in pixel_spacing]
         image.clear()
     input.status.hide()
     return zoomed
 
+def zoom_image_calculator(input, zoom, **kwargs):
+    """
+    wrapper for scipy.ndimage.zoom. for image calculator
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    zoomed : dbdicom series
+    array: numpy ndarray
+    """
+    suffix = ' [Resize x ' + str(zoom) + ' ]'
+    desc = input.instance().SeriesDescription
+    zoomed = input.copy(SeriesDescription = desc + suffix)
+    #images = zoomed.instances()
+    images = zoomed.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Resizing ' + desc)
+        image.read()
+        array = image.array()
+        array = scipy.ndimage.zoom(array, zoom, **kwargs)
+        image.set_array(array)
+        pixel_spacing = image.PixelSpacing
+        if type(zoom) is tuple:
+           image.PixelSpacing[0] = pixel_spacing[0]/zoom[0] 
+           image.PixelSpacing[1] = pixel_spacing[1]/zoom[1]
+        else:
+           image.PixelSpacing = [p/zoom for p in pixel_spacing]
+        print("p/zoom")
+        print(image.PixelSpacing)
+        image.clear()
+    input.status.hide()
+    return zoomed, array
 
 def resample(series, voxel_size=[1.0, 1.0, 1.0]):
     series.status.message('Reading transformations..')
