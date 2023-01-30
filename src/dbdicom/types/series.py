@@ -6,7 +6,9 @@ import numpy as np
 from dbdicom.record import DbRecord
 from dbdicom.ds import MRImage
 import dbdicom.utils.image as image_utils
+from dbdicom.manager import Manager
 # import dbdicom.wrappers.scipy as scipy_utils
+from dbdicom.utils.files import export_path
 
 
 class Series(DbRecord):
@@ -62,24 +64,70 @@ class Series(DbRecord):
     def set_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
-    # Deprecated - replace by
-    # dbdicom.wrappers.scipy.map_to()
-    # def map_to(*args, **kwargs):
-    #     return scipy_utils.map_to(*args, **kwargs)
 
-    # Deprecated - replace by
-    # dbdicom.wrappers.scipy.map_mask_to()
-    # def map_mask_to(*args, **kwargs):
-    #     return scipy_utils.map_mask_to(*args, **kwargs)
+    def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
+        """Export array in numpy format"""
 
-    def export_as_npy(*args, **kwargs):
-        export_as_npy(*args, **kwargs)
+        if directory is None: 
+            directory = self.dialog.directory(message='Please select a folder for the png data')
+        if filename is None:
+            filename = self.SeriesDescription
+        array, _ = self.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
+        file = os.path.join(directory, filename + '.npy')
+        with open(file, 'wb') as f:
+            np.save(f, array)
+
+
+    def export_as_dicom(self, path): 
+        folder = self.label()
+        path = export_path(path, folder)
+        mgr = Manager(path)
+        mgr.open(path)
+        mgr.import_datasets(self.files())
+
+
+    def export_as_png(self, path):
+        """Export all images as png files"""
+        folder = self.label()
+        path = export_path(path, folder)
+        images = self.images()
+        for i, img in enumerate(images):
+            img.status.progress(i+1, len(images), 'Exporting png..')
+            img.export_as_png(path)
+
+
+    def export_as_csv(self, path):
+        """Export all images as csv files"""
+        folder = self.label()
+        path = export_path(path, folder)
+        images = self.images()
+        for i, img in enumerate(images):
+            img.status.progress(i+1, len(images), 'Exporting csv..')
+            img.export_as_csv(path)
+
+
+    def export_as_nifti(self, path):
+        """Export all images as nii files"""
+        folder = self.label()
+        path = export_path(path, folder)
+        affine = self.affine_matrix()
+        if not isinstance(affine, list):
+            affine = [affine]
+        for a in affine:
+            matrix = a[0]
+            images = a[1]
+            for i, img in enumerate(images):
+                img.status.progress(i+1, len(images), 'Exporting nifti..')
+                img.export_as_nifti(path, matrix)
+
 
     def subseries(*args, move=False, **kwargs):
         return subseries(*args, move=move, **kwargs)
 
-    def import_dicom(*args, **kwargs):
-        import_dicom(*args, **kwargs)
+
+    def import_dicom(self, files):
+        uids = self.manager.import_datasets(files)
+        self.manager.move_to(uids, self.uid)
 
     def slice_groups(*args, **kwargs):
         return slice_groups(*args, **kwargs)
@@ -98,9 +146,7 @@ class Series(DbRecord):
 
 
 
-def import_dicom(series, files):
-    uids = series.manager.import_datasets(files)
-    series.manager.move_to(uids, series.uid)
+
 
 def slice_groups(series): # not yet in use
     slice_groups = []
@@ -131,17 +177,6 @@ def read_npy(record):
         array = np.load(f)
     return array
 
-def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
-    """Export array in numpy format"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    array, _ = record.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
-    file = os.path.join(directory, filename + '.npy')
-    with open(file, 'wb') as f:
-        np.save(f, array)
 
 def affine_matrix(series):
     """Returns the affine matrix of a series.
