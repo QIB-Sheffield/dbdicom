@@ -254,6 +254,13 @@ def dismantle_affine_matrix(affine):
         'ImageOrientationPatient': row_cosine.tolist() + column_cosine.tolist(), 
         'ImagePositionPatient': affine[:3, 3].tolist(), # first slice for a volume
         'slice_cosine': slice_cosine.tolist()} 
+
+def affine_to_RAH(affine):
+    """Convert to the coordinate system used in NifTi"""
+
+    rot_180 = np.identity(4, dtype=np.float32)
+    rot_180[:2,:2] = [[-1,0],[0,-1]]
+    return np.matmul(rot_180, affine)
     
 
 def image_position_patient(affine, number_of_slices):

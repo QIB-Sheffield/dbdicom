@@ -1,4 +1,4 @@
-import copy
+import os
 from dbdicom.record import DbRecord
 
 class Database(DbRecord):
@@ -56,6 +56,19 @@ class Database(DbRecord):
 
     def zeros(*args, **kwargs):
         return zeros(*args, **kwargs)
+
+    # def export_as_dicom(self, path): 
+    #     for child in self.children():
+    #         child.export_as_dicom(path)
+
+    # def export_as_png(self, path): 
+    #     for child in self.children():
+    #         child.export_as_png(path)
+
+    # def export_as_csv(self, path): 
+    #     for child in self.children():
+    #         child.export_as_csv(path)
+
 
 def zeros(database, shape, dtype='mri'):
     study = database.new_study()

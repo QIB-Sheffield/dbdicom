@@ -9,6 +9,18 @@ def all_files(path):
         files = [f for f in files if len(f) <= 260]
     return files
 
+def export_path(basepath, folder):
+    # remove illegal characters
+    folder = "".join(x for x in folder if x.isalnum()) 
+    basepath = os.path.join(basepath, folder)
+    path = basepath
+    cnt = 1
+    while os.path.isdir(path):
+        cnt += 1
+        path = basepath + ' [' + str(cnt) + ']'
+    os.makedirs(path)
+    return path
+
 def _unzip_files(path, status):
     """
     Unzip any zipped files in a directory.

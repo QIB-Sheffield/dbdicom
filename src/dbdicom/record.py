@@ -1,8 +1,8 @@
-import timeit
+
 import pandas as pd
-import numpy as np
 import dbdicom.ds.dataset as dbdataset
-from dbdicom.manager import Manager
+from dbdicom.utils.files import export_path
+
 
 
 class DbRecord():
@@ -298,19 +298,28 @@ class DbRecord():
         return self.record('Database')
 
     def export_as_dicom(self, path): 
-        files = [self.manager.filepath(key) for key in self.keys()]
-        mgr = Manager(path)
-        mgr.open(path)
-        mgr.import_datasets(files)
+        folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_dicom(path)
 
-    def export_as_csv(*args, **kwargs):
-        export_as_csv(*args, **kwargs)
+    def export_as_png(self, path): 
+        folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_png(path)
 
-    def export_as_png(*args, **kwargs):
-        export_as_png(*args, **kwargs)
+    def export_as_csv(self, path):
+        folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_csv(path)
 
-    def export_as_nifti(*args, **kwargs):
-        export_as_nifti(*args, **kwargs)
+    def export_as_nifti(self, path):
+        folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_nifti(path)
 
     # def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
     #     self.manager.register.sort_values(sortby, inplace=True)
@@ -413,47 +422,6 @@ def read_dataframe(record, tags):
     return pd.DataFrame(data, index=indices, columns=tags)
 
 
-def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
-    """Export all images as csv files"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the csv data')
-    if filename is None:
-        filename = record.SeriesDescription
-    instances = record.instances()
-    for i, instance in enumerate(instances):
-        instance.status.progress(i+1, len(instances))
-        instance.export_as_csv( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']', 
-            columnHeaders = columnHeaders)
-
-def export_as_png(record, directory=None, filename=None):
-    """Export all images as png files"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    instances = record.instances()
-    for i, instance in enumerate(instances):
-        instance.status.progress(i+1, len(instances))
-        instance.export_as_png( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
-
-def export_as_nifti(record, directory=None, filename=None):
-    """Export all images as nifti files"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    instances = record.instances()
-    for i, instance in enumerate(instances):
-        instance.status.progress(i+1, len(instances))
-        instance.export_as_nifti( 
-            directory = directory, 
-            filename = filename + ' [' + str(i) + ']')
 
 
