@@ -111,9 +111,15 @@ def set_window(ds, center, width):
     ds.WindowWidth = width
 
 
-def read(file, dialog=None):
+def read(file, dialog=None, nifti=False):
     try:
-        ds = pydicom.dcmread(file)
+        if nifti:
+            nim = nib.load(file)
+            ds = nim.header.extensions[0].get_content()
+            array = nim.get_fdata()
+            set_pixel_array(ds, array)
+        else:
+            ds = pydicom.dcmread(file)
         return DbDataset(ds)
     except:
         message = "Failed to read " + file
@@ -197,6 +203,7 @@ def read_data(files, tags, status=None, path=None, message='Reading DICOM folder
     return dict
 
 
+
 def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..', images_only=False):
     """Reads a list of tags in a list of files.
 
@@ -244,6 +251,7 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                     dicom_files.append(index) 
     df = pd.DataFrame(array, index = dicom_files, columns = tags)
     return df
+
 
 
 def set_values(ds, tags, values, VR=None):

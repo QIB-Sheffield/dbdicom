@@ -8,12 +8,15 @@ import timeit
 #from tkinter import N
 import pandas as pd
 import numpy as np
+import nibabel as nib
 
 from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
+import dbdicom.utils.image as dbimage
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds.create import read_dataset, SOPClass, new_dataset
+from dbdicom.ds.dataset import DbDataset
 
 class DatabaseCorrupted(Exception):
     pass
@@ -2299,6 +2302,58 @@ class Manager():
 
         # return the UIDs of the new instances
         return df.SOPInstanceUID.values.tolist()
+
+
+    def import_datasets_from_nifti(self, files, study=None):
+
+        if study is None:
+            study, _ = self.new_study()
+
+        # Create new 
+        nifti_series = None
+        for i, file in enumerate(files):
+
+            # Read the nifti file
+            nim = nib.load(file)
+            sx, sy, sz = nim.header.get_zooms() # spacing
+            
+            # If a dicom header is stored, get it
+            # Else create one from scratch
+            try:
+                dcmext = nim.header.extensions
+                dataset = DbDataset(dcmext[0].get_content())
+            except:
+                dataset = new_dataset()
+
+            # Read the array and reshape to 3D 
+            array = np.squeeze(nim.get_fdata())
+            array.reshape((array.shape[0], array.shape[1], -1))
+            n_slices = array.shape[-1]
+
+            # If there is only one slice,
+            # load it into the nifti series.
+            if n_slices == 1:
+                if nifti_series is None:
+                    desc = os.path.basename(file)
+                    nifti_series, _ = self.new_series(study, SeriesDescription=desc)
+                affine = dbimage.affine_to_RAH(nim.affine)
+                dataset.set_pixel_array(array[:,:,0])
+                dataset.set_values('affine_matrix', affine)
+                #dataset.set_values('PixelSpacing', [sy, sx])
+                self.new_instance(nifti_series, dataset)
+
+            # If there are multiple slices in the file,
+            # Create a new series and save all files in there.
+            else:
+                desc = os.path.basename(file)
+                series, _ = self.new_series(study, SeriesDescription=desc)
+                affine = dbimage.affine_to_RAH(nim.affine)
+                for z in range(n_slices):
+                    ds = copy.deepcopy(dataset)
+                    ds.set_pixel_array(array[:,:,z])
+                    ds.set_values('affine_matrix', affine)
+                    #ds.set_values('PixelSpacing', [sy, sx])
+                    self.new_instance(series, ds)
 
 
     def export_datasets(self, uids, database):
