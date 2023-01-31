@@ -62,7 +62,7 @@ docs = [
 ]
 wrappers = [
     "scipy",
-    "skimage",
+    "scikit-image",
     "SimpleITK", "itk-elastix",
     "dipy",
 ]
