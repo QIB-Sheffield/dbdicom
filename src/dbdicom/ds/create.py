@@ -47,7 +47,7 @@ def read_dataset(file, dialog=None):
     else:
         return DbDataset(ds)
 
-def new_dataset(type):
+def new_dataset(type= 'MRImage'):
 
     if type == 'MRImage':
         return MRImage()

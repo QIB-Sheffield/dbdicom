@@ -47,6 +47,9 @@ class Database(DbRecord):
     def import_dicom(self, files):
         self.manager.import_datasets(files)
 
+    def import_nifti(self, files):
+        self.manager.import_datasets_from_nifti(files)
+
     def _copy_from(self, record):
         uids = self.manager.copy_to_database(record.uid, **self.attributes)
         if isinstance(uids, list):
