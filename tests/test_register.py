@@ -263,6 +263,8 @@ def test_dropna():
 
 if __name__ == "__main__":
 
+    exit()
+
     test_init()
     test_columns()
     test_index()
