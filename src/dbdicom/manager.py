@@ -2293,7 +2293,9 @@ class Manager():
             return
 
         # Add those that are left to the database
-        for file in df.index.tolist():
+        files = df.index.tolist()
+        for i, file in enumerate(files):
+            self.status.progress(i+1, len(files), 'Copying files..')
             new_key = self.new_key()
             ds = dbdataset.read(file)
             ds.write(self.filepath(new_key), self.status)
