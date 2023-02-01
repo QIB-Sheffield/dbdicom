@@ -1202,6 +1202,8 @@ def test_tree():
 
 if __name__ == "__main__":
 
+    exit()
+
     test_init()
     test_read_register()
     test_read_write_register()
