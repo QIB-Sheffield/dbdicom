@@ -3,24 +3,20 @@ Maintains an index of all files on disk.
 """
 
 import os
+from copy import deepcopy
 import copy
+import pickle
 import timeit
 #from tkinter import N
 import pandas as pd
 import numpy as np
-import nibabel as nib
 
 from dbdicom.message import StatusBar, Dialog
 import dbdicom.utils.files as filetools
 import dbdicom.utils.dcm4che as dcm4che
-import dbdicom.utils.image as dbimage
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds.create import read_dataset, SOPClass, new_dataset
-from dbdicom.ds.dataset import DbDataset
-
-class DatabaseCorrupted(Exception):
-    pass
-
+from dbdicom.register import Register
 
 
 class Manager(): 
@@ -40,7 +36,7 @@ class Manager():
         ]
 
 
-    def __init__(self, path=None, dataframe=None, status=StatusBar(), dialog=Dialog()):
+    def __init__(self, path=None, status=StatusBar(), dialog=Dialog()):
         """Initialise the folder with a path and objects to message to the user.
         
         When used inside a GUI, status and dialog should be instances of the status bar and 
@@ -49,17 +45,101 @@ class Manager():
         path = None: The index manages data in memory
         dataframe = None: no database open
         """  
-        if dataframe is None:
-            dataframe = pd.DataFrame(index=[], columns=self.columns)
         # THIS NEEDS A MECHANISM TO PREVENT ANOTHER Manager to open the same database.
         self.status = status
         self.dialog = dialog 
         self.path = path
-        self.register = dataframe
-        self.dataset = {}
+        self.register = None
+        self.dataset = {}   # rename to self.in_memory
         self._pause_extensions = False
         self._new_keys = []
         self._new_data = []
+
+    def read_register(self):
+        """
+        Initiate the register by reading DICOM data from the path
+        """
+        files = filetools.all_files(self.path)
+        columns = self.columns + ['NumberOfFrames']
+        data = dbdataset.read_data(
+            files, 
+            columns, 
+            self.status, 
+            path=self.path, 
+            message='Reading database..',
+            images_only = True, # Excluding non-imaging data for now
+        )
+        self.register = Register(data, columns)
+        self.register.add_column('removed', False)
+        self.register.add_column('created', False)
+
+    def pkl(self):
+        """ Returns the file path of the .pkl file"""
+        if self.path is None:
+            return None
+        filename = os.path.basename(os.path.normpath(self.path)) + ".pkl"
+        return os.path.join(self.path, filename) 
+
+    def save_register(self):
+        """ Writes the register as a .pkl file"""
+        if self.path is None:
+            return
+        file = self.pkl()
+        with open(file, 'wb') as outp:
+            pickle.dump(self.register, outp, pickle.HIGHEST_PROTOCOL)
+
+    def open_register(self):
+        """Reads the register from a .pkl file """
+        if self.path is None:
+            return
+        file = self.pkl()
+        with open(file, 'rb') as inp:
+            self.register = pickle.load(inp)
+            # if dataframe, convert (for older versions)
+        #self.register = pd.read_pickle(file)
+
+    def multiframe_to_singleframe(self):
+        """Converts all multiframe files in the folder into single-frame files.
+        
+        Reads all the multi-frame files in the folder,
+        converts them to singleframe files, and delete the original multiframe file.
+        """
+        if self.path is None:
+            # Low priority - we are not creating multiframe data from scratch yet
+            # So will always be loaded from disk initially where the solution exists. 
+            # Solution: save data in a temporary file, use the filebased conversion, 
+            # the upload the solution and delete the temporary file.
+            raise ValueError('Multi-frame to single-frame conversion does not yet exist from data in memory')
+        # singleframe = self.register.NumberOfFrames.isnull() 
+        # multiframe = singleframe == False
+        multiframe = self.register.rows_where_not('NumberOfFrames', None)
+        nr_multiframe = multiframe.shape[0]
+        if nr_multiframe != 0: 
+            cnt=0
+            #for relpath in self.register[multiframe].index.values:
+            for relpath in multiframe.index():
+                cnt+=1
+                msg = "Converting multiframe file " + relpath
+                self.status.progress(cnt, nr_multiframe, message=msg)
+                #
+                # Create these in the dbdicom folder, not in the original folder.
+                #
+                filepath = os.path.join(self.path, relpath)
+                singleframe_files = dcm4che.split_multiframe(filepath) 
+                if singleframe_files != []:            
+                    # add the single frame files to the dataframe
+                    #df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
+                    data = dbdataset.read_data(singleframe_files, self.columns, path=self.path)
+                    reg = Register(data, self.columns)
+                    reg.add_column('removed', False)
+                    reg.add_column('created', False)
+                    self.register.update(reg)
+                    # delete the original multiframe 
+                    os.remove(filepath)
+                # drop the file also if the conversion has failed
+                #self.register.drop(index=relpath, inplace=True)
+                self.register.drop_row(relpath)
+
 
     def scan(self, unzip=False):
         """
@@ -69,48 +149,33 @@ class Manager():
 #        if unzip:
 #            filetools._unzip_files(self.path, self.status)
 
-        #self.read_dataframe()
-
         if self.path is None:
-            self.register = pd.DataFrame(index=[], columns=self.columns)
+            #self.register = pd.DataFrame(index=[], columns=self.columns)
+            self.register = None
             self.dataset = {}
             return
-        files = filetools.all_files(self.path)
-        self.register = dbdataset.read_dataframe(
-            files, 
-            self.columns+['NumberOfFrames'], 
-            self.status, 
-            path=self.path, 
-            message='Reading database..', 
-            images_only = True)
-        self.register['removed'] = False
-        self.register['created'] = False
-        self.register['placeholder'] = False
+        self.read_register()
+
         # No support for multiframe data at the moment
-        self._multiframe_to_singleframe()
-        self.register.drop('NumberOfFrames', axis=1, inplace=True)
-        # Create placeholder rows for unsaved changes
-        df = self.register.copy(deep=True)
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
-        self._split_series()
-        #self.save()
+        self.multiframe_to_singleframe()
+        self.register.drop_column('NumberOfFrames')
+        self.split_series()
+        self.save()
         return self
 
 
-    def _split_series(self):
+    def split_series(self):
         """
         Split series with multiple SOP Classes.
 
         If a series contain instances from different SOP Classes, 
         these are separated out into multiple series with identical SOP Classes.
         """
+
+        # TODO
+        
         df = self.register
         df = df[df.removed == False]
-
         # For each series, check if there are multiple
         # SOP Classes in the series and split them if yes.
         all_series = df.SeriesInstanceUID.unique()
@@ -129,93 +194,8 @@ class Manager():
                     new_series, _ = self.new_series(parent=study, SeriesDescription=desc)
                     df_sop_class = df_series[df_series.SOPClassUID == sop_class]
                     instances = df_sop_class.SOPInstanceUID.values.tolist()
-                    moved = self.move_to_series(instances, new_series)
-                    
+                    self.move_to_series(instances, new_series)
 
-    def _multiframe_to_singleframe(self):
-        """Converts all multiframe files in the folder into single-frame files.
-        
-        Reads all the multi-frame files in the folder,
-        converts them to singleframe files, and delete the original multiframe file.
-        """
-        if self.path is None:
-            # Low priority - we are not creating multiframe data from scratch yet
-            # So will always be loaded from disk initially where the solution exists. 
-            # Solution: save data in a temporary file, use the filebased conversion, 
-            # the upload the solution and delete the temporary file.
-            raise ValueError('Multi-frame to single-frame conversion does not yet exist from data in memory')
-        singleframe = self.register.NumberOfFrames.isnull() 
-        multiframe = singleframe == False
-        nr_multiframe = multiframe.sum()
-        if nr_multiframe != 0: 
-            cnt=0
-            for relpath in self.register[multiframe].index.values:
-                cnt+=1
-                msg = "Converting multiframe file " + relpath
-                self.status.progress(cnt, nr_multiframe, message=msg)
-                #
-                # Create these in the dbdicom folder, not in the original folder.
-                #
-                filepath = os.path.join(self.path, relpath)
-                singleframe_files = dcm4che.split_multiframe(filepath) 
-                if singleframe_files != []:            
-                    # add the single frame files to the dataframe
-                    df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
-                    df['removed'] = False
-                    df['created'] = False
-                    df['placeholder'] = False
-                    self.register = pd.concat([self.register, df])
-                    # delete the original multiframe 
-                    os.remove(filepath)
-                # drop the file also if the conversion has failed
-                self.register.drop(index=relpath, inplace=True)
-
-    def _pkl(self):
-        """ Returns the file path of the .pkl file"""
-        if self.path is None:
-            return None
-        filename = os.path.basename(os.path.normpath(self.path)) + ".pkl"
-        return os.path.join(self.path, filename) 
-
-    def npy(self, uid):
-        # Not in use - default path for temporary storage in numoy format
-        path = os.path.join(self.path, "dbdicom_npy")
-        if not os.path.isdir(path): 
-            os.mkdir(path)
-        file = os.path.join(path, uid + '.npy') 
-        return file
-
-    def _write_df(self):
-        """ Writes the dataFrame as a .pkl file"""
-        if self.path is None:
-            return
-        file = self._pkl()
-        self.register.to_pickle(file)
-
-    def _read_df(self):
-        """Reads the dataFrame from a .pkl file """
-        if self.path is None:
-            return
-        file = self._pkl()
-        self.register = pd.read_pickle(file)
-
-    def write_csv(self, file):
-        """ Writes the dataFrame as a .csv file for visual inspection"""
-        self.register.to_csv(file)
-
-    def filepath(self, key):
-        """Return the full filepath for a given relative path.
-        
-        Returns None for data that live in memory only."""
-        # Needs a formal test for completeness
-        if self.path is None:
-            return None
-        return os.path.join(self.path, key)
-
-    def filepaths(self, *args, **kwargs):
-        """Return a list of full filepaths for all dicom files in the folder"""
-        # Needs a formal test for completeness
-        return [self.filepath(key) for key in self.keys(*args, **kwargs)]
 
     def open(self, path=None, unzip=False):
         """Opens a DICOM folder for read and write.
@@ -233,12 +213,12 @@ class Manager():
             self.path = path
         if self.path is None:
             raise ValueError('Cannot open database - no path is specified')
-        if os.path.exists(self._pkl()):
+        if os.path.exists(self.pkl()):
             try:
-                self._read_df()
+                self.open_register()
             except:
                 # If the file is corrupted, delete it and load again
-                os.remove(self._pkl())
+                os.remove(self.pkl())
                 self.scan(unzip=unzip)
         else:
             self.scan(unzip=unzip)
@@ -251,18 +231,13 @@ class Manager():
         if uid is None:
             return None
         if uid == 'Database':
-            return uid
+            return 'Database'
 
         if key is None:
-            df = self.register
-            type = df.columns[df.isin([uid]).any()].values
-            if type.size == 0: # uid does not exists in the database
-                return None
-            else:
-                type = type[0]
+            type = self.register.column(uid)
         else:
-            df = self.register.loc[key,:]
-            type = df[df.isin([uid])].index[0]
+            row = self.register.extract_rows(key)
+            type = row.column(uid)
 
         if type == 'PatientID':
             return 'Patient'
@@ -272,39 +247,6 @@ class Manager():
             return 'Series'
         if type == 'SOPInstanceUID':
             return 'Instance'
-
-
-    def tree(self, depth=3):
-
-        df = self.register
-        if df is None:
-            raise ValueError('Cannot build tree - no database open')
-        df = df[df.removed == False]
-        df.sort_values(['PatientName','StudyDate','SeriesNumber','InstanceNumber'], inplace=True)
-        
-        database = {'uid': self.path}
-        database['patients'] = []
-        for uid_patient in df.PatientID.dropna().unique():
-            patient = {'uid': uid_patient}
-            database['patients'].append(patient)
-            if depth >= 1:
-                df_patient = df[df.PatientID == uid_patient]
-                patient['key'] = df_patient.index[0]
-                patient['studies'] = []
-                for uid_study in df_patient.StudyInstanceUID.dropna().unique():
-                    study = {'uid': uid_study}
-                    patient['studies'].append(study)
-                    if depth >= 2:
-                        df_study = df_patient[df_patient.StudyInstanceUID == uid_study]
-                        study['key'] = df_study.index[0]
-                        study['series'] = []
-                        for uid_sery in df_study.SeriesInstanceUID.dropna().unique():
-                            series = {'uid': uid_sery}
-                            study['series'].append(series)
-                            if depth == 3:
-                                df_series = df_study[df_study.SeriesInstanceUID == uid_sery]
-                                series['key'] = df_series.index[0]
-        return database
 
 
     def keys(self,
@@ -321,8 +263,8 @@ class Manager():
         writing a database that is in memory.
         """
 
-        df = self.register
-        if df is None:
+        reg = self.register
+        if reg is None:
             raise ValueError('Cant return dicom files - no database open')
 
         # If no arguments are provided
@@ -333,12 +275,12 @@ class Manager():
             if 'Database' in uid:
                 return self.keys('Database', dropna=dropna)
 
-        not_deleted = df.removed == False
+        not_deleted = reg.rows_where('removed', False)
 
         if uid == 'Database':
-            keys = not_deleted[not_deleted].index.tolist()
+            keys = not_deleted.index()
             if dropna:
-                keys = [key for key in keys if self.register.at[key,'SOPInstanceUID'] is not None]
+                keys = [key for key in keys if self.register.at(key,'SOPInstanceUID') is not None]
             return keys
 
         # If arguments are provided, create a list of unique datasets
@@ -347,324 +289,57 @@ class Manager():
             if not isinstance(uid, list):
                 uid = [uid]
             uid = [i for i in uid if i is not None]
-            rows = np.isin(df, uid).any(axis=1) & not_deleted
+            rows = not_deleted.rows_where_any(uid)
         if patient is not None:
-            if not isinstance(patient, list):
-                rows = (df.PatientID==patient) & not_deleted
-            else:
+            if isinstance(patient, list):
                 patient = [i for i in patient if i is not None]
-                rows = df.PatientID.isin(patient) & not_deleted
+            rows = not_deleted.rows_where('PatientID', patient) 
         if study is not None:
-            if not isinstance(study, list):
-                rows = (df.StudyInstanceUID==study) & not_deleted
-            else:
+            if isinstance(study, list):
                 study = [i for i in study if i is not None]
-                rows = df.StudyInstanceUID.isin(study) & not_deleted
+            rows = not_deleted.rows_where('StudyInstanceUID', study)
         if series is not None:
-            if not isinstance(series, list):
-                rows = (df.SeriesInstanceUID==series) & not_deleted
-            else:
+            if isinstance(series, list):
                 series = [i for i in series if i is not None]
-                rows = df.SeriesInstanceUID.isin(series) & not_deleted
+            rows = not_deleted.rows_where('SeriesInstanceUID', series)
         if instance is not None: 
-            if not isinstance(instance, list):
-                rows = (df.SOPInstanceUID==instance) & not_deleted
-            else:
+            if isinstance(instance, list):
                 instance = [i for i in instance if i is not None]
-                rows = df.SOPInstanceUID.isin(instance) & not_deleted
+            rows = not_deleted.rows_where('SOPInstanceUID', instance)
 
-        keys = df.index[rows].tolist()
+        keys = rows.index()
         if dropna:
-            keys = [key for key in keys if self.register.at[key,'SOPInstanceUID'] is not None]
+            keys = [key for key in keys if self.register.at(key,'SOPInstanceUID') is not None]
         return keys
 
-    def value(self, key, column):
-        try:
-            if isinstance(key, pd.Index):
-                return self.register.loc[key, column].values
-            if not isinstance(key, list) and not isinstance(column, list):
-                return self.register.at[key, column]
-            else:
-                return self.register.loc[key, column].values
-        except:
+
+    def filepath(self, key):
+        """Return the full filepath for a given relative path.
+        
+        Returns None for data that live in memory only."""
+        # Needs a formal test for completeness
+        if self.path is None:
             return None
+        return os.path.join(self.path, key)
 
-    def parent(self, uid=None):
-        # For consistency with other definitions
-        # Allow uid to be list and return list if multiple parents are found
-        """Returns the UID of the parent object"""
 
-        keys = self.keys(uid)
-        if keys == []:
-            return None
-        row = self.register.loc[keys[0]].values.tolist()
-        i = row.index(uid)
-        if self.columns[i] == 'PatientID':
-            return 'Database'
+    def filepaths(self, *args, **kwargs):
+        """Return a list of full filepaths for all dicom files in the folder"""
+        # Needs a formal test for completeness
+        return [self.filepath(key) for key in self.keys(*args, **kwargs)]
+
+
+    def value(self, key=None, column=None, copy=True):
+        values = self.register.values(key, column)
+        if isinstance(values, list):
+            values = np.array(values, dtype=object)
+        if copy:
+            return deepcopy(values)
         else:
-            return row[i-1]
+            return values # return a view for read only access
 
-
-    def filter(self, uids=None, **kwargs):
-        uids = [id for id in uids if id is not None]
-        if not kwargs:
-            return uids
-        vals = list(kwargs.values())
-        attr = list(kwargs.keys())
-        return [id for id in uids if self.get_values(attr, uid=id) == vals]
-        #return [id for id in uids if function(self.get_values(attr, uid=id), vals)]
-
-
-    def filter_instances(self, df, **kwargs):
-        df.dropna(inplace=True)
-        if not kwargs:
-            return df
-        vals = list(kwargs.values())
-        attr = list(kwargs.keys())
-        keys = [key for key in df.index if self.get_values(attr, [key]) == vals]
-        return df[keys]
-
-
-    def instances(self, uid=None, keys=None, sort=True, sortby=None, images=False, **kwargs):
-        if keys is None:
-            keys = self.keys(uid)
-        if sort:
-            if sortby is None:
-                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
-            df = self.register.loc[keys, sortby + ['SOPInstanceUID']]
-            df.sort_values(sortby, inplace=True)
-            df = df.SOPInstanceUID
-        else:
-            df = self.register.loc[keys,'SOPInstanceUID']
-        df = self.filter_instances(df, **kwargs)
-        if images == True:
-            keys = [key for key in df.index if self.get_values('Rows', [key]) is not None]
-            df = df[keys]
-        return df
-
-
-    def series(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
-        if keys is None:
-            keys = self.keys(uid)
-        if sort:
-            if sortby is None:
-                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
-            if not isinstance(sortby, list):
-                sortby = [sortby]
-            sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
-            df = self.register.loc[keys, sortby + ['SeriesInstanceUID']]
-            df.sort_values(sortby, inplace=True)
-            df = df.SeriesInstanceUID
-        else:
-            df = self.register.loc[keys,'SeriesInstanceUID']
-        uids = df.unique().tolist()
-        return self.filter(uids, **kwargs)
-
-
-    def studies(self, uid=None, keys=None, sort=True, **kwargs):
-        if keys is None:
-            keys = self.keys(uid)
-        if sort:
-            sortby = ['PatientName', 'StudyDescription']
-            df = self.register.loc[keys, sortby + ['StudyInstanceUID']]
-            df.sort_values(sortby, inplace=True)
-            df = df.StudyInstanceUID
-        else:
-            df = self.register.loc[keys,'StudyInstanceUID']
-        uids = df.unique().tolist()
-        return self.filter(uids, **kwargs)
-
-
-    def patients(self, uid=None, keys=None, sort=True, **kwargs):
-        if keys is None:
-            keys = self.keys(uid)
-        if sort:
-            sortby = ['PatientName']
-            df = self.register.loc[keys, sortby + ['PatientID']]
-            df.sort_values(sortby, inplace=True)
-            df = df.PatientID
-        else:
-            df = self.register.loc[keys,'PatientID']
-        uids = df.unique().tolist()
-        return self.filter(uids, **kwargs)
-
-
-    def pause_extensions(self):
-        self._pause_extensions = True
-
-
-    def resume_extensions(self):
-        self._pause_extensions = False
-        self.extend()
-
-
-    def extend(self):
-        if self._pause_extensions:
-            return
-        if self._new_keys == []:
-            return
-        df = pd.DataFrame(self._new_data, index=self._new_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        df['placeholder'] = False
-        self.register = pd.concat([self.register, df])
-        self._new_data = []
-        self._new_keys = []
-
-
-    def new_patient(self, parent='Database', **kwargs):
-        # Allow multiple to be made at the same time
-
-        PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
-
-        data = self.default()
-        data[0] = dbdataset.new_uid()
-        data[5] = PatientName
-
-        key = self.new_key()
-        self._new_data.append(data)
-        self._new_keys.append(key)
-        self.extend()
-
-        return data[0], key
-
-
-    def new_study(self, parent=None, key=None, **kwargs):
-        # Allow multiple to be made at the same time
-
-        StudyDescription = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_patient()
-            elif self.type(parent) != 'Patient':
-                parent, key = self.new_patient(parent)
-            else:
-                key = self.keys(patient=parent)[0]
-
-        data = self.default()
-        data[0] = self.value(key, 'PatientID')
-        data[1] = dbdataset.new_uid()
-        data[5] = self.value(key, 'PatientName')
-        data[6] = StudyDescription
-
-        if self.value(key, 'StudyInstanceUID') is None:
-            # New patient without studies - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Patient with existing study - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        return data[1], key
-
-
-    def new_series(self, parent=None, key=None, **kwargs):
-        # Allow multiple to be made at the same time
-
-        SeriesDescription = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_study()
-            elif self.type(parent) != 'Study':
-                #parent = self.studies(parent)[0]
-                parent, key = self.new_study(parent)
-            else:
-                key = self.keys(study=parent)[0]
-
-        # data = self.value(key, self.columns)
-        data = self.register.loc[key, self.columns].values.tolist()
-        data[2] = dbdataset.new_uid()
-        data[3] = self.default()[3]
-        data[4] = self.default()[4]
-        data[8] = SeriesDescription
-        data[9] = 1 + len(self.series(parent))
-        data[10] = self.default()[10]
-
-        if self.value(key, 'SeriesInstanceUID') is None:
-            # New study without series - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Study with existing series - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        return data[2], key
-
-    
-    def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_series()
-                keys = self.keys(series=parent)
-            elif self.type(parent) != 'Series':
-                # parent = self.series(parent)[0] 
-                parent, key = self.new_series(parent)
-                keys = self.keys(series=parent)
-            else:
-                keys = self.keys(series=parent)
-                key = keys[0]
-        else:
-            if parent is None:
-                parent = self.register.at[key, 'SeriesInstanceUID']
-            keys = self.keys(series=parent)
-
-        # Find largest instance number
-        n = self.register.loc[keys,'InstanceNumber'].values
-        n = n[n != -1]
-        max_number=0 if n.size==0 else np.amax(n)
-
-        # Populate attributes in index file
-        data = self.value(key, self.columns)
-        data[3] = dbdataset.new_uid()
-        data[4] = self.default()[4]
-        #data[10] = 1 + len(self.instances(parent))
-        #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
-        data[10] = 1 + max_number
-
-        if self.value(key, 'SOPInstanceUID') is None:
-            # New series without instances - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Series with existing instances - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        if dataset is not None:
-            self.set_dataset(data[3], dataset)
-
-        return data[3], key
-
-
-    # def in_database(self, uid):
-    #     keys = self.keys(uid)
-    #     return keys != []
-
-
-    # def is_empty(self, instance):
-    #     # Needs a unit test
-    #     key = self.keys(instance)[0]
-    #     if key in self.dataset:
-    #         return False
-    #     else:
-    #         file = self.filepath(key)
-    #         if file is None:
-    #             return True
-    #         elif not os.path.exists(file):
-    #             return True
-    #         else:
-    #             return False
 
     def get_instance_dataset(self, key):
-    
         """Gets a datasets for a single instance
         
         Datasets in memory will be returned.
@@ -705,6 +380,282 @@ class Manager():
                 return dataset[0]
         else:
             return dataset
+
+
+    def get_values(self, attributes, keys=None, uid=None):
+
+        if keys is None:
+            keys = self.keys(uid)
+            if keys == []:
+                return
+
+        # Single attribute
+        if not isinstance(attributes, list):
+            if attributes in self.columns:
+                value = [self.register.at(key, attributes) for key in keys]
+                # trick to get unique elements
+                value = [x for i, x in enumerate(value) if i==value.index(x)]
+            else:
+                value = []
+                for i, key in enumerate(keys):
+                    #instance_uid = self.value(key, 'SOPInstanceUID')
+                    instance_uid = self.register.values(key, 'SOPInstanceUID')
+                    ds = self.get_dataset(instance_uid, [key])
+                    if ds is None:
+                        v = None
+                    else:
+                        v = ds.get_values(attributes)
+                    if v not in value:
+                        value.append(v)
+            if len(value) == 1:
+                return value[0]
+            try: 
+                value.sort() # added 30/12/22
+            except:
+                pass
+            return value
+
+        # List of attributes
+        # Create a np array v with values for each instance and attribute
+        if set(attributes) <= set(self.columns):
+            #v = self.value(keys, attributes)
+            v = self.register.values(keys, attributes)
+            v = np.array(v)
+        else:
+            v = np.empty((len(keys), len(attributes)), dtype=object)
+            for i, key in enumerate(keys):
+                #instance_uid = self.value(key, 'SOPInstanceUID')
+                instance_uid = self.register.values(key, 'SOPInstanceUID')
+                ds = self.get_dataset(instance_uid, [key])
+                if isinstance(ds, list):
+                    # Note rescan could be done by default rather than raise error
+                    msg = 'The database appears to be corrupted. \n'
+                    msg += 'Multiple instances with the same SOPInstanceUID. \n'
+                    msg += 'Consider scanning the database again.'
+                    raise ValueError(msg)
+                if ds is None:
+                    v[i,:] = [None] * len(attributes)
+                else:
+                    v[i,:] = ds.get_values(attributes)
+
+        # Return a list with unique values for each attribute
+        values = []
+        for a in range(v.shape[1]):
+            va = v[:,a]
+            va = va[va != np.array(None)]
+            va = np.unique(va)
+            if va.size == 0:
+                va = None
+            elif va.size == 1:
+                va = va[0]
+            else:
+                va = list(va)
+                try: 
+                    va.sort() # added 30/12/22
+                except:
+                    pass
+            values.append(va)
+        return values
+
+
+    def parent(self, uid=None):
+        # For consistency with other definitions
+        # Allow uid to be list and return list if multiple parents are found
+        """Returns the UID of the parent object"""
+        if isinstance(uid, list):
+            return [parent(x) for x in uid]
+        keys = self.keys(uid)
+        if keys == []:
+            return
+        else:
+            key = keys[0]
+        row = self.register.extract_rows(key)
+        col = row.column(uid)
+        if col == 'PatientID':
+            return 'Database'
+        parent = {
+            'StudyInstanceUID': 'PatientID',
+            'SeriesInstanceUID': 'StudyInstanceUID',
+            'SOPInstanceUID': 'SeriesInstanceUID',
+        }
+        return row.values(row.index()[0], parent[col])
+
+
+    def filter_instances(self, reg, **kwargs):
+        reg.dropna()
+        if not kwargs:
+            return reg
+        vals = list(kwargs.values())
+        attr = list(kwargs.keys())
+        keys = [key for key in reg.index() if self.get_values(attr, [key]) == vals]
+        #return df[keys]
+        return reg.extract_rows(index=keys)
+
+
+    def instances(self, uid=None, keys=None, sort=True, sortby=None, images=False, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            if sortby is None:
+                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber', 'InstanceNumber']
+            if not isinstance(sortby, list):
+                sortby = [sortby]
+            reg = self.register.extract_rows(keys, sortby + ['SOPInstanceUID'])
+            reg.sort_values(sortby)
+            reg = reg.extract_rows(columns='SOPInstanceUID')
+        else:
+            reg = self.register.extract_rows(keys, 'SOPInstanceUID')
+        #return self.filter_instances(reg, **kwargs)
+        reg = self.filter_instances(reg, **kwargs)
+        if images == True:
+            #keys = [key for key in df.index if self.get_values('Rows', [key]) is not None]
+            # df = df[keys]
+            keys = [key for key in reg.index() if self.get_values('Rows', [key]) is not None]
+            reg = reg.extract_rows(index=keys)
+        return reg
+
+
+    def filter(self, uids=None, **kwargs):
+        uids = [id for id in uids if id is not None]
+        if not kwargs:
+            return uids
+        vals = list(kwargs.values())
+        attr = list(kwargs.keys())
+        return [id for id in uids if self.get_values(attr, uid=id) == vals]
+
+
+    def series(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            if sortby is None:
+                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
+            if not isinstance(sortby, list):
+                sortby = [sortby]
+            reg = self.register.extract_rows(keys, sortby + ['SeriesInstanceUID'])
+            reg.sort_values(sortby)
+            reg = reg.extract_rows(columns='SeriesInstanceUID')
+        else:
+            reg = self.register.extract_rows(keys, 'SeriesInstanceUID')
+        uids = set(reg.values(column='SeriesInstanceUID'))
+        return self.filter(uids, **kwargs)
+
+
+    def studies(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            if sortby is None:
+                sortby = ['PatientName', 'StudyDescription']
+            if not isinstance(sortby, list):
+                sortby = [sortby]
+            reg = self.register.extract_rows(keys, sortby + ['StudyInstanceUID'])
+            reg.sort_values(sortby)
+            reg = reg.extract_rows(columns='StudyInstanceUID')
+        else:
+            reg = self.register.extract_rows(keys, 'StudyInstanceUID')
+        uids = set(reg.values(column='StudyInstanceUID'))
+        return self.filter(uids, **kwargs)
+
+
+    def patients(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
+        if keys is None:
+            keys = self.keys(uid)
+        if sort:
+            if sortby is None:
+                sortby = ['PatientName']
+            if not isinstance(sortby, list):
+                sortby = [sortby]
+            reg = self.register.extract_rows(keys, sortby + ['PatientID'])
+            reg.sort_values(sortby)
+            reg = reg.extract_rows(columns='PatientID')
+        else:
+            reg = self.register.extract_rows(keys, 'PatientID')
+        uids = set(reg.values(column='PatientID'))
+        return self.filter(uids, **kwargs)
+
+
+    def new_patient(self, parent='Database', **kwargs):
+        PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
+        data = self.default() + [False, True]
+        data[0] = dbdataset.new_uid()
+        data[5] = PatientName
+        key = self.new_key()
+        self.register.add_row(key, data)
+        return data[0], key
+
+
+    def new_study(self, parent=None, key=None, **kwargs):
+        StudyDescription = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
+        if key is None:
+            if parent is None:
+                parent, key = self.new_patient()
+            elif self.type(parent) != 'Patient':
+                parent, key = self.new_patient(parent)
+            else:
+                key = self.keys(patient=parent)[0]
+        data = self.default() + [False, True]
+        data[0] = self.value(key, 'PatientID')
+        data[1] = dbdataset.new_uid()
+        data[5] = self.value(key, 'PatientName')
+        data[6] = StudyDescription
+        if self.value(key, 'StudyInstanceUID') is not None:
+            # Patient with existing study - create new row
+            key = self.new_key()
+        self.register.add_row(key, data)
+        return data[1], key
+
+
+    def new_series(self, parent=None, key=None, **kwargs):
+        SeriesDescription = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
+        if key is None:
+            if parent is None:
+                parent, key = self.new_study()
+            elif self.type(parent) != 'Study':
+                parent, key = self.new_study(parent)
+            else:
+                key = self.keys(study=parent)[0]
+        data = self.value(key).tolist()
+        data[2] = dbdataset.new_uid()
+        data[3] = self.default()[3]
+        data[4] = self.default()[4]
+        data[8] = SeriesDescription
+        data[9] = 1 + len(self.series(parent))
+        data[10] = self.default()[10]
+        data[-2:] = [False, True]
+        if self.value(key, 'SeriesInstanceUID') is not None:
+            key = self.new_key()
+        self.register.add_row(key, data)
+        return data[2], key
+
+    
+    def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
+        if key is None:
+            if parent is None:
+                parent, key = self.new_series()
+                keys = self.keys(series=parent)
+            elif self.type(parent) != 'Series':
+                parent, key = self.new_series(parent)
+                keys = self.keys(series=parent)
+            else:
+                keys = self.keys(series=parent)
+                key = keys[0]
+
+        data = self.value(key).tolist()
+        data[3] = dbdataset.new_uid()
+        data[4] = self.default()[4]
+        #data[10] = 1 + len(self.instances(parent))
+        #data[10] = 1 + self.instances(keys=self.keys(series=parent)).shape[0]
+        #data[10] = 1 + len(self.keys(series=parent))
+        data[10] = 1 + np.amax(self.value(keys, 'InstanceNumber'))
+        data[-2:] = [False, True]
+        if self.value(key, 'SOPInstanceUID') is not None:
+            key = self.new_key()
+        self.register.add_row(key, data)  
+        if dataset is not None:
+            self.set_dataset(data[3], dataset)
+        return data[3], key
+
 
 
     def _get_values(self, keys, attr):
@@ -1038,8 +989,7 @@ class Manager():
             #     self.status.progress(i, len(keys), message)
             if key in self.dataset:
                 file = self.filepath(key)
-                if file is not None:
-                    self.dataset[key].write(file, self.status)
+                self.dataset[key].write(file, self.status)
         #self.status.hide()
 
     def clear(self, *args, keys=None, **kwargs):
@@ -1051,6 +1001,90 @@ class Manager():
         # then delete the instances from memory
         for key in keys:
             self.dataset.pop(key, None) 
+
+
+    def delete(self, *args, keys=None, **kwargs):
+        """Deletes some datasets
+        
+        Deleted datasets are stashed and can be recovered with restore()
+        Using save() will delete them permanently
+        """
+        if keys is None:
+            keys = self.keys(*args, **kwargs)
+        self.register.loc[keys,'removed'] = True
+
+
+    def save(self, rows=None): 
+
+        no_placeholder = self.register.placeholder==False
+        created = self.register.created & (self.register.removed==False) & no_placeholder
+        removed = self.register.removed & no_placeholder
+        if rows is not None:
+            created = created & rows
+            removed = removed & rows
+        created = created[created].index
+        removed = removed[removed].index
+
+        # delete datasets marked for removal
+        for key in removed.tolist():
+            # delete in memory
+            if key in self.dataset:
+                del self.dataset[key]
+            # delete on disk
+            file = self.filepath(key) 
+            if os.path.exists(file): 
+                os.remove(file)
+        # and drop then from the dataframe
+        self.register.drop(index=removed, inplace=True)
+
+        # for new or edited data, mark as saved and create placeholders
+        self.register.loc[created, 'created'] = False
+        #df = self.register.loc[created, :].copy(deep=True)
+        df = self.register.loc[created, :]
+        df.index = [self.new_key() for _ in range(df.shape[0])]
+        df.removed = True
+        df.created = True
+        df.placeholder = True
+        self.register = pd.concat([self.register, df])
+
+        self._write_df()
+        self.write()
+
+
+    def restore(self, rows=None):  
+
+        no_placeholder = self.register.placeholder==False
+        created = self.register.created & no_placeholder
+        removed = self.register.removed & (self.register.created==False) & no_placeholder
+        if rows is not None:
+            created = created & rows
+            removed = removed & rows
+        created = created[created].index
+        removed = removed[removed].index
+
+        # permanently delete newly created datasets
+        for key in created.tolist():
+            # delete in memory
+            if key in self.dataset:
+                del self.dataset[key]
+            # delete on disk
+            file = self.filepath(key) 
+            if os.path.exists(file): 
+                os.remove(file)
+        self.register.drop(index=created, inplace=True)
+
+        # For those that are restored, create placeholders.
+        self.register.loc[removed, 'removed'] = False
+        df = self.register.loc[removed, :].copy(deep=True)
+        df.index = [self.new_key() for _ in range(df.shape[0])]
+        df.removed = True
+        df.created = True
+        df.placeholder = True
+        self.register = pd.concat([self.register, df])
+
+        self._write_df()
+        # self.write()      
+
 
     def close(self):
         """Close an open database.
@@ -1124,91 +1158,6 @@ class Manager():
         """
         # Needs a formal test for completeness
         return self.register is not None
-
-
-    def delete(self, *args, keys=None, **kwargs):
-        """Deletes some datasets
-        
-        Deleted datasets are stashed and can be recovered with restore()
-        Using save() will delete them permanently
-        """
-        if keys is None:
-            keys = self.keys(*args, **kwargs)
-        self.register.loc[keys,'removed'] = True
-
-
-    def save(self, rows=None): 
-
-        self.status.message('Saving changes..')
-
-        no_placeholder = self.register.placeholder==False
-        created = self.register.created & (self.register.removed==False) & no_placeholder
-        removed = self.register.removed & no_placeholder
-        if rows is not None:
-            created = created & rows
-            removed = removed & rows
-        created = created[created].index
-        removed = removed[removed].index
-
-        # delete datasets marked for removal
-        for key in removed.tolist():
-            # delete in memory
-            if key in self.dataset:
-                del self.dataset[key]
-            # delete on disk
-            file = self.filepath(key) 
-            if os.path.exists(file): 
-                os.remove(file)
-        # and drop then from the dataframe
-        self.register.drop(index=removed, inplace=True)
-
-        # for new or edited data, mark as saved and create placeholders
-        self.register.loc[created, 'created'] = False
-        #df = self.register.loc[created, :].copy(deep=True)
-        df = self.register.loc[created, :]
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
-
-        self._write_df()
-        self.write()
-
-
-    def restore(self, rows=None):  
-
-        no_placeholder = self.register.placeholder==False
-        created = self.register.created & no_placeholder
-        removed = self.register.removed & (self.register.created==False) & no_placeholder
-        if rows is not None:
-            created = created & rows
-            removed = removed & rows
-        created = created[created].index
-        removed = removed[removed].index
-
-        # permanently delete newly created datasets
-        for key in created.tolist():
-            # delete in memory
-            if key in self.dataset:
-                del self.dataset[key]
-            # delete on disk
-            file = self.filepath(key) 
-            if os.path.exists(file): 
-                os.remove(file)
-        self.register.drop(index=created, inplace=True)
-
-        # For those that are restored, create placeholders.
-        self.register.loc[removed, 'removed'] = False
-        df = self.register.loc[removed, :].copy(deep=True)
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
-
-        self._write_df()
-        # self.write()      
 
 
     def delete_studies(self, studies: list):
@@ -2196,83 +2145,6 @@ class Manager():
         return new_key
 
  
-    def get_values(self, attributes, keys=None, uid=None):
-
-        if keys is None:
-            keys = self.keys(uid)
-            if keys == []:
-                return
-
-        # Single attribute
-        if not isinstance(attributes, list):
-
-            if attributes in self.columns:
-                value = [self.register.at[key, attributes] for key in keys]
-                # Get unique elements
-                value = [x for i, x in enumerate(value) if i==value.index(x)]
-                
-            else:
-                value = []
-                for i, key in enumerate(keys):
-                    instance_uid = self.value(key, 'SOPInstanceUID')
-                    ds = self.get_dataset(instance_uid, [key])
-                    if ds is None:
-                        v = None
-                    else:
-                        v = ds.get_values(attributes)
-                    if v not in value:
-                        value.append(v)
-            if len(value) == 1:
-                return value[0]
-            try: 
-                value.sort() # added 30/12/22
-            except:
-                pass
-            return value
-
-        # Multiple attributes
-        # Create a np array v with values for each instance and attribute
-        if set(attributes) <= set(self.columns):
-            v = self.value(keys, attributes)
-        else:
-            v = np.empty((len(keys), len(attributes)), dtype=object)
-            for i, key in enumerate(keys):
-                instance_uid = self.value(key, 'SOPInstanceUID')
-                ds = self.get_dataset(instance_uid, [key])
-                if isinstance(ds, list):
-                    instances = self.register.SOPInstanceUID == instance_uid
-                    msg = 'Multiple instances with the same SOPInstanceUID \n'
-                    msg += instance_uid + '\n'
-                    msg += str(self.register.loc[instances].transpose())
-                    raise DatabaseCorrupted(msg)
-                if ds is None:
-                    v[i,:] = [None] * len(attributes)
-                else:
-                    v[i,:] = ds.get_values(attributes)
-
-        # Return a list with unique values for each attribute
-        values = []
-        for a in range(v.shape[1]):
-            va = v[:,a]
-            va = va[va != np.array(None)]
-            #va = np.unique(va)
-            va = list(va)
-            # Get unique values
-            va = [x for i, x in enumerate(va) if i==va.index(x)]
-            #if va.size == 0:
-            if len(va) == 0:
-                va = None
-            elif len(va) == 1:
-            #elif va.size == 1:
-                va = va[0]
-            else:
-                #va = list(va)
-                try: 
-                    va.sort() # added 30/12/22
-                except:
-                    pass
-            values.append(va)
-        return values
 
 
     def import_datasets(self, files):
@@ -2293,9 +2165,7 @@ class Manager():
             return
 
         # Add those that are left to the database
-        files = df.index.tolist()
-        for i, file in enumerate(files):
-            self.status.progress(i+1, len(files), 'Copying files..')
+        for file in df.index.tolist():
             new_key = self.new_key()
             ds = dbdataset.read(file)
             ds.write(self.filepath(new_key), self.status)
@@ -2306,62 +2176,43 @@ class Manager():
         return df.SOPInstanceUID.values.tolist()
 
 
-    def import_datasets_from_nifti(self, files, study=None):
-
-        if study is None:
-            study, _ = self.new_study()
-
-        # Create new 
-        nifti_series = None
-        for i, file in enumerate(files):
-
-            # Read the nifti file
-            nim = nib.load(file)
-            sx, sy, sz = nim.header.get_zooms() # spacing
-            
-            # If a dicom header is stored, get it
-            # Else create one from scratch
-            try:
-                dcmext = nim.header.extensions
-                dataset = DbDataset(dcmext[0].get_content())
-            except:
-                dataset = new_dataset()
-
-            # Read the array and reshape to 3D 
-            array = np.squeeze(nim.get_fdata())
-            array.reshape((array.shape[0], array.shape[1], -1))
-            n_slices = array.shape[-1]
-
-            # If there is only one slice,
-            # load it into the nifti series.
-            if n_slices == 1:
-                if nifti_series is None:
-                    desc = os.path.basename(file)
-                    nifti_series, _ = self.new_series(study, SeriesDescription=desc)
-                affine = dbimage.affine_to_RAH(nim.affine)
-                dataset.set_pixel_array(array[:,:,0])
-                dataset.set_values('affine_matrix', affine)
-                #dataset.set_values('PixelSpacing', [sy, sx])
-                self.new_instance(nifti_series, dataset)
-
-            # If there are multiple slices in the file,
-            # Create a new series and save all files in there.
-            else:
-                desc = os.path.basename(file)
-                series, _ = self.new_series(study, SeriesDescription=desc)
-                affine = dbimage.affine_to_RAH(nim.affine)
-                for z in range(n_slices):
-                    ds = copy.deepcopy(dataset)
-                    ds.set_pixel_array(array[:,:,z])
-                    ds.set_values('affine_matrix', affine)
-                    #ds.set_values('PixelSpacing', [sy, sx])
-                    self.new_instance(series, ds)
-
-
     def export_datasets(self, uids, database):
         
         files = self.filepaths(uids)
         database.import_datasets(files)
+
+    def tree(self, depth=3):
+
+        df = self.register
+        if df is None:
+            raise ValueError('Cannot build tree - no database open')
+        df = df[df.removed == False]
+        df.sort_values(['PatientName','StudyDate','SeriesNumber','InstanceNumber'], inplace=True)
+        
+        database = {'uid': self.path}
+        database['patients'] = []
+        for uid_patient in df.PatientID.dropna().unique():
+            patient = {'uid': uid_patient}
+            database['patients'].append(patient)
+            if depth >= 1:
+                df_patient = df[df.PatientID == uid_patient]
+                patient['key'] = df_patient.index[0]
+                patient['studies'] = []
+                for uid_study in df_patient.StudyInstanceUID.dropna().unique():
+                    study = {'uid': uid_study}
+                    patient['studies'].append(study)
+                    if depth >= 2:
+                        df_study = df_patient[df_patient.StudyInstanceUID == uid_study]
+                        study['key'] = df_study.index[0]
+                        study['series'] = []
+                        for uid_sery in df_study.SeriesInstanceUID.dropna().unique():
+                            series = {'uid': uid_sery}
+                            study['series'].append(series)
+                            if depth == 3:
+                                df_series = df_study[df_study.SeriesInstanceUID == uid_sery]
+                                series['key'] = df_series.index[0]
+        return database
+
 
 
 #   Helper functions to hide the register from classes other than manager
@@ -2388,4 +2239,27 @@ class Manager():
 
     def _extract_record(self, name, uid):
         return self.register[name] == uid
+
+
+#   Obsolete
+
+    def pause_extensions(self):
+        self._pause_extensions = True
+
+    def resume_extensions(self):
+        self._pause_extensions = False
+        self.extend()
+
+    def extend(self):
+        if self._pause_extensions:
+            return
+        if self._new_keys == []:
+            return
+        df = pd.DataFrame(self._new_data, index=self._new_keys, columns=self.columns)
+        df['removed'] = False
+        df['created'] = True
+        df['placeholder'] = False
+        self.register = pd.concat([self.register, df])
+        self._new_data = []
+        self._new_keys = []
 

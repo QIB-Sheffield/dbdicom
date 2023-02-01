@@ -37,7 +37,7 @@ def _lists_have_equal_items(list1, list2):
     return set1 == set2
 
 
-def map_to(source, target):
+def map_to(source, target, **kwargs):
     """Map non-zero pixels onto another series"""
 
     # Get transformation matrix
@@ -55,7 +55,7 @@ def map_to(source, target):
             #slice_group_target = target.subseries(ImageOrientationPatient = v['ImageOrientationPatient'])
             slice_group_target = target.new_sibling()
             slice_group_target.adopt(affine_slice_group[1])
-            mapped = _map_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group[0])
+            mapped = _map_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group[0], **kwargs)
             mapped_series.append(mapped)
             slice_group_target.remove()
         desc = source.instance().SeriesDescription 
@@ -63,26 +63,26 @@ def map_to(source, target):
         mapped_series = merge(mapped_series, inplace=True)
         mapped_series.SeriesDescription = desc
     else:
-        mapped_series = _map_series_to_slice_group(source, target, affine_source, affine_target[0])
+        mapped_series = _map_series_to_slice_group(source, target, affine_source, affine_target[0], **kwargs)
     return mapped_series
 
 
-def _map_series_to_slice_group(source, target, affine_source, affine_target):
+def _map_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
 
     if isinstance(affine_source, list):
         mapped_series = []
         for affine_slice_group in affine_source:
             slice_group_source = source.new_sibling()
             slice_group_source.adopt(affine_slice_group[1])
-            mapped = _map_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target)
+            mapped = _map_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target, **kwargs)
             mapped_series.append(mapped)
             slice_group_source.remove()
         return merge(mapped_series, inplace=True)
     else:
-        return _map_slice_group_to_slice_group(source, target, affine_source[0], affine_target)
+        return _map_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
-def _map_slice_group_to_slice_group(source, target, affine_source, affine_target):
+def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False):
 
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
     matrix, offset = nib.affines.to_matvec(source_to_target) 
@@ -106,6 +106,11 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
                 matrix = matrix,
                 offset = offset,
                 output_shape = output_shape)
+
+    # If source is a mask array, set values to [0,1]
+    if mask:
+        array_mapped[array_mapped > 0.5] = 1
+        array_mapped[array_mapped <= 0.5] = 0
     
     # If data needs to be saved, create new series
     source.status.message('Saving results..')
@@ -129,7 +134,7 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     return mapped_series
 
 
-def map_mask_to(source, target):
+def map_mask_to(source, target, **kwargs):
     """Map non-zero pixels onto another series"""
 
     # Get transformation matrix
@@ -143,24 +148,24 @@ def map_mask_to(source, target):
         for affine_slice_group_target in affine_target:
             slice_group_target = target.new_sibling()
             slice_group_target.adopt(affine_slice_group_target[1])
-            mapped, headers = _map_mask_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group_target[0])
+            mapped, headers = _map_mask_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group_target[0], **kwargs)
             mapped_arrays.append(mapped)
             mapped_headers.append(headers)
             slice_group_target.remove()
     else:
-        mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(source, target, affine_source, affine_target[0])
+        mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(source, target, affine_source, affine_target[0], **kwargs)
     source.status.hide()
     return mapped_arrays, mapped_headers
 
 
-def _map_mask_series_to_slice_group(source, target, affine_source, affine_target):
+def _map_mask_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
 
     if isinstance(affine_source, list):
         mapped_arrays = []
         for affine_slice_group in affine_source:
             slice_group_source = source.new_sibling()
             slice_group_source.adopt(affine_slice_group[1])
-            mapped, headers = _map_mask_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target)
+            mapped, headers = _map_mask_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target, **kwargs)
             mapped_arrays.append(mapped)
             slice_group_source.remove()
         array = np.logical_or(mapped_arrays[:2])
@@ -168,7 +173,7 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
             array = np.logical_or(array, a)
         return array, headers
     else:
-        return _map_mask_slice_group_to_slice_group(source, target, affine_source[0], affine_target)
+        return _map_mask_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
 def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target):

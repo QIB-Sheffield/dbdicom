@@ -45,7 +45,8 @@ class Database(DbRecord):
         self.manager.scan()
 
     def import_dicom(self, files):
-        self.manager.import_datasets(files)
+        uids = self.manager.import_datasets(files)
+        return uids is not None
 
     def import_nifti(self, files):
         self.manager.import_datasets_from_nifti(files)

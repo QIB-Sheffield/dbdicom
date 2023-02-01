@@ -81,9 +81,11 @@ class Series(DbRecord):
     def export_as_dicom(self, path): 
         folder = self.label()
         path = export_path(path, folder)
-        mgr = Manager(path)
+        copy = self.copy()
+        mgr = Manager(path, status=self.status)
         mgr.open(path)
-        mgr.import_datasets(self.files())
+        mgr.import_datasets(copy.files())
+        copy.remove()
 
 
     def export_as_png(self, path):
