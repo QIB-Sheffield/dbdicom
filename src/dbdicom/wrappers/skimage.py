@@ -70,6 +70,70 @@ def watershed_2d(input, markers=5, **kwargs):
     return filtered
 
 
+def skeletonize(input, **kwargs):
+    """
+    Labels structures in an image
+    
+    Wrapper for skimage.segmentation.watershed function. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+    markers: dbdicom series of the same dimensions as series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [2d skeleton]'
+    filtered = input.copy(SeriesDescription = desc)
+    #images = filtered.instances() #sort=False should be faster - check
+    images = filtered.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.skeletonize(array, **kwargs)
+        #array.astype(np.float32)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return filtered
+
+
+def skeletonize_3d(input, **kwargs):
+    """
+    Labels structures in an image
+    
+    Wrapper for skimage.segmentation.watershed function. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+    markers: dbdicom series of the same dimensions as series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [skeleton 3D]'
+    filtered = input.copy(SeriesDescription = desc)
+    array, headers = filtered.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return filtered
+    for t in range(array.shape[3]):
+        if array.shape[3] > 1:
+            input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        else:
+            input.status.message('Calculating ' + desc + '. Please bear with me..')
+        array = skimage.morphology.skeletonize_3d(array[:,:,:,t], **kwargs)
+        filtered.set_array(array, headers[:,t], pixels_first=True)
+    _reset_window(filtered, array)
+    input.status.hide()
+    return filtered
+
+
 def watershed_2d_labels(input, markers=None, **kwargs):
     """
     Labels structures in an image
@@ -148,6 +212,35 @@ def canny(input, sigma=1.0, **kwargs):
         image.clear()
     input.status.hide()
     return filtered
+
+
+def convex_hull_image(series, **kwargs):
+    """
+    wrapper for skimage.feature.canny
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    suffix = ' [Convex hull]'
+    desc = series.instance().SeriesDescription 
+    chull = series.copy(SeriesDescription = desc+suffix)
+    images = chull.images()
+    for i, image in enumerate(images):
+        series.status.progress(i+1, len(images), 'Calculating convex hull for ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.convex_hull_image(array, **kwargs)
+        image.set_array(array)
+        array = array.astype(np.ubyte)
+        _reset_window(image, array)
+        image.clear()
+    series.status.hide()
+    return chull
 
 
 # https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1
@@ -330,7 +423,14 @@ def mdreg_constant_3d(series, attachment=1, max_improvement=1, max_iter=5):
 # Helper functions
 
 def _reset_window(image, array):
-    min = np.amin(array)
-    max = np.amax(array)
+    arr = array.astype(np.float32)
+    min = np.amin(arr)
+    max = np.amax(arr)
     image.WindowCenter= (max+min)/2
-    image.WindowWidth = 0.9*(max-min)
+    if min==max:
+        if min == 0:
+            image.WindowWidth = 1
+        else:
+            image.WindowWidth = min
+    else:
+        image.WindowWidth = 0.9*(max-min)
