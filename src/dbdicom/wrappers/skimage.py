@@ -2,7 +2,8 @@ import numpy as np
 import skimage
 from dbdicom.wrappers import scipy
 
-def watershed_3d(input, markers=250, mask=None, **kwargs):
+
+def watershed_2d(input, markers=None, mask=None, **kwargs):
     """
     Labels structures in an image
     
@@ -17,57 +18,76 @@ def watershed_3d(input, markers=250, mask=None, **kwargs):
     -------
     filtered : dbdicom series
     """
-    desc = input.instance().SeriesDescription + ' [watershed 3D]'
-    filtered = input.copy(SeriesDescription = desc)
-    array, headers = filtered.array('SliceLocation', pixels_first=True)
-    if array is None:
-        return filtered
-    if mask is not None: 
-        mask, _ = mask.array('SliceLocation', pixels_first=True) 
-        if mask.shape != array.shape:
-            mask = None
-    for t in range(array.shape[3]):
-        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
-        if mask is None:
-            mask_t = None
-        else:
-            mask_t = mask[:,:,:,t]
-        array = skimage.segmentation.watershed(array[:,:,:,t], markers=markers, mask=mask_t, **kwargs)
-        filtered.set_array(array, headers[:,t], pixels_first=True)
-    input.status.hide()
-    return filtered
-
-
-def watershed_2d(input, markers=5, **kwargs):
-    """
-    Labels structures in an image
-    
-    Wrapper for skimage.segmentation.watershed function. 
-
-    Parameters
-    ----------
-    input: dbdicom series
-    markers: dbdicom series of the same dimensions as series
-
-    Returns
-    -------
-    filtered : dbdicom series
-    """
-    desc = input.instance().SeriesDescription + ' [watershed]'
-    filtered = input.copy(SeriesDescription = desc)
-    #images = filtered.instances() #sort=False should be faster - check
-    images = filtered.images()
+    desc = input.instance().SeriesDescription + ' [watershed 2D]'
+    result = input.copy(SeriesDescription = desc)
+    sortby = ['SliceLocation', 'AcquisitionTime']
+    images = result.images(sortby=sortby)
+    if markers is not None:
+        markers = scipy.map_to(markers, input, label=True)
+        markers = markers.images(sortby=sortby)
+    if mask is not None:
+        mask = scipy.map_to(mask, input, mask=True)
+        mask = mask.images(sortby=sortby)
     for i, image in enumerate(images):
         input.status.progress(i+1, len(images), 'Calculating ' + desc)
         image.read()
         array = image.array()
-        array = skimage.segmentation.watershed(array, markers=markers, **kwargs)
-        #array.astype(np.float32)
+        if markers is None:
+            mrk = None
+        else:
+            mrk = markers[i].array().astype(np.uint)
+        if mask is None:
+            msk = None
+        else:
+            msk = mask[i].array().astype(np.bool8)
+        array = skimage.segmentation.watershed(array, markers=mrk, mask=msk, **kwargs)
+        array.astype(np.float32) # unnecessary - test
         image.set_array(array)
         _reset_window(image, array)
         image.clear()
     input.status.hide()
-    return filtered
+    return result
+
+
+def watershed_3d(input, markers=None, mask=None, **kwargs):
+    """
+    Determine watershed in 3D
+    
+    Wrapper for skimage.segmentation.watershed function.
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    if markers is not None:
+        markers = scipy.map_to(markers, input)
+        markers, _ = markers.array('SliceLocation', pixels_first=True)
+        markers = markers.astype(np.uint)
+    if mask is not None:
+        mask = scipy.map_to(mask, input)
+        mask, _ = mask.array('SliceLocation', pixels_first=True)
+        mask = mask.astype(np.bool8)
+    desc = input.instance().SeriesDescription + ' [watershed 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.segmentation.watershed(
+            array[...,t], 
+            markers = None if markers is None else markers[...,t], 
+            mask = None if mask is None else mask[...,t], 
+            **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
 
 
 def skeletonize(input, **kwargs):
@@ -127,60 +147,50 @@ def skeletonize_3d(input, **kwargs):
             input.status.progress(t, array.shape[3], 'Calculating ' + desc)
         else:
             input.status.message('Calculating ' + desc + '. Please bear with me..')
-        array = skimage.morphology.skeletonize_3d(array[:,:,:,t], **kwargs)
+        array[:,:,:,t] = skimage.morphology.skeletonize_3d(array[:,:,:,t], **kwargs)
         filtered.set_array(array, headers[:,t], pixels_first=True)
     _reset_window(filtered, array)
     input.status.hide()
     return filtered
 
 
-def watershed_2d_labels(input, markers=None, **kwargs):
+# https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.peak_local_max
+def peak_local_max_3d(input, labels=None, **kwargs):
     """
-    Labels structures in an image
+    Determine local maxima
     
-    Wrapper for skimage.segmentation.watershed function. 
+    Wrapper for skimage.feature.peak_local_max function. 
 
     Parameters
     ----------
     input: dbdicom series
-    markers: dbdicom series of the same dimensions as series
 
     Returns
     -------
     filtered : dbdicom series
     """
-    suffix = ' [watershed]'
-    desc = input.instance().SeriesDescription
-    filtered = input.copy(SeriesDescription = desc+suffix)
-    #images = filtered.instances() #sort=False should be faster - check
-    images = filtered.images()
-    for i, image in enumerate(images):
-        input.status.progress(i+1, len(images), 'Calculating watershed for ' + desc)
-        image.read()
-        array = image.array()
-        if markers is None:
-            mrk = None
-        else:
-            mrk = markers.instances( 
-                SliceLocation = image.SliceLocation,
-                AcquisitionTime = image.AcquisitionTime)
-            if mrk == []:
-                image.clear()
-                image.remove()
-                continue
-            else:
-                # If there are multiple, use the first one
-                mrk = mrk[0].array()
-                mrk = np.rint(mrk).astype(np.uint)
-                if array.shape != mrk.shape:
-                    mrk = None
-        array = skimage.segmentation.watershed(array, markers=mrk, **kwargs)
-        array.astype(np.float32) # unnecessary - test
-        image.set_array(array)
-        _reset_window(image, array)
-        image.clear()
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return filtered
+    if labels is not None:
+        labels = scipy.map_to(labels, input)
+        labels_array, _ = labels.array('SliceLocation', pixels_first=True)
+    desc = input.instance().SeriesDescription + ' [peak local max 3D]'
+    filtered = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        coords = skimage.feature.peak_local_max(
+            array[:,:,:,t], 
+            labels = labels_array[:,:,:,t].astype(np.int16), 
+            **kwargs)
+        mask = np.zeros(array.shape[:3], dtype=bool)
+        mask[tuple(coords.T)] = True
+        filtered.set_array(mask, headers[:,t], pixels_first=True)
+    _reset_window(filtered, array)
     input.status.hide()
     return filtered
+
+
 
 
 # https://scikit-image.org/docs/dev/api/skimage.feature.html#skimage.feature.canny
