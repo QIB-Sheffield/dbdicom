@@ -59,9 +59,9 @@ def kmeans(features, mask=None, n_clusters=2, multiple_series=False):
         mask.status.message('Creating output array..')
         array = np.zeros(shape)
         array = np.ravel(array)
-        array[mask_indices] = 1 + kmeans.labels_ 
+        array[mask_indices] = 1+kmeans.labels_ 
     else:
-        array = 1 + kmeans.labels_
+        array = 1+kmeans.labels_
     array = array.reshape(shape)
 
     # Save the results

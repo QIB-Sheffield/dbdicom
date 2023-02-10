@@ -82,7 +82,7 @@ def _map_series_to_slice_group(source, target, affine_source, affine_target, **k
         return _map_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
-def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False):
+def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False, label=False):
 
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
     matrix, offset = nib.affines.to_matvec(source_to_target) 
@@ -111,6 +111,8 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     if mask:
         array_mapped[array_mapped > 0.5] = 1
         array_mapped[array_mapped <= 0.5] = 0
+    elif label:
+        array_mapped = np.around(array_mapped)
     
     # If data needs to be saved, create new series
     source.status.message('Saving results..')
@@ -178,17 +180,17 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
 
 def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target):
 
-    source_to_target = np.linalg.inv(affine_source).dot(affine_target)
-    matrix, offset = nib.affines.to_matvec(source_to_target) 
-    
     # Get arrays
-    array_source, headers_source = source.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+    array_source, _ = source.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
     array_target, headers_target = target.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
-
     if np.array_equal(affine_source, affine_target):
         array_source[array_source > 0.5] = 1
         array_source[array_source <= 0.5] = 0
-        return array_source[:,:,:,0,0], headers_source[:,0,0]
+        return array_source[:,:,:,0,0], headers_target[:,0,0]
+     
+    # Get transformation matrix
+    source_to_target = np.linalg.inv(affine_source).dot(affine_target)
+    matrix, offset = nib.affines.to_matvec(source_to_target) 
     
     #Perform transformation
     source.status.message('Performing transformation..')
@@ -219,7 +221,7 @@ def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_t
 # SEGMENTATION
 
 
-def label(input, **kwargs):
+def label_2d(input, **kwargs):
     """
     Labels structures in an image
     
@@ -233,7 +235,7 @@ def label(input, **kwargs):
     -------
     filtered : dbdicom series
     """
-    suffix = ' [labels]'
+    suffix = ' [label 2D]'
     desc = input.instance().SeriesDescription
     filtered = input.copy(SeriesDescription = desc+suffix)
     #images = filtered.instances() # setting sort=False should be faster - TEST!!!!!!!
@@ -248,6 +250,34 @@ def label(input, **kwargs):
         image.clear()
     input.status.hide()
     return filtered
+
+
+def label_3d(input, **kwargs):
+    """
+    Labels structures in a 3D volume
+    
+    Wrapper for scipy.ndimage.label function. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [label 3D]'
+    transform = input.new_sibling(SeriesDescription = desc)
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return transform
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[:,:,:,t], _ = scipy.ndimage.label(array[:,:,:,t], **kwargs)
+        transform.set_array(array[:,:,:,t], headers[:,t], pixels_first=True)
+    _reset_window(transform, array)
+    input.status.hide()
+    return transform
 
 
 def binary_fill_holes(input, **kwargs):
@@ -280,6 +310,39 @@ def binary_fill_holes(input, **kwargs):
         image.clear()
     input.status.hide()
     return filtered
+
+
+def distance_transform_edt_3d(input, **kwargs):
+    """
+    Euclidian distance transform in 3D
+    
+    Wrapper for scipy.ndimage.distance_transform_edt function. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+    markers: dbdicom series of the same dimensions as series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [distance transform 3D]'
+    #transform = input.copy(SeriesDescription = desc)
+    transform = input.new_sibling(SeriesDescription = desc)
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return transform
+    for t in range(array.shape[3]):
+        if array.shape[3] > 1:
+            input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        else:
+            input.status.message('Calculating ' + desc + '. Please bear with me..')
+        array[:,:,:,t] = scipy.ndimage.distance_transform_edt(array[:,:,:,t], **kwargs)
+        transform.set_array(array[:,:,:,t], headers[:,t], pixels_first=True)
+    _reset_window(transform, array)
+    input.status.hide()
+    return transform
 
 
 
@@ -771,6 +834,34 @@ def fourier_shift(input, shift, **kwargs):
 
 
 # RESCALE AND RESLICE
+
+
+
+def series_calculator(series, operation='1 - series'):
+
+    desc = series.instance().SeriesDescription
+    result = series.copy(SeriesDescription = desc + ' [' + operation + ']')
+    images = result.images()
+    for i, img in enumerate(images):
+        series.status.progress(i+1, len(images), 'Calculating..')
+        img.read()
+        array = img.array()
+        if operation == '1 - series':
+            array = 1 - array
+        elif operation == '- series':
+            array = -array
+        elif operation == '1 / series':
+            array = 1 / array
+        elif operation == 'exp(- series)':
+            array = np.exp(-array)
+        elif operation == 'exp(+ series)':
+            array = np.exp(+array)
+        array[~np.isfinite(array)] = 0
+        img.set_array(array)
+        _reset_window(img, array)
+        img.clear()
+    series.status.hide()
+    return result
 
 
 def image_calculator(series1, series2, operation='series 1 - series 2'):
