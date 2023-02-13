@@ -3,6 +3,293 @@ import skimage
 from dbdicom.wrappers import scipy
 
 
+def area_opening_2d(input, **kwargs):
+    """
+    Return grayscale area opening of an image.
+    
+    Wrapper for skimage.morphology.area_opening. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [area opening 2D]'
+    result = input.copy(SeriesDescription = desc)
+    images = result.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.area_opening(array, **kwargs)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return result
+
+
+def area_opening_3d(input, **kwargs):
+    """
+    Return grayscale area opening of an image.
+    
+    Wrapper for skimage.morphology.area_opening. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    desc = input.instance().SeriesDescription + ' [area opening 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.morphology.area_opening(array[...,t], **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
+
+def area_closing_2d(input, **kwargs):
+    """
+    Return grayscale area closing of an image.
+    
+    Wrapper for skimage.morphology.area_closing. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [area closing 2D]'
+    result = input.copy(SeriesDescription = desc)
+    images = result.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.area_closing(array, **kwargs)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return result
+
+
+def area_closing_3d(input, **kwargs):
+    """
+    Return grayscale area closing of an image.
+    
+    Wrapper for skimage.morphology.area_closing. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    desc = input.instance().SeriesDescription + ' [area closing 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.morphology.area_closing(array[...,t], **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
+
+def opening_2d(input, **kwargs):
+    """
+    Return grayscale morphological opening of an image.
+    
+    Wrapper for skimage.morphology.opening. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [opening 2D]'
+    result = input.copy(SeriesDescription = desc)
+    images = result.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.opening(array, **kwargs)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return result
+
+
+def opening_3d(input, **kwargs):
+    """
+    Return grayscale morphological opening of an image.
+    
+    Wrapper for skimage.morphology.opening. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    desc = input.instance().SeriesDescription + ' [opening 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.morphology.opening(array[...,t], **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
+
+def closing_2d(input, **kwargs):
+    """
+    Return grayscale morphological closing of an image.
+    
+    Wrapper for skimage.morphology.closing. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [closing 2D]'
+    result = input.copy(SeriesDescription = desc)
+    images = result.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array()
+        array = skimage.morphology.closing(array, **kwargs)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return result
+
+
+def closing_3d(input, **kwargs):
+    """
+    Return grayscale morphological closing of an image.
+    
+    Wrapper for skimage.morphology.closing. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    desc = input.instance().SeriesDescription + ' [closing 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.morphology.closing(array[...,t], **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
+
+def remove_small_holes_2d(input, **kwargs):
+    """
+    Remove contiguous holes smaller than the specified size.
+    
+    Wrapper for skimage.morphology.remove_small_holes. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [remove small holes 2D]'
+    result = input.copy(SeriesDescription = desc)
+    images = result.images()
+    for i, image in enumerate(images):
+        input.status.progress(i+1, len(images), 'Calculating ' + desc)
+        image.read()
+        array = image.array().astype(np.int16)
+        array = skimage.morphology.remove_small_holes(array, **kwargs)
+        image.set_array(array)
+        _reset_window(image, array)
+        image.clear()
+    input.status.hide()
+    return result
+
+
+def remove_small_holes_3d(input, **kwargs):
+    """
+    Remove contiguous holes smaller than the specified size.
+    
+    Wrapper for skimage.morphology.remove_small_holes. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    output : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    else:
+        array = array.astype(np.int16)
+    desc = input.instance().SeriesDescription + ' [remove holes 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        array[...,t] = skimage.morphology.remove_small_holes(array[...,t], **kwargs)
+        result.set_array(array[...,t], headers[:,t], pixels_first=True)
+    _reset_window(result, array)
+    input.status.hide()
+    return result
+
+
 def watershed_2d(input, markers=None, mask=None, **kwargs):
     """
     Labels structures in an image
@@ -89,7 +376,6 @@ def watershed_3d(input, markers=None, mask=None, **kwargs):
     return result
 
 
-
 def skeletonize(input, **kwargs):
     """
     Labels structures in an image
@@ -154,12 +440,12 @@ def skeletonize_3d(input, **kwargs):
     return filtered
 
 
-# https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.peak_local_max
 def peak_local_max_3d(input, labels=None, **kwargs):
     """
     Determine local maxima
     
     Wrapper for skimage.feature.peak_local_max function. 
+    # https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.peak_local_max
 
     Parameters
     ----------
@@ -191,12 +477,10 @@ def peak_local_max_3d(input, labels=None, **kwargs):
     return filtered
 
 
-
-
-# https://scikit-image.org/docs/dev/api/skimage.feature.html#skimage.feature.canny
 def canny(input, sigma=1.0, **kwargs):
     """
     wrapper for skimage.feature.canny
+    # https://scikit-image.org/docs/dev/api/skimage.feature.html#skimage.feature.canny
 
     Parameters
     ----------
@@ -253,8 +537,8 @@ def convex_hull_image(series, **kwargs):
     return chull
 
 
-# https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1
 def coregister(moving, fixed, return_array=False, attachment=1):
+    # https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1
 
     #fixed = fixed.map_to(moving)
     fixed = scipy.map_to(fixed, moving)
@@ -329,7 +613,6 @@ def coregister_series(series, attachment=1):
     registered_series.set_array(array, headers, pixels_first=True)
     series.status.message('Finished coregistration..')
     return registered_series
-
 
 
 def mdreg_constant_2d(series, attachment=1, max_improvement=1, max_iter=5):
