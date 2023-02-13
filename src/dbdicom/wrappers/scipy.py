@@ -21,13 +21,19 @@ def _equal_geometry(affine1, affine2):
         imatch = None
         for i in unmatched:
             if np.array_equal(a1[0], affine2[i][0]):
-                imatch = i
-                break
+                # If a slice group with the same affine is found, 
+                # check if the image dimensions are the same too.
+                dim1 = a1[1][0].array().shape
+                dim2 = affine2[i][1][0].array().shape
+                if dim1 == dim2:
+                    imatch = i
+                    break
         if imatch is not None:
             unmatched.remove(imatch)
     return unmatched == []
 
-# This suggestion from chatGPT should to the same thing - check
+
+# Better use set(tuple())
 def _lists_have_equal_items(list1, list2):
     # Convert the lists to sets
     set1 = set([tuple(x) for x in list1])
@@ -51,8 +57,6 @@ def map_to(source, target, **kwargs):
     if isinstance(affine_target, list):
         mapped_series = []
         for affine_slice_group in affine_target:
-            #v = image_utils.dismantle_affine_matrix(affine_slice_group)
-            #slice_group_target = target.subseries(ImageOrientationPatient = v['ImageOrientationPatient'])
             slice_group_target = target.new_sibling()
             slice_group_target.adopt(affine_slice_group[1])
             mapped = _map_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group[0], **kwargs)
@@ -855,7 +859,9 @@ def series_calculator(series, operation='1 - series'):
         elif operation == 'exp(- series)':
             array = np.exp(-array)
         elif operation == 'exp(+ series)':
-            array = np.exp(+array)
+            array = np.exp(array)
+        elif operation == 'integer(series)':
+            array = np.around(array)
         array[~np.isfinite(array)] = 0
         img.set_array(array)
         _reset_window(img, array)
@@ -866,8 +872,11 @@ def series_calculator(series, operation='1 - series'):
 
 def image_calculator(series1, series2, operation='series 1 - series 2'):
 
-    desc1 = series1.instance().SeriesDescription
-    result = series1.copy(SeriesDescription = desc1 + ' [' + operation + ']')
+    #desc1 = series1.instance().SeriesDescription
+    #result = series1.copy(SeriesDescription = desc1 + ' [' + operation + ']')
+    result = map_to(series2, series1)
+    if result == series2: # same geometry
+        result = series2.copy()
     images1 = result.images(sortby=['SliceLocation', 'AcquisitionTime'])
     images2 = series2.images(sortby=['SliceLocation', 'AcquisitionTime'])
     for i, img1 in enumerate(images1):
@@ -878,11 +887,12 @@ def image_calculator(series1, series2, operation='series 1 - series 2'):
         img2 = images2[i]
         array1 = img1.array()
         array2 = img2.array()
-        if array2.shape != array1.shape:
-            zoom_factor = (
-                array1.shape[0]/array2.shape[0], 
-                array1.shape[1]/array2.shape[1])
-            array2 = scipy.ndimage.zoom(array2, zoom_factor)
+        # zerofill array 2 if the slice dimensions are not the same
+        # This happens if the affine matrices are the same but the inslice dimensions are not
+        # if array2.shape != array1.shape:
+        #     arr = np.zeros(array.shape)
+        #     arr[:array2.shape[0],:array2.shape[1]] = array2
+        #     array2 = arr
         if operation == 'series 1 + series 2':
             array = array1 + array2
         elif operation == 'series 1 - series 2':

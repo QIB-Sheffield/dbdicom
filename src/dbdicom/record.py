@@ -249,6 +249,11 @@ class DbRecord():
         uid = self.manager._at(key, 'SOPInstanceUID')
         return self.record('Instance', uid, key=key)
 
+    # This needs a test whether the instance is an image - else move to the next
+    def image(self, **kwargs):
+        return self.instance(**kwargs)
+
+
     # Needs a unit test
     def sery(self, uid=None, key=None):
         if key is not None:
