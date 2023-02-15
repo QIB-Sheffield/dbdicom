@@ -6,7 +6,13 @@ on: [push]
 jobs:
   build:
 
-    runs-on: windows-latest
+    strategy:
+      matrix:
+         os: [windows-latest, macos-latest, ubuntu-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
@@ -31,5 +37,5 @@ jobs:
           python -m pip install pytest pytest-cov
           pytest --junitxml=junit/test-results.xml --cov=dbdicom tests/
       - name: Upload coverage to Codecov
+        if: runner.os == 'Windows'
         uses: codecov/codecov-action@v3
-        if: ${{ always() }}
