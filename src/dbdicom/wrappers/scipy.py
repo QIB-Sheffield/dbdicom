@@ -43,6 +43,18 @@ def _lists_have_equal_items(list1, list2):
     return set1 == set2
 
 
+def overlay(features):
+    """ Ensure all the features are in the same geometry as the reference feature"""
+
+    msg = 'Mapping all features on the same geometry'
+    mapped_features = [features[0]]
+    for f, feature in enumerate(features[1:]):
+        feature.status.progress(f+1, len(features)-1, msg)
+        mapped = map_to(feature, features[0])
+        mapped_features.append(mapped)
+    return mapped_features
+    
+
 def map_to(source, target, **kwargs):
     """Map non-zero pixels onto another series"""
 
@@ -872,27 +884,19 @@ def series_calculator(series, operation='1 - series'):
 
 def image_calculator(series1, series2, operation='series 1 - series 2'):
 
-    #desc1 = series1.instance().SeriesDescription
-    #result = series1.copy(SeriesDescription = desc1 + ' [' + operation + ']')
     result = map_to(series2, series1)
     if result == series2: # same geometry
         result = series2.copy()
-    images1 = result.images(sortby=['SliceLocation', 'AcquisitionTime'])
-    images2 = series2.images(sortby=['SliceLocation', 'AcquisitionTime'])
+    images1 = series1.images(sortby=['SliceLocation', 'AcquisitionTime'])
+    images2 = result.images(sortby=['SliceLocation', 'AcquisitionTime'])
     for i, img1 in enumerate(images1):
         series1.status.progress(i+1, len(images1), 'Calculating..')
         if i > len(images2)-1:
             break
-        img1.read()
         img2 = images2[i]
+        img2.read()
         array1 = img1.array()
         array2 = img2.array()
-        # zerofill array 2 if the slice dimensions are not the same
-        # This happens if the affine matrices are the same but the inslice dimensions are not
-        # if array2.shape != array1.shape:
-        #     arr = np.zeros(array.shape)
-        #     arr[:array2.shape[0],:array2.shape[1]] = array2
-        #     array2 = arr
         if operation == 'series 1 + series 2':
             array = array1 + array2
         elif operation == 'series 1 - series 2':
@@ -906,9 +910,9 @@ def image_calculator(series1, series2, operation='series 1 - series 2'):
         elif operation == 'average(series 1, series 2)':
             array = (array1 + array2)/2
         array[~np.isfinite(array)] = 0
-        img1.set_array(array)
-        _reset_window(img1, array.astype(np.ubyte))
-        img1.clear()
+        img2.set_array(array)
+        _reset_window(img2, array.astype(np.ubyte))
+        img2.clear()
     series1.status.hide()
     return result
 

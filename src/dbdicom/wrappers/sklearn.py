@@ -30,13 +30,7 @@ def kmeans(features, mask=None, n_clusters=2, multiple_series=False):
         mask_indices = tuple(mask_array.nonzero())
 
     # Ensure all the features are in the same geometry as the reference feature
-    msg = 'Mapping all features on the same geometry'
-    mapped_features = [features[0]]
-    for f, feature in enumerate(features[1:]):
-        feature.status.progress(f+1, len(features)-1, msg)
-        mapped = scipy.map_to(feature, features[0])
-        mapped_features.append(mapped)
-    features = mapped_features
+    features = scipy.overlay(features)
 
     # Create array with shape (n_samples, n_features) and mask if needed.
     array = []
@@ -83,6 +77,68 @@ def kmeans(features, mask=None, n_clusters=2, multiple_series=False):
         _reset_window(clusters, array)
 
     return clusters
+
+
+
+def sequential_kmeans(features, mask=None, n_clusters=2, multiple_series=False):
+    """
+    Labels structures in an image using sequential k-means clustering
+    
+    Sequential here means that the clustering is always performed on a single feature
+    using the output of the previous iteration as a mask for the next.
+
+    Parameters
+    ----------
+    input: list of dbdicom series (one for each feature)
+    mask: optional mask for clustering
+    
+    Returns
+    -------
+    clusters : list of dbdicom series, with labels per cluster.
+    """
+
+    f = features[0]
+    clusters = kmeans([f], mask=mask, n_clusters=n_clusters, multiple_series=True)
+    for f in features[1:]:
+        cf = []
+        for mask in clusters:
+            cf += kmeans([f], mask=mask, n_clusters=n_clusters, multiple_series=True)
+            mask.remove()
+        clusters = cf
+
+    # Return clusters as a list
+    if multiple_series:
+        return clusters
+
+    # Return a single label series
+    label = masks_to_label(clusters)
+    for c in clusters:
+        c.remove()
+    return label
+
+
+
+def masks_to_label(masks):
+    "Convert a list of masks into a single label series"
+
+    # Ensure all the masks are in the same geometry
+    masks = scipy.overlay(masks)
+
+    # Create a single label array
+    array, headers = masks[0].array(['SliceLocation', 'AcquisitionTime'], pixels_first=True)
+    msg = 'Creating a single label image'
+    for m, mask in enumerate(masks[1:]):
+        mask.status.progress(m+1, len(masks)-1, msg)
+        arr, _ = mask.array(['SliceLocation', 'AcquisitionTime'], pixels_first=True)
+        ind = tuple(arr.nonzero())
+        array[ind] = m+2
+
+    # Save label array to disk
+    desc = masks[0].SeriesDescription
+    label = masks[0].new_sibling(SeriesDescription = desc + ' [Label]')
+    label.set_array(array, headers, pixels_first=True)  
+
+    return label    
 
 
 
