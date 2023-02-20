@@ -9,31 +9,40 @@ def coregister(moving, fixed,
         final_grid_spacing = 1.0,
     ):
 
-    fixed_map = scipy.map_to(fixed, moving)
+    nan = 2**16-1
+    fixed_map = scipy.map_to(fixed, moving, cval=nan)
 
     # Get arrays for fixed and moving series
     array_fixed, _ = fixed_map.array('SliceLocation', pixels_first=True)
-    array_moving, headers_moving = moving.array('SliceLocation', pixels_first=True)
+
+    array_moving, headers_moving  = moving.array('SliceLocation', pixels_first=True)
+    
     if array_fixed is None or array_moving is None:
         return fixed_map
 
     pixel_spacing = headers_moving[0,0].PixelSpacing
-
+   
     # Get coregistration settings
     if transformation == 'Rigid':
         pars = _default_rigid('2')
+        
     elif transformation == 'Affine':
         pars = _default_affine('2')
+       
     else:
         pars = _default_bspline('2')
+       
     pars.SetParameter("Metric", metric)
     pars.SetParameter("FinalGridSpacingInPhysicalUnits", str(final_grid_spacing))
-
+   
     # Coregister fixed and moving slice-by-slice
     for z in range(array_moving.shape[2]):
         moving.status.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
         image0 = array_fixed[:,:,z,0]
         image1 = array_moving[:,:,z,0]
+        ind_img0 = np.where(image0==nan)
+        image1[ind_img0] = 0
+        image0[ind_img0] = 0
         coreg, _ = _coregister_2D_arrays(image0, image1, pars, pixel_spacing)
         array_moving[:,:,z,0] = coreg
 
@@ -80,6 +89,7 @@ def _coregister_2D_arrays(target, source, elastix_model_parameters, spacing):
 
 
 def _default_bspline(d):
+   
     param_obj = itk.ParameterObject.New()
     parameter_map_bspline = param_obj.GetDefaultParameterMap('bspline')
     ## add parameter map file to the parameter object: required in itk-elastix
@@ -174,7 +184,8 @@ def _default_bspline(d):
     # which usually works well. In case of unusual high-resolution images
     # (eg histology) it is necessary to increase this value a bit, to the size
     # of the "smallest visible structure" in the image:
-    param_obj.SetParameter("MaximumStepLength", "1.0") 
+    # param_obj.SetParameter("MaximumStepLength", "1.0") 
+    param_obj.SetParameter("MaximumStepLength", "0.1")
     # *********************
     # * Pyramid settings
     # *********************
@@ -218,12 +229,11 @@ def _default_bspline(d):
     # The pixel type and format of the resulting deformed moving image
     param_obj.SetParameter("ResultImagePixelType", "float")
     param_obj.SetParameter("ResultImageFormat", "nii")
-    
+
     return param_obj
 
 
 def _default_affine(d):
-
     param_obj = itk.ParameterObject.New()
     parameter_map_bspline = param_obj.GetDefaultParameterMap('affine')
     param_obj.AddParameterMap(parameter_map_bspline) 
@@ -288,7 +298,6 @@ def _default_affine(d):
 
 def _default_rigid(d):
     # https://github.com/SuperElastix/ElastixModelZoo/tree/master/models/Par0064
-
     param_obj = itk.ParameterObject.New()
     parameter_map_bspline = param_obj.GetDefaultParameterMap('rigid')
     param_obj.AddParameterMap(parameter_map_bspline) 
@@ -351,7 +360,6 @@ def _default_rigid(d):
     return param_obj
 
 
-
 # Chat GPT suggestion
 
 # def _chat_gpt_coreg(target, source, elastix_model_parameters, spacing):
@@ -391,9 +399,3 @@ def _default_rigid(d):
 #     deformation_field_array = sitk.GetArrayFromImage(deformation_field)
 
 #     return result_array, deformation_field_array
-
-
-
-
-
-
