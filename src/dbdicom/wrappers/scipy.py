@@ -98,7 +98,7 @@ def _map_series_to_slice_group(source, target, affine_source, affine_target, **k
         return _map_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
-def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False, label=False):
+def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False, label=False, cval=0):
 
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
     matrix, offset = nib.affines.to_matvec(source_to_target) 
@@ -121,7 +121,8 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
                 array_source[:,:,:,t,k],
                 matrix = matrix,
                 offset = offset,
-                output_shape = output_shape)
+                output_shape = output_shape,
+                cval = cval)
 
     # If source is a mask array, set values to [0,1]
     if mask:
