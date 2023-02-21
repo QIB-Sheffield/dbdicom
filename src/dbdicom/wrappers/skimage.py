@@ -1,6 +1,94 @@
 import numpy as np
 import skimage
+import scipy.ndimage as ndi
 from dbdicom.wrappers import scipy
+
+
+def volume_features(series):
+
+    affine = series.affine_matrix()
+    if isinstance(affine, list):
+        series.dialog.information('This series contains multiple volumes')
+        return
+    else:
+        affine = affine[0]
+
+    # Get array sorted by slice location
+    arr, _ = series.array('SliceLocation', pixels_first=True)
+
+    # If there are multiple volumes, show only the first one
+    arr = arr[...,0]
+
+    series.status.message('Preprocessing mask...')
+
+    # Scale in the range [0,1] so it can be treated as mask
+    max = np.amax(arr)
+    min = np.amin(arr)
+    arr -= min
+    arr /= max-min
+
+    # add zeropadding at the boundary slices
+    shape = list(arr.shape)
+    shape[-1] = shape[-1] + 2*4
+    array = np.zeros(shape)
+    array[:,:,4:-4] = arr
+
+    series.status.message('Extracting surface...')
+
+
+    # Get voxel dimensions (assumed this is in mm)
+    column_spacing = np.linalg.norm(affine[:3, 0])
+    row_spacing = np.linalg.norm(affine[:3, 1])
+    slice_spacing = np.linalg.norm(affine[:3, 2])
+    spacing = (column_spacing, row_spacing, slice_spacing)  #mm
+    voxel_volume = column_spacing*row_spacing*slice_spacing
+    nr_of_voxels = np.count_nonzero(array)
+    volume = nr_of_voxels * voxel_volume
+
+
+    # Surface properties (Area only for now)
+    smooth_array = ndi.gaussian_filter(array, 1.5)
+    verts, faces, _, _ = skimage.measure.marching_cubes(smooth_array, spacing=spacing, level=0.5, step_size=1.0)
+    #cloud = pv.PolyData(verts, faces)
+    #surf = cloud.reconstruct_surface()
+    surface_area = skimage.measure.mesh_surface_area(verts, faces)
+
+
+    # Volume properties
+    # TODO: If the volume is not isotropic, resample to isotropic before getting the properties
+    isotropic_voxel_volume = voxel_volume # for now
+    isotropic_spacing = np.mean(np.array(spacing)) # for now
+    region_props = skimage.measure.regionprops(np.round(array).astype(np.int16))
+    region_props_3D = {}
+    for prop in region_props[0]:
+        try: 
+            region_props_3D[prop] = region_props[0][prop]
+        except:
+            pass # not supported in 3D
+
+    surface_props = {
+        'Surface area (cm^2)': surface_area/100,
+        'Volume (mL)': volume/1000,
+        'Volume (mL) - check': region_props_3D['area']*isotropic_voxel_volume/1000,
+        'Number of connected components': region_props_3D['euler_number'],
+        'Bounding box volume (mL)': region_props_3D['area_bbox']*isotropic_voxel_volume/1000,
+        'Percentage of bounding box filled (%)': region_props_3D['extent']*100,
+        'Convex hull volume (mL)': region_props_3D['area_convex']*isotropic_voxel_volume/1000,
+        'Percentage of convex hull filled (%)': region_props_3D['solidity']*100,
+        'Volume of holes (mL)': (region_props_3D['area_filled']-region_props_3D['area'])*isotropic_voxel_volume/1000,
+        'Long axis length (cm)': region_props_3D['axis_major_length']*isotropic_spacing/10,
+        'Short axis length (cm)': region_props_3D['axis_minor_length']*isotropic_spacing/10,
+        'Equivalent diameter (cm)': region_props_3D['equivalent_diameter_area']*isotropic_spacing/10,
+        'Longest distance inside (cm)': region_props_3D['feret_diameter_max']*isotropic_spacing/10,
+        'Primary moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][0]*isotropic_spacing**2/100,
+        'Second moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][1]*isotropic_spacing**2/100,
+        'Third moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][2]*isotropic_spacing**2/100,
+        # From eigenvectors of intertia tensor: Include orientation info with respect to LPH coordinate system (tilt, roll, yaw)
+    }
+    print(surface_props)
+
+    return surface_props
+
 
 
 def area_opening_2d(input, **kwargs):
