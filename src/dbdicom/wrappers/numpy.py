@@ -29,7 +29,7 @@ def mean_intensity_projection(series):
     # Get numpy array with dimensions (x, y, slice, time)
     array, headers = series.array('SliceLocation', pixels_first=True)
     array = np.mean(array, axis=-1)
-    desc = series.SeriesDescription + ' [Mean Intensity Projection]'
+    desc = series.instance().SeriesDescription + ' [Mean Intensity Projection]'
     new_series = series.new_sibling(SeriesDescription=desc)
     new_series.set_array(array, headers[:,0], pixels_first=True)
     return new_series
@@ -57,7 +57,7 @@ def maximum_intensity_projection(series):
     # Get numpy array with dimensions (x, y, slice, time)
     array, headers = series.array('SliceLocation', pixels_first=True)
     array = np.amax(array, axis=-1)
-    desc = series.SeriesDescription + ' [Mean Intensity Projection]'
+    desc = series.instance().SeriesDescription + ' [Maximum Intensity Projection]'
     new_series = series.new_sibling(SeriesDescription=desc)
     new_series.set_array(array, headers[:,0], pixels_first=True)
     return new_series

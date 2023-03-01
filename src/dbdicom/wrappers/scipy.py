@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import scipy
 from scipy.ndimage import affine_transform
 import nibabel as nib # unnecessary
@@ -41,6 +42,68 @@ def _lists_have_equal_items(list1, list2):
 
     # Check if the sets are equal
     return set1 == set2
+
+
+def mask_statistics(masks, images):
+    if not isinstance(masks, list):
+        masks = [masks]
+    if not isinstance(images, list):
+        images = [images]
+    df_all_masks = None
+    for mask in masks:
+        df_mask = None
+        for img in images:
+            df_img = _mask_statistics(mask, img)
+            if df_mask is None:
+                df_mask = df_img
+            else:
+                df_mask = pd.concat([df_mask, df_img], ignore_index=True)
+        if df_all_masks is None:
+            df_all_masks = df_mask
+        else:
+            df_all_masks = pd.concat([df_all_masks, df_mask], ignore_index=True)
+    return df_all_masks
+        
+
+def _mask_statistics(mask, image):
+    mapped = map_to(image, mask)
+    msk_arr, _ = mask.array('SliceLocation', pixels_first=True)
+    img_arr, _ = mapped.array('SliceLocation', pixels_first=True)
+    if mapped != image:
+        mapped.remove()
+    msk_arr = np.round(msk_arr).astype(np.uint16)
+    img_arr = img_arr[msk_arr == 1]
+    props = {
+        'Mean': np.mean(img_arr),
+        'Standard deviation': np.std(img_arr),
+        'Maximum': np.amax(img_arr),
+        'Minimum': np.amin(img_arr),
+        '1% percentile': np.percentile(img_arr, 1),
+        '5% percentile': np.percentile(img_arr, 5),
+        '10% percentile': np.percentile(img_arr, 10),
+        '25% percentile': np.percentile(img_arr, 25),
+        'Median': np.percentile(img_arr, 50),
+        '75% percentile': np.percentile(img_arr, 75),
+        '90% percentile': np.percentile(img_arr, 90),
+        '95% percentile': np.percentile(img_arr, 95),
+        '99% percentile': np.percentile(img_arr, 99),
+        'Range': np.amax(img_arr) - np.amin(img_arr),
+        'Interquartile range':np.percentile(img_arr, 75) - np.percentile(img_arr, 25),
+        '90 percent range': np.percentile(img_arr, 95) - np.percentile(img_arr, 5),
+        'Coefficient of variation': np.std(img_arr)/np.mean(img_arr),
+        'Heterogeneity': (np.percentile(img_arr, 95) - np.percentile(img_arr, 5))/np.percentile(img_arr, 50),
+        'Kurtosis': scipy.stats.kurtosis(img_arr),
+        'Skewness': scipy.stats.skew(img_arr),
+    }
+    instance = image.instance()
+    columns = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Region of Interest', 'Parameter', 'Value', 'Unit']
+    ids = [instance.PatientID, instance.StudyDescription, instance.SeriesDescription, mask.instance().SeriesDescription]
+    data = []
+    for par, val in props.items():
+        row = ids + [par, val, '']
+        data.append(row)
+    return pd.DataFrame(data, columns=columns)
+
 
 
 def overlay(features):
@@ -100,6 +163,11 @@ def _map_series_to_slice_group(source, target, affine_source, affine_target, **k
 
 def _map_slice_group_to_slice_group(source, target, affine_source, affine_target, mask=False, label=False, cval=0):
 
+    # Get names for status updates
+    source_desc = source.instance().SeriesDescription
+    target_desc = target.instance().SeriesDescription
+
+    # Get transformation matrix
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
     matrix, offset = nib.affines.to_matvec(source_to_target) 
     
@@ -108,7 +176,8 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     array_target, headers_target = target.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
 
     #Perform transformation
-    source.status.message('Performing transformation..')
+    message = 'Mapping ' + source_desc + ' onto ' + target_desc
+    source.status.message(message)
     output_shape = array_target.shape[:3]
     nt, nk = array_source.shape[3], array_source.shape[4]
     array_mapped = np.empty(output_shape + (nt, nk))
@@ -116,7 +185,7 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     for t in range(nt):
         for k in range(nk):
             cnt+=1
-            source.status.progress(cnt, nt*nk, 'Performing transformation..')
+            source.status.progress(cnt, nt*nk, message)
             array_mapped[:,:,:,t,k] = affine_transform(
                 array_source[:,:,:,t,k],
                 matrix = matrix,
@@ -292,6 +361,40 @@ def label_3d(input, **kwargs):
         input.status.progress(t, array.shape[3], 'Calculating ' + desc)
         array[:,:,:,t], _ = scipy.ndimage.label(array[:,:,:,t], **kwargs)
         transform.set_array(array[:,:,:,t], headers[:,t], pixels_first=True)
+    _reset_window(transform, array)
+    input.status.hide()
+    return transform
+
+
+def extract_largest_cluster_3d(input, **kwargs):
+    """
+    Label structures in 3D and then extract the largest cluster, return as a mask. 
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    dbdicom series
+    """
+    desc = input.instance().SeriesDescription + ' [Largest cluster 3D]'
+    transform = input.new_sibling(SeriesDescription = desc)
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return transform
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        label_img, cnt = scipy.ndimage.label(array[:,:,:,t], **kwargs)
+        # Find the label of the largest feature
+        labels = range(1,cnt+1)
+        size = [np.count_nonzero(label_img==l) for l in labels]
+        max_label = labels[size.index(np.amax(size))]
+        # Create a mask corresponding to the largest feature
+        label_img = label_img==max_label
+        #label_img = label_img[label_img==max_label]
+        #label_img /= max_label
+        transform.set_array(label_img, headers[:,t], pixels_first=True)
     _reset_window(transform, array)
     input.status.hide()
     return transform
@@ -883,7 +986,7 @@ def series_calculator(series, operation='1 - series'):
     return result
 
 
-def image_calculator(series1, series2, operation='series 1 - series 2'):
+def image_calculator(series1, series2, operation='series 1 - series 2', integer=False):
 
     result = map_to(series2, series1)
     if result == series2: # same geometry
@@ -911,6 +1014,8 @@ def image_calculator(series1, series2, operation='series 1 - series 2'):
         elif operation == 'average(series 1, series 2)':
             array = (array1 + array2)/2
         array[~np.isfinite(array)] = 0
+        if integer:
+            array = np.around(array)
         img2.set_array(array)
         _reset_window(img2, array.astype(np.ubyte))
         img2.clear()
@@ -1010,6 +1115,11 @@ def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1
         resliced_series.adopt(slice_group)
         return resliced_series
 
+    # Get arrays
+    array, headers = series.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+    if array is None:
+        return resliced_series
+
     # Perform transformation on the arrays to determine the output shape
     dim = [
         array.shape[0] * p['PixelSpacing'][1],
@@ -1022,11 +1132,6 @@ def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
     matrix, offset = nib.affines.to_matvec(source_to_target)
     
-    # Get arrays
-    array, headers = series.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
-    if array is None:
-        return resliced_series
-
     # Perform the affine transformation
     cnt=0
     ns, nt, nk = output_shape[2], array.shape[-2], array.shape[-1]

@@ -2,16 +2,37 @@ import numpy as np
 import skimage
 import scipy.ndimage as ndi
 from dbdicom.wrappers import scipy
+from dbdicom.utils.image import interpolate3d_isotropic
+import pandas as pd
 
 
 def volume_features(series):
 
+    if isinstance(series, list):
+        df = None
+        for sery in series:
+            df_sery = volume_features(sery)
+            if df is None:
+                df = df_sery
+            else:
+                df = pd.concat([df, df_sery], ignore_index=True)
+        return df
+
+    n_steps = 8
+    step = 0
+
+    step+=1
+    series.status.progress(step, n_steps, 'Reading affine matrix..')
+
     affine = series.affine_matrix()
     if isinstance(affine, list):
-        series.dialog.information('This series contains multiple volumes')
+        series.dialog.information('This series contains multiple orientations')
         return
     else:
         affine = affine[0]
+
+    step+=1
+    series.status.progress(step, n_steps, 'Reading array..')
 
     # Get array sorted by slice location
     arr, _ = series.array('SliceLocation', pixels_first=True)
@@ -19,7 +40,8 @@ def volume_features(series):
     # If there are multiple volumes, show only the first one
     arr = arr[...,0]
 
-    series.status.message('Preprocessing mask...')
+    step+=1
+    series.status.progress(step, n_steps, 'Preprocessing mask...')
 
     # Scale in the range [0,1] so it can be treated as mask
     max = np.amax(arr)
@@ -33,8 +55,8 @@ def volume_features(series):
     array = np.zeros(shape)
     array[:,:,4:-4] = arr
 
-    series.status.message('Extracting surface...')
-
+    step+=1
+    series.status.progress(step, n_steps, 'Extracting surface...')
 
     # Get voxel dimensions (assumed this is in mm)
     column_spacing = np.linalg.norm(affine[:3, 0])
@@ -45,49 +67,90 @@ def volume_features(series):
     nr_of_voxels = np.count_nonzero(array)
     volume = nr_of_voxels * voxel_volume
 
-
     # Surface properties (Area only for now)
-    smooth_array = ndi.gaussian_filter(array, 1.5)
+    smooth_array = ndi.gaussian_filter(array, 1.0)
     verts, faces, _, _ = skimage.measure.marching_cubes(smooth_array, spacing=spacing, level=0.5, step_size=1.0)
-    #cloud = pv.PolyData(verts, faces)
-    #surf = cloud.reconstruct_surface()
     surface_area = skimage.measure.mesh_surface_area(verts, faces)
 
+    step+=1
+    series.status.progress(step, n_steps, 'Interpolating to isotropic...')
 
-    # Volume properties
-    # TODO: If the volume is not isotropic, resample to isotropic before getting the properties
-    isotropic_voxel_volume = voxel_volume # for now
-    isotropic_spacing = np.mean(np.array(spacing)) # for now
-    region_props = skimage.measure.regionprops(np.round(array).astype(np.int16))
-    region_props_3D = {}
-    for prop in region_props[0]:
-        try: 
-            region_props_3D[prop] = region_props[0][prop]
-        except:
-            pass # not supported in 3D
+    # Interpolate to isotropic if necessary
+    spacing = np.array(spacing)
+    if np.amin(spacing) != np.amax(spacing):
 
-    surface_props = {
-        'Surface area (cm^2)': surface_area/100,
-        'Volume (mL)': volume/1000,
-        'Volume (mL) - check': region_props_3D['area']*isotropic_voxel_volume/1000,
-        'Number of connected components': region_props_3D['euler_number'],
-        'Bounding box volume (mL)': region_props_3D['area_bbox']*isotropic_voxel_volume/1000,
-        'Percentage of bounding box filled (%)': region_props_3D['extent']*100,
-        'Convex hull volume (mL)': region_props_3D['area_convex']*isotropic_voxel_volume/1000,
-        'Percentage of convex hull filled (%)': region_props_3D['solidity']*100,
-        'Volume of holes (mL)': (region_props_3D['area_filled']-region_props_3D['area'])*isotropic_voxel_volume/1000,
-        'Long axis length (cm)': region_props_3D['axis_major_length']*isotropic_spacing/10,
-        'Short axis length (cm)': region_props_3D['axis_minor_length']*isotropic_spacing/10,
-        'Equivalent diameter (cm)': region_props_3D['equivalent_diameter_area']*isotropic_spacing/10,
-        'Longest distance inside (cm)': region_props_3D['feret_diameter_max']*isotropic_spacing/10,
-        'Primary moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][0]*isotropic_spacing**2/100,
-        'Second moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][1]*isotropic_spacing**2/100,
-        'Third moment of inertia (cm^2)': region_props_3D['inertia_tensor_eigvals'][2]*isotropic_spacing**2/100,
-        # From eigenvectors of intertia tensor: Include orientation info with respect to LPH coordinate system (tilt, roll, yaw)
+        # checked against scipy.resample which uses affine transform
+        # resampled_series = scipy.resample(series, [isotropic_spacing, isotropic_spacing, isotropic_spacing])
+        # array, _ = resampled_series.array('SliceLocation', pixels_first=True)
+        # array = array[...,0]
+
+        array, isotropic_spacing = interpolate3d_isotropic(array, spacing)
+        isotropic_voxel_volume = isotropic_spacing**3
+    else:
+        isotropic_spacing = np.mean(spacing)
+        isotropic_voxel_volume = voxel_volume
+
+    # #NOTE: Use this to check which properties are available in 3D
+    # region_props = skimage.measure.regionprops(np.round(array).astype(np.int16))[0]
+    # region_props_3D = {}
+    # for prop in region_props:
+    #     try: 
+    #         region_props_3D[prop] = region_props[prop]
+    #     except:
+    #         print('Not supported in 3D: ', prop)
+
+
+    # Get volume properties and create output
+    step+=1
+    series.status.progress(step, n_steps, 'Extracting volume properties...')
+
+    array = np.round(array).astype(np.int16)
+    region_props_3D = skimage.measure.regionprops(array)[0]
+
+    # The sphere is the most compact shape, i.e. it has the largest volume to surface area ratio. 
+    radius = region_props_3D['equivalent_diameter_area']*isotropic_spacing/2 # mm
+    v2s = volume/surface_area # mm
+    v2s_equivalent_sphere = radius/3 # mm
+    compactness = 100 * v2s/v2s_equivalent_sphere # %
+
+    # Measure maximum depth
+    step+=1
+    series.status.progress(step, n_steps, 'Calculating depth...')
+    distance = ndi.distance_transform_edt(array)
+
+    step+=1
+    series.status.progress(step, n_steps, 'Creating output...')
+
+    series_props = {
+        'Surface area': (surface_area/100, 'cm^2'),
+        'Volume': (volume/1000, 'mL'),
+        'Bounding box volume': (region_props_3D['area_bbox']*isotropic_voxel_volume/1000, 'mL'),
+        'Convex hull volume': (region_props_3D['area_convex']*isotropic_voxel_volume/1000, 'mL'),
+        'Volume of holes': ((region_props_3D['area_filled']-region_props_3D['area'])*isotropic_voxel_volume/1000, 'mL'),
+        'Extent': (region_props_3D['extent']*100, '%'),    # Percentage of bounding box filled
+        'Solidity': (region_props_3D['solidity']*100, '%'),    # Percentage of convex hull filled
+        'Compactness': (compactness, '%'),
+        'Long axis length': (region_props_3D['axis_major_length']*isotropic_spacing/10, 'cm'),
+        'Short axis length': (region_props_3D['axis_minor_length']*isotropic_spacing/10, 'cm'),
+        'Equivalent diameter': (region_props_3D['equivalent_diameter_area']*isotropic_spacing/10, 'cm'),
+        'Longest caliper diameter': (region_props_3D['feret_diameter_max']*isotropic_spacing/10, 'cm'),
+        'Maximum depth': (np.amax(distance)*isotropic_spacing/10, 'cm'),
+        'Primary moment of inertia': (region_props_3D['inertia_tensor_eigvals'][0]*isotropic_spacing**2/100, 'cm^2'),
+        'Second moment of inertia': (region_props_3D['inertia_tensor_eigvals'][1]*isotropic_spacing**2/100, 'cm^2'),
+        'Third moment of inertia': (region_props_3D['inertia_tensor_eigvals'][2]*isotropic_spacing**2/100, 'cm^2'),
+        'QC - Volume check': (region_props_3D['area']*isotropic_voxel_volume/1000, 'mL'),
+        'QC - Number of connected components': (region_props_3D['euler_number'], ''),
+        # From eigenvectors of inertia tensor: Include orientation info with respect to LPH coordinate system (tilt, roll)
     }
-    print(surface_props)
 
-    return surface_props
+    instance = series.instance()
+    columns = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Parameter', 'Value', 'Unit']
+    ids = [instance.PatientID, instance.StudyDescription, instance.SeriesDescription] 
+    data = []
+    for par, val in series_props.items():
+        row = ids + [par, val[0], val[1]]
+        data.append(row)
+    return pd.DataFrame(data, columns = columns)
 
 
 
@@ -545,7 +608,7 @@ def peak_local_max_3d(input, labels=None, **kwargs):
     """
     array, headers = input.array('SliceLocation', pixels_first=True)
     if array is None:
-        return filtered
+        return input
     if labels is not None:
         labels = scipy.map_to(labels, input)
         labels_array, _ = labels.array('SliceLocation', pixels_first=True)
@@ -553,10 +616,11 @@ def peak_local_max_3d(input, labels=None, **kwargs):
     filtered = input.new_sibling(SeriesDescription = desc)
     for t in range(array.shape[3]):
         input.status.progress(t, array.shape[3], 'Calculating ' + desc)
-        coords = skimage.feature.peak_local_max(
-            array[:,:,:,t], 
-            labels = labels_array[:,:,:,t].astype(np.int16), 
-            **kwargs)
+        if labels is None:
+            labels_t = None
+        else:
+            labels_t = labels_array[:,:,:,t].astype(np.int16)
+        coords = skimage.feature.peak_local_max(array[:,:,:,t], labels=labels_t, **kwargs)
         mask = np.zeros(array.shape[:3], dtype=bool)
         mask[tuple(coords.T)] = True
         filtered.set_array(mask, headers[:,t], pixels_first=True)
@@ -598,7 +662,7 @@ def canny(input, sigma=1.0, **kwargs):
 
 def convex_hull_image(series, **kwargs):
     """
-    wrapper for skimage.feature.canny
+    wrapper for skimage.morphology.convex_hull_image
 
     Parameters
     ----------
@@ -608,7 +672,7 @@ def convex_hull_image(series, **kwargs):
     -------
     filtered : dbdicom series
     """
-    suffix = ' [Convex hull]'
+    suffix = ' [Convex hull 2D]'
     desc = series.instance().SeriesDescription 
     chull = series.copy(SeriesDescription = desc+suffix)
     images = chull.images()
@@ -623,6 +687,32 @@ def convex_hull_image(series, **kwargs):
         image.clear()
     series.status.hide()
     return chull
+
+
+def convex_hull_image_3d(input, **kwargs):
+    """
+    wrapper for skimage.morphology.convex_hull_image
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    array, headers = input.array('SliceLocation', pixels_first=True)
+    if array is None:
+        return input
+    desc = input.instance().SeriesDescription + ' [Convex hull 3D]'
+    result = input.new_sibling(SeriesDescription = desc)
+    for t in range(array.shape[3]):
+        input.status.progress(t, array.shape[3], 'Calculating ' + desc)
+        hull = skimage.morphology.convex_hull_image(array[:,:,:,t],  **kwargs)
+        result.set_array(hull, headers[:,t], pixels_first=True)
+    _reset_window(result, hull)
+    input.status.hide()
+    return result
 
 
 def coregister(moving, fixed, return_array=False, attachment=1):
