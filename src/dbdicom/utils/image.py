@@ -1,7 +1,46 @@
 import numpy as np
+from scipy.interpolate import interpn
 
 
 # https://discovery.ucl.ac.uk/id/eprint/10146893/1/geometry_medim.pdf
+
+def interpolate3d_scale(array, scale=2):
+
+    array, _ = interpolate3d_isotropic(array, [1,1,1], isotropic_spacing=1/scale)
+    return array
+
+
+def interpolate3d_isotropic(array, spacing, isotropic_spacing=None):
+
+    if isotropic_spacing is None:
+        isotropic_spacing = np.amin(spacing)
+
+    # Get x, y, z coordinates for array
+    nx = array.shape[0]
+    ny = array.shape[1]
+    nz = array.shape[2]
+    Lx = (nx-1)*spacing[0]
+    Ly = (ny-1)*spacing[1]
+    Lz = (nz-1)*spacing[2]
+    x = np.linspace(0, Lx, nx)
+    y = np.linspace(0, Ly, ny)
+    z = np.linspace(0, Lz, nz)
+
+    # Get x, y, z coordinates for isotropic array
+    nxi = 1 + np.floor(Lx/isotropic_spacing)
+    nyi = 1 + np.floor(Ly/isotropic_spacing)
+    nzi = 1 + np.floor(Lz/isotropic_spacing)
+    Lxi = (nxi-1)*isotropic_spacing
+    Lyi = (nyi-1)*isotropic_spacing
+    Lzi = (nzi-1)*isotropic_spacing
+    xi = np.linspace(0, Lxi, nxi.astype(int))
+    yi = np.linspace(0, Lyi, nyi.astype(int))
+    zi = np.linspace(0, Lzi, nzi.astype(int))
+
+    # Interpolate to isotropic
+    ri = np.meshgrid(xi,yi,zi, indexing='ij')
+    array = interpn((x,y,z), array, np.stack(ri, axis=-1))
+    return array, isotropic_spacing
 
 
 def bounding_box(
