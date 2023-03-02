@@ -1673,7 +1673,7 @@ class Manager():
 
         for i, key in enumerate(keys):
 
-            # self.status.progress(i+1, len(keys), message='Moving dataset..')
+            self.status.progress(i+1, len(keys), message='Moving dataset..')
 
             # If this is the last instance in the series,
             # keep the series as an empty series.
