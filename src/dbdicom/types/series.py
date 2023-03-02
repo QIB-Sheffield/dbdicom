@@ -125,6 +125,29 @@ class Series(DbRecord):
 
     def subseries(*args, move=False, **kwargs):
         return subseries(*args, move=move, **kwargs)
+    
+    def split_by(self, keyword):
+        
+        self.status.message('Reading values..')
+        try:
+            values = self[keyword]
+        except:
+            msg = str(keyword) + ' is not a valid DICOM keyword'
+            raise ValueError(msg)
+        if len(values) == 1:
+            msg = 'Cannot split by ' + str(keyword) + '\n' 
+            msg += 'All images have the same value'
+            raise ValueError(msg)
+        
+        self.status.message('Splitting series..')
+        split_series = []
+        desc = self.instance().SeriesDescription + '[' + keyword + ' = '
+        for v in values:
+            kwargs = {keyword: v}
+            new = self.subseries(**kwargs)
+            new.SeriesDescription = desc + str(v) + ']'
+            split_series.append(new)
+        return split_series
 
 
     def import_dicom(self, files):
@@ -160,7 +183,9 @@ def slice_groups(series): # not yet in use
 def subseries(record, move=False, **kwargs):
     """Extract subseries"""
     series = record.new_sibling()
-    for instance in record.instances(**kwargs):
+    instances = record.instances(**kwargs)
+    for i, instance in enumerate(instances):
+        record.status.progress(i+1, len(instances), 'Extracting subseries..')
         if move:
             instance.move_to(series)
         else:
