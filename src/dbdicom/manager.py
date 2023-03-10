@@ -2210,7 +2210,6 @@ class Manager():
                 value = [self.register.at[key, attributes] for key in keys]
                 # Get unique elements
                 value = [x for i, x in enumerate(value) if i==value.index(x)]
-                
             else:
                 value = []
                 for i, key in enumerate(keys):
