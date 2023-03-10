@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from dbdicom.record import DbRecord
+from dbdicom.record import DbRecord, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
 import dbdicom.utils.image as image_utils
 from dbdicom.manager import Manager
@@ -253,8 +253,19 @@ def _slice_group_affine_matrix(slice_group, image_orientation):
                 slice_group[0].PixelSpacing)    # assume all the same pixel spacing
 
 
+def array(record, **kwargs):
+    if isinstance(record, list): # array of instances
+        arr = np.empty(len(record), dtype=object)
+        for i, rec in enumerate(record):
+            arr[i] = rec
+        return _get_pixel_array_from_instance_array(arr, **kwargs)
+    elif isinstance(record, np.ndarray): # array of instances
+        return _get_pixel_array_from_instance_array(record, **kwargs)
+    else:
+        return get_pixel_array(record, **kwargs)
+    
 
-def get_pixel_array(record, sortby=None, pixels_first=False): 
+def get_pixel_array(record, sortby=None, **kwargs): 
     """Pixel values of the object as an ndarray
     
     Args:
@@ -296,19 +307,27 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
         TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
         ```  
     """
-    if sortby is not None:
-        if not isinstance(sortby, list):
-            sortby = [sortby]
+
     source = instance_array(record, sortby)
+    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+
+
+def _get_pixel_array_from_instance_array(instance_array, sortby=None, **kwargs):
+    source = sort_instance_array(instance_array, sortby)
+    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)   
+
+
+def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
+
     array = []
     instances = source.ravel()
     for i, im in enumerate(instances):
-        record.progress(i, len(instances), 'Reading pixel data..')
+        im.progress(i, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
             array.append(im.get_pixel_array())
-    record.status.hide()
+    im.status.message('Reshaping pixel array..')
     array = _stack(array)
     if array is None:
         return None, None
@@ -397,8 +416,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
     # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
     if source is None:
-        image = series.new_instance(MRImage())
-        source = [image] * nr_of_slices
+        source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
 
     # If the header data are not the same size, use only the first one.
     else:
@@ -463,6 +481,16 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
 ## Helper functions
 ##
 
+def sort_instance_array(instance_array, sortby=None, status=True):
+    if sortby is None:
+        return instance_array
+    else:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
+        df = read_dataframe_from_instance_array(instance_array, sortby + ['SOPInstanceUID'])
+        df.sort_values(sortby, inplace=True) 
+        return df_to_sorted_instance_array(instance_array[0], df, sortby, status=status)
+        
 
 def instance_array(record, sortby=None, status=True): 
     """Sort instances by a list of attributes.
@@ -480,18 +508,22 @@ def instance_array(record, sortby=None, status=True):
             array[i] = instance
         return array
     else:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
         df = record.read_dataframe(sortby + ['SOPInstanceUID'])
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
 
 def df_to_sorted_instance_array(record, df, sortby, status=True): 
+    # note record here only passed for access to the function instance() and progress()
+    # This really should be db.instance()
 
     data = []
     vals = df[sortby[0]].unique()
     for i, c in enumerate(vals):
         if status: 
-            record.progress(i, len(vals), message='Sorting..')
+            record.progress(i, len(vals), message='Sorting pixel data..')
         # if a type is not supported by np.isnan()
         # assume it is not a nan
         try: 
@@ -514,11 +546,7 @@ def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    # for i, uid in enumerate(df.SOPInstanceUID.values): 
-    #     data[i] = record.instance(uid)
-    #for i, item in enumerate(df.SOPInstanceUID.items()): 
     for i, item in enumerate(df.SOPInstanceUID.items()):
-        #data[i] = record.instance(item[1], item[0])
         data[i] = record.instance(key=item[0])
     return data
 

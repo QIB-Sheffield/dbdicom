@@ -10,4 +10,7 @@ from .record import (
     group, 
     merge, 
 )
+from .types.series import (
+    array
+)
 from .utils import image

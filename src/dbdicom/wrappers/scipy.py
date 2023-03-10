@@ -4,7 +4,6 @@ import scipy
 from scipy.ndimage import affine_transform
 import nibabel as nib # unnecessary
 import dbdicom
-from dbdicom.record import merge
 
 
 
@@ -43,6 +42,83 @@ def _lists_have_equal_items(list1, list2):
     # Check if the sets are equal
     return set1 == set2
 
+def mask_curve_3d(masks, images, **kwargs):
+    if not isinstance(masks, list):
+        masks = [masks]
+    if not isinstance(images, list):
+        images = [images]
+    df_all = []
+    for mask in masks:
+        for img in images:
+            df = _mask_curve_3d(mask, img, **kwargs)
+            df_all.append(df) 
+    return df_all
+
+
+def _mask_curve_3d(mask, series, dim='InstanceNumber'):
+
+    # Get 4D mask array overlaid on 4D series
+    msk_arr, img_hdrs = mask_array(mask, on=series, dim=dim)
+    
+    # Define variables
+    vars = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Region of Interest']
+    vars += [str(dim), 'Mean', 'Stdev', 'Max', 'Min', 'Median', '2.5 perc', '97.5 perc']
+
+    # Read values
+    img = series.instance()
+    ids = [img.PatientID, img.StudyDescription, img.SeriesDescription, mask.instance().SeriesDescription]
+    if isinstance(msk_arr, list):
+        data = _mask_curve_3d_data(msk_arr, img_hdrs, ids, dim)
+    else:
+        data = _mask_curve_3d_data_slice_group(msk_arr, img_hdrs, ids, dim)
+
+    # Return as dataframe
+    return pd.DataFrame(data, columns=vars)
+
+
+def _mask_curve_3d_data_slice_group(msk_arr, img_hdrs, ids, dim):
+    data = []
+    nt = msk_arr.shape[-1]
+    for t in range(nt):
+        img_hdrs[0,0].status.progress(t+1, nt, 'Extracting mask time curves..')
+        arr = _mask_data(msk_arr[...,t], img_hdrs[...,t])
+        vals = [
+            img_hdrs[0,t][dim], # 3d-assuming all slice locations have the same time coordinate
+            np.mean(arr),
+            np.std(arr),
+            np.amax(arr),
+            np.amin(arr),
+            np.percentile(arr, 50),
+            np.percentile(arr, 2.5),
+            np.percentile(arr, 97.5),
+        ]
+        data.append(ids + vals)
+    return data
+
+
+def _mask_curve_3d_data(msk_arr, img_hdrs, ids, dim):
+    data = []
+    nt = msk_arr[0].shape[-1]
+    for t in range(nt):
+        img_hdrs[0][0,0].status.progress(t+1, nt, 'Extracting mask time curves..')
+        # Concatenate data at time t for each slice group
+        arr = [_mask_data(arr_i[...,t], img_hdrs[i][...,t]) for i, arr_i in enumerate(msk_arr)]
+        arr = [d for d in arr if d is not None]
+        arr = np.concatenate(arr)
+        # Get values
+        vals = [
+            img_hdrs[0][0,t][dim], # 3d-assuming all slice locations have the same time coordinate
+            np.mean(arr),
+            np.std(arr),
+            np.amax(arr),
+            np.amin(arr),
+            np.percentile(arr, 50),
+            np.percentile(arr, 2.5),
+            np.percentile(arr, 97.5),
+        ]
+        data.append(ids + vals)
+    return data
+
 
 def mask_statistics(masks, images):
     if not isinstance(masks, list):
@@ -63,38 +139,14 @@ def mask_statistics(masks, images):
         else:
             df_all_masks = pd.concat([df_all_masks, df_mask], ignore_index=True)
     return df_all_masks
-        
+
 
 def _mask_statistics(mask, image):
-    mapped = map_to(image, mask)
-    msk_arr, _ = mask.array('SliceLocation', pixels_first=True)
-    img_arr, _ = mapped.array('SliceLocation', pixels_first=True)
-    if mapped != image:
-        mapped.remove()
-    msk_arr = np.round(msk_arr).astype(np.uint16)
-    img_arr = img_arr[msk_arr == 1]
-    props = {
-        'Mean': np.mean(img_arr),
-        'Standard deviation': np.std(img_arr),
-        'Maximum': np.amax(img_arr),
-        'Minimum': np.amin(img_arr),
-        '1% percentile': np.percentile(img_arr, 1),
-        '5% percentile': np.percentile(img_arr, 5),
-        '10% percentile': np.percentile(img_arr, 10),
-        '25% percentile': np.percentile(img_arr, 25),
-        'Median': np.percentile(img_arr, 50),
-        '75% percentile': np.percentile(img_arr, 75),
-        '90% percentile': np.percentile(img_arr, 90),
-        '95% percentile': np.percentile(img_arr, 95),
-        '99% percentile': np.percentile(img_arr, 99),
-        'Range': np.amax(img_arr) - np.amin(img_arr),
-        'Interquartile range':np.percentile(img_arr, 75) - np.percentile(img_arr, 25),
-        '90 percent range': np.percentile(img_arr, 95) - np.percentile(img_arr, 5),
-        'Coefficient of variation': np.std(img_arr)/np.mean(img_arr),
-        'Heterogeneity': (np.percentile(img_arr, 95) - np.percentile(img_arr, 5))/np.percentile(img_arr, 50),
-        'Kurtosis': scipy.stats.kurtosis(img_arr),
-        'Skewness': scipy.stats.skew(img_arr),
-    }
+
+    # Get mask array
+    msk_arr, img_hdrs = mask_array(mask, on=image)
+    data = _mask_data_slice_groups(msk_arr, img_hdrs)
+    props = _summary_stats(data)
     instance = image.instance()
     columns = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Region of Interest', 'Parameter', 'Value', 'Unit']
     ids = [instance.PatientID, instance.StudyDescription, instance.SeriesDescription, mask.instance().SeriesDescription]
@@ -104,6 +156,66 @@ def _mask_statistics(mask, image):
         data.append(row)
     return pd.DataFrame(data, columns=columns)
 
+
+def _mask_data_slice_groups(msk_arr, img_hdrs):
+    if isinstance(msk_arr, list): 
+        # Loop over slice groups
+        data = [_mask_data(arr, img_hdrs[m]) for m, arr in enumerate(msk_arr)]
+        data = [d for d in data if d is not None]
+        if data == []:
+            data = None
+        else:
+            data = np.concatenate(data)
+    else: 
+        # single slice group
+        data = _mask_data(msk_arr, img_hdrs)
+    return data
+
+
+def _mask_data(msk_arr, imgs):
+    data = []
+    for i, image in np.ndenumerate(imgs):
+        if image is not None:
+            if len(i) == 1:
+                mask = msk_arr[:,:,i[0]]
+            elif len(i) == 2:
+                mask = msk_arr[:,:,i[0],i[1]]
+            if np.count_nonzero(mask) > 0:
+                array = image.array()
+                array = array[mask > 0.5]  
+                data.append(array.ravel())
+    if data == []:
+        return None
+    else:
+        return np.concatenate(data)
+    
+
+def _summary_stats(data):
+    if data is None:
+        return {}
+    return {
+        'Mean': np.mean(data),
+        'Standard deviation': np.std(data),
+        'Maximum': np.amax(data),
+        'Minimum': np.amin(data),
+        '2.5% percentile': np.percentile(data, 2.5),
+        '5% percentile': np.percentile(data, 5),
+        '10% percentile': np.percentile(data, 10),
+        '25% percentile': np.percentile(data, 25),
+        'Median': np.percentile(data, 50),
+        '75% percentile': np.percentile(data, 75),
+        '90% percentile': np.percentile(data, 90),
+        '95% percentile': np.percentile(data, 95),
+        '97.5% percentile': np.percentile(data, 97.5),
+        'Range': np.amax(data) - np.amin(data),
+        'Interquartile range':np.percentile(data, 75) - np.percentile(data, 25),
+        '90 percent range': np.percentile(data, 95) - np.percentile(data, 5),
+        'Coefficient of variation': np.std(data)/np.mean(data),
+        'Heterogeneity': (np.percentile(data, 95) - np.percentile(data, 5))/np.percentile(data, 50),
+        'Kurtosis': scipy.stats.kurtosis(data),
+        'Skewness': scipy.stats.skew(data),
+    }
+        
 
 
 def overlay(features):
@@ -139,7 +251,7 @@ def map_to(source, target, **kwargs):
             slice_group_target.remove()
         desc = source.instance().SeriesDescription 
         desc += ' mapped to ' + target.instance().SeriesDescription
-        mapped_series = merge(mapped_series, inplace=True)
+        mapped_series = dbdicom.merge(mapped_series, inplace=True)
         mapped_series.SeriesDescription = desc
     else:
         mapped_series = _map_series_to_slice_group(source, target, affine_source, affine_target[0], **kwargs)
@@ -156,7 +268,7 @@ def _map_series_to_slice_group(source, target, affine_source, affine_target, **k
             mapped = _map_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target, **kwargs)
             mapped_series.append(mapped)
             slice_group_source.remove()
-        return merge(mapped_series, inplace=True)
+        return dbdicom.merge(mapped_series, inplace=True)
     else:
         return _map_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
@@ -169,6 +281,7 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
 
     # Get transformation matrix
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
+    source_to_target = np.around(source_to_target, 3) # remove round-off errors in the inversion
     matrix, offset = nib.affines.to_matvec(source_to_target) 
     
     # Get arrays
@@ -181,6 +294,10 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     output_shape = array_target.shape[:3]
     nt, nk = array_source.shape[3], array_source.shape[4]
     array_mapped = np.empty(output_shape + (nt, nk))
+    if mask:
+        order = 0 
+    else:
+        order = 3
     cnt=0
     for t in range(nt):
         for k in range(nk):
@@ -191,7 +308,8 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
                 matrix = matrix,
                 offset = offset,
                 output_shape = output_shape,
-                cval = cval)
+                cval = cval,
+                order = order)
 
     # If source is a mask array, set values to [0,1]
     if mask:
@@ -222,27 +340,35 @@ def _map_slice_group_to_slice_group(source, target, affine_source, affine_target
     return mapped_series
 
 
-def map_mask_to(source, target, **kwargs):
+def mask_array(mask, on=None, dim='InstanceNumber'):
     """Map non-zero pixels onto another series"""
 
+    if on is None:
+        arr, hdr = dbdicom.array(mask, sortby=['SliceLocation', dim], mask=True, pixels_first=True)
+        return arr[...,0], hdr[...,0]
+
     # Get transformation matrix
-    source.status.message('Loading transformation matrices..')
-    affine_source = source.affine_matrix()
-    affine_target = target.affine_matrix() 
+    mask.status.message('Loading transformation matrices..')
+    affine_source = mask.affine_matrix()
+    affine_target = on.affine_matrix() 
 
     if isinstance(affine_target, list):
         mapped_arrays = []
         mapped_headers = []
         for affine_slice_group_target in affine_target:
-            slice_group_target = target.new_sibling()
-            slice_group_target.adopt(affine_slice_group_target[1])
-            mapped, headers = _map_mask_series_to_slice_group(source, slice_group_target, affine_source, affine_slice_group_target[0], **kwargs)
+            mapped, headers = _map_mask_series_to_slice_group(
+                mask, 
+                affine_slice_group_target[1], 
+                affine_source, 
+                affine_slice_group_target[0],
+                dim=dim,
+            )
             mapped_arrays.append(mapped)
             mapped_headers.append(headers)
-            slice_group_target.remove()
     else:
-        mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(source, target, affine_source, affine_target[0], **kwargs)
-    source.status.hide()
+        mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(
+            mask, on, affine_source, affine_target[0], dim=dim)
+    mask.status.hide()
     return mapped_arrays, mapped_headers
 
 
@@ -251,12 +377,15 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
     if isinstance(affine_source, list):
         mapped_arrays = []
         for affine_slice_group in affine_source:
-            slice_group_source = source.new_sibling()
-            slice_group_source.adopt(affine_slice_group[1])
-            mapped, headers = _map_mask_slice_group_to_slice_group(slice_group_source, target, affine_slice_group[0], affine_target, **kwargs)
+            mapped, headers = _map_mask_slice_group_to_slice_group(
+                affine_slice_group[1], 
+                target, 
+                affine_slice_group[0], 
+                affine_target,
+                **kwargs,
+            )
             mapped_arrays.append(mapped)
-            slice_group_source.remove()
-        array = np.logical_or(mapped_arrays[:2])
+        array = np.logical_or(mapped_arrays[0], mapped_arrays[1])
         for a in mapped_arrays[2:]:
             array = np.logical_or(array, a)
         return array, headers
@@ -264,44 +393,65 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
         return _map_mask_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
-def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target):
+def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target, dim='InstanceNumber'):
+
+    if isinstance(source, list):
+        status = source[0].status
+        dialog = source[0].dialog
+    else:
+        status = source.status
+        dialog = source.dialog
 
     # Get arrays
-    array_source, _ = source.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
-    array_target, headers_target = target.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+    array_source, _ = dbdicom.array(source, sortby=['SliceLocation',dim], pixels_first=True)
+    array_target, headers_target = dbdicom.array(target, sortby=['SliceLocation', dim], pixels_first=True)
+
+    # Ignore spurious dimension
+    array_source = array_source[...,0]
+    array_target = array_target[...,0]
+    headers_target = headers_target[...,0]
+
+    # For mapping mask onto series, the time dimensions must be the same.
+    # If they are not, the mask is extruded on to the series time dimensions.
+    nk = array_target.shape[3]
+    if array_source.shape[3] != nk:
+        status.message('Extruding ROI on time series..')
+        array_source = np.amax(array_source, axis=-1)
+        array_source = np.repeat(array_source[:,:,:,np.newaxis], nk, axis=3)
+    
+    # If the dimensions and affines are equal there is nothing to do
     if np.array_equal(affine_source, affine_target):
-        array_source[array_source > 0.5] = 1
-        array_source[array_source <= 0.5] = 0
-        return array_source[:,:,:,0,0], headers_target[:,0,0]
-     
+        if array_source.shape == array_target.shape:
+            # Make sure the result is a mask
+            array_source[array_source > 0.5] = 1
+            array_source[array_source <= 0.5] = 0
+            return array_source, headers_target
+    
     # Get transformation matrix
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
-    matrix, offset = nib.affines.to_matvec(source_to_target) 
+    source_to_target = np.around(source_to_target, 3) # to avoid round-off error in the inversion
+    matrix, offset = nib.affines.to_matvec(source_to_target)
     
     #Perform transformation
-    source.status.message('Performing transformation..')
     output_shape = array_target.shape[:3]
-    nt, nk = array_source.shape[3], array_source.shape[4]
-    array_mapped = np.empty(output_shape + (nt, nk))
-    cnt=0
-    for t in range(nt):
-        for k in range(nk):
-            cnt+=1
-            source.status.progress(cnt, nt*nk, 'Performing transformation..')
-            array_mapped[:,:,:,t,k] = affine_transform(
-                array_source[:,:,:,t,k],
-                matrix = matrix,
-                offset = offset,
-                output_shape = output_shape,
-                order = 3)
+    for k in range(nk):
+        status.progress(k+1, nk, 'Calculating overlay..')
+        array_target[:,:,:,k] = affine_transform(
+            array_source[:,:,:,k],
+            matrix = matrix,
+            offset = offset,
+            output_shape = output_shape,
+            order = 0)
+        
+    # Make sure the result is a mask
+    status.message('Converting to binary..')
+    array_target[array_target > 0.5] = 1
+    array_target[array_target <= 0.5] = 0 
 
-    # If source is a mask array, set values to [0,1]
-    array_mapped[array_mapped > 0.5] = 1
-    array_mapped[array_mapped <= 0.5] = 0
+    # Return without spurious dimensions
+    return array_target, headers_target
+        
 
-    # If the array is all that is needed we are done
-    source.status.message('Finished mapping..')
-    return array_mapped[:,:,:,0,0], headers_target[:,0,0]
 
 
 # SEGMENTATION
@@ -1077,23 +1227,7 @@ def resample(series, voxel_size=[1.0, 1.0, 1.0]):
     return mapped_series
 
 
-def reslice(series, orientation='axial'):
 
-    # Define geometry of axial series (isotropic)
-    series.status.message('Reading transformations..')
-    affine_source = series.affine_matrix()
-    if isinstance(affine_source, list):
-        mapped_series = []
-        for affine_slice_group in affine_source:
-            mapped = _reslice_slice_group(series, affine_slice_group[0], affine_slice_group[0], orientation=orientation)
-            mapped_series.append(mapped)
-            #slice_group.remove()
-        desc = series.instance().SeriesDescription + '['+orientation+']'
-        mapped_series = dbdicom.merge(mapped_series, inplace=True)
-        mapped_series.SeriesDescription = desc
-    else:
-        mapped_series = _reslice_slice_group(series, affine_source[0], affine_source[1], orientation=orientation)
-    return mapped_series
 
 
 def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1.0, 1.0]):
@@ -1124,7 +1258,7 @@ def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1
     dim = [
         array.shape[0] * p['PixelSpacing'][1],
         array.shape[1] * p['PixelSpacing'][0],
-        array.shape[2] * p['SliceThickness'],
+        array.shape[2] * p['SpacingBetweenSlices'],
     ]
     output_shape = [1 + round(dim[i]/voxel_size[i]) for i in range(3)]
 
@@ -1157,6 +1291,25 @@ def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1
     return resliced_series
 
 
+def reslice(series, orientation='axial'):
+
+    # Define geometry of axial series (isotropic)
+    series.status.message('Reading transformations..')
+    affine_source = series.affine_matrix()
+    if isinstance(affine_source, list):
+        mapped_series = []
+        for affine_slice_group in affine_source:
+            mapped = _reslice_slice_group(series, affine_slice_group[0], affine_slice_group[0], orientation=orientation)
+            mapped_series.append(mapped)
+            #slice_group.remove()
+        desc = series.instance().SeriesDescription + '['+orientation+']'
+        mapped_series = dbdicom.merge(mapped_series, inplace=True)
+        mapped_series.SeriesDescription = desc
+    else:
+        mapped_series = _reslice_slice_group(series, affine_source[0], affine_source[1], orientation=orientation)
+    return mapped_series
+
+
 def _reslice_slice_group(series, affine_source, slice_group, orientation='axial'):
 
     # Create new resliced series
@@ -1174,7 +1327,7 @@ def _reslice_slice_group(series, affine_source, slice_group, orientation='axial'
         p['PixelSpacing'], 
         rows,
         columns)
-    spacing = np.mean([p['PixelSpacing'][0], p['PixelSpacing'][1], p['SliceThickness']])
+    spacing = np.mean([p['PixelSpacing'][0], p['PixelSpacing'][1], p['SpacingBetweenSlices']])
     affine_target = dbdicom.utils.image.standard_affine_matrix(
         box, 
         [spacing, spacing],

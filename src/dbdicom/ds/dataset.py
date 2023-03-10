@@ -11,8 +11,13 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.util.codify import code_file
+import pydicom.config
 
 import dbdicom.utils.image as image
+import dbdicom.utils.variables as variables
+
+# This ensures that dates and times are read as TM, DT and DA classes
+pydicom.config.datetime_conversion= True
 
 
 class DbDataset(Dataset):
@@ -348,6 +353,11 @@ def get_values(ds, tags):
 
 def format_value(value, VR=None, tag=None):
 
+    # If the change below is made (TM, DA, DT) then this needs to 
+    # convert those to string before setting
+
+    # Slow - dictionary lookup for every value write
+
     if VR is None:
         VR = pydicom.datadict.dictionary_VR(tag)
 
@@ -355,7 +365,9 @@ def format_value(value, VR=None, tag=None):
         if len(value) > 64:
             return value[-64:]
             #return value[:64]
-
+    if VR == 'TM':
+        return variables.seconds_to_str(value)
+    
     return value
 
 
@@ -371,15 +383,15 @@ def to_set_type(value):
     if value.__class__.__name__ == 'Sequence':
         return [ds for ds in value]
     if value.__class__.__name__ == 'TM': 
-        return str(value) 
+        return variables.time_to_seconds(value) # return datetime.time
     if value.__class__.__name__ == 'UID': 
         return str(value) 
     if value.__class__.__name__ == 'IS': 
         return int(value)
     if value.__class__.__name__ == 'DT': 
-        return str(value)
-    if value.__class__.__name__ == 'DA': 
-        return str(value)
+        return variables.datetime_to_str(value) # return datetime.datetime
+    if value.__class__.__name__ == 'DA':  # return datetime.date
+        return variables.date_to_str(value)
     if value.__class__.__name__ == 'DSfloat': 
         return float(value)
     if value.__class__.__name__ == 'DSdecimal': 
@@ -399,17 +411,24 @@ def new_uid(n=None):
 def get_affine_matrix(ds):
     """Affine transformation matrix for a DICOM image"""
 
+    # Spacing between slice is not require and does not exist for single
+    # slice scans, but is the correct distance to use when it is defined 
+    # for instance in a single slice extracted from a multi-slice series
+    slice_spacing = get_values(ds, 'SpacingBetweenSlices')
+    if slice_spacing is None:
+        slice_spacing = get_values(ds, 'SliceThickness')
+
     return image.affine_matrix(
         get_values(ds, 'ImageOrientationPatient'), 
         get_values(ds, 'ImagePositionPatient'), 
         get_values(ds, 'PixelSpacing'), 
-        get_values(ds, 'SliceThickness'))
+        slice_spacing)
 
 
 def set_affine_matrix(ds, affine):
     v = image.dismantle_affine_matrix(affine)
     set_values(ds, 'PixelSpacing', v['PixelSpacing'])
-    set_values(ds, 'SliceThickness', v['SliceThickness'])
+    set_values(ds, 'SpacingBetweenSlices', v['SpacingBetweenSlices'])
     set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
     set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
 

@@ -202,7 +202,7 @@ def affine_matrix(      # single slice function
     image_orientation,  # ImageOrientationPatient
     image_position,     # ImagePositionPatient (first slice for a multi-slice sequence)
     pixel_spacing,      # PixelSpacing
-    slice_spacing):     # SliceThickness
+    slice_spacing):     # SpacingBetweenSlices
     """
     Calculate an affine transformation matrix for a single slice of an image in the DICOM file format.
     The affine transformation matrix can be used to transform the image from its original coordinates
@@ -217,7 +217,7 @@ def affine_matrix(      # single slice function
         pixel_spacing (list): a list of 2 elements representing the PixelSpacing DICOM tag for the
                               image. This specifies the spacing between pixels in the rows and columns
                               of each slice.
-        slice_spacing (float): a float representing the SliceThickness DICOM tag for the image. This
+        slice_spacing (float): a float representing the SpacingBetweenSlices DICOM tag for the image. This
                                specifies the spacing between slices in the image.
 
     Returns:
@@ -280,7 +280,7 @@ def dismantle_affine_matrix(affine):
     # Note: nr of slices can not be retrieved from affine_matrix
     # Note: slice_cosine is not a DICOM keyword but can be used 
     # to work out the ImagePositionPatient of any other slice i as
-    # ImagePositionPatient_i = ImagePositionPatient + i * SliceThickness * slice_cosine
+    # ImagePositionPatient_i = ImagePositionPatient + i * SpacingBetweenSlices * slice_cosine
     column_spacing = np.linalg.norm(affine[:3, 0])
     row_spacing = np.linalg.norm(affine[:3, 1])
     slice_spacing = np.linalg.norm(affine[:3, 2])
@@ -289,7 +289,7 @@ def dismantle_affine_matrix(affine):
     slice_cosine = affine[:3, 2] / slice_spacing
     return {
         'PixelSpacing': [row_spacing, column_spacing], 
-        'SliceThickness': slice_spacing,  # This is really spacing between slices
+        'SpacingBetweenSlices': slice_spacing,  # This is really spacing between slices
         'ImageOrientationPatient': row_cosine.tolist() + column_cosine.tolist(), 
         'ImagePositionPatient': affine[:3, 3].tolist(), # first slice for a volume
         'slice_cosine': slice_cosine.tolist()} 
@@ -309,7 +309,7 @@ def image_position_patient(affine, number_of_slices):
     for s in range(number_of_slices):
         pos = [
             slab['ImagePositionPatient'][i] 
-            + s*slab['SliceThickness']*slab['slice_cosine'][i]
+            + s*slab['SpacingBetweenSlices']*slab['slice_cosine'][i]
             for i in range(3)
         ]
         loc = np.dot(np.array(pos), np.array(slab['slice_cosine']))

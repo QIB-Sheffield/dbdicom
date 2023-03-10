@@ -1,5 +1,5 @@
-import os
 from dbdicom.record import DbRecord
+from dbdicom.utils.files import gif2numpy
 
 class Database(DbRecord):
 
@@ -50,6 +50,14 @@ class Database(DbRecord):
 
     def import_nifti(self, files):
         self.manager.import_datasets_from_nifti(files)
+
+    def import_gif(self, files):
+        study = self.new_patient().new_study()
+        for file in files:
+            array = gif2numpy(file)
+            series = study.new_series()
+            series.set_array(array)
+        return study
 
     def _copy_from(self, record):
         uids = self.manager.copy_to_database(record.uid, **self.attributes)

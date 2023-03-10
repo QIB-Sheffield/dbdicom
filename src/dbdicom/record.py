@@ -1,4 +1,4 @@
-
+import numpy as np
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.utils.files import export_path
@@ -411,19 +411,32 @@ def merge(records, into=None, inplace=False):
 #
 
 
+
+
 def read_dataframe(record, tags):
     if set(tags) <= set(record.manager.columns):
         return record.register()[tags]  
+    instances = record.instances()
+    return _read_dataframe_from_instance_array_values(instances, tags)
+
+
+def read_dataframe_from_instance_array(instances, tags):
+    mgr = instances[0].manager
+    if set(tags) <= set(mgr.columns):
+        keys = [i.key() for _, i in np.ndenumerate(instances)]
+        return mgr._extract(keys)[tags]
+    return _read_dataframe_from_instance_array_values(instances, tags)
+
+    
+def _read_dataframe_from_instance_array_values(instances, tags):
     indices = []
     data = []
-    instances = record.instances()
     for i, instance in enumerate(instances):
-        #index = record.manager.keys(instance=instance.uid)[0]
         index = instance.key()
         values = instance.get_values(tags)
         indices.append(index)
         data.append(values)
-        record.progress(i+1, len(instances), 'Reading dataframe..')
+        instance.progress(i+1, len(instances), 'Reading dataframe..')
     return pd.DataFrame(data, index=indices, columns=tags)
 
 
