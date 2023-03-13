@@ -1,0 +1,6 @@
+scipy
+scikit-image
+SimpleITK
+itk-elastix
+dipy
+scikit-learn
