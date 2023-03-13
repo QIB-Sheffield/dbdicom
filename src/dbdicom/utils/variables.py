@@ -12,7 +12,7 @@ def str_to_seconds(dicom_tm):
     # Convert the fractional seconds to a decimal
     fractional_seconds = float('.' + fractional_seconds)
     # Create a datetime object representing the time
-    seconds_since_midnight = (hours * 3600) + (minutes * 60) + seconds + fractional_seconds
+    seconds_since_midnight = (hours * 3600).zfill(2) + (minutes * 60) + seconds + fractional_seconds
     return seconds_since_midnight
 
 def seconds_to_str(seconds_since_midnight):
@@ -20,7 +20,7 @@ def seconds_to_str(seconds_since_midnight):
     minutes = math.floor((seconds_since_midnight-hours*3600)/60)
     seconds = math.floor(seconds_since_midnight-hours*3600-minutes*60)
     fractional_seconds = round(seconds_since_midnight-hours*3600-minutes*60-seconds, 6)
-    hours = str(hours)
+    hours = str(hours).zfill(2)
     minutes = str(minutes)
     seconds = str(seconds)
     fractional_seconds = str(fractional_seconds)
@@ -49,7 +49,7 @@ def time_to_str(tm):
     minutes = tm.minute
     seconds = tm.second
     fractional_seconds = tm.microsecond / 1000000.0   
-    hours = str(hours)
+    hours = str(hours).zfill(2)
     minutes = str(minutes)
     seconds = str(seconds)
     fractional_seconds = str(fractional_seconds)
