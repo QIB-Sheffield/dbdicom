@@ -72,7 +72,8 @@ wrappers = [
     # pip install --pre scikit-image<=0.19.0 
     # until a new version is released (0.21.0)
     "scikit-image<=0.19.0", 
-    "SimpleITK", "itk-elastix",
+    #"SimpleITK", "itk-elastix",
+    "SimpleITK-SimpleElastix",
     "dipy",
     "scikit-learn",
 ]

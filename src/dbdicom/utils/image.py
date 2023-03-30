@@ -200,7 +200,7 @@ def standard_affine_matrix(
 
 def affine_matrix(      # single slice function
     image_orientation,  # ImageOrientationPatient
-    image_position,     # ImagePositionPatient (first slice for a multi-slice sequence)
+    image_position,     # ImagePositionPatient
     pixel_spacing,      # PixelSpacing
     slice_spacing):     # SpacingBetweenSlices
     """
