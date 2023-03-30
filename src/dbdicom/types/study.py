@@ -25,6 +25,12 @@ class Study(DbRecord):
     def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
         return self.new_series(**attr)
+    
+    def new_sibling(self, suffix=None, **kwargs):
+        if suffix is not None:
+            desc = self.instance().StudyDescription 
+            kwargs['StudyDescription'] = desc + ' [' + suffix + ']'
+        return self.parent().new_child(**kwargs)
 
     def _copy_from(self, record, **kwargs):
         attr = {**kwargs, **self.attributes}

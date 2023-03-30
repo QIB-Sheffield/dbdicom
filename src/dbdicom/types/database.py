@@ -25,6 +25,9 @@ class Database(DbRecord):
     def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
         return self.new_patient(**attr)
+    
+    def new_sibling(self, **kwargs):
+        return None
 
     def save(self, path=None):
         #self.manager.save('Database')

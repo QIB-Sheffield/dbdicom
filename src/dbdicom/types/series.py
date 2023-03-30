@@ -33,6 +33,12 @@ class Series(DbRecord):
         attr = {**kwargs, **self.attributes}
         return self.new_instance(dataset=dataset, **attr)
 
+    def new_sibling(self, suffix=None, **kwargs):
+        if suffix is not None:
+            desc = self.instance().SeriesDescription 
+            kwargs['SeriesDescription'] = desc + ' [' + suffix + ']'
+        return self.parent().new_child(**kwargs)
+
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, key=self.key(), **attr)
@@ -79,7 +85,9 @@ class Series(DbRecord):
 
 
     def export_as_dicom(self, path): 
-        folder = self.label()
+        #folder = self.patient().label() + '_' + self.study().label() + '_' + self.label()
+        instance = self.instance()
+        folder = instance.PatientID + '_' + instance.StudyDescription + '_' + self.label()
         path = export_path(path, folder)
         copy = self.copy()
         mgr = Manager(path, status=self.status)
@@ -244,8 +252,11 @@ def _slice_group_affine_matrix(slice_group, image_orientation):
         pos = [s.ImagePositionPatient for s in slice_group]
         # Find unique elements
         pos = [x for i, x in enumerate(pos) if i==pos.index(x)]
+
+        # One slice location
         if len(pos) == 1: 
             return slice_group[0].affine_matrix
+        
         # Slices with different locations
         else:
             return image_utils.affine_matrix_multislice(
@@ -265,7 +276,7 @@ def array(record, **kwargs):
         return get_pixel_array(record, **kwargs)
     
 
-def get_pixel_array(record, sortby=None, **kwargs): 
+def get_pixel_array(record, sortby=None, first_volume=False, **kwargs): 
     """Pixel values of the object as an ndarray
     
     Args:
@@ -309,7 +320,11 @@ def get_pixel_array(record, sortby=None, **kwargs):
     """
 
     source = instance_array(record, sortby)
-    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+    if first_volume:
+        return array[...,0], headers[...,0]
+    else:
+        return array, headers
 
 
 def _get_pixel_array_from_instance_array(instance_array, sortby=None, **kwargs):
@@ -322,15 +337,17 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     array = []
     instances = source.ravel()
     for i, im in enumerate(instances):
-        im.progress(i, len(instances), 'Reading pixel data..')
+        im.progress(i+1, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
             array.append(im.get_pixel_array())
-    im.status.message('Reshaping pixel array..')
+    im.status.hide()
+    im.status.message('Reshaping pixel data..')
     array = _stack(array)
     if array is None:
-        return None, None
+        msg = 'This series does not have pixel data..'
+        raise ValueError(msg)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:
         array = np.moveaxis(array, -1, 0)

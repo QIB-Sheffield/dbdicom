@@ -1,9 +1,10 @@
 import numpy as np
-import skimage
+import pandas as pd
 import scipy.ndimage as ndi
+import skimage
+
 from dbdicom.wrappers import scipy
 from dbdicom.utils.image import interpolate3d_isotropic
-import pandas as pd
 
 
 def volume_features(series):
@@ -715,7 +716,7 @@ def convex_hull_image_3d(input, **kwargs):
     return result
 
 
-def coregister(moving, fixed, return_array=False, attachment=1):
+def coregister_2d_to_2d(moving, fixed, return_array=False, attachment=1):
     # https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1
 
     #fixed = fixed.map_to(moving)
@@ -723,40 +724,185 @@ def coregister(moving, fixed, return_array=False, attachment=1):
 
     # Get arrays for fixed and moving series
     array_fixed, _ = fixed.array('SliceLocation', pixels_first=True)
-    array_moving, headers_moving = moving.array('SliceLocation', pixels_first=True)
+    array_moving, headers = moving.array('SliceLocation', pixels_first=True)
     if array_fixed is None or array_moving is None:
         return fixed
+    array_moving, headers, array_fixed = array_moving[...,0], headers[...,0], array_fixed[...,0]
 
     # Coregister fixed and moving slice-by-slice
     row_coords, col_coords = np.meshgrid( 
         np.arange(array_moving.shape[0]), 
         np.arange(array_moving.shape[1]),
         indexing='ij')
+    deformation = np.empty(array_moving.shape + (2,))
     for z in range(array_moving.shape[2]):
         moving.status.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
-        image0 = array_fixed[:,:,z,0]
-        image1 = array_moving[:,:,z,0]
+        image0 = array_fixed[:,:,z]
+        image1 = array_moving[:,:,z]
         v, u = skimage.registration.optical_flow_tvl1(image0, image1, attachment=attachment)
-        array_moving[:,:,z,0] = skimage.transform.warp(
-            image1, 
-            np.array([row_coords + v, col_coords + u]),
-            mode='edge')
+        new_coords = np.array([row_coords + v, col_coords + u])
+        array_moving[:,:,z] = skimage.transform.warp(image1, new_coords, mode='edge')
+        deformation[:,:,z,:] = np.stack([v, u], axis=-1)
 
     # Return array or new series
     if return_array:
         moving.status.message('Finished coregistration..')
-        return array_moving, headers_moving[:,0]
+        return array_moving, deformation, headers
     else:
         moving.status.message('Writing coregistered series to database..')
+        # Create new dicom series
         desc = moving.instance().SeriesDescription 
-        desc += ' registered to ' + fixed.instance().SeriesDescription
-        registered_series = moving.new_sibling(SeriesDescription = desc)
-        registered_series.set_array(array_moving, headers_moving, pixels_first=True)
+        coreg = moving.new_sibling(SeriesDescription = desc + ' [coregistered]')
+        deform = moving.new_sibling(SeriesDescription = desc + ' [deformation field]')
+        # Set arrays of new series
+        coreg.set_array(array_moving, headers, pixels_first=True)
+        for dim in range(deformation.shape[-1]):
+            deform.set_array(deformation[...,dim], headers, pixels_first=True)
         moving.status.message('Finished coregistration..')
-        return registered_series
+        return coreg, deform
     
 
-def coregister_series(series, attachment=1):
+def coregister_3d_to_3d(moving, fixed, return_array=False, attachment=1):
+    # https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1
+
+    fixed = scipy.map_to(fixed, moving)
+
+    # Get arrays for fixed and moving series
+    array_fixed, _ = fixed.array('SliceLocation', pixels_first=True)
+    array_moving, headers = moving.array('SliceLocation', pixels_first=True)
+    if array_fixed is None or array_moving is None:
+        return fixed
+    array_moving, headers, array_fixed = array_moving[...,0], headers[...,0], array_fixed[...,0]
+
+    moving.status.message('Performing coregistration. Please be patient. Its hard work and I need to concentrate..')
+    # Coregister fixed and moving slice-by-slice
+    row_coords, col_coords, slice_coords = np.meshgrid( 
+        np.arange(array_moving.shape[0]), 
+        np.arange(array_moving.shape[1]),
+        np.arange(array_moving.shape[2]),
+        indexing='ij')
+    v, u, w = skimage.registration.optical_flow_tvl1(array_fixed,  array_moving, attachment=attachment)
+    new_coords = np.array([row_coords + v, col_coords + u, slice_coords + w])
+    array_moving = skimage.transform.warp(array_moving, new_coords, mode='edge')
+    deformation = np.stack([v, u, w], axis=-1)
+
+    # Return array or new series
+    if return_array:
+        moving.status.message('Finished coregistration..')
+        return array_moving, deformation, headers
+    else:
+        moving.status.message('Writing coregistered series to database..')
+        # Create new dicom series
+        desc = moving.instance().SeriesDescription
+        coreg = moving.new_sibling(SeriesDescription = desc + ' [coregistered]')
+        deform = moving.new_sibling(SeriesDescription = desc + ' [deformation field]')
+        # Set arrays of new series
+        coreg.set_array(array_moving, headers, pixels_first=True)
+        for dim in range(deformation.shape[-1]):
+            deform.set_array(deformation[...,dim], headers, pixels_first=True)
+        moving.status.message('Finished coregistration..')
+        return coreg, deform
+    
+
+def warp(image, deformation_field):
+
+    # Get arrays for fixed and moving series
+    array, headers = image.array('SliceLocation', pixels_first=True, first_volume=True)
+    array_deform, _ = deformation_field.array('SliceLocation', pixels_first=True, first_volume=True)
+
+    # For the deformation field the last dimension is the components
+    # For the image use only the first time point
+    # array, headers = array[...,0], headers[...,0]
+
+    # For this function, image and deformation field must be aligned
+    if array.shape != array_deform.shape[:-1]:
+        msg = 'The dimensions of image and deformation field are not matching up. \n'
+        msg += 'Please select two series with matching dimensions.'
+        raise ValueError(msg)
+
+    # Warp the arrays
+    if array_deform.shape[-1] == 3:
+        x, y, z = np.meshgrid( 
+            np.arange(array.shape[0]), 
+            np.arange(array.shape[1]),
+            np.arange(array.shape[2]),
+            indexing='ij')
+        v, u, w = array_deform[...,0], array_deform[...,1], array_deform[...,2]
+        new_coords = np.array([x+v, y+u, z+w])
+        array = skimage.transform.warp(array, new_coords, mode='edge')
+    elif array_deform.shape[-1] == 2:
+        x, y = np.meshgrid( 
+            np.arange(array.shape[0]), 
+            np.arange(array.shape[1]),
+            indexing='ij')
+        for z in range(array.shape[2]):
+            image.status.progress(z+1, array.shape[2], 'Deforming slices..')
+            v, u = array_deform[...,z,0], array_deform[...,z,1]
+            new_coords = np.array([x+v, y+u])
+            array[...,z] = skimage.transform.warp(array[...,z], new_coords, mode='edge')
+    else:
+        msg = 'The deformation field does not have the correct dimensions. \n'
+        msg += 'This needs to have the either 2 or 3 images for each slice location.'
+        raise ValueError(msg)
+    
+    # Create new dicom series
+    warped = image.new_sibling(suffix='warped')
+    warped.set_array(array, headers, pixels_first=True)
+    
+    return warped
+
+    
+
+def mdreg_constant_3d(series, attachment=1, max_improvement=1, max_iter=5):
+
+    # Get arrays for fixed and moving series
+    array, headers = series.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+    if array is None:
+        return
+    array, headers = array[...,0], headers[...,0]
+    
+    # Coregister fixed and moving slice-by-slice
+    row_coords, col_coords, slice_coords = np.meshgrid(
+        np.arange(array.shape[0]),
+        np.arange(array.shape[1]),
+        np.arange(array.shape[2]),
+        indexing='ij')
+    v, u, w = np.zeros(array.shape), np.zeros(array.shape), np.zeros(array.shape)
+    coreg = array.copy()
+    for it in range(max_iter):
+        target = np.mean(coreg, axis=3) # constant model
+        cnt=0
+        improvement = 0 # pixel sizes
+        for t in range(array.shape[3]):
+            cnt+=1
+            msg = 'Performing iteration ' + str(it) + ' < ' + str(max_iter)
+            msg += ' (best improvement so far = ' + str(round(improvement,2)) + ' pixels)'
+            series.status.progress(cnt, array.shape[3], msg)
+            v_t, u_t, w_t = skimage.registration.optical_flow_tvl1(
+                target, 
+                array[:,:,:,t], 
+                attachment=attachment)
+            coreg[:,:,:,t] = skimage.transform.warp(
+                array[:,:,:,t], 
+                np.array([row_coords + v_t, col_coords + u_t, slice_coords + w_t]),
+                mode='edge')
+            improvement_t = np.amax(np.sqrt(np.square(v_t-v[:,:,:,t]) + np.square(u_t-u[:,:,:,t]) + np.square(w_t-w[:,:,:,t])))
+            if improvement_t > improvement:
+                improvement = improvement_t
+            v[:,:,:,t], u[:,:,:,t], w[:,:,:,t] = v_t, u_t, w_t
+        if improvement < max_improvement:
+            break
+    
+    series.status.message('Writing coregistered series to database..')
+    desc = series.instance().SeriesDescription + ' [coregistered]'
+    registered_series = series.new_sibling(SeriesDescription=desc)
+    registered_series.set_array(coreg, headers, pixels_first=True)
+    series.status.message('Finished coregistration..')
+    return registered_series
+
+    
+
+def coregister_series_2d_to_2d(series, attachment=1):
 
     # Get arrays for fixed and moving series
     array, headers = series.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
@@ -842,52 +988,6 @@ def mdreg_constant_2d(series, attachment=1, max_improvement=1, max_iter=5):
     return registered_series
 
 
-def mdreg_constant_3d(series, attachment=1, max_improvement=1, max_iter=5):
-
-    # Get arrays for fixed and moving series
-    array, headers = series.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
-    if array is None:
-        return
-    array, headers = array[:,:,:,:,0], headers[:,:,0]
-    
-    # Coregister fixed and moving slice-by-slice
-    row_coords, col_coords, slice_coords = np.meshgrid(
-        np.arange(array.shape[0]), 
-        np.arange(array.shape[1]),
-        np.arange(array.shape[2]),
-        indexing='ij')
-    v, u, w = np.zeros(array.shape), np.zeros(array.shape), np.zeros(array.shape)
-    coreg = array.copy()
-    for it in range(max_iter):
-        target = np.mean(coreg, axis=3) # constant model
-        cnt=0
-        improvement = 0 # pixel sizes
-        for t in range(array.shape[3]):
-            cnt+=1
-            msg = 'Performing iteration ' + str(it) + ' < ' + str(max_iter)
-            msg += ' (best improvement so far = ' + str(round(improvement,2)) + ' pixels)'
-            series.status.progress(cnt, array.shape[3], msg)
-            v_t, u_t, w_t = skimage.registration.optical_flow_tvl1(
-                target, 
-                array[:,:,:,t], 
-                attachment=attachment)
-            coreg[:,:,:,t] = skimage.transform.warp(
-                array[:,:,:,t], 
-                np.array([row_coords + v_t, col_coords + u_t, slice_coords + w_t]),
-                mode='edge')
-            improvement_t = np.amax(np.sqrt(np.square(v_t-v[:,:,:,t]) + np.square(u_t-u[:,:,:,t]) + np.square(w_t-w[:,:,:,t])))
-            if improvement_t > improvement:
-                improvement = improvement_t
-            v[:,:,:,t], u[:,:,:,t], w[:,:,:,t] = v_t, u_t, w_t
-        if improvement < max_improvement:
-            break
-    
-    series.status.message('Writing coregistered series to database..')
-    desc = series.instance().SeriesDescription + ' [coregistered]'
-    registered_series = series.new_sibling(SeriesDescription=desc)
-    registered_series.set_array(coreg, headers, pixels_first=True)
-    series.status.message('Finished coregistration..')
-    return registered_series
 
     
 

@@ -182,11 +182,11 @@ class DbRecord():
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
         return self.record('Instance', uid, key, **attr)
 
-    def new_sibling(self, **kwargs):
-        type = self.__class__.__name__
-        if type == 'Database':
-            return None
-        return self.parent().new_child(**kwargs)
+    # def new_sibling(self, suffix=None, **kwargs):
+    #     # type = self.__class__.__name__
+    #     # if type == 'Database':
+    #     #     return None
+    #     return self.parent().new_child(**kwargs)
 
     def new_pibling(self, **kwargs):
         type = self.__class__.__name__

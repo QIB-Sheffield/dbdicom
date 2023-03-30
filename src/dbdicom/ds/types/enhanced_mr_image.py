@@ -630,6 +630,6 @@ def get_affine_matrix(ds):
             frame.PlaneOrientationSequence[0].ImageOrientationPatient, 
             frame.PlanePositionSequence[0].ImagePositionPatient, 
             frame.PixelMeasuresSequence[0].PixelSpacing, 
-            frame.PixelMeasuresSequence[0].SpacingBetweenSlices)
+            frame.PixelMeasuresSequence[0].SliceThickness)
         affineList.append(affine)
     return np.squeeze(np.array(affineList))

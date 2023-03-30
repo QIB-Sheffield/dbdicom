@@ -411,12 +411,10 @@ def new_uid(n=None):
 def get_affine_matrix(ds):
     """Affine transformation matrix for a DICOM image"""
 
-    # Spacing between slice is not require and does not exist for single
-    # slice scans, but is the correct distance to use when it is defined 
-    # for instance in a single slice extracted from a multi-slice series
-    slice_spacing = get_values(ds, 'SpacingBetweenSlices')
-    if slice_spacing is None:
-        slice_spacing = get_values(ds, 'SliceThickness')
+    # slice_spacing = get_values(ds, 'SpacingBetweenSlices')
+    # if slice_spacing is None:
+    #     slice_spacing = get_values(ds, 'SliceThickness')
+    slice_spacing = get_values(ds, 'SliceThickness')
 
     return image.affine_matrix(
         get_values(ds, 'ImageOrientationPatient'), 
@@ -428,7 +426,8 @@ def get_affine_matrix(ds):
 def set_affine_matrix(ds, affine):
     v = image.dismantle_affine_matrix(affine)
     set_values(ds, 'PixelSpacing', v['PixelSpacing'])
-    set_values(ds, 'SpacingBetweenSlices', v['SpacingBetweenSlices'])
+    #set_values(ds, 'SpacingBetweenSlices', v['SpacingBetweenSlices'])
+    set_values(ds, 'SliceThickness', v['SpacingBetweenSlices'])
     set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
     set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
 

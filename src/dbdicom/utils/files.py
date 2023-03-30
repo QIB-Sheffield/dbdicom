@@ -33,7 +33,8 @@ def all_files(path):
 
 def export_path(basepath, folder):
     # remove illegal characters
-    folder = "".join(x for x in folder if x.isalnum()) 
+    #folder = "".join(x for x in folder if x.isalnum()) 
+    folder = "".join([c if c.isalnum() else "_" for c in folder])
     basepath = os.path.join(basepath, folder)
     path = basepath
     cnt = 1

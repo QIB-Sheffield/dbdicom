@@ -61,6 +61,14 @@ def maximum_intensity_projection(series):
     new_series = series.new_sibling(SeriesDescription=desc)
     new_series.set_array(array, headers[:,0], pixels_first=True)
     return new_series
+
+def norm_projection(series, ord=None):
+    array, headers = series.array('SliceLocation', pixels_first=True)
+    array = np.linalg.norm(array, ord=ord, axis=-1)
+    desc = series.instance().SeriesDescription + ' [Norm projection]'
+    new_series = series.new_sibling(SeriesDescription=desc)
+    new_series.set_array(array, headers[:,0], pixels_first=True)
+    return new_series
     
 
 
