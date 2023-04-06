@@ -87,7 +87,8 @@ class Series(DbRecord):
     def export_as_dicom(self, path): 
         #folder = self.patient().label() + '_' + self.study().label() + '_' + self.label()
         instance = self.instance()
-        folder = instance.PatientID + '_' + instance.StudyDescription + '_' + self.label()
+        #folder = instance.PatientID + '_' + instance.StudyDescription + '_' + self.label()
+        folder = instance.PatientID + '_' + instance.SeriesDescription
         path = export_path(path, folder)
         copy = self.copy()
         mgr = Manager(path, status=self.status)
