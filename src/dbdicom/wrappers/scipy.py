@@ -3,6 +3,7 @@ import pandas as pd
 import scipy
 from scipy.ndimage import affine_transform
 import dbdicom
+from dbdicom.utils.image import multislice_affine_transform
 
 
 
@@ -296,29 +297,23 @@ def _map_slice_group_to_slice_group(source, affine_source, target, output_affine
     message = 'Mapping ' + source_desc + ' onto ' + target_desc
     source.message(message)
 
-    # Retain source acquisition times
-    # Assign acquisition time of slice=0 to all slices
-    nt = headers_source.shape[1]
-    acq_times = [headers_source[0,t,0].AcquisitionTime for t in range(nt)]
-    slice_thickness = headers_source[0,0,0].SliceThickness
-    slice_spacing = np.linalg.norm(affine_source[:3,2])
-    output_shape = array_target.shape[:3]
+    array_mapped = multislice_affine_transform(
+        array_source, 
+        affine_source, 
+        output_affine, 
+        output_shape = array_target.shape[:3], 
+        slice_thickness = headers_source[0,0,0].SliceThickness, 
+        **kwargs,
+    )
 
     # TODO
     # Preserve source window settings and set the same in result
     # 
 
-    # Single-slice 2D sequence
-    if array_source.shape[2] == 1:
-        array_mapped = _map_multislice_array(array_source, affine_source, output_shape, output_affine, **kwargs)
-
-    # Multi-slice 2D sequence
-    elif slice_spacing != slice_thickness:
-        array_mapped = _map_multislice_array(array_source, affine_source, output_shape, output_affine, slice_thickness=slice_thickness, **kwargs)
-
-    # 3D volume sequence
-    else:
-        array_mapped = _map_volume_array(array_source, affine_source, output_shape, output_affine, **kwargs)
+    # Retain source acquisition times
+    # Assign acquisition time of slice=0 to all slices
+    nt = headers_source.shape[1]
+    acq_times = [headers_source[0,t,0].AcquisitionTime for t in range(nt)]
 
     # Create new series
     mapped_series = source.new_sibling(suffix='overlay')
@@ -334,92 +329,6 @@ def _map_slice_group_to_slice_group(source, affine_source, target, output_affine
                 image.AcquisitionTime = acq_times[t]
                 image.set_array(array_mapped[:,:,s,t,k])
     return mapped_series
-
-
-def _map_multislice_array(array, affine, output_shape, output_affine, slice_thickness=None, mask=False, label=False, cval=0):
-
-    # Turn each slice into a volume and map as volume.
-    array_mapped = None
-    for z in range(array.shape[2]):
-        array_z, affine_z = _volume_from_slice(array, affine, z, slice_thickness=slice_thickness)
-        array_mapped_z = _map_volume_array(array_z, affine_z, output_shape, output_affine, cval=cval)
-        if array_mapped is None:
-            array_mapped = array_mapped_z
-        else:
-            array_mapped += array_mapped_z
-
-    # If source is a mask array, set values to [0,1].
-    if mask:
-        array_mapped[array_mapped > 0.5] = 1
-        array_mapped[array_mapped <= 0.5] = 0
-    elif label:
-        array_mapped = np.around(array_mapped)
-
-    return array_mapped
-
-
-def _volume_from_slice(array, affine, z, slice_thickness=None):
-    
-    # Extract a 2D array
-    array_z = array[:,:,z,:,:]
-    array_z = array_z[:,:,np.newaxis,:,:]
-
-    # Offset the slice position accordingly
-    affine_z = affine.copy()
-    affine_z[:3,3] += z*affine_z[:3,2]
-
-    # Duplicate the array in the z-direction to create 2 slices.
-    array_z = np.repeat(array_z, 2, axis=2)
-
-    # Set the slice spacing to equal the slice thickness
-    if slice_thickness is not None:
-        slice_spacing = np.linalg.norm(affine_z[:3,2])
-        affine_z[:3,2] *= slice_thickness/slice_spacing
-
-    # Offset the slice position by half of the slice thickness.
-    affine_z[:3,3] -= affine_z[:3,2]/2
-
-    return array_z, affine_z
-
-
-def _map_volume_array(array, affine, output_shape, output_affine, mask=False, label=False, cval=0):
-
-    if array.shape[2] == 1:
-        msg = 'This function only works for an array with at least 2 slices'
-        raise ValueError(msg)
-
-    # Get transformation matrix
-    source_to_target = np.linalg.inv(affine).dot(output_affine)
-    source_to_target = np.around(source_to_target, 3) # remove round-off errors in the inversion
-
-    # Get the output shape
-    nt, nk = array.shape[3], array.shape[4]
-    output = np.empty(output_shape + (nt, nk))
-
-    # TODO: RESHAPE SO IT WORKS WITH ANY ARRAY
-
-    #Perform transformation
-    for t in range(nt):
-        for k in range(nk):
-            output[:,:,:,t,k] = affine_transform(
-                array[:,:,:,t,k],
-                matrix = source_to_target[:3,:3],
-                offset = source_to_target[:3,3],
-                output_shape = output_shape,
-                cval = cval,
-                order = 0 if mask else 3,
-            )
-
-    # If source is a mask array, set values to [0,1]
-    if mask:
-        output[output > 0.5] = 1
-        output[output <= 0.5] = 0
-
-    # If source is a label array, round to integers
-    elif label:
-        output = np.around(output)
-
-    return output
 
 
 
@@ -450,7 +359,6 @@ def mask_array(mask, on=None, dim='InstanceNumber'):
     else:
         mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(
             mask, on, affine_source, affine_target[0], dim=dim)
-    mask.status.hide()
     return mapped_arrays, mapped_headers
 
 
@@ -484,7 +392,7 @@ def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_t
 
     # Get arrays
     array_source, headers_source = dbdicom.array(source, sortby=['SliceLocation',dim], pixels_first=True, first_volume=True)
-    array_target, headers_target = dbdicom.array(target, sortby=['SliceLocation', dim], pixels_first=True, first_volume=True)
+    array_target, headers_target = dbdicom.array(target, sortby=['SliceLocation',dim], pixels_first=True, first_volume=True)
 
     # For mapping mask onto series, the time dimensions must be the same.
     # If they are not, the mask is extruded on to the series time dimensions.
@@ -501,6 +409,18 @@ def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_t
             array_source[array_source > 0.5] = 1
             array_source[array_source <= 0.5] = 0
             return array_source, headers_target
+
+    # Perform the affine transformation 
+    array_target = multislice_affine_transform(
+        array_source, 
+        affine_source, 
+        affine_target, 
+        output_shape = array_target.shape[:3], 
+        slice_thickness = headers_source[0,0].SliceThickness, 
+        mask = True,
+    )
+
+    return array_target, headers_target
     
     # Get transformation matrix
     source_to_target = np.linalg.inv(affine_source).dot(affine_target)
@@ -1381,7 +1301,7 @@ def _resample_slice_group(series, affine_source, slice_group, voxel_size=[1.0, 1
         for k in range(nk):
             cnt+=1
             series.status.progress(cnt, nt*nk, 'Performing transformation..')
-            resliced = scipy.ndimage.affine_transform(
+            resliced = affine_transform(
                 array[:,:,:,t,k],
                 matrix = matrix,
                 offset = offset,
@@ -1484,7 +1404,7 @@ def _reslice_slice_group(series, affine_source, slice_group, orientation='axial'
         for k in range(nk):
             cnt+=1
             series.status.progress(cnt, nt*nk, 'Calculating..')
-            resliced = scipy.ndimage.affine_transform(
+            resliced = affine_transform(
                 array[:,:,:,t,k],
                 matrix = matrix,
                 offset = offset,

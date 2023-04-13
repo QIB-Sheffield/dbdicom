@@ -338,10 +338,10 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     array = []
     instances = source.ravel()
     for i, im in enumerate(instances):
-        im.progress(i+1, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
+            im.progress(i+1, len(instances), 'Reading pixel data..')
             array.append(im.get_pixel_array())
     im.status.hide()
     im.status.message('Reshaping pixel data..')
