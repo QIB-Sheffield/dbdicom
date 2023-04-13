@@ -1,5 +1,126 @@
 import numpy as np
 from scipy.interpolate import interpn
+from scipy.ndimage import affine_transform
+
+
+def multislice_affine_transform(array_source, affine_source, output_affine, slice_thickness=None, **kwargs):
+    """Generalization of scipy's affine transform.
+    
+    This version also works when the source array is 2D and when it is multislice 2D (ie. slice thickness < slice spacing).
+    In these scenarios each slice is first reshaped into a volume with provided slice thickness and mapped separately.
+    """
+    
+    slice_spacing = np.linalg.norm(affine_source[:3,2])
+
+    # Single-slice 2D sequence
+    if array_source.shape[2] == 1:
+        return _map_multislice_array(array_source, affine_source, output_affine, **kwargs)
+
+    # Multi-slice 2D sequence
+    elif slice_spacing != slice_thickness:
+        return _map_multislice_array(array_source, affine_source, output_affine, slice_thickness=slice_thickness, **kwargs)
+
+    # 3D volume sequence
+    else:
+        return _map_volume_array(array_source, affine_source, output_affine, **kwargs)
+
+
+
+def _map_multislice_array(array, affine, output_affine, output_shape=None, slice_thickness=None, mask=False, label=False, cval=0):
+
+    # Turn each slice into a volume and map as volume.
+    array_mapped = None
+    for z in range(array.shape[2]):
+        array_z, affine_z = _volume_from_slice(array, affine, z, slice_thickness=slice_thickness)
+        array_mapped_z = _map_volume_array(array_z, affine_z, output_affine, output_shape=output_shape, cval=cval)
+        if array_mapped is None:
+            array_mapped = array_mapped_z
+        else:
+            array_mapped += array_mapped_z
+
+    # If source is a mask array, set values to [0,1].
+    if mask:
+        array_mapped[array_mapped > 0.5] = 1
+        array_mapped[array_mapped <= 0.5] = 0
+    elif label:
+        array_mapped = np.around(array_mapped)
+
+    return array_mapped
+
+
+def _volume_from_slice(array, affine, z, slice_thickness=None):
+
+    # Reshape array to 4D (x,y,z + remainder)
+    shape = array.shape
+    nk = np.prod(shape[3:])
+    array = array.reshape(shape[:3] + (nk,))
+    
+    # Extract a 2D array
+    array_z = array[:,:,z,:]
+    array_z = array_z[:,:,np.newaxis,:]
+
+    # Duplicate the array in the z-direction to create 2 slices.
+    nz = 2
+    array_z = np.repeat(array_z, nz, axis=2)
+
+    # Reshape to original nr of dimensions
+    array_z = array_z.reshape(shape[:2] + (nz,) + shape[3:])
+
+    # Offset the slice position accordingly
+    affine_z = affine.copy()
+    affine_z[:3,3] += z*affine_z[:3,2]
+
+    # Set the slice spacing to equal the slice thickness
+    if slice_thickness is not None:
+        slice_spacing = np.linalg.norm(affine_z[:3,2])
+        affine_z[:3,2] *= slice_thickness/slice_spacing
+
+    # Offset the slice position by half of the slice thickness.
+    affine_z[:3,3] -= affine_z[:3,2]/2
+
+    return array_z, affine_z
+
+
+def _map_volume_array(array, affine, output_affine, output_shape=None, mask=False, label=False, cval=0):
+
+    shape = array.shape
+    if shape[2] == 1:
+        msg = 'This function only works for an array with at least 2 slices'
+        raise ValueError(msg)
+
+    # Get transformation matrix
+    source_to_target = np.linalg.inv(affine).dot(output_affine)
+    source_to_target = np.around(source_to_target, 3) # remove round-off errors in the inversion
+
+    # Reshape array to 4D (x,y,z + remainder)
+    if output_shape is None:
+        output_shape = shape[:3]
+    nk = np.prod(shape[3:])
+    output = np.empty(output_shape + (nk,))
+    array = array.reshape(shape[:3] + (nk,))
+
+    #Perform transformation
+    for k in range(nk):
+        output[:,:,:,k] = affine_transform(
+            array[:,:,:,k],
+            matrix = source_to_target[:3,:3],
+            offset = source_to_target[:3,3],
+            output_shape = output_shape,
+            cval = cval,
+            order = 0 if mask else 3,
+        )
+
+    # If source is a mask array, set values to [0,1]
+    if mask:
+        output[output > 0.5] = 1
+        output[output <= 0.5] = 0
+
+    # If source is a label array, round to integers
+    elif label:
+        output = np.around(output)
+
+    return output.reshape(output_shape + shape[3:])
+
 
 
 # https://discovery.ucl.ac.uk/id/eprint/10146893/1/geometry_medim.pdf
