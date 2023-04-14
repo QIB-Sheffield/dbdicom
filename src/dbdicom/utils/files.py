@@ -31,11 +31,12 @@ def all_files(path):
         files = [f for f in files if len(f) <= 260]
     return files
 
-def export_path(basepath, folder):
-    # remove illegal characters
-    #folder = "".join(x for x in folder if x.isalnum()) 
-    folder = "".join([c if c.isalnum() else "_" for c in folder])
-    basepath = os.path.join(basepath, folder)
+def export_path(basepath, folder=None):
+    if folder is not None:
+        # remove illegal characters
+        #folder = "".join(x for x in folder if x.isalnum()) 
+        folder = "".join([c if c.isalnum() else "_" for c in folder])
+        basepath = os.path.join(basepath, folder)
     path = basepath
     cnt = 1
     while os.path.isdir(path):

@@ -51,7 +51,12 @@ class Instance(DbRecord):
         if ds is None:
             ds = new_dataset('MRImage')
         ds.set_pixel_array(array)
-        self.set_dataset(ds)
+        in_memory = self.key() in self.manager.dataset
+        self.set_dataset(ds) 
+        # This bit added ad-hoc because set_dataset() places the datset in memory
+        # So if the instance is not in memory, it needs to be written and removed again
+        if not in_memory:
+            self.clear()
 
     def set_dataset(self, dataset):
         self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())

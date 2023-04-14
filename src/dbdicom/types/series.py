@@ -85,11 +85,12 @@ class Series(DbRecord):
 
 
     def export_as_dicom(self, path): 
-        #folder = self.patient().label() + '_' + self.study().label() + '_' + self.label()
         instance = self.instance()
-        #folder = instance.PatientID + '_' + instance.StudyDescription + '_' + self.label()
-        folder = instance.PatientID + '_' + instance.SeriesDescription
-        path = export_path(path, folder)
+        patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
+        study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
+        series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
+        path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
+        path = export_path(path)
         copy = self.copy()
         mgr = Manager(path, status=self.status)
         mgr.open(path)
