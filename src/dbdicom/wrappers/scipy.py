@@ -422,26 +422,6 @@ def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_t
 
     return array_target, headers_target
     
-    # Get transformation matrix
-    source_to_target = np.linalg.inv(affine_source).dot(affine_target)
-    source_to_target = np.around(source_to_target, 3) # to avoid round-off error in the inversion
-    matrix, offset = source_to_target[:3,:3], source_to_target[:3,3]
-    
-    #Perform transformation
-    output_shape = array_target.shape[:3]
-    for k in range(nk):
-        status.progress(k+1, nk, 'Calculating overlay..')
-        array_target[:,:,:,k] = affine_transform(
-            array_source[:,:,:,k],
-            matrix = matrix,
-            offset = offset,
-            output_shape = output_shape,
-            order = 0)
-        
-    # Make sure the result is a mask
-    array_target[array_target > 0.5] = 1
-    array_target[array_target <= 0.5] = 0 
-    return array_target, headers_target
     
         
 

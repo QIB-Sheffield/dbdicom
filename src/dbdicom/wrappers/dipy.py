@@ -81,6 +81,52 @@ def coregister_translation_3d(moving, fixed):
     return coreg
 
 
+def coregister_rigid_3d(moving, static, ignore_empty_slices=False):
+
+    # Get arrays for fixed and moving series
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_static = scipy.array(static, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # Get masks if required - this feature not tested
+    if ignore_empty_slices:
+        moving_mask = _coregistration_mask_3d(array_moving) 
+        static_mask = _coregistration_mask_3d(array_static)     
+    else:
+        moving_mask = None
+        static_mask = None
+
+    # Align images
+    moving.message('Performing coregistration..')
+    coregistered = _coregister_rigid_3d_arrays(
+        array_static, 
+        array_moving, 
+        static_mask = static_mask,
+        moving_mask = moving_mask,
+    )
+
+    # Return as new series
+    coreg = moving.new_sibling(suffix='rigid')
+    coreg.set_array(coregistered, headers_moving, pixels_first=True)
+    return coreg
+
+
+def coregister_affine_3d(moving, fixed):
+
+    # Get arrays for fixed and moving series
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = scipy.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # Align images
+    moving.message('Performing coregistration..')
+    coregistered = _coregister_affine_3d_arrays(array_fixed, array_moving)
+
+    # Return as new series
+    coreg = moving.new_sibling(suffix='affine')
+    coreg.set_array(coregistered, headers_moving, pixels_first=True)
+
+    return coreg
+
+
 def coregister_2d_to_2d(moving, fixed, **kwargs):
 
     # Overlay fixed on moving image
@@ -182,6 +228,14 @@ def warp(image, deformation_field, **kwargs):
     return warped
 
 
+def _coregistration_mask_3d(array):
+    mask = np.zeros(array.shape)
+    for z in range(array.shape[2]):
+        if np.count_nonzero(array[:,:,z]) > 0:
+            mask[:,:,z] = 1
+    return mask
+
+
 def _invert_deformation_field_array(array, status, max_iter=10, tolerance=0.1):
     status.message('Inverting deformation field..')
     dim = array.shape[-1]
@@ -222,7 +276,8 @@ def _warp_array(array, deform, status, interpolate=True):
         msg = 'This series is not a deformation field.'
         msg += 'A deformation field must have either 2 or 3 components.'
         raise ValueError(msg)
-        
+
+      
 def _coregister_translation_3d_arrays(fixed, moving):
     
     metric = MutualInformationMetric(
@@ -236,6 +291,50 @@ def _coregister_translation_3d_arrays(fixed, moving):
         factors = [4, 2, 1],
     )
     transform = TranslationTransform3D()
+    params0 = None
+    mapping = affreg.optimize(fixed, moving, transform, params0)
+
+    # Warp the moving image
+    coregistered = mapping.transform(moving, 'linear')
+
+    return coregistered
+
+
+def _coregister_rigid_3d_arrays(static, moving, **kwargs):
+    
+    metric = MutualInformationMetric(
+        nbins=32, 
+        sampling_proportion=None,
+    )
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = RigidTransform3D()
+    params0 = None
+    mapping = affreg.optimize(static, moving, transform, params0, **kwargs)
+
+    # Warp the moving image
+    coregistered = mapping.transform(moving, 'linear')
+
+    return coregistered
+
+
+def _coregister_affine_3d_arrays(fixed, moving):
+    
+    metric = MutualInformationMetric(
+        nbins=32, 
+        sampling_proportion=None,
+    )
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = AffineTransform3D()
     params0 = None
     mapping = affreg.optimize(fixed, moving, transform, params0)
 

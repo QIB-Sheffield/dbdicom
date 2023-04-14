@@ -30,6 +30,7 @@ def coregister_3d_to_3d(moving, fixed,
         transformation = 'Affine',
         metric = "NormalizedMutualInformation",
         final_grid_spacing = 1.0,
+        _ignore_empty_slices = False, # Do not use for now
     ):
 
     nan = 2**16-1
@@ -64,18 +65,30 @@ def coregister_3d_to_3d(moving, fixed,
     pars["FinalGridSpacingInPhysicalUnits"] = [str(final_grid_spacing)]
     pars["FixedImageDimension"] = ['3']
     pars["MovingImageDimension"] = ['3']
-   
+
     # Coregister fixed and moving slice-by-slice
     moving.status.message('Performing coregistration..')
     #deformation = np.empty(array_moving.shape + (2,))
     ind_fixed = np.where(array_fixed==nan)
     array_fixed[ind_fixed] = 0
     array_moving[ind_fixed] = 0
+
+    # Don't use for now
+    # This may lead to an error of too many samples outside moving image buffer
+    if _ignore_empty_slices:
+        fixed_mask = _coregistration_mask_3d(array_fixed)
+        moving_mask = _coregistration_mask_3d(array_moving)
+    else:
+        fixed_mask = None
+        moving_mask = None
+
+    # get this from series affine instead - more robust
     slice_spacing = headers_moving[0].SpacingBetweenSlices # needs a custom keyword slice_spacing
     if slice_spacing is None:
         slice_spacing = headers_moving[0].SliceThickness
     pixel_spacing = headers_moving[0].PixelSpacing + [slice_spacing]
-    coregistered, deformation = _coregister_arrays(array_fixed, array_moving, pars, pixel_spacing, pixel_spacing)
+
+    coregistered, deformation = _coregister_arrays(array_fixed, array_moving, pars, pixel_spacing, pixel_spacing, fixed_mask=fixed_mask, moving_mask=moving_mask)
 
     # Return new series
     coreg = moving.new_sibling(suffix='coregistered')
@@ -88,6 +101,14 @@ def coregister_3d_to_3d(moving, fixed,
     # deform_size.set_array( np.linalg.norm(deformation, axis=-1), headers_moving, pixels_first=True)
     moving.status.message('Finished coregistration..')
     return coreg, deform
+
+
+def _coregistration_mask_3d(array):
+    mask = np.zeros(array.shape, np.uint8)
+    for z in range(array.shape[2]):
+        if np.count_nonzero(array[:,:,z]) > 0:
+            mask[:,:,z] = 1
+    return mask
 
 
 def coregister_2d_to_2d(moving, fixed, 
@@ -430,24 +451,36 @@ def _wip_warp_volume(array, deformation_field):
 
 
 
-def _coregister_arrays(fixed, moving, params, fixed_spacing, moving_spacing):
+def _coregister_arrays(fixed, moving, params, fixed_spacing, moving_spacing, fixed_mask=None, moving_mask=None):
     """
     Coregister two arrays and return coregistered + deformation field 
     """
 
     # Convert numpy arrays to sitk images
     moving = sitk.GetImageFromArray(moving) 
-    fixed = sitk.GetImageFromArray(fixed)
     moving.SetSpacing(moving_spacing)
+    fixed = sitk.GetImageFromArray(fixed)
     fixed.SetSpacing(fixed_spacing)
+    if moving_mask is not None:
+        moving_mask = sitk.GetImageFromArray(moving_mask)
+        moving_mask.SetSpacing(moving_spacing)
+        #moving_mask.__SetPixelAsUInt8__  
+    if fixed_mask is not None:
+        fixed_mask = sitk.GetImageFromArray(fixed_mask)
+        fixed_mask.SetSpacing(fixed_spacing)  
+        #fixed_mask.__SetPixelAsUInt8__      
 
     # Perform registration
     elastixImageFilter = sitk.ElastixImageFilter()
-    #elastixImageFilter.LogToConsoleOn() # turn on for debugging
-    elastixImageFilter.LogToConsoleOff()
+    elastixImageFilter.LogToConsoleOn() # turn on for debugging
+    #elastixImageFilter.LogToConsoleOff()
     elastixImageFilter.SetFixedImage(fixed)
     elastixImageFilter.SetMovingImage(moving)
     elastixImageFilter.SetParameterMap(params)
+    if fixed_mask is not None:
+        elastixImageFilter.SetFixedMask(fixed_mask)
+    if moving_mask is not None:
+        elastixImageFilter.SetMovingMask(moving_mask)
     elastixImageFilter.Execute()
 
     # Calculate deformation field

@@ -1425,6 +1425,8 @@ class Manager():
     def copy_to_study(self, uid, target, **kwargs):
         """Copy series to another study"""
 
+        #self.keys(series=uid)[0] in self.dataset
+
         target_keys = self.keys(study=target)
         target_key = target_keys[0]
 
@@ -1474,14 +1476,22 @@ class Manager():
                     row[7] = self.value(target_key, 'StudyDate')
                     row[8] = new_number
                 else:
+
+                    # If the series exists in memory, create a copy in memory
                     if key in self.dataset:
                         ds = copy.deepcopy(ds)
                         self.dataset[new_key] = ds
+
+                    # Generate new UIDs
                     ds.set_values(
                         attributes + ['SeriesInstanceUID', 'SeriesNumber', 'SOPInstanceUID'], 
                         values + [new_series[s], new_number, dbdataset.new_uid()])
+                    
+                    # If the series is not in memory, create a copy on disk
                     if not key in self.dataset:
                         ds.write(self.filepath(new_key), self.status)
+
+                    # Get row values to add to dataframe
                     row = ds.get_values(self.columns)
 
                 # Get new data for the dataframe
@@ -2141,6 +2151,7 @@ class Manager():
                 else:
                     #self.set_dataset(instance_uid, ds)
                     key = self.set_instance_dataset(instance_uid, ds, key)
+                    
             # If the value has changed before
             if self.value(key, 'created'): 
                 ds.set_values(attributes, values)
