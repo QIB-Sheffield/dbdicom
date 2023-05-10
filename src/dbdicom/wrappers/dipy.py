@@ -17,6 +17,7 @@ from dipy.align.vector_fields import (
 
 from dipy.segment.mask import median_otsu as median_otsu_np
 import dbdicom.wrappers.scipy as scipy
+from dbdicom.utils.image import slice_to_volume
 
 
 
@@ -84,13 +85,16 @@ def coregister_translation_3d(moving, fixed):
 def coregister_rigid_3d(moving, static, ignore_empty_slices=False):
 
     # Get arrays for fixed and moving series
-    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_static = scipy.array(static, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+    #array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    #array_static = scipy.array(static, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    array_static, headers_static = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_moving = scipy.array(moving, on=static, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
     # Get masks if required - this feature not tested
     if ignore_empty_slices:
-        moving_mask = _coregistration_mask_3d(array_moving) 
-        static_mask = _coregistration_mask_3d(array_static)     
+        moving_mask = _coregistration_mask_3d(array_moving)
+        static_mask = _coregistration_mask_3d(array_static)
     else:
         moving_mask = None
         static_mask = None
@@ -105,9 +109,93 @@ def coregister_rigid_3d(moving, static, ignore_empty_slices=False):
     )
 
     # Return as new series
-    coreg = moving.new_sibling(suffix='rigid')
-    coreg.set_array(coregistered, headers_moving, pixels_first=True)
+    # coreg = moving.new_sibling(suffix='rigid')
+    # coreg.set_array(coregistered, headers_moving, pixels_first=True)
+    coreg = static.new_sibling(suffix='rigid')
+    coreg.set_array(coregistered, headers_static, pixels_first=True)
     return coreg
+
+
+# Works but slices come out too thick
+def WIP_coregister_rigid_3d(moving, static, ignore_empty_slices=False):
+
+    # Get affines for fixed and moving series
+    affine_moving = moving.affine_matrix()
+    affine_static = static.affine_matrix()
+    
+    # If there are multiple slice groups - raise error
+    if isinstance(affine_moving, list):
+        msg = 'Moving series consists of multiple slice groups.\n'
+        msg += 'Can only align series consisting of a single slice group.'
+        raise ValueError(msg)
+    if isinstance(affine_static, list):
+        msg = 'Static series consists of multiple slice groups.\n'
+        msg += 'Can only align series consisting of a single slice group.'
+        raise ValueError(msg)
+    
+    # Get affine matrices
+    affine_static = affine_static[0].astype(np.double)
+    affine_moving = affine_moving[0].astype(np.double)
+    
+    # Get arrays for fixed and moving series
+    # array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    # array_static, _ = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_static, headers_static = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # If images are single-slice, expand into volumes
+    if array_moving.shape[2] == 1:
+        array_moving, affine_moving = slice_to_volume(array_moving, affine_moving)
+    if array_static.shape[2] == 1:
+        array_static, affine_static = slice_to_volume(array_static, affine_static)
+
+    # Get masks if required - this feature not tested
+    if ignore_empty_slices:
+        moving_mask = _coregistration_mask_3d(array_moving)
+        static_mask = _coregistration_mask_3d(array_static)
+    else:
+        moving_mask = None
+        static_mask = None
+
+    # Align images
+    moving.message('Performing coregistration..')
+    coregistered = _coregister_rigid_3d_arrays(
+        array_static, 
+        array_moving, 
+        static_grid2world = affine_static, 
+        moving_grid2world = affine_moving, 
+        static_mask = static_mask,
+        moving_mask = moving_mask,
+    )
+
+    # Return as new series
+    # coreg = moving.new_sibling(suffix='rigid')
+    # coreg.set_array(coregistered, headers_moving, pixels_first=True)
+    coreg = static.new_sibling(suffix='rigid')
+    coreg.set_array(coregistered, headers_static, pixels_first=True)
+    return coreg
+
+
+def _coregister_rigid_3d_arrays(static, moving, **kwargs):
+    
+    metric = MutualInformationMetric(
+        nbins=32, 
+        sampling_proportion=None,
+    )
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = RigidTransform3D()
+    params0 = None
+    mapping = affreg.optimize(static, moving, transform, params0, **kwargs)
+
+    # Warp the moving image
+    coregistered = mapping.transform(moving, 'linear')
+
+    return coregistered
 
 
 def coregister_affine_3d(moving, fixed):
@@ -300,26 +388,7 @@ def _coregister_translation_3d_arrays(fixed, moving):
     return coregistered
 
 
-def _coregister_rigid_3d_arrays(static, moving, **kwargs):
-    
-    metric = MutualInformationMetric(
-        nbins=32, 
-        sampling_proportion=None,
-    )
-    affreg = AffineRegistration(
-        metric = metric,
-        level_iters = [10000, 1000, 100],
-        sigmas = [3.0, 1.0, 0.0],
-        factors = [4, 2, 1],
-    )
-    transform = RigidTransform3D()
-    params0 = None
-    mapping = affreg.optimize(static, moving, transform, params0, **kwargs)
 
-    # Warp the moving image
-    coregistered = mapping.transform(moving, 'linear')
-
-    return coregistered
 
 
 def _coregister_affine_3d_arrays(fixed, moving):
