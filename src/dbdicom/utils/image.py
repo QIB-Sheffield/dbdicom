@@ -31,7 +31,7 @@ def _map_multislice_array(array, affine, output_affine, output_shape=None, slice
     # Turn each slice into a volume and map as volume.
     array_mapped = None
     for z in range(array.shape[2]):
-        array_z, affine_z = _volume_from_slice(array, affine, z, slice_thickness=slice_thickness)
+        array_z, affine_z = slice_to_volume(array, affine, z, slice_thickness=slice_thickness)
         array_mapped_z = _map_volume_array(array_z, affine_z, output_affine, output_shape=output_shape, cval=cval)
         if array_mapped is None:
             array_mapped = array_mapped_z
@@ -48,11 +48,14 @@ def _map_multislice_array(array, affine, output_affine, output_shape=None, slice
     return array_mapped
 
 
-def _volume_from_slice(array, affine, z, slice_thickness=None):
+def slice_to_volume(array, affine, z=0, slice_thickness=None):
 
     # Reshape array to 4D (x,y,z + remainder)
     shape = array.shape
-    nk = np.prod(shape[3:])
+    if len(shape) > 3:
+        nk = np.prod(shape[3:])
+    else:
+        nk = 1
     array = array.reshape(shape[:3] + (nk,))
     
     # Extract a 2D array
@@ -64,7 +67,11 @@ def _volume_from_slice(array, affine, z, slice_thickness=None):
     array_z = np.repeat(array_z, nz, axis=2)
 
     # Reshape to original nr of dimensions
-    array_z = array_z.reshape(shape[:2] + (nz,) + shape[3:])
+    if len(shape) > 3:
+        dim = shape[:2] + (nz,) + shape[3:]
+    else:
+        dim = shape[:2] + (nz,)
+    array_z = array_z.reshape(dim)
 
     # Offset the slice position accordingly
     affine_z = affine.copy()
