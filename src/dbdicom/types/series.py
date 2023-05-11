@@ -344,8 +344,9 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
         else:
             im.progress(i+1, len(instances), 'Reading pixel data..')
             array.append(im.get_pixel_array())
-    im.status.hide()
-    im.status.message('Reshaping pixel data..')
+    if im is not None:
+        im.status.hide()
+        im.status.message('Reshaping pixel data..')
     array = _stack(array)
     if array is None:
         msg = 'This series does not have pixel data..'

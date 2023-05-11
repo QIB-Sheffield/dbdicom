@@ -445,8 +445,8 @@ def minimize_gd(cost_function, parameters, args=None, callback=None, options={})
     ls_pars = ['tolerance', 'scale_down', 'scale_up', 'stepsize_max'] 
     ls_options = dict((k, options[k]) for k in ls_pars if k in options)
 
-    n_iter = 0
     stepsize = 1.0 # initial stepsize
+    n_iter = 0
     cost = cost_function(parameters, *args)
     while True:
         n_iter+=1
@@ -463,14 +463,16 @@ def minimize_gd(cost_function, parameters, args=None, callback=None, options={})
             return parameters
 
 
-def _ONESIDE_gradient(cost_function, parameters, f0, step, *args):
+def _ONESIDED_gradient(cost_function, parameters, f0, step, *args):
     grad = np.empty(parameters.shape)
     for i, p in enumerate(parameters):
-        parameters[i] = parameters[i]+step[i]
+        pi = parameters[i]
+        parameters[i] = pi+step[i]
         fi = cost_function(parameters, *args)
-        grad[i] = (fi-f0)/step[i]
+        parameters[i] = pi
+        #grad[i] = (fi-f0)/step[i]
+        grad[i] = (fi-f0)
         parameters[i] = parameters[i]-step[i]
-    grad /= np.linalg.norm(grad)
     return grad
 
 
@@ -486,13 +488,15 @@ def gradient(cost_function, parameters, f0, step, *args):
         grad[i] = (fp-fn)/2
         #grad[i] = (fp-fn)/(2*step[i]) 
         #grad[i] = stats.linregress([-step[i],0,step[i]], [fn,f0,fp]).slope
+
+    # Normalize the gradient
+    grad /= np.linalg.norm(grad)
+    grad = np.multiply(step, grad)
+
     return grad
 
 
 def line_search(cost_function, grad, p0, stepsize0, f0, *args, tolerance=0.01, scale_down=5.0, scale_up=1.5, stepsize_max=1000.0):
-
-    # Normalize the gradient
-    grad /= np.linalg.norm(grad)
 
     # Initialize stepsize to current optimal stepsize
     stepsize_try = stepsize0 / scale_down
@@ -502,7 +506,7 @@ def line_search(cost_function, grad, p0, stepsize0, f0, *args, tolerance=0.01, s
     while True:
 
         # Take a step and evaluate the cost
-        p_try = p_init - stepsize_try*grad
+        p_try = p_init - stepsize_try*grad 
         f_try = cost_function(p_try, *args)
 
         print('cost: ', f_try, ' stepsize: ', stepsize_try, ' par: ', p_try)
@@ -798,7 +802,7 @@ def generate(structure='ellipsoid', shape=None, affine=None, markers=True):
     
     # Default shape
     if shape is None:
-        shape = (256, 256, 20) 
+        shape = (256, 256, 40) 
 
     # Default affine
     if affine is None:
@@ -830,7 +834,7 @@ def generate(structure='ellipsoid', shape=None, affine=None, markers=True):
         half_length = (20, 30, 40) # mm
         ellip = ellipsoid(half_length[0], half_length[1], half_length[2], spacing=pixel_spacing, levelset=False)
         d = ellip.shape
-        p = np.array([0, 0, 0])
+        p = [30, 30, 10]
         data[p[0]:p[0]+d[0], p[1]:p[1]+d[1], p[2]:p[2]+d[2]] = ellip
         return data, affine
     
@@ -1604,7 +1608,7 @@ def test_align_rigid(n=1):
     _, _, output_pixel_spacing = affine_components(output_affine)
     initial_guess = np.zeros(parameters.shape, dtype=np.float32) # mm
     rot_gradient_step, translation_gradient_step, _ = affine_resolution(output_data.shape, output_pixel_spacing)
-    gradient_step = np.concatenate((rot_gradient_step, translation_gradient_step))
+    gradient_step = np.concatenate((1.0*rot_gradient_step, 0.5*translation_gradient_step))
 
     # Define registration
     optimization = {'method':'GD', 'options':{'gradient step': gradient_step, 'tolerance': 0.001}, 'callback':print_current}
@@ -1755,7 +1759,7 @@ if __name__ == "__main__":
     # test_rotate_reshape()
     # test_rotate_around()
     # test_rotate_around_reshape()
-    test_rigid()
+    # test_rigid()
     # test_rigid_reshape()
 
 
@@ -1763,7 +1767,7 @@ if __name__ == "__main__":
     # -------------------
     #test_align_translation(dataset)
     #test_align_rotation()
-    # test_align_rigid(n=1)
+    test_align_rigid(n=1)
     #test_align_rigid_sequential(n=1)
 
 
