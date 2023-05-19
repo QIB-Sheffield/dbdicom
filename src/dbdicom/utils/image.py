@@ -370,6 +370,18 @@ def affine_matrix(      # single slice function
     return affine 
 
 
+def slice_location(
+    image_orientation,  # ImageOrientationPatient
+    image_position,    # ImagePositionPatient
+    ):
+    """Calculate Slice Location"""
+
+    row_cosine = np.array(image_orientation[:3])    
+    column_cosine = np.array(image_orientation[3:]) 
+    slice_cosine = np.cross(row_cosine, column_cosine)
+
+    return np.dot(np.array(image_position), slice_cosine)
+
 
 def affine_matrix_multislice(
     image_orientation,  # ImageOrientationPatient (assume same for all slices)

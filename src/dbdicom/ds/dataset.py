@@ -338,17 +338,38 @@ def get_values(ds, tags):
     row = []  
     for tag in tags:
         value = None
+
+        # If the tag is provided as string
+        # check first if it is a custom attribute
         if isinstance(tag, str):
             if not hasattr(ds, tag):
                 if hasattr(ds, 'get_attribute_' + tag):
                     value = getattr(ds, 'get_attribute_' + tag)()
             else:
                 value = to_set_type(ds[tag].value)
-        else: # tuple of hexadecimal values
+
+        # If the tag is a tuple of hexadecimal values
+        else: 
             if tag in ds:
                 value = to_set_type(ds[tag].value)
+
+        # If a tag is not present in the dataset, check if it can be derived
+        if value is None:
+            value = derive_data_element(ds, tag)
+
         row.append(value)
     return row
+
+
+def derive_data_element(ds, tag):
+    """Tags that are not required but can be derived from other required tags"""
+
+    if tag == 'SliceLocation' or tag == (0x0020, 0x1041):
+        return image.slice_location(
+            ds['ImageOrientationPatient'].value, 
+            ds['ImagePositionPatient'].value,
+        )
+    # To be extended ad hoc with other tags that can be derived
 
 
 def format_value(value, VR=None, tag=None):

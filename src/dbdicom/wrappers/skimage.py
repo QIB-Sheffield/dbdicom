@@ -680,7 +680,7 @@ def convex_hull_image(series, **kwargs):
     for i, image in enumerate(images):
         series.status.progress(i+1, len(images), 'Calculating convex hull for ' + desc)
         image.read()
-        array = image.array()
+        array = np.around(image.array())
         array = skimage.morphology.convex_hull_image(array, **kwargs)
         image.set_array(array)
         array = array.astype(np.ubyte)
@@ -709,7 +709,8 @@ def convex_hull_image_3d(input, **kwargs):
     result = input.new_sibling(SeriesDescription = desc)
     for t in range(array.shape[3]):
         input.status.progress(t, array.shape[3], 'Calculating ' + desc)
-        hull = skimage.morphology.convex_hull_image(array[:,:,:,t],  **kwargs)
+        volume = np.around(array[:,:,:,t])
+        hull = skimage.morphology.convex_hull_image(volume,  **kwargs)
         result.set_array(hull, headers[:,t], pixels_first=True)
     _reset_window(result, hull)
     input.status.hide()
