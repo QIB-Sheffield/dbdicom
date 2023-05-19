@@ -1,10 +1,10 @@
-from copy import deepcopy
 import time
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize as opt
 import scipy.ndimage as ndi
 from scipy.spatial.transform import Rotation
+import sklearn
 
 import pyvista as pv
 
@@ -16,15 +16,40 @@ from skimage.draw import ellipsoid
 ##########################
 
 
-def volume_coordinates(shape):
+def volume_coordinates(shape, position=[0,0,0]):
 
-    # data are defined at the middle of the voxels - use 0.5 offset.
+    # data are defined at the middle of the voxels - use p+0.5 offset.
     xo, yo, zo = np.meshgrid(
-        np.arange(0.5, 0.5+shape[0]),
-        np.arange(0.5, 0.5+shape[1]),
-        np.arange(0.5, 0.5+shape[2]),
+        np.arange(position[0]+0.5, position[0]+0.5+shape[0]),
+        np.arange(position[1]+0.5, position[1]+0.5+shape[1]),
+        np.arange(position[2]+0.5, position[2]+0.5+shape[2]),
         indexing = 'ij')
     return np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
+
+
+def interpolate_displacement(displacement_field, shape, **kwargs):
+
+    # Get the coordinates of the displacement field with dimensions (x,y,z,d)
+    w = np.array(displacement_field.shape[:-1])-1
+    d = np.divide(w, shape)
+    xo, yo, zo = np.meshgrid(
+        np.linspace(0.5*d[0], w[0]-0.5*d[0], shape[0]),
+        np.linspace(0.5*d[1], w[1]-0.5*d[1], shape[1]),
+        np.linspace(0.5*d[2], w[2]-0.5*d[2], shape[2]),
+        indexing = 'ij')
+    co = np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
+
+    # Interpolate displacement field in volume coordinates
+    #deformation = ndi.map_coordinates(displacement_field, co.T, **kwargs)
+    deformation = np.column_stack(
+        (
+            ndi.map_coordinates(displacement_field[...,0], co.T, **kwargs),
+            ndi.map_coordinates(displacement_field[...,1], co.T, **kwargs),
+            ndi.map_coordinates(displacement_field[...,2], co.T, **kwargs),
+        )
+    )
+    #deformation = np.reshape(deformation, shape+(3,))
+    return deformation.reshape((np.prod(shape), 3))
 
 
 def surface_coordinates(shape):
@@ -38,7 +63,7 @@ def surface_coordinates(shape):
     return np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
 
 
-def correct_coordinates(r, shape):
+def extend_border(r, shape):
 
     # Shift with half a voxel because data are defined at voxel centers
     r -= 0.5
@@ -63,7 +88,7 @@ def pv_contour(values, data, affine, surface=False):
     # For display of the surface, interpolate from volume to surface array
     surf_shape = 1 + np.array(data.shape)
     r = surface_coordinates(data.shape)
-    r = correct_coordinates(r, data.shape)
+    r = extend_border(r, data.shape)
     surf_data = ndi.map_coordinates(data, r.T, order=3)
     surf_data = np.reshape(surf_data, surf_shape)
 
@@ -156,7 +181,7 @@ def affine_resolution(shape, spacing):
     rot_res_y = min([spacing[2],spacing[0]])/max([shape[2],shape[0]])
     rot_res_z = min([spacing[0],spacing[1]])/max([shape[0],shape[1]])
     rot_res = np.array([rot_res_x, rot_res_y, rot_res_z])
-    scaling_res = np.array([1.0, 1.0, 1.0])
+    scaling_res = np.array([0.01, 0.01, 0.01])
     return rot_res, translation_res, scaling_res
 
 
@@ -185,7 +210,6 @@ def affine_matrix(rotation=None, translation=None, pixel_spacing=None, center=No
     return matrix
 
 
-
 def envelope(d, affine):
 
     corners, _ = parallellepid(np.array(d), affine)
@@ -207,6 +231,30 @@ def envelope(d, affine):
     return output_shape, output_pos
 
 
+
+def apply_affine(affine, coord):
+    """Apply affine transformation to an array of coordinates"""
+
+    nd = affine.shape[0]-1
+    matrix = affine[:nd,:nd]
+    offset = affine[:nd, nd]
+    return np.dot(coord, matrix.T) + offset
+    #return np.dot(matrix, co.T).T + offset
+
+
+def affine_to_freeform(affine, output_shape, deformation_field_shape):
+    xo, yo, zo = np.meshgrid(
+        np.linspace(0, output_shape[0], deformation_field_shape[0]),
+        np.linspace(0, output_shape[1], deformation_field_shape[1]),
+        np.linspace(0, output_shape[2], deformation_field_shape[2]),
+        indexing = 'ij')
+    coordinates = np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
+    new_coordinates = apply_affine(affine, coordinates)
+    deformation_field = new_coordinates - coordinates
+    deformation_field = np.reshape(deformation_field, deformation_field_shape + (3,))
+    return deformation_field
+
+
 def apply_inverse_affine(input_data, inverse_affine, output_shape, output_coordinates=None, **kwargs):
 
     # Create an array of all coordinates in the output volume
@@ -214,14 +262,15 @@ def apply_inverse_affine(input_data, inverse_affine, output_shape, output_coordi
         output_coordinates = volume_coordinates(output_shape)
 
     # Apply affine transformation to all coordinates in the output volume
-    nd = inverse_affine.shape[0]-1
-    matrix = inverse_affine[:nd,:nd]
-    offset = inverse_affine[:nd, nd]
-    input_coordinates = np.dot(output_coordinates, matrix.T) + offset
-    #co = np.dot(matrix, co.T).T + offset
+    # nd = inverse_affine.shape[0]-1
+    # matrix = inverse_affine[:nd,:nd]
+    # offset = inverse_affine[:nd, nd]
+    # input_coordinates = np.dot(output_coordinates, matrix.T) + offset
+    # #co = np.dot(matrix, co.T).T + offset
+    input_coordinates = apply_affine(inverse_affine, output_coordinates)
 
     # Extend with constant value for half a voxel outside of the boundary
-    input_coordinates = correct_coordinates(input_coordinates, input_data.shape)
+    input_coordinates = extend_border(input_coordinates, input_data.shape)
 
     # Interpolate the volume in the transformed coordinates
     output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
@@ -252,6 +301,7 @@ def affine_output_geometry(input_shape, input_affine, transformation):
 ####################################
 
 
+# TODO This needs to become a private helper function
 def affine_transform(input_data, input_affine, transformation, reshape=False, **kwargs):
 
     if reshape:
@@ -261,15 +311,16 @@ def affine_transform(input_data, input_affine, transformation, reshape=False, **
 
     # Perform the inverse transformation
     affine_transformed = transformation.dot(input_affine)
-    inverse = np.linalg.inv(affine_transformed).dot(output_affine) # Ai Ti B 
+    inverse = np.linalg.inv(affine_transformed).dot(output_affine) # Ainv Tinv B 
     output_data = apply_inverse_affine(input_data, inverse, output_shape, **kwargs)
 
     return output_data, output_affine
 
 
+# TODO This needs to become a private helper function
 def affine_reslice(input_data, input_affine, output_affine, output_shape=None, **kwargs):
 
-    # If no output shape is provided, retain the physical volume of the input data
+    # If no output shape is provided, retain the physical volume of the input datas
     if output_shape is None:
 
         # Get field of view from input data
@@ -291,12 +342,68 @@ def affine_reslice(input_data, input_affine, output_affine, output_shape=None, *
 
     return output_data, output_affine
 
+
 # This needs a reshape option to expand to the envelope in the new reference frame
 def affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs):
 
     affine_transformed = transformation.dot(input_affine)
     inverse = np.linalg.inv(affine_transformed).dot(output_affine) # Ai Ti B
     output_data = apply_inverse_affine(input_data, inverse, output_shape, **kwargs)
+
+    return output_data
+
+
+# Deformation define in absolute coordinates
+def absolute_freeform(input_data, input_affine, output_shape, output_affine, displacement, output_coordinates=None, **kwargs):
+
+    # Create an array of all coordinates in the output volume
+    if output_coordinates is None:
+        output_coordinates = volume_coordinates(output_shape) 
+
+    # Express output coordinates in the scanner reference frame
+    reference_output_coordinates = apply_affine(output_affine, output_coordinates)
+
+    # Apply free-from deformation to all output coordinates
+    deformation = interpolate_displacement(displacement, output_shape)
+    reference_input_coordinates = reference_output_coordinates + deformation
+
+    # Express new coordinates in reference frame of the input volume
+    input_affine_inv = np.linalg.inv(input_affine)
+    input_coordinates = apply_affine(input_affine_inv, reference_input_coordinates)
+
+    # Extend with constant value for half a voxel outside of the boundary
+    # TODO make this an option - costs time and is not necessary when a window is taken inside the FOV (better way to deal with borders)
+    input_coordinates = extend_border(input_coordinates, input_data.shape)
+
+    # Interpolate the input data in the transformed coordinates
+    output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
+    output_data = np.reshape(output_data, output_shape)
+
+    return output_data
+
+# Note: to apply to a window, adjust output_shape and output_affine (position vector)
+# Deformation defined in input coordinates
+def freeform(input_data, input_affine, output_shape, output_affine, displacement, output_coordinates=None, **kwargs):
+
+    # Create an array of all coordinates in the output volume
+    # Optional argument as this can be precomputed for registration purposes
+    if output_coordinates is None:
+        output_coordinates = volume_coordinates(output_shape)
+        # Express output coordinates in reference frame of the input volume
+        transform = np.linalg.inv(input_affine).dot(output_affine)
+        output_coordinates = apply_affine(transform, output_coordinates)
+        
+    # Apply free-from deformation to all output coordinates
+    deformation = interpolate_displacement(displacement, output_shape)
+    input_coordinates = output_coordinates + deformation
+
+    # Extend with constant value for half a voxel outside of the boundary
+    # TODO make this an option in 3D - costs time and is not necessary when a window is taken inside the FOV (better way to deal with borders)
+    input_coordinates = extend_border(input_coordinates, input_data.shape)
+
+    # Interpolate the input data in the transformed coordinates
+    output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
+    output_data = np.reshape(output_data, output_shape)
 
     return output_data
 
@@ -324,8 +431,16 @@ def rotate_reshape(input_data, input_affine, rotation, **kwargs):
     transformation = affine_matrix(rotation=rotation)
     return affine_transform(input_data, input_affine, transformation, reshape=True, **kwargs)
 
-def rotate_around(input_data, input_affine, output_shape, output_affine, rotation, center, **kwargs):
-    transformation = affine_matrix(rotation=rotation, center=center)
+def stretch(input_data, input_affine, output_shape, output_affine, stretch, **kwargs):
+    transformation = affine_matrix(pixel_spacing=stretch)
+    return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
+
+def stretch_reshape(input_data, input_affine, stretch, **kwargs):
+    transformation = affine_matrix(pixel_spacing=stretch)
+    return affine_transform(input_data, input_affine, transformation, reshape=True, **kwargs)
+
+def rotate_around(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    transformation = affine_matrix(rotation=parameters[:3], center=parameters[3:])
     return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
 
 def rotate_around_reshape(input_data, input_affine, rotation, center, **kwargs):
@@ -340,8 +455,8 @@ def rigid_reshape(input_data, input_affine, rotation, translation, **kwargs):
     transformation = affine_matrix(rotation=rotation, translation=translation)
     return affine_transform(input_data, input_affine, transformation, reshape=True, **kwargs)
 
-def affine(input_data, input_affine, output_shape, output_affine, rotation, translation, stretch, **kwargs):
-    transformation = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
+def affine(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    transformation = affine_matrix(rotation=parameters[:3], translation=parameters[3:6], pixel_spacing=parameters[6:])
     return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
 
 def affine_reshape(input_data, input_affine, rotation, translation, stretch, **kwargs):
@@ -360,6 +475,22 @@ def sum_of_squares(static, transformed, nan=None):
         return np.sum(np.square(static[i]-transformed[i]))
     else:
         return np.sum(np.square(static-transformed))
+
+
+def mutual_information(static, transformed, nan=None):
+    if nan is not None:
+        i = np.where(transformed != nan)
+        return sklearn.metrics.mutual_info_score(static[i], transformed[i])
+    else:
+        return sklearn.metrics.mutual_info_score(static, transformed)
+    
+
+def normalized_mutual_information(static, transformed, nan=None):
+    if nan is not None:
+        i = np.where(transformed != nan)
+        return sklearn.metrics.normalized_mutual_info_score(static[i], transformed[i])
+    else:
+        return sklearn.metrics.normalized_mutual_info_score(static, transformed)
 
 
 
@@ -429,7 +560,7 @@ def minimize(*args, method='GD', **kwargs):
         return res.x
     
 
-def minimize_gd(cost_function, parameters, args=None, callback=None, options={}):
+def minimize_gd(cost_function, parameters, args=None, callback=None, options={}, bounds=None):
 
     # Set default values for global options
     if 'max_iter' in options:
@@ -451,8 +582,8 @@ def minimize_gd(cost_function, parameters, args=None, callback=None, options={})
     while True:
         n_iter+=1
         print('iteration: ', n_iter)
-        grad = gradient(cost_function, parameters, cost, step, *args)
-        parameters, stepsize, cost = line_search(cost_function, grad, parameters, stepsize, cost, *args, **ls_options)
+        grad = gradient(cost_function, parameters, cost, step, bounds, *args)
+        parameters, stepsize, cost = line_search(cost_function, grad, parameters, stepsize, cost, bounds, *args, **ls_options)
         if callback is not None:
             callback(parameters)
         if cost == 0:
@@ -476,13 +607,15 @@ def _ONESIDED_gradient(cost_function, parameters, f0, step, *args):
     return grad
 
 
-def gradient(cost_function, parameters, f0, step, *args):
+def gradient(cost_function, parameters, f0, step, bounds, *args):
     grad = np.empty(parameters.shape)
     for i, p in enumerate(parameters):
         pi = parameters[i]
         parameters[i] = pi+step[i]
+        parameters = project_on(parameters, bounds, index=i)
         fp = cost_function(parameters, *args)
         parameters[i] = pi-step[i]
+        parameters = project_on(parameters, bounds, index=i)
         fn = cost_function(parameters, *args)
         parameters[i] = pi
         grad[i] = (fp-fn)/2
@@ -496,7 +629,30 @@ def gradient(cost_function, parameters, f0, step, *args):
     return grad
 
 
-def line_search(cost_function, grad, p0, stepsize0, f0, *args, tolerance=0.01, scale_down=5.0, scale_up=1.5, stepsize_max=1000.0):
+def project_on(par, bounds, index=None):
+    if bounds is None:
+        return par
+    if len(bounds) != len(par):
+        msg = 'Parameter and bounds must have the same length'
+        raise ValueError(msg)
+    if index is not None:   # project only that index
+        pi = par[index]
+        bi = bounds[index]
+        if pi <= bi[0]:
+            pi = bi[0]
+        if pi >= bi[1]:
+            pi = bi[1]
+    else:   # project all indices
+        for i, pi in enumerate(par):
+            bi = bounds[i]
+            if pi <= bi[0]:
+                par[i] = bi[0]
+            if pi >= bi[1]:
+                par[i] = bi[1]
+    return par
+
+
+def line_search(cost_function, grad, p0, stepsize0, f0, bounds, *args, tolerance=0.1, scale_down=5.0, scale_up=1.5, stepsize_max=1000.0):
 
     # Initialize stepsize to current optimal stepsize
     stepsize_try = stepsize0 / scale_down
@@ -507,6 +663,7 @@ def line_search(cost_function, grad, p0, stepsize0, f0, *args, tolerance=0.01, s
 
         # Take a step and evaluate the cost
         p_try = p_init - stepsize_try*grad 
+        p_try = project_on(p_try, bounds)
         f_try = cost_function(p_try, *args)
 
         print('cost: ', f_try, ' stepsize: ', stepsize_try, ' par: ', p_try)
@@ -539,6 +696,7 @@ def line_search(cost_function, grad, p0, stepsize0, f0, *args, tolerance=0.01, s
         # Take a baby step and evaluate the cost
         stepsize_try *= scale_up
         p_try = p_init - stepsize_try*grad
+        p_try = project_on(p_try, bounds)
         f_try = cost_function(p_try, *args)
 
         print('cost: ', f_try, ' stepsize: ', stepsize_try, ' par: ', p_try)
@@ -755,6 +913,27 @@ def plot_affine_transformed(input_data, input_affine, output_data, output_affine
         color=(0,0,255),
         opacity=0.5,
     )            
+        
+    pl.show()
+
+
+def plot_freeform_transformed(input_data, input_affine, output_data, output_affine, transformation):
+
+    pl = plot_affine_resliced(input_data, input_affine, output_data, output_affine)
+
+    # Plot the reference surface
+    surf = pv_contour([0.5], output_data, output_affine)
+    if len(surf.points) == 0:
+        print('Cannot plot the surface. It has no points inside the volume. ')
+    else:
+        pl.add_mesh(surf,
+            color=(0,0,255), 
+            opacity=0.25,
+            show_edges=False, 
+            smooth_shading=True, 
+            specular=0, 
+            show_scalar_bar=False,        
+        )           
         
     pl.show()
 
@@ -1393,6 +1572,59 @@ def test_rotate_reshape():
     plot_affine_transformed(input_data, input_affine, output_data, output_affine, transformation)
 
 
+def test_stretch(n=1, show=True):
+
+    # Generate reference volume
+    input_data, input_affine = generate('triple ellipsoid', markers=False)
+
+    # Define transformation
+    if n==1:
+        stretch_factor = np.array([2.0, 2.5, 0.5])
+    elif n==2:
+        stretch_factor = np.array([1.0, 1.5, 1.0])
+    elif n==3:
+        stretch_factor = np.array([1.0, 1.1, 1.0])
+
+    # Define output_volume
+    output_shape = input_data.shape
+    output_affine = input_affine
+
+    # Perform rotation
+    start_time = time.time()
+    output_data = stretch(input_data, input_affine, output_shape, output_affine, stretch_factor) # specifying outputshape and affine should not be required
+    end_time = time.time()
+
+    # Display results
+    if show is True:
+        print('Computation time (sec): ', end_time-start_time)
+        transformation = affine_matrix(pixel_spacing=stretch_factor)
+        plot_affine_transformed(input_data, input_affine, output_data, output_affine, transformation)
+
+    return input_data, input_affine, output_data, output_affine, stretch_factor
+
+
+def test_stretch_reshape(show=True):
+
+    # Generate reference volume
+    input_data, input_affine = generate('triple ellipsoid', markers=False)
+
+    # Define transformation
+    stretch_factor = np.array([2.0, 2.5, 0.5])
+
+    # Perform transformation
+    start_time = time.time()
+    output_data, output_affine = stretch_reshape(input_data, input_affine, stretch_factor) # specifying outputshape and affine should not be required
+    end_time = time.time()
+
+    # Display results
+    if show is True:
+        print('Computation time (sec): ', end_time-start_time)
+        transformation = affine_matrix(pixel_spacing=stretch_factor)
+        plot_affine_transformed(input_data, input_affine, output_data, output_affine, transformation)
+
+    return input_data, input_affine, output_data, output_affine, stretch_factor
+
+
 def test_rotate_around():
 
     # Generate reference volume
@@ -1408,7 +1640,8 @@ def test_rotate_around():
     
     # Perform rotation
     start_time = time.time()
-    output_data = rotate_around(input_data, input_affine, output_shape, output_affine, rotation, com)
+    parameters = np.concatenate((rotation, com))
+    output_data = rotate_around(input_data, input_affine, output_shape, output_affine, parameters)
     end_time = time.time()
 
     # Display results
@@ -1489,6 +1722,90 @@ def test_rigid_reshape():
     plot_affine_transformed(input_data, input_affine, output_data, output_affine, transformation)
 
     
+def test_affine(show=True):
+
+    # Define geometry of source data
+    input_shape = np.array([300, 250, 25])   # mm
+    pixel_spacing = np.array([1.25, 1.25, 5.0]) # mm
+    translation = np.array([0, 0, 0]) # mm
+    rotation_angle = 0.2 * (np.pi/2) # radians
+    rotation_axis = [1,0,0]
+
+    # Generate source volume data
+    rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
+    input_affine = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=pixel_spacing)
+    input_data, input_affine = generate('triple ellipsoid', shape=input_shape, affine=input_affine, markers=False)
+
+    # Define affine transformation
+    stretch = [1.0, 1.5, 1.5]
+    translation = np.array([30, -80, -20]) # mm
+    rotation_angle = 0.20 * (np.pi/2)
+    rotation_axis = [0,0,1]
+    rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
+
+    # Define output_volume
+    output_shape = input_data.shape
+    output_affine = input_affine
+
+    # Apply affine
+    start_time = time.time()
+    parameters = np.concatenate((rotation, translation, stretch))
+    output_data = affine(input_data, input_affine, output_shape, output_affine, parameters)
+    end_time = time.time()
+
+    # Display results
+    if show:
+        print('Computation time (sec): ', end_time-start_time)
+        transformation = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
+        plot_affine_transformed(input_data, input_affine, output_data, output_affine, transformation)
+
+    return input_data, input_affine, output_data, output_affine, parameters
+
+
+def test_freeform(show=True):
+
+    # Define geometry of source data
+    input_shape = np.array([300, 250, 25])   # mm
+    pixel_spacing = np.array([1.25, 1.25, 5.0]) # mm
+    translation = np.array([0, 0, 0]) # mm
+    rotation_angle = 0.2 * (np.pi/2) # radians
+    rotation_axis = [1,0,0]
+
+    # Generate source data
+    rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
+    input_affine = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=pixel_spacing)
+    input_data, input_affine = generate('triple ellipsoid', shape=input_shape, affine=input_affine, markers=False)
+
+    # Define affine transformation
+    stretch = [1.0, 1.5, 1.5]
+    translation = np.array([30, -80, -20]) # mm
+    rotation_angle = 0.20 * (np.pi/2)
+    rotation_axis = [0,0,1]
+    rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
+
+    # Define output_volume (this can also be a window)
+    output_shape = input_data.shape
+    output_affine = input_affine
+
+    # Apply freeform deformation
+    start_time = time.time()
+    #parameters = np.concatenate((rotation, translation, stretch))
+    #output_data = affine(input_data, input_affine, output_shape, output_affine, parameters)
+    transformation = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
+    deformation_field_shape = (2,2,2)
+    parameters = affine_to_freeform(transformation, output_shape, deformation_field_shape)
+    # parameters = np.ones((2, 2, 2, 3)) # (x, y, z, d)
+    # output_data = freeform(input_data, input_affine, output_shape, output_affine, parameters)
+    end_time = time.time()
+
+    # Display results
+    if show:
+        print('Computation time (sec): ', end_time-start_time)
+        plot_freeform_transformed(input_data, input_affine, output_data, output_affine, parameters)
+
+    return input_data, input_affine, output_data, output_affine, parameters
+
+
 def test_align_translation(n=1):
 
     if n==1:
@@ -1557,7 +1874,7 @@ def test_align_rotation(n=1):
     # Define a precision for each parameter and stop iterating when the largest change for
     # any of the parameters is less than its precision. 
     # The gradient step is also the precision and the tolarance becomes unnecessary
-    optimization = {'method':'GD', 'options':{'gradient step': gradient_step, 'tolerance': 0.0001}, 'callback':print_current}
+    optimization = {'method':'GD', 'options':{'gradient step': gradient_step, 'tolerance': 0.1}, 'callback':print_current}
     #optimization = {'method':'Powell', 'options':{'xtol': 1.0}, 'callback':print_current}
     #optimization = {'method':'BFGS', 'options':{'eps': gradient_step}, 'callback':print_current}
 
@@ -1595,6 +1912,60 @@ def test_align_rotation(n=1):
     pl.show()
 
 
+def test_align_stretch(n=1):
+
+    input_data, input_affine, output_data, output_affine, parameters = test_stretch(n=n, show=False)
+
+    # Define initial values and step size
+    _, _, output_pixel_spacing = affine_components(output_affine)
+    initial_guess = np.array([1, 1, 1], dtype=np.float32) # mm
+    _, _, step = affine_resolution(output_data.shape, output_pixel_spacing)
+    tol = 0.1
+    #bounds = [(tol*step[0], np.inf), (tol*step[1], np.inf), (tol*step[2], np.inf)]
+    bounds = [(0.5, np.inf), (0.5, np.inf), (0.5, np.inf)]
+
+    # Define registration method
+    optimization = {'method':'GD', 'bounds':bounds, 'options':{'gradient step': step, 'tolerance': tol}, 'callback':print_current}
+    transformation = stretch
+    metric = sum_of_squares
+
+    # Align volumes
+    start_time = time.time()
+    try:
+        estimate = align(
+            moving = input_data, 
+            moving_affine = input_affine, 
+            static = output_data, 
+            static_affine = output_affine, 
+            parameters = initial_guess, 
+            resolutions = [4,2,1], 
+            transformation = transformation,
+            metric = metric,
+            optimization = optimization,
+        )
+    except:
+        print('Failed to align volumes. Returning initial value as current best guess..')
+        estimate = initial_guess
+    end_time = time.time()
+
+    # Calculate estimate of static image and cost functions
+    output_data_estimate = transformation(input_data, input_affine, output_data.shape, output_affine, estimate)
+    cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_after *= 100/np.sum(np.square(output_data))
+    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_before *= 100/np.sum(np.square(output_data))
+
+    # Display results
+    print('Ground truth parameter: ', parameters)
+    print('Parameter estimate: ', estimate)
+    print('Cost before alignment (%): ', cost_before)
+    print('Cost after alignment (%): ', cost_after)
+    print('Parameter error (%): ', 100*np.linalg.norm(estimate-parameters)/np.linalg.norm(parameters))
+    print('Computation time (mins): ', (end_time-start_time)/60.0)
+    pl = plot_affine_resliced(output_data_estimate, output_affine, output_data, output_affine)
+    pl.show()
+
+
 def test_align_rigid(n=1):
 
     if n==1:
@@ -1611,7 +1982,7 @@ def test_align_rigid(n=1):
     gradient_step = np.concatenate((1.0*rot_gradient_step, 0.5*translation_gradient_step))
 
     # Define registration
-    optimization = {'method':'GD', 'options':{'gradient step': gradient_step, 'tolerance': 0.001}, 'callback':print_current}
+    optimization = {'method':'GD', 'options':{'gradient step': gradient_step, 'tolerance': 0.1}, 'callback':print_current}
     transformation = rigid
     metric = sum_of_squares
 
@@ -1652,49 +2023,29 @@ def test_align_rigid(n=1):
     pl.show()
 
 
-def test_align_rigid_sequential(n=1):
+def test_align_affine(n=1):
 
     if n==1:
-        input_data, input_affine, output_data, output_affine, parameters = test_rigid(show=False)
-    if n==2:
-        input_data, input_affine, output_data, output_affine, rotation = test_rotate(show=False)
-        translation = np.zeros(3, dtype=np.float32)
-        parameters = np.concatenate((rotation, translation))
+        input_data, input_affine, output_data, output_affine, parameters = test_affine(show=False)
 
     # Define initial values and step size
     _, _, output_pixel_spacing = affine_components(output_affine)
-    rot_gradient_step, translation_gradient_step, _ = affine_resolution(output_data.shape, output_pixel_spacing)
+    initial_guess = np.array([0,0,0,0,0,0,1,1,1], dtype=np.float32)
+    rot_gradient_step, translation_gradient_step, stretch_gradient_step = affine_resolution(output_data.shape, output_pixel_spacing)
+    step = np.concatenate((1.0*rot_gradient_step, 0.5*translation_gradient_step, stretch_gradient_step))
+    bounds = [
+        (0, 2*np.pi), (0, 2*np.pi), (0, 2*np.pi), 
+        (-np.inf, np.inf), (-np.inf, np.inf), (-np.inf, np.inf), 
+        (0.5, np.inf), (0.5, np.inf), (0.5, np.inf),
+    ]
 
-    # Define metric
+    # Define registration
+    optimization = {'method':'GD', 'bounds': bounds, 'options':{'gradient step': step, 'tolerance': 0.1}, 'callback':print_current}
+    transformation = affine
     metric = sum_of_squares
 
+    # Align volumes
     start_time = time.time()
-
-    # Align volumes by translation
-    transformation = translate
-    optimization = {'method':'GD', 'options':{'gradient step': translation_gradient_step, 'tolerance': 0.001}, 'callback':print_current}
-    initial_guess = np.zeros(3, dtype=np.float32)
-    try:
-        translation_estimate = align(
-            moving = input_data, 
-            moving_affine = input_affine, 
-            static = output_data, 
-            static_affine = output_affine, 
-            parameters = initial_guess, 
-            resolutions = [4,2,1], 
-            transformation = translate,
-            metric = metric,
-            optimization = optimization,
-        )
-    except:
-        print('Failed to align volumes. Returning initial value as current best guess..')
-        estimate = initial_guess
-
-
-    # Align volumes by rigid transformation
-    transformation = rigid
-    optimization = {'method':'GD', 'options':{'gradient step': np.concatenate((rot_gradient_step, translation_gradient_step)), 'tolerance': 0.000001}, 'callback':print_current}
-    initial_guess = np.concatenate((np.zeros(3, dtype=np.float32), translation_estimate))
     try:
         estimate = align(
             moving = input_data, 
@@ -1710,15 +2061,13 @@ def test_align_rigid_sequential(n=1):
     except:
         print('Failed to align volumes. Returning initial value as current best guess..')
         estimate = initial_guess
-
     end_time = time.time()
-
 
     # Calculate estimate of static image and cost functions
     output_data_estimate = transformation(input_data, input_affine, output_data.shape, output_affine, estimate)
     cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
     cost_after *= 100/np.sum(np.square(output_data))
-    cost_before = goodness_of_alignment(np.zeros(6, dtype=np.float32), transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
     cost_before *= 100/np.sum(np.square(output_data))
 
     # Display results
@@ -1730,6 +2079,9 @@ def test_align_rigid_sequential(n=1):
     print('Computation time (mins): ', (end_time-start_time)/60.0)
     pl = plot_affine_resliced(output_data_estimate, output_affine, output_data, output_affine)
     pl.show()
+
+
+
         
 
 
@@ -1757,17 +2109,22 @@ if __name__ == "__main__":
     # test_translate_reshape()
     # test_rotate()
     # test_rotate_reshape()
+    # test_stretch(n=3)
+    # test_stretch_reshape()
     # test_rotate_around()
     # test_rotate_around_reshape()
     # test_rigid()
     # test_rigid_reshape()
+    # test_affine()
+    test_freeform()
 
 
     # Test coregistration
     # -------------------
     #test_align_translation(dataset)
     #test_align_rotation()
-    test_align_rigid(n=1)
-    #test_align_rigid_sequential(n=1)
+    # test_align_stretch(n=2)
+    #test_align_rigid(n=1)
+    # test_align_affine(n=1)
 
 
