@@ -354,8 +354,8 @@ def get_values(ds, tags):
                 value = to_set_type(ds[tag].value)
 
         # If a tag is not present in the dataset, check if it can be derived
-        if value is None:
-            value = derive_data_element(ds, tag)
+        # if value is None:
+        #     value = derive_data_element(ds, tag)
 
         row.append(value)
     return row

@@ -242,17 +242,99 @@ def apply_affine(affine, coord):
     #return np.dot(matrix, co.T).T + offset
 
 
-def affine_to_freeform(affine, output_shape, deformation_field_shape):
+def deformation_field_shape(data_shape, nodes):
+    # Work out the exact number of nodes for each dimensions
+    # Assuming the given number of nodes is exact for the largest dimension
+    # And the distance between nodes is approximately the same in other directions
+
+    distance_between_nodes = np.amax(data_shape)/(nodes-1)
+    shape = 1 + np.ceil(data_shape/distance_between_nodes)
+    return tuple(shape.astype(np.int16))
+
+
+def affine_deformation_field(affine, output_shape, nodes, output_to_input=np.eye(4)):
+
+    # Initialise the inverse deformation field
+    shape = deformation_field_shape(output_shape, nodes)
+
+    # Get coordinates in output reference frame
     xo, yo, zo = np.meshgrid(
-        np.linspace(0, output_shape[0], deformation_field_shape[0]),
-        np.linspace(0, output_shape[1], deformation_field_shape[1]),
-        np.linspace(0, output_shape[2], deformation_field_shape[2]),
+        np.linspace(0, output_shape[0], shape[0]),
+        np.linspace(0, output_shape[1], shape[1]),
+        np.linspace(0, output_shape[2], shape[2]),
         indexing = 'ij')
     coordinates = np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
+
+    # Express output coordinates in reference frame of the input volume
+    coordinates = apply_affine(output_to_input, coordinates)
+
+    # Apply affine in reference frame of input
     new_coordinates = apply_affine(affine, coordinates)
+
+    # Get the deformation field in shape (x,y,z,dim)
     deformation_field = new_coordinates - coordinates
-    deformation_field = np.reshape(deformation_field, deformation_field_shape + (3,))
+    deformation_field = np.reshape(deformation_field, shape + (3,))
+
     return deformation_field
+
+
+def upsample_deformation_field(field, ni):
+
+    new_field = np.empty(ni + (3,))
+    L = np.array(field.shape[:3])-1
+
+    # Get x, y, z coordinates for current field
+    x = np.linspace(0, L[0], field.shape[0])
+    y = np.linspace(0, L[1], field.shape[0])
+    z = np.linspace(0, L[0], field.shape[0])
+
+    # Get x, y, z coordinates for new field
+    xi = np.linspace(0, L[0], new_field.shape[0])
+    yi = np.linspace(0, L[1], new_field.shape[1])
+    zi = np.linspace(0, L[2], new_field.shape[2])
+
+    # Interpolate to new resolution
+    ri = np.meshgrid(xi, yi, zi, indexing='ij')
+    ri = np.stack(ri, axis=-1)
+    for d in range(3):
+        new_field[...,i] = interpn((x,y,z), field[...,i], ri)
+    return new_field
+
+
+def align_freeform(nodes=[2,4,8], static=None, parameters=None, optimization=None, **kwargs):
+
+    transformation = freeform
+    if parameters is None:
+        # Initialise the inverse deformation field
+        dim = deformation_field_shape(static.shape, nodes[0])
+        parameters = np.zeros(dim + (3,))
+
+    for i in range(nodes):
+
+        if optimization['method'] == 'GD':
+            # Define the step size
+            step = np.full(parameters.shape, 0.1)
+            optimization['options']['gradient step'] = step
+
+        # Coregister for nr nodes
+        try:
+            parameters = align(
+                static= static,
+                parameters = parameters, 
+                optimization = optimization,
+                transformation = transformation,
+                **kwargs,
+            )
+        except:
+            print('Failed to align volumes. Returning zeros as best guess..')
+            dim = deformation_field_shape(static.shape, nodes[0])
+            return np.zeros(dim + (3,))
+        
+        if i+1 < len(nodes):
+            dim = deformation_field_shape(static.shape, nodes[i+1])
+            parameters = upsample_deformation_field(parameters, dim)
+
+    return parameters
 
 
 def apply_inverse_affine(input_data, inverse_affine, output_shape, output_coordinates=None, **kwargs):
@@ -353,45 +435,50 @@ def affine_transform_and_reslice(input_data, input_affine, output_shape, output_
     return output_data
 
 
-# Deformation define in absolute coordinates
-def absolute_freeform(input_data, input_affine, output_shape, output_affine, displacement, output_coordinates=None, **kwargs):
+# # Deformation define in absolute coordinates
+# def absolute_freeform(input_data, input_affine, output_shape, output_affine, displacement, output_coordinates=None, **kwargs):
 
-    # Create an array of all coordinates in the output volume
-    if output_coordinates is None:
-        output_coordinates = volume_coordinates(output_shape) 
+#     # Create an array of all coordinates in the output volume
+#     if output_coordinates is None:
+#         output_coordinates = volume_coordinates(output_shape) 
 
-    # Express output coordinates in the scanner reference frame
-    reference_output_coordinates = apply_affine(output_affine, output_coordinates)
+#     # Express output coordinates in the scanner reference frame
+#     reference_output_coordinates = apply_affine(output_affine, output_coordinates)
 
-    # Apply free-from deformation to all output coordinates
-    deformation = interpolate_displacement(displacement, output_shape)
-    reference_input_coordinates = reference_output_coordinates + deformation
+#     # Apply free-from deformation to all output coordinates
+#     deformation = interpolate_displacement(displacement, output_shape)
+#     reference_input_coordinates = reference_output_coordinates + deformation
 
-    # Express new coordinates in reference frame of the input volume
-    input_affine_inv = np.linalg.inv(input_affine)
-    input_coordinates = apply_affine(input_affine_inv, reference_input_coordinates)
+#     # Express new coordinates in reference frame of the input volume
+#     input_affine_inv = np.linalg.inv(input_affine)
+#     input_coordinates = apply_affine(input_affine_inv, reference_input_coordinates)
 
-    # Extend with constant value for half a voxel outside of the boundary
-    # TODO make this an option - costs time and is not necessary when a window is taken inside the FOV (better way to deal with borders)
-    input_coordinates = extend_border(input_coordinates, input_data.shape)
+#     # Extend with constant value for half a voxel outside of the boundary
+#     # TODO make this an option - costs time and is not necessary when a window is taken inside the FOV (better way to deal with borders)
+#     input_coordinates = extend_border(input_coordinates, input_data.shape)
 
-    # Interpolate the input data in the transformed coordinates
-    output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
-    output_data = np.reshape(output_data, output_shape)
+#     # Interpolate the input data in the transformed coordinates
+#     output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
+#     output_data = np.reshape(output_data, output_shape)
 
-    return output_data
+#     return output_data
 
 # Note: to apply to a window, adjust output_shape and output_affine (position vector)
 # Deformation defined in input coordinates
-def freeform(input_data, input_affine, output_shape, output_affine, displacement, output_coordinates=None, **kwargs):
+def freeform(input_data, displacement, output_shape=None, output_to_input=np.eye(4), output_coordinates=None, **kwargs):
+    """Freeform deformation assuming deformation field is defined in the reference frame of input data"""
+
+    # Set defaults
+    if output_shape is None:
+        output_shape = input_data.shape
 
     # Create an array of all coordinates in the output volume
     # Optional argument as this can be precomputed for registration purposes
     if output_coordinates is None:
+        # Creat output coordinates
         output_coordinates = volume_coordinates(output_shape)
         # Express output coordinates in reference frame of the input volume
-        transform = np.linalg.inv(input_affine).dot(output_affine)
-        output_coordinates = apply_affine(transform, output_coordinates)
+        output_coordinates = apply_affine(output_to_input, output_coordinates)
         
     # Apply free-from deformation to all output coordinates
     deformation = interpolate_displacement(displacement, output_shape)
@@ -917,7 +1004,7 @@ def plot_affine_transformed(input_data, input_affine, output_data, output_affine
     pl.show()
 
 
-def plot_freeform_transformed(input_data, input_affine, output_data, output_affine, transformation):
+def plot_freeform_transformed(input_data, input_affine, output_data, output_affine):
 
     pl = plot_affine_resliced(input_data, input_affine, output_data, output_affine)
 
@@ -1783,27 +1870,53 @@ def test_freeform(show=True):
     rotation_axis = [0,0,1]
     rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
 
-    # Define output_volume (this can also be a window)
-    output_shape = input_data.shape
-    output_affine = input_affine
+    # Define output_volume
+    output_shape = list(input_data.shape)
+    output_affine = input_affine.copy()
+    extract_window = False
+    if extract_window:
+        output_shape[0] = 100
+        output_shape[1] = 100
+        output_affine[0,3] = output_affine[0,3] + 80
+        output_affine[1,3] = output_affine[1,3] + 80
+        output_affine[2,3] = output_affine[2,3] + 40
 
-    # Apply freeform deformation
+    # Apply freeform deformation derived from affine transformation
     start_time = time.time()
-    #parameters = np.concatenate((rotation, translation, stretch))
-    #output_data = affine(input_data, input_affine, output_shape, output_affine, parameters)
-    transformation = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
-    deformation_field_shape = (2,2,2)
-    parameters = affine_to_freeform(transformation, output_shape, deformation_field_shape)
-    # parameters = np.ones((2, 2, 2, 3)) # (x, y, z, d)
-    # output_data = freeform(input_data, input_affine, output_shape, output_affine, parameters)
+
+    # Get exact results for affine transformation
+    parameters = np.concatenate((rotation, translation, stretch))
+    exact_output_data = affine(input_data, input_affine, output_shape, output_affine, parameters)
+
+    # Define affine transformation
+    affine_transformation_abs = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
+
+    # Express affine transformation in input coordinates
+    affine_transformation = np.linalg.inv(input_affine).dot(affine_transformation_abs).dot(input_affine)
+
+    # Invert affine transformation
+    affine_transformation_inv = np.linalg.inv(affine_transformation)
+
+    # Get corresponding inverse deformation field
+    nodes = 16
+    output_to_input = np.linalg.inv(input_affine).dot(output_affine)
+    inverse_deformation_field = affine_deformation_field(affine_transformation_inv, output_shape, nodes, output_to_input=output_to_input)
+
+    # Apply deformation field
+    output_data = freeform(input_data, inverse_deformation_field, output_shape=output_shape, output_to_input=output_to_input)
+
+    error = np.linalg.norm(output_data-exact_output_data)/np.linalg.norm(exact_output_data)
     end_time = time.time()
 
     # Display results
     if show:
         print('Computation time (sec): ', end_time-start_time)
-        plot_freeform_transformed(input_data, input_affine, output_data, output_affine, parameters)
+        print('Error (%): ', 100*error)
+        #plot_affine_transformed(input_data, input_affine, exact_output_data, output_affine, affine_transformation_abs)
+        #plot_affine_transformed(input_data, input_affine, output_data, output_affine, affine_transformation_abs)
+        plot_affine_transformed(input_data, input_affine, output_data-exact_output_data, output_affine, affine_transformation_abs)
 
-    return input_data, input_affine, output_data, output_affine, parameters
+    return input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs
 
 
 def test_align_translation(n=1):
@@ -2081,6 +2194,108 @@ def test_align_affine(n=1):
     pl.show()
 
 
+def test_align_freeform(n=1):
+
+    if n==1:
+        input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs = test_freeform(show=False)
+
+    # Initialise the inverse deformation field
+    nodes = 4
+    dim = deformation_field_shape(output_data.shape, nodes)
+    parameters = np.zeros(dim + (3,))
+
+    # Define registration
+    transformation = freeform
+    metric = sum_of_squares
+    step = np.full(parameters.shape, 0.1)
+    optimization = {'method':'GD', 'options':{'gradient step': step, 'tolerance': 0.1}, 'callback':print_current}
+    
+    # Align volumes
+    start_time = time.time()
+    try:
+        estimate = align(
+            moving = input_data, 
+            moving_affine = input_affine, 
+            static = output_data, 
+            static_affine = output_affine,  
+            resolutions = [4,2,1], 
+            parameters = parameters,
+            metric = metric,
+            optimization = optimization,
+            transformation = transformation,
+        )
+    except:
+        print('Failed to align volumes. Returning initial value as current best guess..')
+        estimate = initial_guess
+    end_time = time.time()
+
+    # Calculate estimate of static image and cost functions
+    
+    output_data_estimate = transformation(input_data, input_affine, output_data.shape, output_affine, estimate)
+    cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_after *= 100/np.sum(np.square(output_data))
+    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_before *= 100/np.sum(np.square(output_data))
+
+    # Display results
+    print('Ground truth parameter: ', parameters)
+    print('Parameter estimate: ', estimate)
+    print('Cost before alignment (%): ', cost_before)
+    print('Cost after alignment (%): ', cost_after)
+    print('Parameter error (%): ', 100*np.linalg.norm(estimate-parameters)/np.linalg.norm(parameters))
+    print('Computation time (mins): ', (end_time-start_time)/60.0)
+    pl = plot_affine_resliced(output_data_estimate, output_affine, output_data, output_affine)
+    pl.show()
+
+
+
+def test_align_freeform_pyramid(n=1):
+
+    if n==1:
+        input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs = test_freeform(show=False)
+
+    # Define registration
+    optimization = {'method':'GD', 'options':{'tolerance': 0.1}, 'callback':print_current}
+    metric = sum_of_squares
+
+    # Align volumes
+    start_time = time.time()
+    try:
+        estimate = align_freeform(
+            moving = input_data, 
+            moving_affine = input_affine, 
+            static = output_data, 
+            static_affine = output_affine,  
+            resolutions = [4,2,1], 
+            metric = metric,
+            optimization = optimization,
+            nodes = [2], # TODO: Provide only the final nr of nodes and do the pyramid scheme automatically from 2 to final_nr
+        )
+    except:
+        print('Failed to align volumes. Returning initial value as current best guess..')
+        estimate = initial_guess
+    end_time = time.time()
+
+    # Calculate estimate of static image and cost functions
+    transformation = freeform
+    output_data_estimate = transformation(input_data, input_affine, output_data.shape, output_affine, estimate)
+    cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_after *= 100/np.sum(np.square(output_data))
+    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_before *= 100/np.sum(np.square(output_data))
+
+    # Display results
+    print('Ground truth parameter: ', parameters)
+    print('Parameter estimate: ', estimate)
+    print('Cost before alignment (%): ', cost_before)
+    print('Cost after alignment (%): ', cost_after)
+    print('Parameter error (%): ', 100*np.linalg.norm(estimate-parameters)/np.linalg.norm(parameters))
+    print('Computation time (mins): ', (end_time-start_time)/60.0)
+    pl = plot_affine_resliced(output_data_estimate, output_affine, output_data, output_affine)
+    pl.show()
+
+
+
 
         
 
@@ -2121,10 +2336,11 @@ if __name__ == "__main__":
 
     # Test coregistration
     # -------------------
-    #test_align_translation(dataset)
-    #test_align_rotation()
+    # test_align_translation(dataset)
+    # test_align_rotation()
     # test_align_stretch(n=2)
-    #test_align_rigid(n=1)
+    # test_align_rigid(n=1)
     # test_align_affine(n=1)
+    # test_align_freeform(n=1)
 
 
