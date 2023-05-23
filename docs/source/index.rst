@@ -14,10 +14,15 @@ Welcome to the dbdicom documentation!
    Therefore, please bear in mind some features are still in development and **backwards compatibility is not likely to happen**.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 4
    :caption: Contents:
 
-   readme
+   01installation
+   02summary
+   03browse
+   04create
+   05user
+   about
 
 Indices and tables
 ==================
