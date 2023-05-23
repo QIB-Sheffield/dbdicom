@@ -1873,7 +1873,7 @@ def test_freeform(show=True):
     # Define output_volume
     output_shape = list(input_data.shape)
     output_affine = input_affine.copy()
-    extract_window = False
+    extract_window = True
     if extract_window:
         output_shape[0] = 100
         output_shape[1] = 100
@@ -1913,8 +1913,8 @@ def test_freeform(show=True):
         print('Computation time (sec): ', end_time-start_time)
         print('Error (%): ', 100*error)
         #plot_affine_transformed(input_data, input_affine, exact_output_data, output_affine, affine_transformation_abs)
-        #plot_affine_transformed(input_data, input_affine, output_data, output_affine, affine_transformation_abs)
-        plot_affine_transformed(input_data, input_affine, output_data-exact_output_data, output_affine, affine_transformation_abs)
+        plot_affine_transformed(input_data, input_affine, output_data, output_affine, affine_transformation_abs)
+        #plot_affine_transformed(input_data, input_affine, output_data-exact_output_data, output_affine, affine_transformation_abs)
 
     return input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs
 

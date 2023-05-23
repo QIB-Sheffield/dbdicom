@@ -41,87 +41,114 @@ def volume_features(series):
     # If there are multiple volumes, show only the first one
     arr = arr[...,0]
 
-    step+=1
-    series.status.progress(step, n_steps, 'Preprocessing mask...')
+    series_props = _volume_features(arr, affine=affine, show_progress=series.status.progress)
 
-    # Scale in the range [0,1] so it can be treated as mask
+    instance = series.instance()
+    columns = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Parameter', 'Value', 'Unit']
+    ids = [instance.PatientID, instance.StudyDescription, instance.SeriesDescription] 
+    data = []
+    for par, val in series_props.items():
+        row = ids + [par, val[0], val[1]]
+        data.append(row)
+    return pd.DataFrame(data, columns = columns)
+
+
+def _volume_features(arr, spacing=[1,1,1], affine=None, show_progress=print):
+    """Calculate shape features from a mask array
+    
+    This function calculates various shape features from a given mask array.
+    
+    Arguments:
+    - arr (numpy.ndarray): The input mask array - 3D but does not have to be binary
+    - spacing (list, optional): The voxel dimensions in mm. Default is [1, 1, 1].
+    - affine (numpy.ndarray, optional): The affine transformation matrix. Default is None. If the affine is 
+    provided then the spacing argument is ignored and spacing is derived from the affine.
+    - show_progress (function, optional): A function to display progress messages. Default is print.
+    
+    Returns:
+    - dict: A dictionary containing the calculated shape features with their corresponding units.
+    """
+
+    show_progress(1, 6, 'Preprocessing mask...')
+
+    # Scale array in the range [0,1] so it can be treated as mask
+    # Motivation: the function is intended for mask arrays but this will make
+    # sure the results are meaningful even if non-binary arrays are provided.
     max = np.amax(arr)
     min = np.amin(arr)
     arr -= min
     arr /= max-min
-
-    # add zeropadding at the boundary slices
+    # Add zeropadding at the boundary slices for masks that extend to the edge
+    # Motivation: this could have some effect if surfaces are extracted - could create issues
+    # if the values extend right up to the boundary of the slab.
     shape = list(arr.shape)
     shape[-1] = shape[-1] + 2*4
     array = np.zeros(shape)
     array[:,:,4:-4] = arr
 
-    step+=1
-    series.status.progress(step, n_steps, 'Extracting surface...')
+    show_progress(2, 6, 'Extracting surface...')
 
-    # Get voxel dimensions (assumed this is in mm)
-    column_spacing = np.linalg.norm(affine[:3, 0])
-    row_spacing = np.linalg.norm(affine[:3, 1])
-    slice_spacing = np.linalg.norm(affine[:3, 2])
-    spacing = (column_spacing, row_spacing, slice_spacing)  #mm
-    voxel_volume = column_spacing*row_spacing*slice_spacing
+    # Get voxel dimensions from the affine
+    # We are assuming here the voxel dimensions are in mm.
+    # If not the units provided with the return values are incorrect.
+    if affine is not None:
+        column_spacing = np.linalg.norm(affine[:3, 0])
+        row_spacing = np.linalg.norm(affine[:3, 1])
+        slice_spacing = np.linalg.norm(affine[:3, 2])
+        spacing = (column_spacing, row_spacing, slice_spacing) 
+    voxel_volume = spacing[0]*spacing[1]*spacing[2]
     nr_of_voxels = np.count_nonzero(array)
     volume = nr_of_voxels * voxel_volume
-
-    # Surface properties (Area only for now)
+    # Surface properties - for now only extracting surface area
+    # Note: this is smoothing the surface first - not tested in depth whether this is necessary or helpful.
+    # It does appear to make a big difference on surface area so should be looked at more carefully.
     smooth_array = ndi.gaussian_filter(array, 1.0)
     verts, faces, _, _ = skimage.measure.marching_cubes(smooth_array, spacing=spacing, level=0.5, step_size=1.0)
     surface_area = skimage.measure.mesh_surface_area(verts, faces)
 
-    step+=1
-    series.status.progress(step, n_steps, 'Interpolating to isotropic...')
+    show_progress(3, 6, 'Interpolating to isotropic...')
 
-    # Interpolate to isotropic if necessary
+    # Interpolate to isotropic for non-isotropic voxels
+    # Motivation: this is required by the region_props function
     spacing = np.array(spacing)
     if np.amin(spacing) != np.amax(spacing):
-
-        # checked against scipy.resample which uses affine transform
-        # resampled_series = scipy.resample(series, [isotropic_spacing, isotropic_spacing, isotropic_spacing])
-        # array, _ = resampled_series.array('SliceLocation', pixels_first=True)
-        # array = array[...,0]
-
         array, isotropic_spacing = interpolate3d_isotropic(array, spacing)
         isotropic_voxel_volume = isotropic_spacing**3
     else:
         isotropic_spacing = np.mean(spacing)
         isotropic_voxel_volume = voxel_volume
 
-    # #NOTE: Use this to check which properties are available in 3D
-    # region_props = skimage.measure.regionprops(np.round(array).astype(np.int16))[0]
-    # region_props_3D = {}
-    # for prop in region_props:
-    #     try: 
-    #         region_props_3D[prop] = region_props[prop]
-    #     except:
-    #         print('Not supported in 3D: ', prop)
+    show_progress(4, 6, 'Extracting volume properties...')
 
-
-    # Get volume properties and create output
-    step+=1
-    series.status.progress(step, n_steps, 'Extracting volume properties...')
-
+    # Get volume properties - mostly from region_props, except for compactness and depth
     array = np.round(array).astype(np.int16)
     region_props_3D = skimage.measure.regionprops(array)[0]
-
-    # The sphere is the most compact shape, i.e. it has the largest volume to surface area ratio. 
+    # Calculate 'compactness' (our definition) - define as volume to surface ratio
+    # expressed as a percentage of the volume-to-surface ration of an equivalent sphere.
+    # The sphere is the most compact of all shapes, i.e. it has the largest volume to surface area ratio,
+    # so this is guaranteed to be between 0 and 100%
     radius = region_props_3D['equivalent_diameter_area']*isotropic_spacing/2 # mm
     v2s = volume/surface_area # mm
     v2s_equivalent_sphere = radius/3 # mm
     compactness = 100 * v2s/v2s_equivalent_sphere # %
+    # Fractional anisotropy - in analogy with FA in diffusion 
+    m0 = region_props_3D['inertia_tensor_eigvals'][0]
+    m1 = region_props_3D['inertia_tensor_eigvals'][1]
+    m2 = region_props_3D['inertia_tensor_eigvals'][2]
+    m = (m0 + m1 + m2)/3 # average moment of inertia (trace of the inertia tensor)
+    FA = np.sqrt(3/2) * np.sqrt((m0-m)**2 + (m1-m)**2 + (m2-m)**2) / np.sqrt(m0**2 + m1**2 + m2**2)
 
-    # Measure maximum depth
-    step+=1
-    series.status.progress(step, n_steps, 'Calculating depth...')
+    show_progress(5, 6, 'Calculating depth...')
+
+    # Measure maximum depth (our definition)
     distance = ndi.distance_transform_edt(array)
+    max_depth = np.amax(distance)
 
-    step+=1
-    series.status.progress(step, n_steps, 'Creating output...')
+    show_progress(6, 6, 'Creating output...')
 
+    # Summarise all values with human-readable names and proper units in a dictionary with values and units.
+    # Some of the definitions are rephrased or tweaked for more intuitive interpretation.
+    # The volume can be calculated independently from regionprops - included as sanity check.
     series_props = {
         'Surface area': (surface_area/100, 'cm^2'),
         'Volume': (volume/1000, 'mL'),
@@ -135,23 +162,18 @@ def volume_features(series):
         'Short axis length': (region_props_3D['axis_minor_length']*isotropic_spacing/10, 'cm'),
         'Equivalent diameter': (region_props_3D['equivalent_diameter_area']*isotropic_spacing/10, 'cm'),
         'Longest caliper diameter': (region_props_3D['feret_diameter_max']*isotropic_spacing/10, 'cm'),
-        'Maximum depth': (np.amax(distance)*isotropic_spacing/10, 'cm'),
+        'Maximum depth': (max_depth*isotropic_spacing/10, 'cm'),
         'Primary moment of inertia': (region_props_3D['inertia_tensor_eigvals'][0]*isotropic_spacing**2/100, 'cm^2'),
         'Second moment of inertia': (region_props_3D['inertia_tensor_eigvals'][1]*isotropic_spacing**2/100, 'cm^2'),
         'Third moment of inertia': (region_props_3D['inertia_tensor_eigvals'][2]*isotropic_spacing**2/100, 'cm^2'),
+        'Mean moment of inertia': (m*isotropic_spacing**2/100, 'cm^2'),
+        'Fractional anisotropy of inertia': (100*FA, '%'),
         'QC - Volume check': (region_props_3D['area']*isotropic_voxel_volume/1000, 'mL'),
-        'QC - Number of connected components': (region_props_3D['euler_number'], ''),
-        # From eigenvectors of inertia tensor: Include orientation info with respect to LPH coordinate system (tilt, roll)
+        # From eigenvectors of inertia tensor: 
+        # Include orientation info with respect to LPH coordinate system (tilt, roll)
     }
 
-    instance = series.instance()
-    columns = ['PatientID', 'StudyDescription', 'SeriesDescription', 'Parameter', 'Value', 'Unit']
-    ids = [instance.PatientID, instance.StudyDescription, instance.SeriesDescription] 
-    data = []
-    for par, val in series_props.items():
-        row = ids + [par, val[0], val[1]]
-        data.append(row)
-    return pd.DataFrame(data, columns = columns)
+    return series_props
 
 
 
