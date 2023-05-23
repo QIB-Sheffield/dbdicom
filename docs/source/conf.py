@@ -80,4 +80,4 @@ source_suffix = ['.rst', '.md']
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'images/sheffield-logo.jpg'
+html_logo = 'images/UOSLogo_Primary_Violet_RGB.png'
