@@ -344,12 +344,14 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
         else:
             im.progress(i+1, len(instances), 'Reading pixel data..')
             array.append(im.get_pixel_array())
-    if im is not None:
-        im.status.hide()
-        im.status.message('Reshaping pixel data..')
+    # if im is not None:
+    #     im.status.hide()
+    #     im.status.message('Reshaping pixel data..')
     array = _stack(array)
     if array is None:
-        msg = 'This series does not have pixel data..'
+        msg = 'Pixel array is empty. \n'
+        msg += 'Either because one or more of the keywords used for sorting does not exist; \n'
+        msg += 'or the series does not have any image data..'
         raise ValueError(msg)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:

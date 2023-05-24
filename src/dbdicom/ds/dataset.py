@@ -354,8 +354,8 @@ def get_values(ds, tags):
                 value = to_set_type(ds[tag].value)
 
         # If a tag is not present in the dataset, check if it can be derived
-        # if value is None:
-        #     value = derive_data_element(ds, tag)
+        if value is None:
+            value = derive_data_element(ds, tag)
 
         row.append(value)
     return row
@@ -365,10 +365,11 @@ def derive_data_element(ds, tag):
     """Tags that are not required but can be derived from other required tags"""
 
     if tag == 'SliceLocation' or tag == (0x0020, 0x1041):
-        return image.slice_location(
-            ds['ImageOrientationPatient'].value, 
-            ds['ImagePositionPatient'].value,
-        )
+        if 'ImageOrientationPatient' in ds and 'ImagePositionPatient' in ds:
+            return image.slice_location(
+                ds['ImageOrientationPatient'].value, 
+                ds['ImagePositionPatient'].value,
+            )
     # To be extended ad hoc with other tags that can be derived
 
 
