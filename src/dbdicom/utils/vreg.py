@@ -3,6 +3,7 @@ import numpy as np
 import scipy.stats as stats
 import scipy.optimize as opt
 import scipy.ndimage as ndi
+from scipy.interpolate import interpn
 from scipy.spatial.transform import Rotation
 import sklearn
 
@@ -27,29 +28,93 @@ def volume_coordinates(shape, position=[0,0,0]):
     return np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
 
 
-def interpolate_displacement(displacement_field, shape, **kwargs):
+# def _interpolate_displacement(displacement_field, shape, **kwargs):
 
-    # Get the coordinates of the displacement field with dimensions (x,y,z,d)
-    w = np.array(displacement_field.shape[:-1])-1
+#     # Get x, y, z coordinates for deformation field
+#     w = np.array(displacement_field.shape[:-1])-1
+#     x = np.linspace(0, w[0], displacement_field.shape[0])
+#     y = np.linspace(0, w[1], displacement_field.shape[1])
+#     z = np.linspace(0, w[2], displacement_field.shape[2])
+
+#     # Get x, y, z coordinates for voxel centers
+#     di = np.divide(w, shape)
+#     xi = np.linspace(0.5*di[0], w[0]-0.5*di[0], shape[0])
+#     yi = np.linspace(0.5*di[1], w[1]-0.5*di[1], shape[1])
+#     zi = np.linspace(0.5*di[2], w[2]-0.5*di[2], shape[2])
+
+#     # Create coordinate array
+#     dim = np.arange(3)
+#     #ri = np.meshgrid(xi, yi, zi, indexing='ij')
+#     ri = np.meshgrid(xi, yi, zi, dim, indexing='ij')
+#     ri = np.stack(ri, axis=-1)
+
+#     # Interpolate the displacement field in the voxel centers
+#     #dx = interpn((x,y,z), displacement_field[...,0], ri, method='linear')
+#     #dy = interpn((x,y,z), displacement_field[...,1], ri, method='linear')
+#     #dz = interpn((x,y,z), displacement_field[...,2], ri, method='linear')
+#     #displacement_field = np.column_stack((dx,dy,dz))
+#     displacement_field = interpn((x,y,z,dim), displacement_field, ri, method='linear')
+#     displacement_field = np.reshape(displacement_field, (np.prod(shape), 3))
+
+#     # Return results
+#     return displacement_field
+
+
+def interpolate_displacement_coords(dshape, shape):
+    """Get the coordinates of the interpolated displacement field."""
+
+    w = np.array(dshape[:-1])-1
     d = np.divide(w, shape)
     xo, yo, zo = np.meshgrid(
         np.linspace(0.5*d[0], w[0]-0.5*d[0], shape[0]),
         np.linspace(0.5*d[1], w[1]-0.5*d[1], shape[1]),
         np.linspace(0.5*d[2], w[2]-0.5*d[2], shape[2]),
         indexing = 'ij')
-    co = np.column_stack((xo.ravel(), yo.ravel(), zo.ravel()))
+    return np.column_stack((xo.ravel(), yo.ravel(), zo.ravel())).T
 
-    # Interpolate displacement field in volume coordinates
-    #deformation = ndi.map_coordinates(displacement_field, co.T, **kwargs)
-    deformation = np.column_stack(
-        (
-            ndi.map_coordinates(displacement_field[...,0], co.T, **kwargs),
-            ndi.map_coordinates(displacement_field[...,1], co.T, **kwargs),
-            ndi.map_coordinates(displacement_field[...,2], co.T, **kwargs),
-        )
-    )
-    #deformation = np.reshape(deformation, shape+(3,))
-    return deformation.reshape((np.prod(shape), 3))
+
+def interpolate_displacement(displacement_field, shape, coord=None, **kwargs):
+
+    if coord is None:
+        coord = interpolate_displacement_coords(displacement_field.shape, shape)
+
+    # Interpolate displacement field in volume coordinates.
+    dx = ndi.map_coordinates(displacement_field[...,0], coord, **kwargs)
+    dy = ndi.map_coordinates(displacement_field[...,1], coord, **kwargs)
+    dz = ndi.map_coordinates(displacement_field[...,2], coord, **kwargs)
+    deformation = np.column_stack((dx,dy,dz))
+    #deformation = np.reshape(deformation, (np.prod(shape), 3))
+
+    return deformation
+
+
+def freeform_interpolator(dshape, shape, **kwargs):
+    iind = []
+    ival = []
+    coord = interpolate_displacement_coords(dshape, shape)
+    displacement = np.zeros(dshape, dtype=np.float32)
+    for i in range(displacement.size):
+        c = np.unravel_index(i, displacement.shape)
+        displacement[c] = 1
+        v = interpolate_displacement(displacement, shape, coord, **kwargs)
+        v = np.ravel(v)
+        displacement[c] = 0
+        ind = np.where(v != 0)
+        val = v[ind]
+        iind.append(ind)
+        ival.append(val)
+    return {'ind':iind, 'val':ival}
+
+
+def interpolator_displacement(displacement, shape, interpolator):
+
+    displacement_interp = np.zeros((np.prod(shape)*3,), np.float32)
+    for i in range(displacement.size):
+        c = np.unravel_index(i, displacement.shape)
+        displacement_interp[interpolator['ind'][i]] += displacement[c]*interpolator['val'][i]
+    displacement_interp = np.reshape(displacement_interp, (np.prod(shape), 3))
+    return displacement_interp
+
 
 
 def surface_coordinates(shape):
@@ -463,14 +528,18 @@ def affine_transform_and_reslice(input_data, input_affine, output_shape, output_
 
 #     return output_data
 
+
+
 # Note: to apply to a window, adjust output_shape and output_affine (position vector)
 # Deformation defined in input coordinates
-def freeform(input_data, displacement, output_shape=None, output_to_input=np.eye(4), output_coordinates=None, **kwargs):
+def freeform_deformation(input_data, displacement, output_shape=None, output_to_input=np.eye(4), output_coordinates=None, **kwargs):
     """Freeform deformation assuming deformation field is defined in the reference frame of input data"""
 
     # Set defaults
     if output_shape is None:
         output_shape = input_data.shape
+    else:
+        output_shape = tuple(output_shape)
 
     # Create an array of all coordinates in the output volume
     # Optional argument as this can be precomputed for registration purposes
@@ -481,7 +550,10 @@ def freeform(input_data, displacement, output_shape=None, output_to_input=np.eye
         output_coordinates = apply_affine(output_to_input, output_coordinates)
         
     # Apply free-from deformation to all output coordinates
-    deformation = interpolate_displacement(displacement, output_shape)
+    t = time.time()
+    deformation = interpolate_displacement(displacement, output_shape, order=1)
+    t1 = time.time()-t
+    
     input_coordinates = output_coordinates + deformation
 
     # Extend with constant value for half a voxel outside of the boundary
@@ -489,8 +561,61 @@ def freeform(input_data, displacement, output_shape=None, output_to_input=np.eye
     input_coordinates = extend_border(input_coordinates, input_data.shape)
 
     # Interpolate the input data in the transformed coordinates
-    output_data = ndi.map_coordinates(input_data, input_coordinates.T, **kwargs)
+    t = time.time()
+    output_data = ndi.map_coordinates(input_data, input_coordinates.T, order=1)
+    t2 = time.time()-t
     output_data = np.reshape(output_data, output_shape)
+
+    #print('Interpolate displacement', t1)
+    #print('Map coordinates', t2)
+    #print('Interp1/interp2', t1/t2)
+
+    return output_data
+
+
+# Note: to apply to a window, adjust output_shape and output_affine (position vector)
+# Deformation defined in input coordinates
+def freeform_deformation_align(input_data, displacement, output_shape=None, output_to_input=np.eye(4), output_coordinates=None, interpolator=None, **kwargs):
+    """Freeform deformation with precomputing options optimized for use in coregistration"""
+
+    # Set defaults
+    if output_shape is None:
+        output_shape = input_data.shape
+    else:
+        output_shape = tuple(output_shape)
+
+    # Create an array of all coordinates in the output volume
+    # Optional argument as this can be precomputed for registration purposes
+    if output_coordinates is None:
+        # Creat output coordinates
+        output_coordinates = volume_coordinates(output_shape)
+        # Express output coordinates in reference frame of the input volume
+        output_coordinates = apply_affine(output_to_input, output_coordinates)
+
+    if interpolator is None:
+        interpolator = freeform_interpolator(displacement.shape, output_shape, order=1)
+        
+    # Apply free-from deformation to all output coordinates
+    t = time.time()
+    deformation = interpolator_displacement(displacement, output_shape, interpolator)
+    t1 = time.time()-t
+    
+    input_coordinates = output_coordinates + deformation
+
+    # Extend with constant value for half a voxel outside of the boundary
+    # TODO make this an option in 3D - costs time and is not necessary when a window is taken inside the FOV (better way to deal with borders)
+    input_coordinates = extend_border(input_coordinates, input_data.shape)
+
+    # Interpolate the input data in the transformed coordinates
+    t = time.time()
+    output_data = ndi.map_coordinates(input_data, input_coordinates.T, order=1)
+    t2 = time.time()-t
+    
+    output_data = np.reshape(output_data, output_shape)
+
+    #print('Interpolate displacement', t1)
+    #print('Map coordinates', t2)
+    #print('Interp1/interp2', t1/t2)
 
     return output_data
 
@@ -549,6 +674,14 @@ def affine(input_data, input_affine, output_shape, output_affine, parameters, **
 def affine_reshape(input_data, input_affine, rotation, translation, stretch, **kwargs):
     transformation = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=stretch)
     return affine_transform(input_data, input_affine, transformation, reshape=True, **kwargs)
+
+def freeform(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    output_to_input = np.linalg.inv(input_affine).dot(output_affine)
+    return freeform_deformation(input_data, parameters, output_shape, output_to_input, **kwargs)
+
+def freeform_align(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    output_to_input = np.linalg.inv(input_affine).dot(output_affine)
+    return freeform_deformation_align(input_data, parameters, output_shape, output_to_input, **kwargs)
 
 
 
@@ -636,6 +769,10 @@ def print_current(xk):
     print('Current parameter estimates: ' , xk)
     return False
 
+def print_current_norm(xk):
+    print('Norm of current parameter estimates: ' , np.linalg.norm(xk))
+    return False
+
 
 def minimize(*args, method='GD', **kwargs):
     "Wrapper around opt.minimize which also has a gradient descent option"
@@ -681,61 +818,57 @@ def minimize_gd(cost_function, parameters, args=None, callback=None, options={},
             return parameters
 
 
-def _ONESIDED_gradient(cost_function, parameters, f0, step, *args):
-    grad = np.empty(parameters.shape)
-    for i, p in enumerate(parameters):
-        pi = parameters[i]
-        parameters[i] = pi+step[i]
-        fi = cost_function(parameters, *args)
-        parameters[i] = pi
-        #grad[i] = (fi-f0)/step[i]
-        grad[i] = (fi-f0)
-        parameters[i] = parameters[i]-step[i]
-    return grad
-
 
 def gradient(cost_function, parameters, f0, step, bounds, *args):
     grad = np.empty(parameters.shape)
-    for i, p in enumerate(parameters):
-        pi = parameters[i]
-        parameters[i] = pi+step[i]
-        parameters = project_on(parameters, bounds, index=i)
+    for i in range(parameters.size):
+        c = np.unravel_index(i, parameters.shape)
+        pc = parameters[c]
+        sc = step[c]
+        parameters[c] = pc+sc
+        parameters = project_on(parameters, bounds, coord=c)
         fp = cost_function(parameters, *args)
-        parameters[i] = pi-step[i]
-        parameters = project_on(parameters, bounds, index=i)
+        parameters[c] = pc-sc
+        parameters = project_on(parameters, bounds, coord=c)
         fn = cost_function(parameters, *args)
-        parameters[i] = pi
-        grad[i] = (fp-fn)/2
-        #grad[i] = (fp-fn)/(2*step[i]) 
+        parameters[c] = pc
+        grad[c] = (fp-fn)/2
+        #grad[i] = (fp-fn)/(2*step[i])
         #grad[i] = stats.linregress([-step[i],0,step[i]], [fn,f0,fp]).slope
 
     # Normalize the gradient
-    grad /= np.linalg.norm(grad)
+    grad_norm = np.linalg.norm(grad)
+    if grad_norm == 0:
+        msg = 'Gradient has length zero - cannot perform gradient descent'
+        raise ValueError(msg) 
+    grad /= grad_norm
     grad = np.multiply(step, grad)
 
     return grad
 
 
-def project_on(par, bounds, index=None):
+def project_on(par, bounds, coord=None):
     if bounds is None:
         return par
     if len(bounds) != len(par):
         msg = 'Parameter and bounds must have the same length'
         raise ValueError(msg)
-    if index is not None:   # project only that index
-        pi = par[index]
-        bi = bounds[index]
-        if pi <= bi[0]:
-            pi = bi[0]
-        if pi >= bi[1]:
-            pi = bi[1]
+    if coord is not None:   # project only that index
+        pc = par[coord]
+        bc = bounds[coord]
+        if pc <= bc[0]:
+            pc = bc[0]
+        if pc >= bc[1]:
+            pc = bc[1]
     else:   # project all indices
-        for i, pi in enumerate(par):
-            bi = bounds[i]
-            if pi <= bi[0]:
-                par[i] = bi[0]
-            if pi >= bi[1]:
-                par[i] = bi[1]
+        for i in range(par.size):
+            c = np.unravel_index(i, par.shape)
+            pc = par[c]
+            bc = bounds[c]
+            if pc <= bc[0]:
+                par[c] = bc[0]
+            if pc >= bc[1]:
+                par[c] = bc[1]
     return par
 
 
@@ -797,47 +930,6 @@ def line_search(cost_function, grad, p0, stepsize0, f0, bounds, *args, tolerance
             msg = 'Line search failed to find a minimum'
             raise ValueError(msg) 
         
-
-def _OLD_align(
-        moving = None, 
-        static = None, 
-        parameters = np.zeros(3), 
-        transformation = translate, 
-        metric = sum_of_squares, 
-        moving_affine = None,
-        static_affine = None,
-        moving_mask = None, 
-        static_mask = None, 
-        transformation_args = None, 
-        metric_args = None):
-    
-    # Set defaults for required parameters
-    if moving_affine is None:
-        moving_affine = np.eye(moving.ndim + 1)
-    if static_affine is None:
-        static_affine = np.eye(static.ndim + 1)
-    
-    args = (
-        moving, 
-        static, 
-        transformation, 
-        metric, 
-        moving_affine,
-        static_affine,
-        moving_mask, 
-        static_mask, 
-        transformation_args, 
-        metric_args)
-    
-    res = opt.minimize(
-        _objective_function, 
-        parameters, 
-        args=args,
-        callback=_callback,
-    )
-
-    return res.x
-
 
 def goodness_of_alignment(params, transformation, metric, moving, moving_affine, static, static_affine, coord):
 
@@ -1849,7 +1941,22 @@ def test_affine(show=True):
     return input_data, input_affine, output_data, output_affine, parameters
 
 
-def test_freeform(show=True):
+def test_freeform(show=True, n=1):
+
+    window = False
+    nodes = 4
+
+    if n==1:
+        pass
+    elif n==2:
+        window=True
+    elif n==3:
+        window=True
+        nodes=2
+    elif n==4:
+        window=False
+        nodes=2
+
 
     # Define geometry of source data
     input_shape = np.array([300, 250, 25])   # mm
@@ -1873,8 +1980,8 @@ def test_freeform(show=True):
     # Define output_volume
     output_shape = list(input_data.shape)
     output_affine = input_affine.copy()
-    extract_window = True
-    if extract_window:
+    
+    if window:
         output_shape[0] = 100
         output_shape[1] = 100
         output_affine[0,3] = output_affine[0,3] + 80
@@ -1882,7 +1989,7 @@ def test_freeform(show=True):
         output_affine[2,3] = output_affine[2,3] + 40
 
     # Apply freeform deformation derived from affine transformation
-    start_time = time.time()
+    
 
     # Get exact results for affine transformation
     parameters = np.concatenate((rotation, translation, stretch))
@@ -1898,16 +2005,18 @@ def test_freeform(show=True):
     affine_transformation_inv = np.linalg.inv(affine_transformation)
 
     # Get corresponding inverse deformation field
-    nodes = 16
-    output_to_input = np.linalg.inv(input_affine).dot(output_affine)
-    inverse_deformation_field = affine_deformation_field(affine_transformation_inv, output_shape, nodes, output_to_input=output_to_input)
+    o2i = np.linalg.inv(input_affine).dot(output_affine)
+    inverse_deformation_field = affine_deformation_field(affine_transformation_inv, output_shape, nodes, output_to_input=o2i)
 
     # Apply deformation field
-    output_data = freeform(input_data, inverse_deformation_field, output_shape=output_shape, output_to_input=output_to_input)
-
-    error = np.linalg.norm(output_data-exact_output_data)/np.linalg.norm(exact_output_data)
+    start_time = time.time()
+    #inverse_deformation_field[0,0,0,0] += 10
+    output_data = freeform(input_data, input_affine, output_shape, output_affine, inverse_deformation_field)
+    #output_data = freeform_align(input_data, input_affine, output_shape, output_affine, inverse_deformation_field)
     end_time = time.time()
 
+    error = np.linalg.norm(output_data-exact_output_data)/np.linalg.norm(exact_output_data)
+    
     # Display results
     if show:
         print('Computation time (sec): ', end_time-start_time)
@@ -1916,7 +2025,7 @@ def test_freeform(show=True):
         plot_affine_transformed(input_data, input_affine, output_data, output_affine, affine_transformation_abs)
         #plot_affine_transformed(input_data, input_affine, output_data-exact_output_data, output_affine, affine_transformation_abs)
 
-    return input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs
+    return input_data, input_affine, output_data, output_affine, inverse_deformation_field
 
 
 def test_align_translation(n=1):
@@ -2196,19 +2305,15 @@ def test_align_affine(n=1):
 
 def test_align_freeform(n=1):
 
-    if n==1:
-        input_data, input_affine, output_data, output_affine, inverse_deformation_field, affine_transformation_abs = test_freeform(show=False)
+    input_data, input_affine, output_data, output_affine, parameters = test_freeform(show=False, n=n)
 
-    # Initialise the inverse deformation field
-    nodes = 4
-    dim = deformation_field_shape(output_data.shape, nodes)
-    parameters = np.zeros(dim + (3,))
-
+     
     # Define registration
+    initial_guess = np.zeros(parameters.shape)
     transformation = freeform
     metric = sum_of_squares
-    step = np.full(parameters.shape, 0.1)
-    optimization = {'method':'GD', 'options':{'gradient step': step, 'tolerance': 0.1}, 'callback':print_current}
+    step = np.full(initial_guess.shape, 1.0)
+    optimization = {'method':'GD', 'options':{'gradient step':step, 'tolerance': 0.1}, 'callback': print_current_norm}
     
     # Align volumes
     start_time = time.time()
@@ -2218,11 +2323,11 @@ def test_align_freeform(n=1):
             moving_affine = input_affine, 
             static = output_data, 
             static_affine = output_affine,  
-            resolutions = [4,2,1], 
-            parameters = parameters,
+            resolutions = [1], 
+            parameters = initial_guess,
+            transformation = transformation,
             metric = metric,
             optimization = optimization,
-            transformation = transformation,
         )
     except:
         print('Failed to align volumes. Returning initial value as current best guess..')
@@ -2230,11 +2335,10 @@ def test_align_freeform(n=1):
     end_time = time.time()
 
     # Calculate estimate of static image and cost functions
-    
     output_data_estimate = transformation(input_data, input_affine, output_data.shape, output_affine, estimate)
-    cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_after = goodness_of_alignment(estimate, transformation, metric, input_data, input_affine, output_data, output_affine, None)
     cost_after *= 100/np.sum(np.square(output_data))
-    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None) 
+    cost_before = goodness_of_alignment(initial_guess, transformation, metric, input_data, input_affine, output_data, output_affine, None)
     cost_before *= 100/np.sum(np.square(output_data))
 
     # Display results
@@ -2331,7 +2435,7 @@ if __name__ == "__main__":
     # test_rigid()
     # test_rigid_reshape()
     # test_affine()
-    test_freeform()
+    # test_freeform(n=3)
 
 
     # Test coregistration
@@ -2341,6 +2445,6 @@ if __name__ == "__main__":
     # test_align_stretch(n=2)
     # test_align_rigid(n=1)
     # test_align_affine(n=1)
-    # test_align_freeform(n=1)
+    test_align_freeform(n=3)
 
 
