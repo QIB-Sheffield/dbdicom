@@ -1,5 +1,5 @@
 Browsing a DICOM folder
 =========================
 
-.. include:: markdown/03browse.md
+.. include:: markdown/browse.md
     :parser: myst_parser.sphinx_

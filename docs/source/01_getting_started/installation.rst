@@ -1,5 +1,5 @@
 Installation
 ================
 
-.. include:: markdown/01installation.md
+.. include:: markdown/installation.md
     :parser: myst_parser.sphinx_
