@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.abspath('../../src'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones
 extensions = ['sphinx.ext.napoleon', # parsing of NumPy and Google style docstrings
                 'sphinx.ext.autodoc', # sphinx autodocumentation generation
+                'sphinx_design', # sphinx web design components
                 'sphinx.ext.autosummary', # generates function/method/attribute summary lists
                 'sphinx.ext.viewcode', # viewing source code
                 'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
