@@ -2,7 +2,11 @@ API reference
 =============
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
-   core
-   dbdicom
+   objects/index
+   routines/index
+   wrappers/index
+   
+   
+   
