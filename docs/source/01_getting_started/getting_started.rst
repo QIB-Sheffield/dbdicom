@@ -5,6 +5,7 @@ Getting started
    :maxdepth: 4
    :caption: Contents:
 
+   summary
    installation
    browse
    create
