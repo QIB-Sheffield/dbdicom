@@ -1,6 +1,6 @@
 # Browsing a DICOM folder
 
-### Reading and opening a DICOM database
+## Reading and opening a DICOM database
 
 Open a DICOM database in a given folder, and print a summary of the content:
 
@@ -28,7 +28,7 @@ database.close()
 
 If unsaved changes exist, `close()` will prompt the user to either save or restore to the last saved state.
 
-### Retrieving objects from the folder
+## Retrieving objects from the folder
 
 A DICOM database has a hierarchical structure. 
 
@@ -90,7 +90,7 @@ patient = series.patients()
 
 In this case the function will return a single item.
 
-### Finding DICOM objects in the folder
+## Finding DICOM objects in the folder
 
 Each DICOM file has a number of attributes describing the properties of the object. Examples are PatientName, StudyDate, etc. A convenient list of attributes for specific objects can be found [here](https://dicom.innolitics.com/):
 
@@ -131,7 +131,7 @@ The same convenience functions are available, such as searching by keywords:
 studies = patient.children(ReferringPhysicianName = 'Dr. No')
 ```
 
-### Moving and removing objects
+## Moving and removing objects
 
 To remove an object from the folder, call `remove()` on the object:
 
@@ -151,7 +151,7 @@ study.move_to(new_parent)
 ```
 
 
-### Copying and creating objects
+## Copying and creating objects
 
 Any object can be copied by calling `copy()`: 
 
@@ -221,7 +221,7 @@ new_study = series.new_pibling(
 This will ensure that all data that appear under the new study will have these attributes. 
 
 
-### Export and import
+## Export and import
 
 To import DICOM files from an external folder, call `import_dicom()` on a database with a list of files:
 

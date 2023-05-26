@@ -1,6 +1,6 @@
 # Creating and modifying DICOM files
 
-### Reading DICOM attributes
+## Reading DICOM attributes
 
 An object's DICOM attributes can be read by using the DICOM keyword of the attribute:
 
@@ -36,7 +36,7 @@ dimensions = patient[dimensions]
 ```
 
 
-### Editing attributes
+## Editing attributes
 
 
 DICOM tags can be modified using the same notations:
@@ -70,7 +70,7 @@ When setting values in a series, study or patient, all the instances in the obje
 series.Rows = 128
 ```
 
-### Custom attributes
+## Custom attributes
 
 Apart from the predefined public and private DICOM keywords, `dbdicom` also provides a number of custom attributes for more convenient access to higher level properties. In order to distinguish these from existing DICOM attributes which are defined in `CamelCase`, the custom attributes follow the `lower_case` notation. 
 
@@ -93,7 +93,7 @@ As for standard DICOM attributes this returns a list if unique values for the se
 Custom attributes can easily be added to any DICOM dataset type and the number of available attributes is set to grow as the need arises.
 
 
-### Read and write
+## Read and write
 
 By default all changes to a database are made on disk. For instance if a DICOM attribute is changed
 
@@ -119,7 +119,7 @@ series.clear()
 These operations can be called on the entire database, on patients, studies, series or instances. 
 
 
-### Save and restore
+## Save and restore
 
 All changes made in a DICOM folder are reversible until they are saved.
 To save all changes, use `save()`:
@@ -149,7 +149,7 @@ series.save()
 will save all changes made in the series (but not other objects in the database) permanently. 
 
 
-### Working with series
+## Working with series
 
 A DICOM series typically represents images that are acquired together, such as 3D volumes or time series. Some dedicated functionality exists for series that is not relevant for objects elsewhere in the hierarchy. 
 
@@ -231,7 +231,7 @@ overlay = series.map_mask_to(target)
 ```
 
 
-### Creating DICOM data from scratch
+## Creating DICOM data from scratch
 
 To create a DICOM series from a numpy array, use `dbdicom.series()`:
 
@@ -274,7 +274,7 @@ scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
 scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
 ```
 
-### Work in progress: a numpy-like interface
+## Work in progress: a numpy-like interface
 
 We are currently building a `numpy`-type interface for creating new DICOM objects. For instance to create a new series with given dimensions in a study you can do:
 
