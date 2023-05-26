@@ -6,8 +6,8 @@ Core classes
 .. autosummary::
    :toctree: _autosummary
 
-   dbdicom.record.Record
-   dbdicom.types.series.Series
-   dbdicom.types.study.Study
-   dbdicom.types.patient.Patient
-   dbdicom.types.database.Database
+.. autoclass:: dbdicom.record.Record
+.. autoclass:: dbdicom.types.series.Series
+.. autoclass:: dbdicom.types.study.Study
+.. autoclass:: dbdicom.types.patient.Patient
+.. autoclass:: dbdicom.types.database.Database
