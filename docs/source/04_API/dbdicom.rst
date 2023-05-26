@@ -1,6 +1,8 @@
 .. currentmodule:: dbdicom
 
 
+.. automodule:: dbdicom.record
+
 
 dbdicom.message module
 ----------------------
