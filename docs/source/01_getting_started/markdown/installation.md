@@ -1,2 +1,3 @@
-## Installation
+# Installation
+
 Run `pip install dbdicom`.
