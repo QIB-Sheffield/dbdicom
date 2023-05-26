@@ -55,7 +55,7 @@ where = ["src"]
 [project.optional-dependencies]
 docs = [
     "sphinx",
-    "sphinx_rtd_theme",
+    "pydata-sphinx-theme",
     "myst-parser", 
     "sphinx-copybutton",
     "sphinx-remove-toctrees",
