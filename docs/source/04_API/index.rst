@@ -5,6 +5,5 @@ API reference
    :maxdepth: 4
    :caption: Contents:
 
+   core
    dbdicom
-   dbdicom.external
-   dbdicom.external.dcm4che
