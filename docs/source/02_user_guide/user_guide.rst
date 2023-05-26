@@ -1,5 +1,5 @@
-Getting started
-================
+User guide
+==========
 
 .. toctree::
    :maxdepth: 4

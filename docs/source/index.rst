@@ -66,7 +66,7 @@ are fully operational.
    :caption: Contents:
    
    01_getting_started/getting_started
-   02_user_guide/user
+   02_user_guide/user_guide
    03_developers_guide/installation
    04_API/modules
    05_example_notebooks/examples
