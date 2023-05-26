@@ -118,8 +118,12 @@ class Series(DbRecord):
             img.export_as_csv(path)
 
 
-    def export_as_nifti(self, path):
-        """Export all images as nii files"""
+    def export_as_nifti(self, path: str):
+        """Export images in nifti format.
+
+        Args:
+            path (str): path where results are to be saved.
+        """
         folder = self.label()
         path = export_path(path, folder)
         affine = self.affine_matrix()
@@ -135,8 +139,33 @@ class Series(DbRecord):
 
     def subseries(*args, move=False, **kwargs):
         return subseries(*args, move=move, **kwargs)
+
     
-    def split_by(self, keyword):
+    def split_by(self, keyword: str|tuple) -> list:
+        """Split the series into multiple subseries based on keyword value.
+
+        Args:
+            keyword (str | tuple): A valid DICOM keyword or hexadecimal (group, element) tag.
+
+        Raises:
+            ValueError: if an invalid or missing keyword is provided.
+            ValueError: if all images have the same value for the keyword, 
+                so no subseries can be derived. An exception is raised rather than a copy 
+                of the series to avoid unnecessary copies being made. If that is the intention, 
+                use series.copy() instead.
+
+        Returns:
+            list: A list of subseries, where each element 
+            has the same value of the given keyword.
+
+        Example: split a series up into multiple series, 
+        each containing all images at the same location.
+
+        .. code-block:: python
+
+            subseries = series.split_by('SliceLocation')   # By keyword
+            subseries = series.split_by((0x0020,0x1041))   # By (group, element) tag
+        """
         
         self.status.message('Reading values..')
         try:
@@ -178,6 +207,7 @@ class Series(DbRecord):
     # Obsolete - use set_array()
     def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
+
 
 
 

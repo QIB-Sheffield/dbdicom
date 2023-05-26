@@ -11,7 +11,7 @@ Welcome to the dbdicom documentation!
 .. warning::
 
    ``dbdicom`` is developed in public, however it is a work in progress. 
-   Therefore, please bear in mind some features are still in development and **backwards compatibility is not likely to happen**.
+   Therefore, please bear in mind some features are still in development.
 
 Summary
 ============
@@ -39,31 +39,10 @@ package will continue to be shaped through use in these studies and we
 expect it will attain a more final form when these analysis pipelines
 are fully operational.
 
-.. grid-item-card:: Getting started
-   :shadow: md
 
-      .. button-ref:: 01_getting_started/getting_started
-         :ref-type: ref
-         :click-parent:
-         :color: secondary
-         :expand:
-
-         To the getting started guides
-
-.. grid-item-card:: User guide
-   :shadow: md
-   
-      .. button-ref:: 02_user_guide/user
-         :ref-type: ref
-         :click-parent:
-         :color: secondary
-         :expand:
-
-         To the user guides
 
 .. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+   :maxdepth: 2
    
    01_getting_started/index
    02_user_guide/index

@@ -31,6 +31,14 @@ def create(manager, uid='Database', type=None, key=None, **kwargs):
 
 
 def database(path=None, **kwargs):
+    """_summary_
+
+    Args:
+        path (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     if path is None:
         mgr = Manager()
     else:
@@ -40,6 +48,16 @@ def database(path=None, **kwargs):
 
 
 def series(array, pixels_first=False, path=None):
+    """_summary_
+
+    Args:
+        array (_type_): _description_
+        pixels_first (bool, optional): _description_. Defaults to False.
+        path (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     db = database(path)
     patient = db.new_patient()
     study = patient.new_study()
@@ -47,7 +65,18 @@ def series(array, pixels_first=False, path=None):
     series.set_pixel_array(array, pixels_first=pixels_first)
     return series
 
+
 def zeros(shape, dtype='mri', path=None):
+    """_summary_
+
+    Args:
+        shape (_type_): _description_
+        dtype (str, optional): _description_. Defaults to 'mri'.
+        path (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     db = database(path)
     patient = db.new_patient()
     study = patient.new_study()
