@@ -6,7 +6,7 @@
 Welcome to the dbdicom documentation!
 =====================================
 
-``dbdicom`` is a new Python interface for reading and writing DICOM databases.
+``dbdicom`` is a Python interface for reading and writing DICOM databases.
 
 .. warning::
 
@@ -44,9 +44,8 @@ are fully operational.
 .. toctree::
    :maxdepth: 2
    
-   01_getting_started/index
-   02_user_guide/index
-   03_developers_guide/index
-   04_API/index
-   05_example_notebooks/index
-   06_about/index
+   user_guide/index
+   API_reference/index
+   tutorials/index
+   developers_guide/index
+   about/index
