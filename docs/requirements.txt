@@ -1,6 +1,12 @@
-sphinx
-pydata-sphinx-theme
 myst-parser
+pydata-sphinx-theme
+sphinx
 sphinx-copybutton
-sphinx-remove-toctrees
 sphinx-design
+sphinx-remove-toctrees
+sphinxcontrib-applehelp
+sphinxcontrib-devhelp
+sphinxcontrib-htmlhelp
+sphinxcontrib-jsmath 
+sphinxcontrib-qthelp
+sphinxcontrib-serializinghtml
