@@ -1,4 +1,0 @@
-Example notebooks
-===================
-
-Coming soon!!!
