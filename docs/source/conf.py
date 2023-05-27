@@ -23,15 +23,18 @@ sys.path.insert(0, os.path.abspath('../../src'))
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones
-extensions = ['sphinx.ext.napoleon', # parsing of NumPy and Google style docstrings
-                'sphinx.ext.autodoc', # sphinx autodocumentation generation
-                'sphinx_design', # sphinx web design components
-                'sphinx.ext.autosummary', # generates function/method/attribute summary lists
-                'sphinx.ext.viewcode', # viewing source code
-                'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
-                'myst_parser', # parser for markdown language
-                'sphinx_copybutton', # copy button for code blocks
-                'sphinx_remove_toctrees'] # selectively remove toctree objects from pages
+extensions = [
+    'sphinx.ext.napoleon', # parsing of NumPy and Google style docstrings
+    'sphinx.ext.autodoc', # sphinx autodocumentation generation
+    'sphinx.ext.autosummary', # generates function/method/attribute summary lists
+    'sphinx.ext.viewcode', # viewing source code
+    'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
+    'autodocsumm',
+    'myst_parser', # parser for markdown language
+    'sphinx_copybutton', # copy button for code blocks
+    'sphinx_design', # sphinx web design components
+    'sphinx_remove_toctrees', # selectively remove toctree objects from pages
+]
 
 # Add any paths that contain templates here, relative to this directory
 templates_path = ['_templates']

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.utils.files import export_path
+from dbdicom.message import StatusBar, Dialog
 
 
 
@@ -36,9 +37,6 @@ class DbRecord():
     def __setitem__(self, attributes, values):
         self.set_values(attributes, values)
 
-    def path(self):
-        return self.manager.path
-
     def loc(self):
         return self.manager._loc(self.name, self.uid)
         # df = self.manager.register
@@ -68,18 +66,38 @@ class DbRecord():
                 self._set_key()
         return self._key
 
+    def path(self) -> str:
+        """Directory of the DICOM database
+
+        Returns:
+            str: full path to the directory
+        """
+        return self.manager.path
+
     @property
-    def status(self): 
+    def status(self) -> StatusBar: 
+        """Return a status bar for sending messages to the user.
+
+        Returns:
+            StatusBar: instance of the StatusBar class
+        """
         return self.manager.status
 
     @property
-    def dialog(self):
+    def dialog(self) -> Dialog:
+        """Return a dialog for interacting with the user.
+
+        Returns:
+            Dialog: instance of the Dialog class.
+        """
         return self.manager.dialog
 
     def mute(self):
+        """Prevent the object from sending status updates to the user"""
         self._mute = True
         
     def unmute(self):
+        """Allow the object to send status updates to the user"""
         self._mute = False
 
     def progress(self, *args, **kwargs):
