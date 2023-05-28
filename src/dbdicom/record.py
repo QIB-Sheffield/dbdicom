@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.utils.files import export_path
-from dbdicom.message import StatusBar, Dialog
 
 
 
@@ -66,6 +65,14 @@ class DbRecord():
                 self._set_key()
         return self._key
 
+    @property
+    def status(self): 
+        return self.manager.status
+
+    @property
+    def dialog(self):
+        return self.manager.dialog
+    
     def path(self) -> str:
         """Directory of the DICOM database
 
@@ -73,24 +80,6 @@ class DbRecord():
             str: full path to the directory
         """
         return self.manager.path
-
-    @property
-    def status(self) -> StatusBar: 
-        """Return a status bar for sending messages to the user.
-
-        Returns:
-            StatusBar: instance of the StatusBar class
-        """
-        return self.manager.status
-
-    @property
-    def dialog(self) -> Dialog:
-        """Return a dialog for interacting with the user.
-
-        Returns:
-            Dialog: instance of the Dialog class.
-        """
-        return self.manager.dialog
 
     def mute(self):
         """Prevent the object from sending status updates to the user"""
@@ -100,13 +89,59 @@ class DbRecord():
         """Allow the object to send status updates to the user"""
         self._mute = False
 
-    def progress(self, *args, **kwargs):
-        if not self._mute:
-            self.manager.status.progress(*args, **kwargs)
+    def progress(self, value: float, maximum: float, message: str=None):
+        """Print progress message to the terminal..
 
-    def message(self, *args, **kwargs):
+        Args:
+            value (float): current status
+            maximum (float): maximal value
+            message (str, optional): Message to include in the update. Defaults to None.
+
+        Note:
+            When working through a terminal this could easily be replicated with a print statement. The advantage of using the progress interface is that the code does not need to be changed when the computation is run through a graphical user interface (assuming this uses a compatible API). 
+            
+            Another advantage is that messaging can be muted/unmuted using .mute() and .unmute(), for instance when the object is passed to a subroutine.
+
+        See Also:
+            :func:`~message`
+            :func:`~mute`
+            :func:`~unmute`
+
+        Example:
+            >>> series.progress(2, 10, 'Looping over slices')
+            Looping over slices [20 %]
+        """
         if not self._mute:
-            self.manager.status.message(*args, **kwargs)
+            self.manager.status.progress(value, maximum, message=message)
+
+    def message(self, message: str):
+        """Print a message to the user.
+
+        Args:
+            message (str): Message to be printed.
+
+        Note:
+            When working through a terminal a print statement would have exactly the same effect. The advantage of using the message interface is that the code does not need to be changed when the computation is run through a graphical user interface (assuming this uses a compatible API). 
+            
+            Another advantage is that messaging can be muted/unmuted using .mute() and .unmute() for instance when the object is passed to a subroutine.
+
+        See Also:
+            :func:`~progress`
+            :func:`~mute`
+            :func:`~unmute`
+
+        Example:
+            >>> series.message('Starting computation..')
+            Starting computation..
+            >>> # After muting the same statment does not send a message.
+            >>> series.mute()
+            >>> series.message('Starting computation..')
+            >>> series.unmute()
+            >>> series.message('Starting computation..')
+            Starting computation..
+        """
+        if not self._mute:
+            self.manager.status.message(message)
 
     def type(self):
         return self.__class__.__name__

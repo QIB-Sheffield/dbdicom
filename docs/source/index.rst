@@ -45,7 +45,7 @@ are fully operational.
    :maxdepth: 2
    
    user_guide/index
-   API_reference/index
+   reference/index
    tutorials/index
    developers_guide/index
    about/index
