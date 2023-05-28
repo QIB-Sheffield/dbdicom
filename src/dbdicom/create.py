@@ -66,17 +66,8 @@ def series(array, pixels_first=False, path=None):
     return series
 
 
-def zeros(shape, dtype='mri', path=None):
-    """_summary_
+def zeros(shape:tuple, dtype='mri', path:str=None) -> Series:
 
-    Args:
-        shape (_type_): _description_
-        dtype (str, optional): _description_. Defaults to 'mri'.
-        path (_type_, optional): _description_. Defaults to None.
-
-    Returns:
-        _type_: _description_
-    """
     db = database(path)
     patient = db.new_patient()
     study = patient.new_study()
