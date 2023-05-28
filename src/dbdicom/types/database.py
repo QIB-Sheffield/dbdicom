@@ -1,7 +1,7 @@
-from dbdicom.record import DbRecord
+from dbdicom.record import Record
 from dbdicom.utils.files import gif2numpy
 
-class Database(DbRecord):
+class Database(Record):
 
     def loc(self):
         return self.manager._dbloc()
@@ -69,7 +69,7 @@ class Database(DbRecord):
         else:
             return self.record('Patient', uids)
 
-    def zeros(*args, **kwargs):
+    def zeros(*args, **kwargs): # OBSOLETE - remove
         return zeros(*args, **kwargs)
 
     # def export_as_dicom(self, path): 
@@ -85,7 +85,7 @@ class Database(DbRecord):
     #         child.export_as_csv(path)
 
 
-def zeros(database, shape, dtype='mri'):
+def zeros(database, shape, dtype='mri'): # OBSOLETE - remove
     study = database.new_study()
     return study.zeros(shape, dtype=dtype)
 

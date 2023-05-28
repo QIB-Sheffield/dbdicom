@@ -5,7 +5,7 @@ from dbdicom.utils.files import export_path
 
 
 
-class DbRecord():
+class Record():
 
     def __init__(self, create, manager, uid='Database', key=None, **kwargs):   
 
@@ -250,7 +250,19 @@ class DbRecord():
         return self.parent().new_sibling(**kwargs)
 
     def print(self):
-        self.manager.print() # print self.uid only
+        """Print the contents of the DICOM database containing this object.
+
+        Example:
+
+            >>> database = db.database('path\\to\\DICOM\\database')
+            >>> database.print()
+            ---------- DICOM FOLDER --------------
+            DATABASE:  path\\to\\DICOM\\database
+            PATIENT [0]: Patient Al Pacino
+            PATIENT [1]: Patient Sean Connery
+            --------------------------------------      
+        """
+        self.manager.print() 
 
     def copy(self, **kwargs):
         return self.copy_to(self.parent(), **kwargs)

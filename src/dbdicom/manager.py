@@ -50,7 +50,8 @@ class Manager():
         dataframe = None: no database open
         """  
         if dataframe is None:
-            dataframe = pd.DataFrame(index=[], columns=self.columns)
+            #dataframe = pd.DataFrame(index=[], columns=self.columns)
+            dataframe = pd.DataFrame(index=[], columns=self.columns+['removed','created','placeholder']) # Modified 28/05/2023
         # THIS NEEDS A MECHANISM TO PREVENT ANOTHER Manager to open the same database.
         self.status = status
         self.dialog = dialog 
@@ -997,10 +998,11 @@ class Manager():
 
 
     def print(self):
-        """Prints a summary of the project folder to the terminal."""
-        
         print('---------- DICOM FOLDER --------------')
-        print('DATABASE: ' + self.path)
+        if self.path is None:
+            print('DATABASE: ', 'new')
+        else:
+            print('DATABASE: ', self.path)
         for i, patient in enumerate(self.patients('Database')):
             print('  PATIENT [' + str(i) + ']: ' + self.label(patient))
             for j, study in enumerate(self.studies(patient)):
@@ -1008,6 +1010,7 @@ class Manager():
                 for k, series in enumerate(self.series(study)):
                     print('      SERIES [' + str(k) + ']: ' + self.label(series))
                     print('        Nr of instances: ' + str(len(self.instances(series)))) 
+        print('--------------------------------------')
 
 
     def read(self, *args, keys=None, message=None, **kwargs):

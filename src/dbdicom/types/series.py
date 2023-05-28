@@ -3,7 +3,7 @@ import math
 
 import numpy as np
 
-from dbdicom.record import DbRecord, read_dataframe_from_instance_array
+from dbdicom.record import Record, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
 import dbdicom.utils.image as image_utils
 from dbdicom.manager import Manager
@@ -11,7 +11,7 @@ from dbdicom.manager import Manager
 from dbdicom.utils.files import export_path
 
 
-class Series(DbRecord):
+class Series(Record):
 
     name = 'SeriesInstanceUID'
 

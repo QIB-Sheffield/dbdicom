@@ -1,6 +1,6 @@
-from dbdicom.record import DbRecord
+from dbdicom.record import Record
 
-class Patient(DbRecord):
+class Patient(Record):
 
     name = 'PatientID'
 

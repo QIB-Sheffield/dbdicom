@@ -1,8 +1,8 @@
 import os
 import numpy as np
-from dbdicom.record import DbRecord
+from dbdicom.record import Record
 
-class Study(DbRecord):
+class Study(Record):
 
     name = 'StudyInstanceUID'
 
@@ -40,11 +40,11 @@ class Study(DbRecord):
         else:
             return self.record('Series', uids)
 
-    def zeros(*args, **kwargs):
+    def zeros(*args, **kwargs): # OBSOLETE - remove
         return zeros(*args, **kwargs)
 
 
-def zeros(study, shape, dtype='mri'):
+def zeros(study, shape, dtype='mri'): # OBSOLETE - remove
     series = study.new_series()
     array = np.zeros(shape, dtype=np.float32)
     if dtype not in ['mri', 'MRImage']:

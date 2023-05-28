@@ -6,12 +6,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-from dbdicom.record import DbRecord
+from dbdicom.record import Record
 from dbdicom.ds.create import new_dataset
 import dbdicom.utils.image as image
 
 
-class Instance(DbRecord):
+class Instance(Record):
 
     name = 'SOPInstanceUID'
 
