@@ -9,6 +9,14 @@ From shape or value
 .. autosummary::
    :toctree: generated/
 
-   database
    series
    zeros
+
+
+From existing DICOM data
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
+
+   database
