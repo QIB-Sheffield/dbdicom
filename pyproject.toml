@@ -58,6 +58,7 @@ docs = [
     "pydata-sphinx-theme",
     "myst-parser", 
     "sphinx-copybutton",
+    "sphinx-design",
     "sphinx-remove-toctrees",
     "autodocsumm",
     "docutils",
