@@ -58,7 +58,16 @@ docs = [
     "pydata-sphinx-theme",
     "myst-parser", 
     "sphinx-copybutton",
+    "sphinx-design",
     "sphinx-remove-toctrees",
+    "autodocsumm",
+    "docutils",
+    "sphinxcontrib-applehelp",
+    "sphinxcontrib-devhelp",
+    "sphinxcontrib-htmlhelp",
+    "sphinxcontrib-jsmath",
+    "sphinxcontrib-qthelp",
+    "sphinxcontrib-serializinghtml",
 ]
 wrappers = [
     "scipy",
