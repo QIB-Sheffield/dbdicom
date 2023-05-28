@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install .[dependencies, docs, wrappers]
+          pip install .[docs, wrappers]
 
       - name: Update Sphinx htmls
         run: |
