@@ -18,10 +18,10 @@ jobs:
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
 
-      - name: Install Python 3.7
+      - name: Install Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
