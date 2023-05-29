@@ -1,7 +1,10 @@
 
 from .create import (
     database,
-    series, #obsolete
+    database_hollywood,
+    patient,
+    study,
+    series, 
     as_series,
     zeros,
 )
