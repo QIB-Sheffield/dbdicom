@@ -29,6 +29,8 @@ Moving through the hierarchy
    :toctree: generated/
 
    Record.parent
+   Record.children
+   Record.siblings
    Record.series
    Record.studies
    Record.patients
