@@ -3,6 +3,8 @@ from dbdicom.utils.files import gif2numpy
 
 class Database(Record):
 
+    name = 'Database'
+
     def loc(self):
         return self.manager._dbloc()
         # df = self.manager.register

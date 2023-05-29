@@ -444,15 +444,12 @@ class Manager():
         return df
 
 
-    def series(self, uid=None, keys=None, sort=True, sortby=None, **kwargs):
+    def series(self, uid=None, keys=None, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:
-            if sortby is None:
-                sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
             if not isinstance(sortby, list):
                 sortby = [sortby]
-            sortby = ['PatientName', 'StudyDescription', 'SeriesNumber']
             df = self.register.loc[keys, sortby + ['SeriesInstanceUID']]
             df.sort_values(sortby, inplace=True)
             df = df.SeriesInstanceUID
@@ -462,11 +459,10 @@ class Manager():
         return self.filter(uids, **kwargs)
 
 
-    def studies(self, uid=None, keys=None, sort=True, **kwargs):
+    def studies(self, uid=None, keys=None, sort=True, sortby=['PatientName', 'StudyDescription'], **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:
-            sortby = ['PatientName', 'StudyDescription']
             df = self.register.loc[keys, sortby + ['StudyInstanceUID']]
             df.sort_values(sortby, inplace=True)
             df = df.StudyInstanceUID
@@ -476,11 +472,10 @@ class Manager():
         return self.filter(uids, **kwargs)
 
 
-    def patients(self, uid=None, keys=None, sort=True, **kwargs):
+    def patients(self, uid=None, keys=None, sort=True, sortby=['PatientName'], **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:
-            sortby = ['PatientName']
             df = self.register.loc[keys, sortby + ['PatientID']]
             df.sort_values(sortby, inplace=True)
             df = df.PatientID
@@ -956,7 +951,10 @@ class Manager():
                 return ''
     
         if uid == 'Database':
-            return 'Database: ' + self.path
+            if self.path is None:
+                return 'Database [in memory]'
+            else:
+                return 'Database [' + self.path + ']'
 
         if type is None:
             type = self.type(uid)
@@ -1032,7 +1030,7 @@ class Manager():
     def write(self, *args, keys=None, message=None, **kwargs):
         """Writing data from memory to disk.
 
-        This does nothing if the data are not in memory.
+        This does nothing if the data are not in memory, or if the database does not exist on disk.
         """
         if keys is None:
             keys = self.keys(*args, **kwargs)
@@ -1047,6 +1045,11 @@ class Manager():
 
     def clear(self, *args, keys=None, **kwargs):
         """Clear all data from memory"""
+
+        # To avoid loosing data, instances are only cleared from memory if the database exists on disk.
+        if self.path is None:
+            return
+        
         if keys is None:
             keys = self.keys(*args, **kwargs)
         # write to disk first so that any changes made in memory are not lost

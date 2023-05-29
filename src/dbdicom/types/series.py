@@ -485,10 +485,10 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
     copy_source = []
     instances = series.instances()
     for i, s in enumerate(source):
-        series.status.progress(i+1, len(source), 'Saving array (1/2): Copying series..')
         if s in instances:
             copy_source.append(s)
         else:
+            series.progress(i+1, len(source), 'Copying series..')
             copy_source.append(s.copy_to(series))
 
     # Faster but does not work if all sources are the same
@@ -503,7 +503,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
     array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
     series.manager.pause_extensions()
     for i, image in enumerate(copy_source):
-        series.status.progress(i+1, len(copy_source), 'Saving array (2/2): Writing array..')
+        series.progress(i+1, len(copy_source), 'Saving array..')
         image.read()
         for attr, vals in kwargs.items():
             if isinstance(vals, list):
