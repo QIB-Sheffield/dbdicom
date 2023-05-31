@@ -29,9 +29,9 @@ class Patient(Record):
         attr = {**kwargs, **self.attributes}
         uids = self.manager.copy_to_patient(record.uid, self.key(), **attr)
         if isinstance(uids, list):
-            return [self.record('Study', uid) for uid in uids]
+            return [self.record('Study', uid, **attr) for uid in uids]
         else:
-            return self.record('Study', uids)
+            return self.record('Study', uids, **attr)
 
 
 

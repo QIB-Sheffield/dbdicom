@@ -216,6 +216,7 @@ def rotation_displacement(rotation, center):
 
 
 def center_of_mass(volume, affine):
+    """Return the center of mass in absolute coordinates"""
 
     center_of_mass = ndi.center_of_mass(volume)
     nd = volume.ndim
@@ -242,10 +243,12 @@ def affine_resolution(shape, spacing):
     """Smallest detectable rotation, translation and stretching of a volume with given shape and resolution."""
 
     translation_res = spacing
-    rot_res_x = min([spacing[1],spacing[2]])/max([shape[1],shape[2]])
-    rot_res_y = min([spacing[2],spacing[0]])/max([shape[2],shape[0]])
-    rot_res_z = min([spacing[0],spacing[1]])/max([shape[0],shape[1]])
-    rot_res = np.array([rot_res_x, rot_res_y, rot_res_z])
+    # Geometry-based rotation resolution needs some more thinking - this produces too small values
+    # rot_res_x = min([spacing[1],spacing[2]])/max([shape[1],shape[2]])
+    # rot_res_y = min([spacing[2],spacing[0]])/max([shape[2],shape[0]])
+    # rot_res_z = min([spacing[0],spacing[1]])/max([shape[0],shape[1]])
+    # rot_res = np.array([rot_res_x, rot_res_y, rot_res_z])
+    rot_res = np.array([np.pi/180, np.pi/180, np.pi/180])
     scaling_res = np.array([0.01, 0.01, 0.01])
     return rot_res, translation_res, scaling_res
 
@@ -451,6 +454,10 @@ def affine_output_geometry(input_shape, input_affine, transformation):
 # TODO This needs to become a private helper function
 def affine_transform(input_data, input_affine, transformation, reshape=False, **kwargs):
 
+    # If 2d array, add a 3d dimension of size 1
+    if input_data.ndim == 2: 
+        input_data = np.expand_dims(input_data, axis=-1)
+
     if reshape:
         output_shape, output_affine = affine_output_geometry(input_data.shape, input_affine, transformation)
     else:
@@ -466,6 +473,10 @@ def affine_transform(input_data, input_affine, transformation, reshape=False, **
 
 # TODO This needs to become a private helper function
 def affine_reslice(input_data, input_affine, output_affine, output_shape=None, **kwargs):
+
+    # If 2d array, add a 3d dimension of size 1
+    if input_data.ndim == 2: 
+        input_data = np.expand_dims(input_data, axis=-1)
 
     # If no output shape is provided, retain the physical volume of the input datas
     if output_shape is None:
@@ -490,9 +501,18 @@ def affine_reslice(input_data, input_affine, output_affine, output_shape=None, *
     return output_data, output_affine
 
 
+def to_3d(array):
+    # Ensures that the data are 3D
+    # Find out where is the right place to do this
+    if array.ndim == 2: 
+        return np.expand_dims(array, axis=-1)
+    else:
+        return array
+
 # This needs a reshape option to expand to the envelope in the new reference frame
 def affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs):
 
+    input_data = to_3d(input_data)
     affine_transformed = transformation.dot(input_affine)
     inverse = np.linalg.inv(affine_transformed).dot(output_affine) # Ai Ti B
     output_data = apply_inverse_affine(input_data, inverse, output_shape, **kwargs)
@@ -535,7 +555,10 @@ def affine_transform_and_reslice(input_data, input_affine, output_shape, output_
 def freeform_deformation(input_data, displacement, output_shape=None, output_to_input=np.eye(4), output_coordinates=None, **kwargs):
     """Freeform deformation assuming deformation field is defined in the reference frame of input data"""
 
-    # Set defaults
+     # Set defaults
+    # If 2d array, add a 3d dimension of size 1
+    if input_data.ndim == 2: 
+        input_data = np.expand_dims(input_data, axis=-1)
     if output_shape is None:
         output_shape = input_data.shape
     else:
@@ -579,6 +602,9 @@ def freeform_deformation_align(input_data, displacement, output_shape=None, outp
     """Freeform deformation with precomputing options optimized for use in coregistration"""
 
     # Set defaults
+    # If 2d array, add a 3d dimension of size 1
+    if input_data.ndim == 2: 
+        input_data = np.expand_dims(input_data, axis=-1)
     if output_shape is None:
         output_shape = input_data.shape
     else:
@@ -620,6 +646,54 @@ def freeform_deformation_align(input_data, displacement, output_shape=None, outp
     return output_data
 
 
+def extract_slice(array, affine, z, slice_thickness=None):
+
+    # Get the slice and its affine
+    array_z = array[:,:,z]
+    affine_z = affine.copy()
+    affine_z[:3,3] += z*affine[:3,2]
+    # Set the slice spacing to equal the slice thickness.
+    # Note: both are equal for 3D array but different for 2D multislice
+    if slice_thickness is not None:
+        slice_spacing = np.linalg.norm(affine[:3,2])
+        affine_z[:3,2] *= slice_thickness[z]/slice_spacing
+
+    return array_z, affine_z
+
+    
+# def _transform_slice_by_slice(
+#         moving = None, 
+#         moving_affine = None, 
+#         static_shape = None, 
+#         static_affine = None, 
+#         parameters = None, 
+#         transformation = translate, 
+#         slice_thickness = None):
+    
+#     # Note this does not work for center of mass rotation because weight array has different center of mass.
+            
+#     nz = moving.shape[2]
+#     if slice_thickness is not None:
+#         if not isinstance(slice_thickness, list):
+#             slice_thickness = [slice_thickness]*nz
+
+#     weight = np.zeros(static_shape + (nz,))
+#     coregistered = np.zeros(static_shape + (nz,))
+
+#     for z in range(nz):
+#         moving_z, moving_affine_z = extract_slice(moving, moving_affine, z, slice_thickness)
+#         weight[...,z] = transformation(np.ones(moving.shape[:2]), moving_affine_z, static_shape, static_affine, parameters[z])
+#         coregistered[...,z] = transformation(moving_z, moving_affine_z, static_shape, static_affine, parameters[z])
+
+#     # Average each pixel value over all slices that have sampled it
+#     coregistered = np.sum(weight*coregistered, axis=-1)
+#     weight = np.sum(weight, axis=-1)
+#     nozero = np.where(weight > 0)
+#     coregistered[nozero] = coregistered[nozero]/weight[nozero]
+
+#     return coregistered
+
+
 
 ####################################
 # wrappers for use in align function
@@ -655,12 +729,28 @@ def rotate_around(input_data, input_affine, output_shape, output_affine, paramet
     transformation = affine_matrix(rotation=parameters[:3], center=parameters[3:])
     return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
 
+def rotate_around_com(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    input_data = to_3d(input_data) # need for com - not the right place
+    input_com = center_of_mass(input_data, input_affine) # can be precomputed
+    transformation = affine_matrix(rotation=parameters, center=input_com)
+    return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
+
 def rotate_around_reshape(input_data, input_affine, rotation, center, **kwargs):
     transformation = affine_matrix(rotation=rotation, center=center)
     return affine_transform(input_data, input_affine, transformation, reshape=True, **kwargs)
 
 def rigid(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
     transformation = affine_matrix(rotation=parameters[:3], translation=parameters[3:])
+    return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
+
+def rigid_around(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    transformation = affine_matrix(rotation=parameters[:3], center=parameters[3:6], translation=parameters[6:])
+    return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
+
+def rigid_around_com(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
+    input_data = to_3d(input_data) # need for com - not the right place
+    input_com = center_of_mass(input_data, input_affine) # Can be precomputed once a generic precomputing step is built into align.
+    transformation = affine_matrix(rotation=parameters[:3], center=parameters[3:]+input_com, translation=parameters[3:])
     return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
 
 def rigid_reshape(input_data, input_affine, rotation, translation, **kwargs):
@@ -683,7 +773,30 @@ def freeform_align(input_data, input_affine, output_shape, output_affine, parame
     output_to_input = np.linalg.inv(input_affine).dot(output_affine)
     return freeform_deformation_align(input_data, parameters, output_shape, output_to_input, **kwargs)
 
+def transform_slice_by_slice(input_data, input_affine, output_shape, output_affine, parameters, transformation=translate, slice_thickness=None):
+    
+    # Note this does not work for center of mass rotation because weight array has different center of mass.
+            
+    nz = input_data.shape[2]
+    if slice_thickness is not None:
+        if not isinstance(slice_thickness, list):
+            slice_thickness = [slice_thickness]*nz
 
+    weight = np.zeros(output_shape)
+    coregistered = np.zeros(output_shape)
+    input_ones_z = np.ones(input_data.shape[:2])
+    for z in range(nz):
+        input_data_z, input_affine_z = extract_slice(input_data, input_affine, z, slice_thickness)
+        weight_z = transformation(input_ones_z, input_affine_z, output_shape, output_affine, parameters[z])
+        coregistered_z = transformation(input_data_z, input_affine_z, output_shape, output_affine, parameters[z])
+        weight += weight_z
+        coregistered += weight_z*coregistered_z
+
+    # Average each pixel value over all slices that have sampled it
+    nozero = np.where(weight > 0)
+    coregistered[nozero] = coregistered[nozero]/weight[nozero]
+
+    return coregistered
 
 
 # default metrics
@@ -964,10 +1077,15 @@ def align(
     if parameters is None:
         msg = 'Initial values for alignment must be provided'
         raise ValueError(msg)
+    if moving.ndim == 2: # If 2d array, add a 3d dimension of size 1
+        moving = np.expand_dims(moving, axis=-1)
+    if static.ndim == 2: # If 2d array, add a 3d dimension of size 1
+        static = np.expand_dims(static, axis=-1)
     if moving_affine is None:
         moving_affine = np.eye(1 + moving.ndim)
     if static_affine is None:
         static_affine = np.eye(1 + static.ndim)
+
 
     # Perform multi-resolution loop
     for res in resolutions:
@@ -988,11 +1106,69 @@ def align(
             static_resampled_affine = affine_matrix(rotation=r, translation=t, pixel_spacing=p*res)
             static_resampled, static_resampled_affine = affine_reslice(static, static_affine, static_resampled_affine)
 
-        coord = volume_coordinates(static_resampled.shape)
+        coord = volume_coordinates(static_resampled.shape) 
+        # Here we need a generic precomputation step:
+        # prec = precompute(moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine)
+        # args = (transformation, metric, moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine, coord, prec)
         args = (transformation, metric, moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine, coord)
         parameters = minimize(goodness_of_alignment, parameters, args=args, **optimization)
 
     return parameters
+
+
+
+
+
+def align_slice_by_slice(
+        moving = None, 
+        static = None, 
+        parameters = None, 
+        moving_affine = None, 
+        static_affine = None, 
+        transformation = translate,
+        metric = sum_of_squares,
+        optimization = {'method':'GD', 'options':{}},
+        resolutions = [1],
+        slice_thickness = None,
+        progress = None):
+    
+    # If a single slice thickness is provided, turn it into a list.
+    nz = moving.shape[2]
+    if slice_thickness is not None:
+        if not isinstance(slice_thickness, list):
+            slice_thickness = [slice_thickness]*nz
+
+    estimate = []
+    for z in range(nz):
+
+        if progress is not None:
+            progress(z, nz)
+        
+        # Get the slice and its affine
+        moving_z, moving_affine_z = extract_slice(moving, moving_affine, z, slice_thickness)
+
+        # Align volumes
+        try:
+            estimate_z = align(
+                moving = moving_z, 
+                moving_affine = moving_affine_z, 
+                static = static, 
+                static_affine = static_affine, 
+                parameters = parameters, 
+                resolutions = resolutions, 
+                transformation = transformation,
+                metric = metric,
+                optimization = optimization,
+            )
+        except:
+            estimate_z = parameters
+
+        estimate.append(estimate_z)
+
+    return estimate
+
+
+
 
 
 #############################

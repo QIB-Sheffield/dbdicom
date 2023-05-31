@@ -36,9 +36,9 @@ class Study(Record):
         attr = {**kwargs, **self.attributes}
         uids = self.manager.copy_to_study(record.uid, self.uid, **attr)
         if isinstance(uids, list):
-            return [self.record('Series', uid) for uid in uids]
+            return [self.record('Series', uid, **attr) for uid in uids]
         else:
-            return self.record('Series', uids)
+            return self.record('Series', uids, **attr)
 
     def zeros(*args, **kwargs): # OBSOLETE - remove
         return zeros(*args, **kwargs)

@@ -67,9 +67,9 @@ class Database(Record):
     def _copy_from(self, record):
         uids = self.manager.copy_to_database(record.uid, **self.attributes)
         if isinstance(uids, list):
-            return [self.record('Patient', uid) for uid in uids]
+            return [self.record('Patient', uid, **self.attributes) for uid in uids]
         else:
-            return self.record('Patient', uids)
+            return self.record('Patient', uids, **self.attributes)
 
     def zeros(*args, **kwargs): # OBSOLETE - remove
         return zeros(*args, **kwargs)

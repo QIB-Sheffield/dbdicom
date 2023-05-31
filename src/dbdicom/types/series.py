@@ -57,9 +57,9 @@ class Series(Record):
         attr = {**kwargs, **self.attributes}
         uids = self.manager.copy_to_series(record.uid, self.uid, **attr)
         if isinstance(uids, list):
-            return [self.record('Instance', uid) for uid in uids]
+            return [self.record('Instance', uid, **attr) for uid in uids]
         else:
-            return self.record('Instance', uids)
+            return self.record('Instance', uids, **attr)
 
     def affine_matrix(self):
         return affine_matrix(self)
@@ -141,7 +141,7 @@ class Series(Record):
         return subseries(*args, move=move, **kwargs)
 
     
-    def split_by(self, keyword: str|tuple) -> list:
+    def split_by(self, keyword: str | tuple) -> list:
         """Split the series into multiple subseries based on keyword value.
 
         Args:
@@ -150,9 +150,7 @@ class Series(Record):
         Raises:
             ValueError: if an invalid or missing keyword is provided.
             ValueError: if all images have the same value for the keyword, 
-                so no subseries can be derived. An exception is raised rather than a copy 
-                of the series to avoid unnecessary copies being made. If that is the intention, 
-                use series.copy() instead.
+                so no subseries can be derived. An exception is raised rather than a copy of the series to avoid unnecessary copies being made. If that is the intention, use series.copy() instead.
 
         Returns:
             list: A list of subseries, where each element 
@@ -161,10 +159,8 @@ class Series(Record):
         Example: split a series up into multiple series, 
         each containing all images at the same location.
 
-        .. code-block:: python
-
-            subseries = series.split_by('SliceLocation')   # By keyword
-            subseries = series.split_by((0x0020,0x1041))   # By (group, element) tag
+        >>> subseries = series.split_by('SliceLocation')   # By keyword
+        >>> subseries = series.split_by((0x0020,0x1041))   # By (group, element) tag
         """
         
         self.status.message('Reading values..')
@@ -368,15 +364,15 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
 
     array = []
     instances = source.ravel()
+    im = None
     for i, im in enumerate(instances):
         if im is None:
             array.append(np.zeros((1,1)))
         else:
             im.progress(i+1, len(instances), 'Reading pixel data..')
             array.append(im.get_pixel_array())
-    # if im is not None:
-    #     im.status.hide()
-    #     im.status.message('Reshaping pixel data..')
+    if im is not None:
+        im.status.hide()
     array = _stack(array)
     if array is None:
         msg = 'Pixel array is empty. \n'
