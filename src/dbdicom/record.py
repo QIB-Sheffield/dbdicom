@@ -79,9 +79,6 @@ class Record():
         return self.manager.dialog
     
 
-
-
-
     
     def print(self):
         """Print the contents of the DICOM database containing this object.
@@ -99,7 +96,7 @@ class Record():
             PATIENT [1]: Patient Sean Connery
             --------------------------------------      
         """
-        self.manager.print() 
+        self.manager.print(self.uid, self.name) 
 
     
     def path(self) -> str:
@@ -934,7 +931,7 @@ class Record():
             :func:`~move_to`
 
         Example:
-            Create a new study and remove it again:
+            Create a new study in an empty database, then remove it again:
 
             >>> database = db.database()
             >>> study = database.new_study(StudyDescription='Demo Study')
@@ -969,29 +966,18 @@ class Record():
             :func:`~move_to`
 
         Example:
-            Copy a DICOM series:
+            Create a new DICOM study and build two copies in the same patient:
 
-            >>> series = db.series()
-            >>> series.print()
-            >>> copy_series = series.copy(SeriesDescription='Clone')
-            >>> series.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-            Copying series New Series (1/1) [100 %]
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-                SERIES [1]: Series 001 [2]
-                    Nr of instances: 1
-            --------------------------------------
+            >>> study = db.study(StudyDescription='Original')
+            >>> copy1 = study.copy(StudyDescription='Copy 1')
+            >>> copy2 = study.copy(StudyDescription='Copy 2')
+            >>> study.parent().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+              Study Copy 1 [None]
+              Study Copy 2 [None]
+              Study Original [None]
+            --------------------------------
         """
         return self.copy_to(self.parent(), **kwargs)
 
@@ -1011,31 +997,34 @@ class Record():
             :func:`~move_to`
 
         Example:
-            Copy a DICOM series to a new study:
+            Create a database with a single patient/study/series:
 
-            >>> series = db.series()
-            >>> series.print()
-            >>> new_study = series.new_pibling(StudyDescription='Study of clones')
-            >>> copy_series = series.copy_to(new_study, SeriesDescription='Clone')
-            >>> series.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-            Copying series New Series (1/1) [100 %]
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-                STUDY [1]: Study Study of clones [None]
-                SERIES [0]: Series 001 [1]
-                    Nr of instances: 1
-            --------------------------------------
+            >>> series = db.series(SeriesDescription='Demo')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+            Study New Study [None]
+                Series 001 [Demo]
+                Nr of instances: 0
+            --------------------------------
+
+            Create a new study under the same patient, and populate it with a copy of the first series:
+
+            >>> study = series.new_pibling(StudyDescription='Copies')
+            >>> copy = series.copy_to(study, SeriesDescription='Copy of Demo')
+
+            The same patient now has two studies, each with a single series:
+
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+            Study Copies [None]
+                Series 001 [Copy of Demo]
+                Nr of instances: 0
+            Study New Study [None]
+                Series 001 [Demo]
+                Nr of instances: 0
+            --------------------------------
         """
         return parent._copy_from(self, **kwargs)
     

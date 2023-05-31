@@ -26,12 +26,30 @@ class DatabaseCorrupted(Exception):
 class Manager(): 
     """Programming interface for reading and writing a DICOM folder."""
 
+    # TODO: Add AccessionNumber so studies can be sorted correctly without reading the files
+    # Note this makes all existing pkl files unusable - ensure backwards compatibility.
+
     # The column labels of the register
     columns = [    
         'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'SOPClassUID', 
         'PatientName', 'StudyDescription', 'StudyDate', 'SeriesDescription', 'SeriesNumber', 'InstanceNumber', 
         'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'SliceLocation', 'AcquisitionTime',
     ]
+
+    # Non-UID subset of column labels with their respective indices
+    # These are non-critical and can be set manually by users
+    _descriptives = {
+        'PatientName': 5,
+        'StudyDescription': 6, 
+        'StudyDate': 7,
+        'SeriesDescription': 8,
+        'ImageOrientationPatient':11, 
+        'ImagePositionPatient':12, 
+        'PixelSpacing':13, 
+        'SliceThickness':14, 
+        'SliceLocation':15, 
+        'AcquisitionTime':16,
+    }
 
     def default(self):
         return [None, None, None, None, None,
@@ -447,7 +465,7 @@ class Manager():
     def series(self, uid=None, keys=None, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs):
         if keys is None:
             keys = self.keys(uid)
-        if sort:
+        if sort:  
             if not isinstance(sortby, list):
                 sortby = [sortby]
             df = self.register.loc[keys, sortby + ['SeriesInstanceUID']]
@@ -516,6 +534,9 @@ class Manager():
         data = self.default()
         data[0] = dbdataset.new_uid()
         data[5] = PatientName
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
 
         key = self.new_key()
         self._new_data.append(data)
@@ -543,6 +564,9 @@ class Manager():
         data[1] = dbdataset.new_uid()
         data[5] = self.value(key, 'PatientName')
         data[6] = StudyDescription
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
 
         if self.value(key, 'StudyInstanceUID') is None:
             # New patient without studies - use existing row
@@ -579,6 +603,9 @@ class Manager():
         data[8] = SeriesDescription
         data[9] = 1 + len(self.series(parent))
         data[10] = self.default()[10]
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
 
         if self.value(key, 'SeriesInstanceUID') is None:
             # New study without series - use existing row
@@ -623,6 +650,9 @@ class Manager():
         #data[10] = 1 + len(self.instances(parent))
         #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
         data[10] = 1 + max_number
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
 
         if self.value(key, 'SOPInstanceUID') is None:
             # New series without instances - use existing row
@@ -995,21 +1025,69 @@ class Manager():
             return SOPClass(row.SOPClassUID) + " {}".format(label)
 
 
-    def print(self):
-        print('---------- DICOM FOLDER --------------')
+    def print_database(self):
+        print('---------- DATABASE --------------')
         if self.path is None:
-            print('DATABASE: ', 'new')
+            print('Location: ', 'In memory')
         else:
-            print('DATABASE: ', self.path)
-        for i, patient in enumerate(self.patients('Database')):
-            print('  PATIENT [' + str(i) + ']: ' + self.label(patient))
-            for j, study in enumerate(self.studies(patient)):
-                print('    STUDY [' + str(j) + ']: ' + self.label(study))
-                for k, series in enumerate(self.series(study)):
-                    print('      SERIES [' + str(k) + ']: ' + self.label(series))
+            print('Location: ', self.path)
+        for patient in self.patients('Database'):
+            print('  ' + self.label(patient, type='Patient'))
+            for study in self.studies(patient):
+                print('    ' + self.label(study, type='Study'))
+                for series in self.series(study):
+                    print('      ' + self.label(series, type='Series'))
                     print('        Nr of instances: ' + str(len(self.instances(series)))) 
-        print('--------------------------------------')
+        print('----------------------------------')
 
+
+    def print_patient(self, patient):
+        print('---------- PATIENT -------------')
+        print('' + self.label(patient, type='Patient'))
+        for study in self.studies(patient):
+            print('  ' + self.label(study, type='Study'))
+            for series in self.series(study):
+                print('    ' + self.label(series, type='Series'))
+                print('      Nr of instances: ' + str(len(self.instances(series)))) 
+        print('--------------------------------')
+
+
+    def print_study(self, study):
+        print('---------- STUDY ---------------')
+        print('' + self.label(study, type='Study'))
+        for series in self.series(study):
+            print('  ' + self.label(series, type='Series'))
+            print('    Nr of instances: ' + str(len(self.instances(series)))) 
+        print('--------------------------------')
+
+
+    def print_series(self, series):
+        print('---------- SERIES --------------')
+        instances = self.instances(series)
+        print('' + self.label(series, type='Series'))
+        print('    Nr of instances: ' + str(len(instances)))
+        for instance in self.instances(series):
+            print('      ' + self.label(instance, type='Instance')) 
+        print('--------------------------------')
+
+
+    def print_instance(self, instance):
+        print('---------- INSTANCE -------------')
+        print('' + self.label(instance, type='Instance')) 
+        print('--------------------------------')
+
+
+    def print(self, uid='Database', name='Database'):
+        if name=='Database':
+            self.print_database()
+        elif name=='PatientID':
+            self.print_patient(uid)
+        elif name=='StudyInstanceUID':
+            self.print_study(uid)
+        elif name=='SeriesInstanceUID':
+            self.print_series(uid)
+        elif name=='SOPInstanceUID':
+            self.print_instance(uid)
 
     def read(self, *args, keys=None, message=None, **kwargs):
         """Read the dataset from disk.
@@ -1310,6 +1388,9 @@ class Manager():
             row[8] = self.value(target_keys[0], 'SeriesDescription')
             row[9] = self.value(target_keys[0], 'SeriesNumber')
             row[10] = 1 + max_number
+            for key in kwargs:
+                if key in self._descriptives:
+                    row[self._descriptives[key]] = kwargs[key]
         else:
             if instance_key in self.dataset:
                 ds = copy.deepcopy(ds)
@@ -1390,6 +1471,9 @@ class Manager():
                 row[8] = self.value(target_keys[0], 'SeriesDescription')
                 row[9] = self.value(target_keys[0], 'SeriesNumber')
                 row[10] = i+1+max_number
+                for key in kwargs:
+                    if key in self._descriptives:
+                        row[self._descriptives[key]] = kwargs[key]
             else:
                 if key in self.dataset:
                     ds = copy.deepcopy(ds)
@@ -1472,15 +1556,19 @@ class Manager():
                 instance_uid = self.value(key, 'SOPInstanceUID')
                 ds = self.get_dataset(instance_uid, [key])
                 if ds is None:
+                    # Fill in any register data provided
                     row = self.value(key, self.columns).tolist()
                     row[0] = self.value(target_key, 'PatientID')
                     row[1] = self.value(target_key, 'StudyInstanceUID')
                     row[2] = new_series[s]
-                    row[3] = dbdataset.new_uid()
+                    #row[3] = dbdataset.new_uid()
                     row[5] = self.value(target_key, 'PatientName')
                     row[6] = self.value(target_key, 'StudyDescription')
                     row[7] = self.value(target_key, 'StudyDate')
-                    row[8] = new_number
+                    row[9] = new_number
+                    for key in kwargs:
+                        if key in self._descriptives:
+                            row[self._descriptives[key]] = kwargs[key]
                 else:
 
                     # If the series exists in memory, create a copy in memory
@@ -1546,7 +1634,24 @@ class Manager():
         all_studies = self.studies(uid)
         new_studies = dbdataset.new_uid(len(all_studies))
         for s, study in enumerate(all_studies):
-            for series in self.series(study):
+            all_series = self.series(study)
+            if all_series == []:
+                # Create an empty study
+                new_key = self.new_key()
+                key = self.keys(study=study)[0]
+                row = self.value(key, self.columns).tolist()
+                row[0] = self.value(target_key, 'PatientID')
+                row[1] = new_studies[s]
+                row[5] = self.value(target_key, 'PatientName')
+                row[6] = self.value(target_key, 'StudyDescription')
+                row[7] = self.value(target_key, 'StudyDate')
+                for key in kwargs:
+                    if key in self._descriptives:
+                        row[self._descriptives[key]] = kwargs[key]
+                # Get new data for the dataframe
+                copy_data.append(row)
+                copy_keys.append(new_key)
+            for series in all_series:
                 new_series_uid = dbdataset.new_uid()
                 for key in self.keys(series=series):
                     new_key = self.new_key()
@@ -1559,6 +1664,9 @@ class Manager():
                         row[2] = new_series_uid
                         row[3] = dbdataset.new_uid()
                         row[5] = self.value(target_key, 'PatientName')
+                        for key in kwargs:
+                            if key in self._descriptives:
+                                row[self._descriptives[key]] = kwargs[key]
                     else:
                         if key in self.dataset:
                             ds = copy.deepcopy(ds)
@@ -1594,6 +1702,7 @@ class Manager():
         else:
             return new_studies
 
+
     def copy_to_database(self, uid, **kwargs):
         """Copy patient to the database"""
 
@@ -1623,6 +1732,9 @@ class Manager():
                             row[2] = new_series_uid
                             row[3] = new_instance_uid
                             row[5] = new_patient_name
+                            for key in kwargs:
+                                if key in self._descriptives:
+                                    row[self._descriptives[key]] = kwargs[key]
                         else:
                             if key in self.dataset:
                                 ds = copy.deepcopy(ds)
@@ -1725,6 +1837,10 @@ class Manager():
                 row[8] = self.value(target_keys[0], 'SeriesDescription')
                 row[9] = self.value(target_keys[0], 'SeriesNumber')
                 row[10] = i+1 + max_number
+                for key in kwargs:
+                    if key in self._descriptives:
+                        row[self._descriptives[key]] = kwargs[key]
+
                 if self.value(key, 'created'):
                     #self.register.loc[key, self.columns] = row
                     for i, c in enumerate(self.columns):
@@ -1879,10 +1995,14 @@ class Manager():
                     row[6] = self.value(target_keys[0], 'StudyDescription')
                     row[7] = self.value(target_keys[0], 'StudyDate')
                     row[9] = new_number
+                    for key in kwargs:
+                        if key in self._descriptives:
+                            row[self._descriptives[key]] = kwargs[key]
+
                     if self.value(key, 'created'):
                         #self.register.loc[key, self.columns] = row
                         for i, c in enumerate(self.columns):
-                            self.register.at[key, c] = data[i]
+                            self.register.at[key, c] = row[i]
                         self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
                     else:
                         # If the dataset has not yet been edited
@@ -2019,6 +2139,10 @@ class Manager():
                         row = self.value(key, self.columns).tolist()
                         row[0] = self.value(target_keys[0], 'PatientID')
                         row[5] = self.value(target_keys[0], 'PatientName')
+                        for key in kwargs:
+                            if key in self._descriptives:
+                                row[self._descriptives[key]] = kwargs[key]
+
                         if self.value(key, 'created'):
                             #self.register.loc[key, self.columns] = row
                             for i, c in enumerate(self.columns):

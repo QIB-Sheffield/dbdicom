@@ -54,19 +54,67 @@ def database(path:str=None, **kwargs) -> Database:
 
         >>> database = db.database()
         >>> database.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        --------------------------------------
+        ---------- DATABASE --------------
+        Location:  In memory
+        ----------------------------------
 
         Open an existing DICOM database and check the contents:
 
         >>> database = db.database('path\\to\\DICOM\\database')
         >>> database.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  path\\to\\DICOM\\database
-        PATIENT [0]: Patient Al Pacino
-        PATIENT [1]: Patient Sean Connery
-        --------------------------------------
+        ---------- DATABASE --------------
+        Location:  path\to\DICOM\database
+            Study BRAIN^RESEARCH [19040321]
+                Series 014 [sag 3d gre +c]
+                    Nr of instances: 176
+            Study BRAIN^RESEARCH [19040321]
+                Series 017 [sag 3d flair +c]
+                    Nr of instances: 210
+            Study BRAIN^RESEARCH [19040321]
+                Series 005 [ax tensor]
+                    Nr of instances: 468
+                Series 006 [ax 5 flip]
+                    Nr of instances: 16
+                Series 007 [ax 10 flip]
+                    Nr of instances: 16
+                Series 008 [ax 15 flip]
+                    Nr of instances: 16
+                Series 009 [ax 20 flip]
+                    Nr of instances: 16
+                Series 010 [ax 25 flip]
+                    Nr of instances: 16
+                Series 011 [ax 30 flip]
+                    Nr of instances: 16
+                Series 012 [perfusion]
+                    Nr of instances: 1040
+            Study BRAIN^RESEARCH [19040323]
+                Series 017 [sag 3d flair +c]
+                    Nr of instances: 160
+                Series 018 [sag 3d flair +c_Copy]
+                    Nr of instances: 160
+                Series 019 [MergedSeries]
+                    Nr of instances: 320
+            Study BRAIN^RESEARCH [19040323]
+                Series 005 [ax tensor]
+                    Nr of instances: 468
+                Series 006 [ax 5 flip]
+                    Nr of instances: 16
+                Series 007 [ax 10 flip]
+                    Nr of instances: 16
+                Series 008 [ax 15 flip]
+                    Nr of instances: 16
+                Series 009 [ax 20 flip]
+                    Nr of instances: 16
+                Series 010 [ax 25 flip]
+                    Nr of instances: 16
+                Series 011 [ax 30 flip]
+                    Nr of instances: 16
+                Series 012 [perfusion]
+                    Nr of instances: 1040
+            Study BRAIN^RESEARCH [19040323]
+                Series 015 [sag 3d gre +c]
+                    Nr of instances: 176
+        ----------------------------------
     """
     if path is None:
         mgr = Manager()
@@ -88,47 +136,47 @@ def database_hollywood()->Database:
     Example:
         >>> database = db.database_hollywood()
         >>> database.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient James Bond
-            STUDY [0]: Study MRI [None]  
-                SERIES [0]: Series 001 [Localizer]
-                    Nr of instances: 0        
-                SERIES [1]: Series 002 [T2w]
-                    Nr of instances: 0      
-            STUDY [1]: Study Xray [None]
-                SERIES [0]: Series 001 [Chest]
+        ---------- DATABASE --------------
+        Location:  In memory
+        Patient James Bond
+            Study MRI [19821201]
+                Series 001 [Localizer]
                     Nr of instances: 0
-                SERIES [1]: Series 002 [Head]
+                Series 002 [T2w]
                     Nr of instances: 0
-        PATIENT [1]: Patient Scarface
-            STUDY [0]: Study MRI [None]
-                SERIES [0]: Series 001 [Localizer]
+            Study Xray [19821205]
+                Series 001 [Chest]
                     Nr of instances: 0
-                SERIES [1]: Series 002 [T2w]
+                Series 002 [Head]
                     Nr of instances: 0
-            STUDY [1]: Study Xray [None]
-                SERIES [0]: Series 001 [Chest]
+        Patient Scarface
+            Study MRI [19850105]
+                Series 001 [Localizer]
                     Nr of instances: 0
-                SERIES [1]: Series 002 [Head]
+                Series 002 [T2w]
                     Nr of instances: 0
-        --------------------------------------
+            Study Xray [19850106]
+                Series 001 [Chest]
+                    Nr of instances: 0
+                Series 002 [Head]
+                    Nr of instances: 0
+        ---------------------------------
     """
     hollywood = database()
 
     james_bond = hollywood.new_patient(PatientName='James Bond')
-    james_bond_mri = james_bond.new_study(StudyDescription='MRI')
+    james_bond_mri = james_bond.new_study(StudyDescription='MRI', StudyDate='19821201')
     james_bond_mri_localizer = james_bond_mri.new_series(SeriesDescription='Localizer')
     james_bond_mri_T2w = james_bond_mri.new_series(SeriesDescription='T2w')
-    james_bond_xray = james_bond.new_study(StudyDescription='Xray')
+    james_bond_xray = james_bond.new_study(StudyDescription='Xray', StudyDate='19821205')
     james_bond_xray_chest = james_bond_xray.new_series(SeriesDescription='Chest')
     james_bond_xray_head = james_bond_xray.new_series(SeriesDescription='Head')
 
     scarface = hollywood.new_patient(PatientName='Scarface')
-    scarface_mri = scarface.new_study(StudyDescription='MRI')
+    scarface_mri = scarface.new_study(StudyDescription='MRI', StudyDate='19850105')
     scarface_mri_localizer = scarface_mri.new_series(SeriesDescription='Localizer')
     scarface_mri_T2w = scarface_mri.new_series(SeriesDescription='T2w')
-    scarface_xray = scarface.new_study(StudyDescription='Xray')
+    scarface_xray = scarface.new_study(StudyDescription='Xray', StudyDate='19850106')
     scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
     scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
 
@@ -137,13 +185,14 @@ def database_hollywood()->Database:
 
 # THESE SHOULD MOVE TO SERIES MODULE
 
-def series(dtype='mri', in_study:Study=None, in_database:Database=None)->Series: 
+def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series: 
     """Create an empty DICOM series.
 
     Args:
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
         in_database (Database, optional): If provided, the series is created in this database. Defaults to None.
+        kwargs: Any valid DICOM (tag, value) pair to set properties of the new patient
 
     Returns:
         Series: DICOM series with defaults for all attributes.
@@ -159,19 +208,25 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None)->Series:
         :func:`~zeros`
 
     Example:
-        Create an empty series in memory:
+        Create an empty series in memory. 
 
-        >>> sery = db.series()
-        >>> sery.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient New Patient
-            STUDY [0]: Study New Study [None]
-            SERIES [0]: Series 001 [New Series]
-                Nr of instances: 0
-        --------------------------------------
+        >>> series = db.series()
+        >>> series.print()
+        ---------- SERIES --------------
+        Series 001 [New Series]
+            Nr of instances: 0
+        --------------------------------
 
-        Note since no Patient and Study objects are provided, a default hierarchy is created automatically.
+        Note since no patient and study records are provided, a default hierarchy is created automatically:
+
+        >>> series.database().print()
+        ---------- DATABASE --------------
+        Location:  In memory
+        Patient New Patient
+            Study New Study [None]
+                Series 001 [New Series]
+                    Nr of instances: 0
+        ----------------------------------
     """
     if dtype not in ['mri', 'MRImage']:
         message = 'dbdicom can only create images of type MRImage at this stage'
@@ -186,11 +241,11 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None)->Series:
             db = in_database
         patient = db.new_patient()
         study = patient.new_study()
-        series = study.new_series()
+        series = study.new_series(**kwargs)
     return series
 
 
-def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=None, in_database:Database=None)->Series:
+def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
     """Create a DICOM series from a numpy array.
 
     Args:
@@ -199,6 +254,7 @@ def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
         in_database (Database, optional): If provided, the series is created in this database. Defaults to None.
+        kwargs: Any valid DICOM (tag, value) pair to set properties of the new patient
 
     Returns:
         Series: DICOM series containing the provided array as image data and defaults for all other parameters.
@@ -211,22 +267,20 @@ def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=
         :func:`~zeros`
 
     Example:
-        Create a series containing a 3-dimensional array:
+        Create a series containing a 3-dimensional array. Since the default format is single-frame DICOM, this produces 3 separate images.
 
         >>> array = np.zeros((3, 128, 128))
         >>> zeros = db.as_series(array)
         >>> zeros.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient New Patient
-            STUDY [0]: Study New Study [None]
-            SERIES [0]: Series 001 [New Series]
-                Nr of instances: 3
-        --------------------------------------
-
-        Note since no Patient and Study objects are provided, a default hierarchy is created automatically.
+        ---------- SERIES --------------
+        Series 001 [New Series]
+            Nr of instances: 3
+                MRImage 000001
+                MRImage 000002
+                MRImage 000003
+        --------------------------------
     """
-    sery = series(dtype=dtype, in_study=in_study, in_database=in_database)
+    sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.mute()
     sery.set_pixel_array(array, pixels_first=pixels_first)
     sery.unmute()
@@ -254,15 +308,19 @@ def zeros(shape:tuple, **kwargs) -> Series:
 
         >>> zeros = db.zeros((3, 128, 128))
         >>> zeros.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient New Patient
-            STUDY [0]: Study New Study [None]
-            SERIES [0]: Series 001 [New Series]
-                Nr of instances: 3
-        --------------------------------------
+        ---------- SERIES --------------
+        Series 001 [New Series]
+            Nr of instances: 3 
+            MRImage 000001
+            MRImage 000002
+            MRImage 000003
+        --------------------------------
 
-        Note since no Patient and Study objects are provided, a default hierarchy is created automatically.
+        This is effectively shorthand for:
+        
+        >>> array = np.zeros((3, 128, 128))
+        >>> zeros = db.as_series(array)
+
     """
     array = np.zeros(shape, dtype=np.float32)
     return as_series(array, **kwargs)
@@ -270,12 +328,13 @@ def zeros(shape:tuple, **kwargs) -> Series:
 
 # THESE SHOULD MOVE TO STUDY MODULE
 
-def study(in_patient:Patient=None, in_database:Database=None)->Study: 
+def study(in_patient:Patient=None, in_database:Database=None, **kwargs)->Study: 
     """Create an empty DICOM study record.
 
     Args:
         in_patient (Patient, optional): If provided, the study is created in this Patient. Defaults to None.
         in_database (Database, optional): If provided, the study is created in this database. Defaults to None.
+        kwargs: Any valid DICOM (tag, value) pair to set properties of the new study
 
     Returns:
         Study: DICOM study with defaults for all attributes.
@@ -290,34 +349,40 @@ def study(in_patient:Patient=None, in_database:Database=None)->Study:
 
         >>> study = db.study()
         >>> study.print()
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient New Patient
-            STUDY [0]: Study New Study [None]
-        --------------------------------------
+        ---------- STUDY ---------------
+        Study New Study [None]
+        --------------------------------
 
-        Note since no Patient object is provided, a default hierarchy is created automatically.
+        Note since no patient object is provided, a default hierarchy is created automatically:
+
+        >>> study.database().print()
+        ---------- DATABASE --------------
+        Location:  In memory
+        Patient New Patient
+            Study New Study [None]
+        ----------------------------------
     """
     
     if in_patient is not None:
-        study = in_patient.new_study()
+        study = in_patient.new_study(**kwargs)
     else:
         if in_database is None:
             db = database()
         else:
             db = in_database
         patient = db.new_patient()
-        study = patient.new_study()
+        study = patient.new_study(**kwargs)
     return study
 
 
 # THESE SHOULD MOVE TO Patient MODULE
 
-def patient(in_database:Database=None)->Patient: 
+def patient(in_database:Database=None, **kwargs)->Patient: 
     """Create an empty DICOM patient record.
 
     Args:
         in_database (Database, optional): If provided, the patient is created in this database. Defaults to None.
+        kwargs: Any valid DICOM (tag, value) pair to set properties of the new patient
 
     Returns:
         Study: DICOM patient with defaults for all attributes.
@@ -332,19 +397,23 @@ def patient(in_database:Database=None)->Patient:
 
         >>> patient = db.patient()
         >>> patient.print()
+        ---------- PATIENT -------------
+        Patient New Patient
+        --------------------------------
 
-        ---------- DICOM FOLDER --------------
-        DATABASE:  new
-        PATIENT [0]: Patient New Patient
-        --------------------------------------
+        Note since no patient object is provided, a default database is created automatically.
 
-        Note since no Patient object is provided, a default hierarchy is created automatically.
+        >>> patient.database().print()
+        ---------- DATABASE --------------
+        Location:  In memory
+        Patient New Patient
+        ----------------------------------
     """
     if in_database is None:
         db = database()
     else:
         db = in_database
-    patient = db.new_patient()
+    patient = db.new_patient(**kwargs)
     return patient
 
 

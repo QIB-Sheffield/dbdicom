@@ -7,4 +7,4 @@ Series
 .. autosummary::
    :toctree: generated/
 
-   Series.path
+   Series.split_by
