@@ -69,7 +69,7 @@ class Manager():
         """  
         if dataframe is None:
             #dataframe = pd.DataFrame(index=[], columns=self.columns)
-            dataframe = pd.DataFrame(index=[], columns=self.columns+['removed','created','placeholder']) # Modified 28/05/2023
+            dataframe = pd.DataFrame(index=[], columns=self.columns+['removed','created','placeholder']) # Added 28/05/2023
         # THIS NEEDS A MECHANISM TO PREVENT ANOTHER Manager to open the same database.
         self.status = status
         self.dialog = dialog 
@@ -1388,9 +1388,9 @@ class Manager():
             row[8] = self.value(target_keys[0], 'SeriesDescription')
             row[9] = self.value(target_keys[0], 'SeriesNumber')
             row[10] = 1 + max_number
-            for key in kwargs:
-                if key in self._descriptives:
-                    row[self._descriptives[key]] = kwargs[key]
+            for val in kwargs:
+                if val in self._descriptives:
+                    row[self._descriptives[val]] = kwargs[val]
         else:
             if instance_key in self.dataset:
                 ds = copy.deepcopy(ds)
@@ -1471,9 +1471,9 @@ class Manager():
                 row[8] = self.value(target_keys[0], 'SeriesDescription')
                 row[9] = self.value(target_keys[0], 'SeriesNumber')
                 row[10] = i+1+max_number
-                for key in kwargs:
-                    if key in self._descriptives:
-                        row[self._descriptives[key]] = kwargs[key]
+                for val in kwargs:
+                    if val in self._descriptives:
+                        row[self._descriptives[val]] = kwargs[val]
             else:
                 if key in self.dataset:
                     ds = copy.deepcopy(ds)
@@ -1566,9 +1566,9 @@ class Manager():
                     row[6] = self.value(target_key, 'StudyDescription')
                     row[7] = self.value(target_key, 'StudyDate')
                     row[9] = new_number
-                    for key in kwargs:
-                        if key in self._descriptives:
-                            row[self._descriptives[key]] = kwargs[key]
+                    for val in kwargs:
+                        if val in self._descriptives:
+                            row[self._descriptives[val]] = kwargs[val]
                 else:
 
                     # If the series exists in memory, create a copy in memory
@@ -1645,9 +1645,9 @@ class Manager():
                 row[5] = self.value(target_key, 'PatientName')
                 row[6] = self.value(target_key, 'StudyDescription')
                 row[7] = self.value(target_key, 'StudyDate')
-                for key in kwargs:
-                    if key in self._descriptives:
-                        row[self._descriptives[key]] = kwargs[key]
+                for val in kwargs:
+                    if val in self._descriptives:
+                        row[self._descriptives[val]] = kwargs[val]
                 # Get new data for the dataframe
                 copy_data.append(row)
                 copy_keys.append(new_key)
@@ -1664,9 +1664,9 @@ class Manager():
                         row[2] = new_series_uid
                         row[3] = dbdataset.new_uid()
                         row[5] = self.value(target_key, 'PatientName')
-                        for key in kwargs:
-                            if key in self._descriptives:
-                                row[self._descriptives[key]] = kwargs[key]
+                        for val in kwargs:
+                            if val in self._descriptives:
+                                row[self._descriptives[val]] = kwargs[val]
                     else:
                         if key in self.dataset:
                             ds = copy.deepcopy(ds)
@@ -1732,9 +1732,9 @@ class Manager():
                             row[2] = new_series_uid
                             row[3] = new_instance_uid
                             row[5] = new_patient_name
-                            for key in kwargs:
-                                if key in self._descriptives:
-                                    row[self._descriptives[key]] = kwargs[key]
+                            for val in kwargs:
+                                if val in self._descriptives:
+                                    row[self._descriptives[val]] = kwargs[val]
                         else:
                             if key in self.dataset:
                                 ds = copy.deepcopy(ds)
@@ -1837,9 +1837,9 @@ class Manager():
                 row[8] = self.value(target_keys[0], 'SeriesDescription')
                 row[9] = self.value(target_keys[0], 'SeriesNumber')
                 row[10] = i+1 + max_number
-                for key in kwargs:
-                    if key in self._descriptives:
-                        row[self._descriptives[key]] = kwargs[key]
+                for val in kwargs:
+                    if val in self._descriptives:
+                        row[self._descriptives[val]] = kwargs[val]
 
                 if self.value(key, 'created'):
                     #self.register.loc[key, self.columns] = row
@@ -1965,7 +1965,7 @@ class Manager():
             keys = self.keys(series=series)
 
             # If this is the last series in the study
-            # Keep the study as an empty study
+            # The create a new row for the empty study
             source_study = self.register.at[keys[0], 'StudyInstanceUID']
             source_study_series = (self.register.removed == False) & (self.register.StudyInstanceUID == source_study)
             source_study_series = self.register.SeriesInstanceUID[source_study_series]
@@ -1979,15 +1979,13 @@ class Manager():
                 row[7] = self.register.at[keys[0], 'StudyDate']
                 copy_keys.append(self.new_key())
                 copy_data.append(row)
-                
-            # Now move the instances one by one
+
             for key in keys:
 
                 instance_uid = self.value(key, 'SOPInstanceUID')
                 ds = self.get_dataset(instance_uid, [key])
 
                 if ds is None:
-
                     row = self.value(key, self.columns).tolist()
                     row[0] = self.value(target_keys[0], 'PatientID')
                     row[1] = self.value(target_keys[0], 'StudyInstanceUID')
@@ -1995,33 +1993,27 @@ class Manager():
                     row[6] = self.value(target_keys[0], 'StudyDescription')
                     row[7] = self.value(target_keys[0], 'StudyDate')
                     row[9] = new_number
-                    for key in kwargs:
-                        if key in self._descriptives:
-                            row[self._descriptives[key]] = kwargs[key]
-
+                    for val in kwargs:
+                        if val in self._descriptives:
+                            row[self._descriptives[val]] = kwargs[val]
                     if self.value(key, 'created'):
-                        #self.register.loc[key, self.columns] = row
                         for i, c in enumerate(self.columns):
                             self.register.at[key, c] = row[i]
                         self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
                     else:
                         # If the dataset has not yet been edited
-                        # find the placeholder row and copy the data
-                        # placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                        # placeholder = placeholder[placeholder]
+                        # find the placeholder row
                         placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
                         placeholder = placeholder[placeholder.placeholder]
+                        # Write data in the placeholder row
                         placeholder = placeholder.index[0]
-                        #self.register.loc[placeholder, self.columns] = row
                         for i, c in enumerate(self.columns): 
                             self.register.at[placeholder, c] = row[i]
-                        # remove the current row and make the placeholder row current
+                        # remove the current row 
                         self.register.at[key, 'removed'] = True
+                        # Make the placeholder row current
                         self.register.at[placeholder, 'removed'] = False
                         self.register.at[placeholder, 'placeholder'] = False
-                        # self.register.at[key,'removed'] = True
-                        # copy_data.append(row)
-                        # copy_keys.append(self.new_key())
 
                 else:
 
@@ -2068,10 +2060,6 @@ class Manager():
                         self.register.at[key, 'removed'] = True
                         self.register.at[new_key, 'removed'] = False
                         self.register.at[new_key, 'placeholder'] = False
-
-                        # self.register.at[key,'removed'] = True
-                        # copy_data.append(row)
-                        # copy_keys.append(new_key)
 
         # Update the dataframe in the index
         # If the target study was empty and new series have been added
@@ -2139,9 +2127,9 @@ class Manager():
                         row = self.value(key, self.columns).tolist()
                         row[0] = self.value(target_keys[0], 'PatientID')
                         row[5] = self.value(target_keys[0], 'PatientName')
-                        for key in kwargs:
-                            if key in self._descriptives:
-                                row[self._descriptives[key]] = kwargs[key]
+                        for val in kwargs:
+                            if val in self._descriptives:
+                                row[self._descriptives[val]] = kwargs[val]
 
                         if self.value(key, 'created'):
                             #self.register.loc[key, self.columns] = row

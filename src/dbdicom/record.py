@@ -872,11 +872,74 @@ class Record():
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
         return self.record('Instance', uid, key, **attr)
 
-    # def new_sibling(self, suffix=None, **kwargs):
-    #     # type = self.__class__.__name__
-    #     # if type == 'Database':
-    #     #     return None
-    #     return self.parent().new_child(**kwargs)
+
+    def new_child(self, **kwargs):
+        """Create a new child of the record.
+
+        Args:
+            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_series`
+            :func:`~new_sibling`
+            :func:`~new_pibling`
+
+        Example:
+            Create an empty study:
+
+            >>> study = db.study()
+            >>> study.print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+            --------------------------------
+
+            Add a new series in the study:
+
+            >>> new = study.new_child(SeriesDescription='Newborn')
+            >>> study.print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+            Series 001 [Newborn]
+                Nr of instances: 0
+            --------------------------------
+        """
+        # Note this function is implemented in all subclasses - included here for documentation purposes.
+        pass
+
+    def new_sibling(self, suffix:str=None, **kwargs):
+        """Create a new sibling of the record under the same parent.
+
+        Args:
+            suffix (str, optional): A string to be appended to the Description. Defaults to None.
+            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
+
+        Raises:
+            RuntimeError: when called on a Record of type Database. New records can only be created within an existing database.
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_series`
+            :func:`~new_pibling`
+
+        Example:
+            Create a sibling series under the same study:
+
+            >>> series = db.series()
+            >>> new = series.new_sibling(suffix='Brother')
+            >>> series.parent().print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+                Series 001 [New Series]
+                    Nr of instances: 0
+                Series 002 [New Series [Brother]]
+                    Nr of instances: 0
+            --------------------------------
+        """
+        # Note this function is implemented in all subclasses - included here for documentation purposes.
+        pass
 
     def new_pibling(self, **kwargs):
         """Create a new sibling of the parent record (pibling).
@@ -1040,13 +1103,30 @@ class Record():
             :func:`~copy_to`
 
         Example:
-            Move a DICOM series to a new study:
+            Create a database with two studies and a single series in one:
 
-            >>> series = db.series()
-            >>> series.print()
-            >>> new_study = series.new_pibling(StudyDescription='Study of clones')
-            >>> series.move_to(new_study)
-            >>> series.print()
+            >>> series = db.series(SeriesDescription='Demo')
+            >>> study = series.new_pibling(StudyDescription='Test')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+                Study Test [None]
+            --------------------------------
+
+            Now move the series to the other study:
+
+            >>> series.move_to(study)
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                Study Test [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
 
         """
         move_to(self, parent)

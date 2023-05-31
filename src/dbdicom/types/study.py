@@ -28,7 +28,7 @@ class Study(Record):
     
     def new_sibling(self, suffix=None, **kwargs):
         if suffix is not None:
-            desc = self.instance().StudyDescription 
+            desc = self.manager._at(self.key(), 'StudyDescription')
             kwargs['StudyDescription'] = desc + ' [' + suffix + ']'
         return self.parent().new_child(**kwargs)
 
