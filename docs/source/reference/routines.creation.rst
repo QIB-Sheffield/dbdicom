@@ -4,14 +4,13 @@ Record creation
 .. currentmodule:: dbdicom
 
 
-Database creation
-^^^^^^^^^^^^^^^^^
+Record creation
+^^^^^^^^^^^^^^^
 
 .. autosummary::
    :toctree: generated/
 
    database
-   database_hollywood
    patient
    study
    series
@@ -26,5 +25,14 @@ Series from value
 
    as_series
    zeros
+
+
+Digital reference objects
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
+
+   database_hollywood
 
 

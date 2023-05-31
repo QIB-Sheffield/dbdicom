@@ -24,8 +24,11 @@ def seconds_to_str(seconds_since_midnight):
     minutes = str(minutes).zfill(2)
     seconds = str(seconds).zfill(2)
     fractional_seconds = str(fractional_seconds)
-    _, fractional_seconds = fractional_seconds.split('.')
-    fractional_seconds = fractional_seconds.ljust(6,'0')
+    fractional_seconds = fractional_seconds.split('.')
+    if len(fractional_seconds) == 2:
+        fractional_seconds = fractional_seconds[1].ljust(6,'0')
+    else:
+        fractional_seconds = '0'.ljust(6,'0')
     return hours + minutes + seconds + '.' + fractional_seconds
 
 def time_to_seconds(tm):

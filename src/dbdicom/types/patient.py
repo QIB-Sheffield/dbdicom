@@ -21,7 +21,7 @@ class Patient(Record):
     
     def new_sibling(self, suffix=None, **kwargs):
         if suffix is not None:
-            desc = self.instance().PatientName 
+            desc = self.manager._at(self.key(), 'PatientName')
             kwargs['PatientName'] = desc + ' [' + suffix + ']'
         return self.parent().new_child(**kwargs)
 

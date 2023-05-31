@@ -46,7 +46,9 @@ Editing a database
    Record.new_patient
    Record.new_study
    Record.new_series
+   Record.new_sibling
    Record.new_pibling
+   Record.new_child
    Record.remove
    Record.copy
    Record.copy_to

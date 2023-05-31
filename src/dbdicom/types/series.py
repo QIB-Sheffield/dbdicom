@@ -35,7 +35,7 @@ class Series(Record):
 
     def new_sibling(self, suffix=None, **kwargs):
         if suffix is not None:
-            desc = self.instance().SeriesDescription 
+            desc = self.manager._at(self.key(), 'SeriesDescription') 
             kwargs['SeriesDescription'] = desc + ' [' + suffix + ']'
         return self.parent().new_child(**kwargs)
 
@@ -149,18 +149,47 @@ class Series(Record):
 
         Raises:
             ValueError: if an invalid or missing keyword is provided.
-            ValueError: if all images have the same value for the keyword, 
-                so no subseries can be derived. An exception is raised rather than a copy of the series to avoid unnecessary copies being made. If that is the intention, use series.copy() instead.
+            ValueError: if all images have the same value for the keyword, so no subseries can be derived. An exception is raised rather than a copy of the series to avoid unnecessary copies being made. If that is the intention, use series.copy() instead.
 
         Returns:
-            list: A list of subseries, where each element 
-            has the same value of the given keyword.
+            list: A list of subseries, where each element has the same value of the given keyword.
 
-        Example: split a series up into multiple series, 
-        each containing all images at the same location.
+        Example: 
 
-        >>> subseries = series.split_by('SliceLocation')   # By keyword
-        >>> subseries = series.split_by((0x0020,0x1041))   # By (group, element) tag
+            Create a single-slice series with multiple flip angles and repetition times:
+
+            >>> coords = {
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0, 7.5],
+            ... }
+            >>> zeros = db.zeros((3,2,128,128), coords)
+            >>> print(zeros)
+            ---------- SERIES --------------
+            Series 001 [New Series]
+                Nr of instances: 6
+                    MRImage 000001
+                    MRImage 000002
+                    MRImage 000003
+                    MRImage 000004
+                    MRImage 000005
+                    MRImage 000006
+            --------------------------------
+
+            Splitting this series by FlipAngle now creates 3 new series in the same study, with 2 images each. By default the fixed value of the splitting attribute is written in the series description:
+
+            >>> zeros_FA = zeros.split_by('FlipAngle')
+            >>> zeros.study().print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+                Series 001 [New Series]
+                    Nr of instances: 6
+                Series 002 [New Series[FlipAngle = 2.0]]
+                    Nr of instances: 2
+                Series 003 [New Series[FlipAngle = 15.0]]
+                    Nr of instances: 2
+                Series 004 [New Series[FlipAngle = 30.0]]
+                    Nr of instances: 2
+            --------------------------------
         """
         
         self.status.message('Reading values..')
@@ -386,7 +415,7 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs): 
+def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -461,6 +490,32 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
+    # If coordinates are not provided, and no source data are given, create default coordinates.
+    if coords == {}:
+        if source is None:
+            if array.ndim > 4:
+                msg = 'For arrays with more than 4 dimensions, \n'
+                msg += 'either coordinate labels or headers must be provided'
+                raise ValueError(msg)
+            elif array.ndim == 4:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                    'AcquisitionTime':np.arange(array.shape[1]),
+                }
+            elif array.ndim == 3:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                }
+
+    # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
+    if coords != {}:
+        v0 = list(coords.values())[0]
+        if np.array(v0).ndim==1: # regular grid
+            pos = tuple([coords[c] for c in coords])
+            pos = np.meshgrid(*pos)
+            for i, c in enumerate(coords):
+                coords[c] = pos[i].ravel()
+
     # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
     if source is None:
@@ -506,6 +561,9 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
                 setattr(image, attr, vals[i])
             else:
                 setattr(image, attr, vals)
+        if coords != {}: # ADDED 31/05/2023
+            for c in coords:
+                image[c] = coords[c][i]
         image.set_pixel_array(array[i,...])
         image.clear()
     series.manager.resume_extensions()

@@ -236,20 +236,21 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
         series = in_study.new_series()
     else:
         if in_database is None:
-            db = database()
+            _database = database()
         else:
-            db = in_database
-        patient = db.new_patient()
+            _database = in_database
+        patient = _database.new_patient()
         study = patient.new_study()
         series = study.new_series(**kwargs)
     return series
 
 
-def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+def as_series(array:np.ndarray, coords:dict={}, pixels_first=False, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
     """Create a DICOM series from a numpy array.
 
     Args:
-        array (np.ndarray): Array with image data
+        array (np.ndarray): numpy.ndarray with image data
+        coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions this is required. The coordinate values can be one-dimensions for regularly gridded data, or n-dimensional for irregularly gridded data. 
         pixels_first (bool, optional): Flag to specify whether the pixel indices are first or last. Defaults to False.
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
@@ -261,33 +262,56 @@ def as_series(array:np.ndarray, pixels_first=False, dtype='mri', in_study:Study=
  
     Raises:
         ValueError: if a dtype is requested that is currently not yet implemented
+        ValueError: If the coords do not match up with the shape of the array.
 
     See Also:
         :func:`~series`
         :func:`~zeros`
 
     Example:
-        Create a series containing a 3-dimensional array. Since the default format is single-frame DICOM, this produces 3 separate images.
+        Create a series containing a 4-dimensional array. Since the default format is single-frame DICOM, this produces 6 separate images.
 
-        >>> array = np.zeros((3, 128, 128))
+        >>> array = np.zeros((3, 2, 128, 128))
         >>> zeros = db.as_series(array)
         >>> zeros.print()
         ---------- SERIES --------------
         Series 001 [New Series]
-            Nr of instances: 3
-                MRImage 000001
-                MRImage 000002
-                MRImage 000003
+            Nr of instances: 6 
+            MRImage 000001   
+            MRImage 000002   
+            MRImage 000003
+            MRImage 000004
+            MRImage 000005
+            MRImage 000006
         --------------------------------
+
+        Since no coordinates are provided, these are assumed to be SliceLocation and AcquisitionTime with default values:
+
+        >>> print(zeros.SliceLocation)
+        [0.0, 1.0, 2.0]
+        >>> print(zeros.AcquisitionTime)
+        [0.0, 1.0]
+
+        To override these defaults, set coordinates explicitly using a dictionary, for instance for an image taken at a single slice location for 3 flip angles and 2 repetition times:
+
+        >>> coords = {
+        ...    'FlipAngle': [2, 15, 30],
+        ...    'RepetitionTime': [2.5, 5.0, 7.5],
+        ... }
+        >>> zeros = db.as_series(array, coords)
+        >>> print(zeros.FlipAngle)
+        [2.0, 15.0, 30.0]
+        >>> print(zeros.RepetitionTime)
+        [2.5, 7.5]
     """
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.mute()
-    sery.set_pixel_array(array, pixels_first=pixels_first)
+    sery.set_array(array, coords=coords, pixels_first=pixels_first)
     sery.unmute()
     return sery
 
 
-def zeros(shape:tuple, **kwargs) -> Series:
+def zeros(shape:tuple, coords:dict={}, **kwargs) -> Series:
     """Create a DICOM series populated with zeros.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -323,7 +347,7 @@ def zeros(shape:tuple, **kwargs) -> Series:
 
     """
     array = np.zeros(shape, dtype=np.float32)
-    return as_series(array, **kwargs)
+    return as_series(array, coords=coords, **kwargs)
 
 
 # THESE SHOULD MOVE TO STUDY MODULE

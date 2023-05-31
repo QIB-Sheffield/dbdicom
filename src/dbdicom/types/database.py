@@ -28,8 +28,10 @@ class Database(Record):
         attr = {**kwargs, **self.attributes}
         return self.new_patient(**attr)
     
-    def new_sibling(self, **kwargs):
-        return None
+    def new_sibling(self, suffix=None, **kwargs):
+        msg = 'You cannot create a sibling from a database \n'
+        msg += 'You can start a new database with db.database()'
+        raise RuntimeError(msg)
 
     def save(self, path=None):
         #self.manager.save('Database')
