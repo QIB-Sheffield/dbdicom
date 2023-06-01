@@ -53,6 +53,20 @@ Editing a database
    Record.copy
    Record.copy_to
    Record.move_to
+
+
+Reading and writing
+^^^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
+
+
+Saving and restoring
+^^^^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
    
 
 User interactions
