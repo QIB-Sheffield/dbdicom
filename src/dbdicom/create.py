@@ -1,3 +1,6 @@
+# Importing annotations to handle or sign in import type hints
+from __future__ import annotations
+
 import numpy as np
 from dbdicom.manager import Manager
 from dbdicom.types.database import Database

@@ -1,3 +1,7 @@
+# Importing annotations to handle or sign in import type hints
+from __future__ import annotations
+
+# Import packages
 import numpy as np
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
@@ -81,20 +85,59 @@ class Record():
 
     
     def print(self):
-        """Print the contents of the DICOM database containing this object.
+        """Print a summary of the record and its contents.
 
         See Also:
             :func:`~path`
 
         Example:
+            Print a summary of a database:
 
-            >>> database = db.database('path\\to\\DICOM\\database')
+            >>> database = db.database_hollywood()
             >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  path\\to\\DICOM\\database
-            PATIENT [0]: Patient Al Pacino
-            PATIENT [1]: Patient Sean Connery
-            --------------------------------------      
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient James Bond
+                    Study MRI [19821201]
+                        Series 001 [Localizer]
+                            Nr of instances: 0
+                        Series 002 [T2w]
+                            Nr of instances: 0
+                    Study Xray [19821205]
+                        Series 001 [Chest]
+                            Nr of instances: 0
+                        Series 002 [Head]
+                            Nr of instances: 0
+                Patient Scarface
+                    Study MRI [19850105]
+                        Series 001 [Localizer]
+                            Nr of instances: 0
+                        Series 002 [T2w]
+                            Nr of instances: 0
+                    Study Xray [19850106]
+                        Series 001 [Chest]
+                            Nr of instances: 0
+                        Series 002 [Head]
+                            Nr of instances: 0
+            ----------------------------------  
+
+            Or print a summary of any record in the hierarchy:
+
+            >>> patients = database.patients(PatientName='Scarface')  
+            >>> patients[0].print()
+            ---------- PATIENT -------------
+            Patient Scarface
+                Study MRI [19850105]
+                    Series 001 [Localizer]
+                        Nr of instances: 0
+                    Series 002 [T2w]
+                        Nr of instances: 0
+                Study Xray [19850106]
+                    Series 001 [Chest]
+                        Nr of instances: 0
+                    Series 002 [Head]
+                        Nr of instances: 0
+            --------------------------------
         """
         self.manager.print(self.uid, self.name) 
 
@@ -498,14 +541,12 @@ class Record():
 
             Find all series with a given SeriesDescription:
 
-            >>> database = db.database_hollywood()
             >>> series_list = database.series(SeriesDescription='Chest')
             >>> print([s.label() for s in series_list])
             ['Series 001 [Chest]', 'Series 001 [Chest]']
 
             Find all series with a given SeriesDescription of a given Patient:
 
-            >>> database = db.database_hollywood()
             >>> series_list = database.series(SeriesDescription='Chest', PatientName='James Bond')
             >>> print([s.label() for s in series_list])
             ['Series 001 [Chest]']
@@ -693,6 +734,24 @@ class Record():
         self.write()
 
     def read(self):
+        """Read the record into memory.
+
+        After reading the record into memory, all subsequent changes will be made in memory only. In order to update the version on disk, call .write(), or .clear() to write and subsequently remove it from memory and continue working from disk. 
+
+        Note: 
+            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.
+
+        See Also:
+            :func:`~write` 
+            :func:`~clear`
+
+        Example:
+
+            Open a database currently on disk:
+
+            >>> location = 'path\\to\\DICOM\\database'
+            >>> rider = db.database(location)
+        """
         self.manager.read(self.uid, keys=self.keys())
         return self
 
