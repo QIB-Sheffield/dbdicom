@@ -42,6 +42,10 @@ def split_multiframe(filepath):
     try:
         subprocess.call(command, stdout=subprocess.PIPE)
     except:
+        msg = '!ERROR converting multiframe files!\n'
+        msg += 'Call to dcm4che failed \n'
+        msg += 'This may happen when file permissions prevent reading of the package source data.'
+        print(msg)
         return []
 
     # Return a list of newly created files
