@@ -55,16 +55,17 @@ Editing a record
    Record.copy
    
    
-Reading and saving
-^^^^^^^^^^^^^^^^^^^
+Loading and saving
+^^^^^^^^^^^^^^^^^^
 
 .. autosummary::
    :toctree: generated/
 
-   Record.load
-   Record.clear
    Record.save
    Record.restore
+   Record.load
+   Record.clear
+
 
 
 User interactions

@@ -987,6 +987,136 @@ class Record():
         return self.copy_to(self.parent(), **kwargs)
 
 
+# Load and save
+
+
+    def save(self, path=None):
+        """Save any changes made to the record.
+
+        .. warning::
+
+            Saving is irreversible! Any edits made to the record before saving cannot be undone.
+
+        See Also:
+            :func:`~restore`
+        
+        Example:
+            Create a new patient, change the name, and save:
+
+            >>> patient = db.patient(PatientName='James Bond')
+            >>> patient.PatientName = 'Scarface'
+            >>> patient.save()
+
+            At this point the original information can no longer be restored. Calling restore does not revert back to the original:
+
+            >>> patient.restore()
+            >>> print(patient.PatientName)
+            Scarface
+        """
+        rows = self.manager._extract_record(self.name, self.uid)
+        self.manager.save(rows)
+        self.write(path)
+        
+
+    def restore(self):
+        """Restore the record to the last changed state.
+
+        .. warning::
+
+            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.
+
+        See Also:
+            :func:`~save`
+        
+            Create a new patient and change the name:
+
+            >>> patient = db.patient(PatientName='James Bond')
+            >>> patient.PatientName = 'Scarface'
+            >>> print(patient.PatientName)
+            Scarface
+
+            Calling restore will undo the changes:
+
+            >>> patient.restore()
+            >>> print(patient.PatientName)
+            James Bond
+
+
+        """        
+        rows = self.manager._extract_record(self.name, self.uid)
+        self.manager.restore(rows)
+        self.write()
+
+
+    def load(self):
+        """Load the record into memory.
+
+        After loading the record into memory, all subsequent changes will be made in memory only. Call clear() to write any changes to disk and remove it from memory. 
+
+        Note: 
+            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.
+
+        See Also:
+            :func:`~clear`
+
+        Example:
+
+            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series on disk: 
+
+            >>> from time import time
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series = db.zeros((20,20,256,256), in_database=db.database(path))
+
+            Now measure the time it takes to set the slice locations to a constant value:
+
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            6.860354423522949
+
+            Since the series was created on disk, this is editing on disk. Now load the series into memory and perform the same steps:
+
+            >>> series.load()
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            0.5065226554870605
+
+            On the machine where this was executed, the same computation runs more than 10 times faster in memory.
+        """
+        self.manager.read(self.uid, keys=self.keys())
+        return self
+
+    def clear(self):
+        """Clear the record from memory.
+
+        This will write the record to disk and clear it from memory. After this step, subsequent calculations will be performed from disk.
+
+        Note: 
+            If the record does not exist in memory, or if its database does not have a path on disk associated, read() does nothing.
+
+        See Also:
+            :func:`~read`
+
+        Example:
+
+            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series in memory. We also provide a path to a directory for writing data: 
+
+            >>> from time import time
+            >>> series = db.zeros((20,20,256,256))
+            >>> series.database().set_path(path)
+
+            Now measure the time it takes to set the slice locations to a constant value:
+
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            0.39553403854370117
+
+            Since the series was created in memory, this is editing in memory. Now we clear the series from memory and perform the same computation:
+
+            >>> series.clear()
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            11.600219488143921
+
+            The computation is now run from disk and is significantly slower because of the need to read and write the files.
+        """
+        self.manager.clear(self.uid, keys=self.keys())
+
 
     def progress(self, value: float, maximum: float, message: str=None):
         """Print progress message to the terminal..
@@ -1202,99 +1332,6 @@ class Record():
 
 
 
-    def save(self, path=None):
-        """Save any changes made to the record.
-
-        .. warning::
-
-            Saving is irreversible! Any edits made to the record before saving cannot be undone.
-
-        See Also:
-            :func:`~restore`
-        
-        Example:
-            Create a new patient, change the name, and save:
-
-            >>> patient = db.patient(PatientName='James Bond')
-            >>> patient.PatientName = 'Scarface'
-            >>> patient.save()
-
-            At this point the original information can no longer be restored. Calling restore does not revert back to the original:
-
-            >>> patient.restore()
-            >>> print(patient.PatientName)
-            Scarface
-        """
-        rows = self.manager._extract_record(self.name, self.uid)
-        self.manager.save(rows)
-        self.write(path)
-        
-
-    def restore(self):
-        """Restore the record to the last changed state.
-
-        .. warning::
-
-            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.
-
-        See Also:
-            :func:`~save`
-        
-            Create a new patient and change the name:
-
-            >>> patient = db.patient(PatientName='James Bond')
-            >>> patient.PatientName = 'Scarface'
-            >>> print(patient.PatientName)
-            Scarface
-
-            Calling restore will undo the changes:
-
-            >>> patient.restore()
-            >>> print(patient.PatientName)
-            James Bond
-
-
-        """        
-        rows = self.manager._extract_record(self.name, self.uid)
-        self.manager.restore(rows)
-        self.write()
-
-
-    def load(self):
-        """Load the record into memory.
-
-        After loading the record into memory, all subsequent changes will be made in memory only. Call clear() to write any changes to disk and remove it from memory. 
-
-        Note: 
-            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.
-
-        See Also:
-            :func:`~clear`
-
-        Example:
-
-            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series on disk: 
-
-            >>> from time import time
-            >>> path = 'path\\to\\empty\\folder'
-            >>> series = db.zeros((20,20,256,256), in_database=db.database(path))
-
-            Now measure the time it takes to set the slice locations to a constant value:
-
-            >>> t=time(); series.SliceLocation=1; print(time()-t)
-            6.860354423522949
-
-            Since the series was created on disk, this is editing on disk. Now load the series into memory and perform the same steps:
-
-            >>> series.load()
-            >>> t=time(); series.SliceLocation=1; print(time()-t)
-            0.5065226554870605
-
-            On the machine where this was executed, the same computation runs more than 10 times faster in memory.
-        """
-        self.manager.read(self.uid, keys=self.keys())
-        return self
-
 
     def read(self): # Obsolete - replace by load()
         return self.load()
@@ -1312,39 +1349,6 @@ class Record():
         self.manager._write_df()
 
 
-    def clear(self):
-        """Clear the record from memory.
-
-        This will write the record to disk and clear it from memory. After this step, subsequent calculations will be performed from disk.
-
-        Note: 
-            If the record does not exist in memory, or if its database does not have a path on disk associated, read() does nothing.
-
-        See Also:
-            :func:`~read`
-
-        Example:
-
-            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series in memory. We also provide a path to a directory for writing data: 
-
-            >>> from time import time
-            >>> series = db.zeros((20,20,256,256))
-            >>> series.database().set_path(path)
-
-            Now measure the time it takes to set the slice locations to a constant value:
-
-            >>> t=time(); series.SliceLocation=1; print(time()-t)
-            0.39553403854370117
-
-            Since the series was created in memory, this is editing in memory. Now we clear the series from memory and perform the same computation:
-
-            >>> series.clear()
-            >>> t=time(); series.SliceLocation=1; print(time()-t)
-            11.600219488143921
-
-            The computation is now run from disk and is significantly slower because of the need to read and write the files.
-        """
-        self.manager.clear(self.uid, keys=self.keys())
 
 
 
