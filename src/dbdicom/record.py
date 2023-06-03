@@ -990,6 +990,34 @@ class Record():
 # Load and save
 
 
+    def restore(self):
+        """Restore the record to the last changed state.
+
+        .. warning::
+
+            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.
+
+        See Also:
+            :func:`~save`
+        
+            Create a new patient and change the name:
+
+            >>> patient = db.patient(PatientName='James Bond')
+            >>> patient.PatientName = 'Scarface'
+            >>> print(patient.PatientName)
+            Scarface
+
+            Calling restore will undo the changes:
+
+            >>> patient.restore()
+            >>> print(patient.PatientName)
+            James Bond
+        """        
+        rows = self.manager._extract_record(self.name, self.uid)
+        self.manager.restore(rows)
+        self.write()
+
+
     def save(self, path=None):
         """Save any changes made to the record.
 
@@ -1017,36 +1045,6 @@ class Record():
         self.manager.save(rows)
         self.write(path)
         
-
-    def restore(self):
-        """Restore the record to the last changed state.
-
-        .. warning::
-
-            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.
-
-        See Also:
-            :func:`~save`
-        
-            Create a new patient and change the name:
-
-            >>> patient = db.patient(PatientName='James Bond')
-            >>> patient.PatientName = 'Scarface'
-            >>> print(patient.PatientName)
-            Scarface
-
-            Calling restore will undo the changes:
-
-            >>> patient.restore()
-            >>> print(patient.PatientName)
-            James Bond
-
-
-        """        
-        rows = self.manager._extract_record(self.name, self.uid)
-        self.manager.restore(rows)
-        self.write()
-
 
     def load(self):
         """Load the record into memory.
