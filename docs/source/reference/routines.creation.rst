@@ -15,7 +15,6 @@ Record creation
    study
    series
 
-   
 
 Series from value
 ^^^^^^^^^^^^^^^^^
@@ -27,8 +26,8 @@ Series from value
    zeros
 
 
-Digital reference objects
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Reference objects
+^^^^^^^^^^^^^^^^^
 
 .. autosummary::
    :toctree: generated/

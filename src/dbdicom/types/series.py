@@ -70,7 +70,10 @@ class Series(Record):
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
-    def set_array(*args, **kwargs):
+    def set_ndarray(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
+
+    def set_array(*args, **kwargs): # obsolete - phase out and replace by set_ndarray()
         set_pixel_array(*args, **kwargs)
 
 
@@ -555,7 +558,6 @@ def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, *
 
     # Flatten array for iterating
     array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    series.manager.pause_extensions()
     for i, image in enumerate(copy_source):
         series.progress(i+1, len(copy_source), 'Saving array..')
         image.read()
@@ -567,20 +569,20 @@ def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, *
         if coords != {}: # ADDED 31/05/2023
             for c in coords:
                 image[c] = coords[c][i]
+
         image.set_pixel_array(array[i,...])
         image.clear()
-    series.manager.resume_extensions()
+
 
 
     # More compact but does not work with pause extensions
-    # series.manager.pause_extensions()
     # for i, s in enumerate(source):
     #     series.status.progress(i+1, len(source), 'Writing array..')
     #     if s not in instances:
     #         s.copy_to(series).set_pixel_array(array[i,...])
     #     else:
     #         s.set_pixel_array(array[i,...])
-    # series.manager.resume_extensions()
+
 
 
 

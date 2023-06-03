@@ -69,16 +69,13 @@ class Manager():
         """  
         if dataframe is None:
             #dataframe = pd.DataFrame(index=[], columns=self.columns)
-            dataframe = pd.DataFrame(index=[], columns=self.columns+['removed','created','placeholder']) # Added 28/05/2023
+            dataframe = pd.DataFrame(index=[], columns=self.columns+['removed','created']) # Added 28/05/2023
         # THIS NEEDS A MECHANISM TO PREVENT ANOTHER Manager to open the same database.
         self.status = status
         self.dialog = dialog 
         self.path = path
         self.register = dataframe
         self.dataset = {}
-        self._pause_extensions = False
-        self._new_keys = []
-        self._new_data = []
 
     def scan(self, unzip=False):
         """
@@ -104,17 +101,10 @@ class Manager():
             images_only = True)
         self.register['removed'] = False
         self.register['created'] = False
-        self.register['placeholder'] = False
         # No support for multiframe data at the moment
         self._multiframe_to_singleframe()
         self.register.drop('NumberOfFrames', axis=1, inplace=True)
-        # Create placeholder rows for unsaved changes
-        df = self.register.copy(deep=True)
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
+        # For now ensure all series have just a single CIOD
         self._split_series()
         #self.save()
         return self
@@ -182,7 +172,6 @@ class Manager():
                     df = dbdataset.read_dataframe(singleframe_files, self.columns, path=self.path)
                     df['removed'] = False
                     df['created'] = False
-                    df['placeholder'] = False
                     self.register = pd.concat([self.register, df])
                     # delete the original multiframe 
                     os.remove(filepath)
@@ -501,193 +490,7 @@ class Manager():
             df = self.register.loc[keys,'PatientID']
         uids = df.unique().tolist()
         return self.filter(uids, **kwargs)
-
-
-    def pause_extensions(self):
-        self._pause_extensions = True
-
-
-    def resume_extensions(self):
-        self._pause_extensions = False
-        self.extend()
-
-
-    def extend(self):
-        if self._pause_extensions:
-            return
-        if self._new_keys == []:
-            return
-        df = pd.DataFrame(self._new_data, index=self._new_keys, columns=self.columns)
-        df['removed'] = False
-        df['created'] = True
-        df['placeholder'] = False
-        self.register = pd.concat([self.register, df])
-        self._new_data = []
-        self._new_keys = []
-
-
-    def new_patient(self, parent='Database', **kwargs):
-        # Allow multiple to be made at the same time
-
-        PatientName = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
-
-        data = self.default()
-        data[0] = dbdataset.new_uid()
-        data[5] = PatientName
-        for val in kwargs:
-            if val in self._descriptives:
-                data[self._descriptives[val]] = kwargs[val]
-
-        key = self.new_key()
-        self._new_data.append(data)
-        self._new_keys.append(key)
-        self.extend()
-
-        return data[0], key
-
-
-    def new_study(self, parent=None, key=None, **kwargs):
-        # Allow multiple to be made at the same time
-
-        StudyDescription = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_patient()
-            elif self.type(parent) != 'Patient':
-                parent, key = self.new_patient(parent)
-            else:
-                key = self.keys(patient=parent)[0]
-
-        data = self.default()
-        data[0] = self.value(key, 'PatientID')
-        data[1] = dbdataset.new_uid()
-        data[5] = self.value(key, 'PatientName')
-        data[6] = StudyDescription
-        for val in kwargs:
-            if val in self._descriptives:
-                data[self._descriptives[val]] = kwargs[val]
-
-        if self.value(key, 'StudyInstanceUID') is None:
-            # New patient without studies - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Patient with existing study - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        return data[1], key
-
-
-    def new_series(self, parent=None, key=None, **kwargs):
-        # Allow multiple to be made at the same time
-
-        SeriesDescription = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_study()
-            elif self.type(parent) != 'Study':
-                #parent = self.studies(parent)[0]
-                parent, key = self.new_study(parent)
-            else:
-                key = self.keys(study=parent)[0]
-
-        # data = self.value(key, self.columns)
-        data = self.register.loc[key, self.columns].values.tolist()
-        data[2] = dbdataset.new_uid()
-        data[3] = self.default()[3]
-        data[4] = self.default()[4]
-        data[8] = SeriesDescription
-        data[9] = 1 + len(self.series(parent))
-        data[10] = self.default()[10]
-        for val in kwargs:
-            if val in self._descriptives:
-                data[self._descriptives[val]] = kwargs[val]
-
-        if self.value(key, 'SeriesInstanceUID') is None:
-            # New study without series - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Study with existing series - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        return data[2], key
-
     
-    def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
-
-        if key is None:
-            if parent is None:
-                parent, key = self.new_series()
-                keys = self.keys(series=parent)
-            elif self.type(parent) != 'Series':
-                # parent = self.series(parent)[0] 
-                parent, key = self.new_series(parent)
-                keys = self.keys(series=parent)
-            else:
-                keys = self.keys(series=parent)
-                key = keys[0]
-        else:
-            if parent is None:
-                parent = self.register.at[key, 'SeriesInstanceUID']
-            keys = self.keys(series=parent)
-
-        # Find largest instance number
-        n = self.register.loc[keys,'InstanceNumber'].values
-        n = n[n != -1]
-        max_number=0 if n.size==0 else np.amax(n)
-
-        # Populate attributes in index file
-        data = self.value(key, self.columns)
-        data[3] = dbdataset.new_uid()
-        data[4] = self.default()[4]
-        #data[10] = 1 + len(self.instances(parent))
-        #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
-        data[10] = 1 + max_number
-        for val in kwargs:
-            if val in self._descriptives:
-                data[self._descriptives[val]] = kwargs[val]
-
-        if self.value(key, 'SOPInstanceUID') is None:
-            # New series without instances - use existing row
-            self.register.loc[key, self.columns] = data
-        else:
-            # Series with existing instances - create new row
-            key = self.new_key()
-            self._new_data.append(data)
-            self._new_keys.append(key)
-            self.extend()
-
-        if dataset is not None:
-            self.set_dataset(data[3], dataset)
-
-        return data[3], key
-
-
-    # def in_database(self, uid):
-    #     keys = self.keys(uid)
-    #     return keys != []
-
-
-    # def is_empty(self, instance):
-    #     # Needs a unit test
-    #     key = self.keys(instance)[0]
-    #     if key in self.dataset:
-    #         return False
-    #     else:
-    #         file = self.filepath(key)
-    #         if file is None:
-    #             return True
-    #         elif not os.path.exists(file):
-    #             return True
-    #         else:
-    #             return False
 
     def get_instance_dataset(self, key):
     
@@ -823,153 +626,6 @@ class Manager():
         return attr, vals
 
 
-    def set_instance_dataset(self, instance, ds, key=None):
-
-        if isinstance(ds, list):
-            if len(ds) > 1:
-                raise ValueError('Cannot set multiple datasets to a single instance')
-            else:
-                ds = ds[0]
-        if key is None:
-            keys = self.keys(instance)
-            if keys == []: # instance does not exist
-                return
-            key = keys[0]
-
-        data = self.register.loc[key, self.columns]
-        data[4] = ds.SOPClassUID
-        ds.set_values(self.columns, data)
-        if self.value(key, 'created'):
-            for i, c in enumerate(self.columns):
-                self.register.at[key, c] = data[i]
-            self.dataset[key] = ds
-            return key
-        else:
-            # If the dataset has not yet been edited
-            # find the placeholder row and copy the data
-            placeholder = (self.register.SOPInstanceUID == instance) & (self.register.placeholder)
-            placeholder = placeholder[placeholder]
-            placeholder = placeholder.index[0]
-            #self.register.loc[placeholder, self.columns] = data
-            for i, c in enumerate(self.columns):
-                self.register.at[placeholder, c] = data[i]
-            # remove the current row and make the placeholder row current
-            self.register.at[key, 'removed'] = True
-            self.register.at[placeholder, 'removed'] = False
-            self.register.at[placeholder, 'placeholder'] = False
-            self.dataset[placeholder] = ds
-            return placeholder
-            # new_key = self.new_key()
-            # self.dataset[new_key] = ds
-
-            # self._new_data.append(data)
-            # self._new_keys.append(new_key)
-            # self.extend()
-
-
-    def set_dataset(self, uid, dataset, keys=None):
-
-        if keys is None:
-            parent_keys = self.keys(uid)
-        else:
-            parent_keys = keys
-
-        # LOOKUP!!!
-        # ELIMINATE
-        if self.type(uid, parent_keys[0]) == 'Instance': 
-            self.set_instance_dataset(uid, dataset, parent_keys[0])
-            return
-
-        if not isinstance(dataset, list):
-           dataset = [dataset]
-         
-        attr, vals = self.series_header(parent_keys[0])
-
-        new_data = []
-        new_keys = []
-        instances = self.value(parent_keys, 'SOPInstanceUID').tolist()
-
-        for ds in dataset:
-            try:
-                ind = instances.index(ds.SOPInstanceUID)
-            except:  # Save dataset in new instance
-
-                # Set parent modules
-                ds.set_values(attr, vals)
-
-                # Set values in manager
-                key = parent_keys[0]
-                data = self.value(key, self.columns)
-                data[3] = dbdataset.new_uid()
-                data[4] = ds.SOPClassUID
-                nrs = self.value(parent_keys, 'InstanceNumber')
-                nrs = [n for n in nrs if n != -1]
-                if nrs == []:
-                    data[10] = 1
-                else:
-                    data[10] = 1 + max(nrs)
-                ds.set_values(self.columns, data)
-
-                # Add to database in memory
-                new_key = self.new_key()
-                self.dataset[new_key] = ds
-                new_data.append(data)
-                new_keys.append(new_key)
-
-            else: # If the dataset is already in the object
-
-                #key = self.keys(instances[ind])[0]
-                key = parent_keys[ind]
-                data = self.value(key, self.columns)
-                data[4] = ds.SOPClassUID
-                if self.value(key, 'created'):
-                    self.dataset[key] = ds
-                else:
-                    # If the dataset has not yet been edited
-                    # find the placeholder row and copy the data
-                    instance = ds.SOPInstanceUID
-                    placeholder = (self.register.SOPInstanceUID == instance) & (self.register.placeholder==True)
-                    placeholder = placeholder[placeholder]
-                    new_key = placeholder.index[0]
-                    #self.register.loc[new_key, self.columns] = data
-                    for i, c in enumerate(self.columns):
-                        self.register.at[new_key, c] = data[i]
-                    # remove the current row and make the placeholder row current
-                    self.register.at[key, 'removed'] = True
-                    self.register.at[new_key, 'removed'] = False
-                    self.register.at[new_key, 'placeholder'] = False
-                    self.dataset[new_key] = ds
-
-                    # self.register.at[key,'removed'] = True
-
-                    #  # Add to database in memory
-                    # new_key = self.new_key()
-                    # self.dataset[new_key] = ds
-                    # new_data.append(data)
-                    # new_keys.append(new_key)
-
-        # Update the dataframe in the index
-
-        # If the series is empty and new instances have been added
-        # then delete the row 
-        if self.value(parent_keys[0], 'SOPInstanceUID') is None:
-            if new_keys != []:
-                if self.register.at[parent_keys[0], 'created']:
-                    self.register.drop(index=parent_keys[0], inplace=True)
-                else:
-                    self.register.at[parent_keys[0], 'removed'] == True
-
-        self._new_keys += new_keys
-        self._new_data += new_data
-        self.extend() 
-
-
-    # def in_memory(self, uid): # needs a test
-
-    #     key = self.keys(uid)[0]
-    #     return key in self.dataset
-
-
     def label(self, uid=None, key=None, type=None):
         """Return a label to describe a row as Patient, Study, Series or Instance"""
 
@@ -1087,7 +743,8 @@ class Manager():
         elif name=='SeriesInstanceUID':
             self.print_series(uid)
         elif name=='SOPInstanceUID':
-            self.print_instance(uid)
+            self.print_instance(uid)   
+
 
     def read(self, *args, keys=None, message=None, **kwargs):
         """Read the dataset from disk.
@@ -1113,18 +770,15 @@ class Manager():
         if keys is None:
             keys = self.keys(*args, **kwargs)
         for i, key in enumerate(keys):
-            # if message is not None:
-            #     self.status.progress(i, len(keys), message)
             if key in self.dataset:
                 file = self.filepath(key)
                 if file is not None:
                     self.dataset[key].write(file, self.status)
-        #self.status.hide()
 
     def clear(self, *args, keys=None, **kwargs):
         """Clear all data from memory"""
 
-        # To avoid loosing data, instances are only cleared from memory if the database exists on disk.
+        # Instances are only cleared from memory if the database exists on disk.
         if self.path is None:
             return
         
@@ -1192,11 +846,9 @@ class Manager():
             True if the folder is saved and False otherwise.
         """
         # Needs a formal test for completeness
-        if ((self.register.removed==True) & (self.register.created==False)).any():
+        if (self.register.removed==True).any():
             return False
-        if ((self.register.removed==False) & (self.register.created==True)).any():
-            return False
-        if ((self.register.removed==True) & (self.register.created==True) & (self.register.placeholder==False)).any():
+        if (self.register.created==True).any():
             return False
         return True
 
@@ -1225,9 +877,8 @@ class Manager():
 
         self.status.message('Saving changes..')
 
-        no_placeholder = self.register.placeholder==False
-        created = self.register.created & (self.register.removed==False) & no_placeholder
-        removed = self.register.removed & no_placeholder
+        created = self.register.created & (self.register.removed==False) 
+        removed = self.register.removed
         if rows is not None:
             created = created & rows
             removed = removed & rows
@@ -1241,20 +892,14 @@ class Manager():
                 del self.dataset[key]
             # delete on disk
             file = self.filepath(key) 
-            if os.path.exists(file): 
-                os.remove(file)
+            if file is not None:
+                if os.path.exists(file): 
+                    os.remove(file)
         # and drop then from the dataframe
         self.register.drop(index=removed, inplace=True)
 
-        # for new or edited data, mark as saved and create placeholders
+        # for new or edited data, mark as saved.
         self.register.loc[created, 'created'] = False
-        #df = self.register.loc[created, :].copy(deep=True)
-        df = self.register.loc[created, :]
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
 
         self._write_df()
         self.write()
@@ -1262,9 +907,8 @@ class Manager():
 
     def restore(self, rows=None):  
 
-        no_placeholder = self.register.placeholder==False
-        created = self.register.created & no_placeholder
-        removed = self.register.removed & (self.register.created==False) & no_placeholder
+        created = self.register.created 
+        removed = self.register.removed & (self.register.created==False)
         if rows is not None:
             created = created & rows
             removed = removed & rows
@@ -1276,29 +920,284 @@ class Manager():
             # delete in memory
             if key in self.dataset:
                 del self.dataset[key]
-            # delete on disk
+            # if on disk, delete files
             file = self.filepath(key) 
-            if os.path.exists(file): 
-                os.remove(file)
+            if file is not None:
+                if os.path.exists(file): 
+                    os.remove(file)
         self.register.drop(index=created, inplace=True)
 
-        # For those that are restored, create placeholders.
+        # Restore those that were marked for removal
         self.register.loc[removed, 'removed'] = False
-        df = self.register.loc[removed, :].copy(deep=True)
-        df.index = [self.new_key() for _ in range(df.shape[0])]
-        df.removed = True
-        df.created = True
-        df.placeholder = True
-        self.register = pd.concat([self.register, df])
 
         self._write_df()
         # self.write()      
 
 
+    def new_row(self, data, key=None):
+        if key is None:
+            key = self.new_key()
+        if key in self.register.index:
+            self.register.loc[key,self.columns] = data
+        else:
+            df = pd.DataFrame([data], [key], columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            try:
+                self.register = pd.concat([self.register, df])
+            except:
+                msg = 'Cannot update the header \n'
+                msg += 'Some of the new values are of the incorrect type.\n'
+                raise TypeError(msg)  
+        return key
+    
+    def delete_row(self, key):
+        if self.register.at[key, 'created']:
+            # If the row was newly created, it can be dropped
+            self.register.drop(index=key, inplace=True)
+        else:
+            # If this is the first modification, mark for removal
+            self.register.at[key, 'removed'] == True
+
+
+    def drop_placeholder_row(self, parent_key, missing='SOPInstanceUID'):
+        # If a parent has more than one children, and one of them is None, then delete that row.
+        if missing == 'SOPInstanceUID':
+            parent = 'SeriesInstanceUID'
+        elif missing == 'SeriesInstanceUID':
+            parent = 'StudyInstanceUID'
+        elif missing == 'StudyInstanceUID':
+            parent = 'PatientID'
+        elif missing == 'PatientID':
+            parent = 'Database'
+        parent_uid = self.register.at[parent_key, parent]
+        parent_rows = self.register[parent] == parent_uid
+        parent_keys = parent_rows[parent_rows].index
+        if len(parent_keys) > 1:
+            empty = self.register.loc[parent_keys, missing] is None
+            empty = empty[empty].index
+            if len(empty) == 1:
+                self.delete_row(empty)
+
+    
+    def update_row_data(self, key, data):
+
+        # If the row has been created or modified, use existing row
+        if self.register.at[key, 'created'] == True:
+            for i, c in enumerate(self.columns): # Same as above but faster
+                try:
+                    self.register.at[key, c] = data[i]
+                except:
+                    msg = 'Cannot write header value in register. \n'
+                    msg += 'The value of ' + c +' is of incorrect type.\n'
+                    msg += 'Value: ' + str(data[i])
+                    raise TypeError(msg)
+    
+        # If the row has never been modified, save in new row and remove current
+        else:
+            self.register.at[key, 'removed'] = True
+            key = self.new_row(data)
+        return key
+    
+
+    def clone_study_data(self, key, **kwargs):
+        data = self.default()
+        data[0] = self.value(key, 'PatientID')
+        data[1] = dbdataset.new_uid()
+        data[5] = self.value(key, 'PatientName')
+        data[6] = kwargs['StudyDescription'] if 'StudyDescription' in kwargs else 'New Study'
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
+        return data
+    
+    def clone_series_data(self, key, study, **kwargs):
+        data = self.register.loc[key, self.columns].values.tolist()
+        data[2] = dbdataset.new_uid()
+        data[3] = self.default()[3]
+        data[4] = self.default()[4]
+        data[8] = kwargs['SeriesDescription'] if 'SeriesDescription' in kwargs else 'New Series'
+        data[9] = self.new_series_number(study)
+        data[10] = self.default()[10]
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
+        return data
+
+
+    def new_patient(self, parent='Database', **kwargs):
+        data = self.default()
+        data[0] = dbdataset.new_uid()
+        data[5] = kwargs['PatientName'] if 'PatientName' in kwargs else 'New Patient'
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
+        key = self.new_row(data)
+        return data[0], key
+
+
+    def new_study(self, parent=None, key=None, **kwargs):
+        if key is None:
+            if parent is None:
+                parent, key = self.new_patient()
+            elif self.type(parent) != 'Patient':
+                parent, key = self.new_patient(parent)
+            else:
+                key = self.keys(patient=parent)[0]
+        data = self.clone_study_data(key, **kwargs)
+        if self.value(key, 'StudyInstanceUID') is None:
+            key = self.update_row_data(key, data)
+        else:
+            key = self.new_row(data)
+        return data[1], key
+
+
+    def new_series(self, parent=None, key=None, **kwargs):
+        if key is None:
+            if parent is None:
+                parent, key = self.new_study()
+            elif self.type(parent) != 'Study':
+                #parent = self.studies(parent)[0]
+                parent, key = self.new_study(parent)
+            else:
+                key = self.keys(study=parent)[0]
+        data = self.clone_series_data(key, parent, **kwargs)
+        if self.value(key, 'SeriesInstanceUID') is None:
+            key = self.update_row_data(key, data)  # Empty study
+        else:
+            key = self.new_row(data)  # Study with existing series
+        return data[2], key
+
+    
+    def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
+
+        if key is None:
+            if parent is None:
+                parent, key = self.new_series()
+                keys = self.keys(series=parent)
+            elif self.type(parent) != 'Series':
+                # parent = self.series(parent)[0] 
+                parent, key = self.new_series(parent)
+                keys = self.keys(series=parent)
+            else:
+                keys = self.keys(series=parent)
+                key = keys[0]
+        else:
+            if parent is None:
+                parent = self.register.at[key, 'SeriesInstanceUID']
+            keys = self.keys(series=parent)
+
+        # Find largest instance number
+        n = self.register.loc[keys,'InstanceNumber'].values
+        n = n[n != -1]
+        max_number=0 if n.size==0 else np.amax(n)
+
+        # Populate attributes in index file
+        data = self.value(key, self.columns)
+        data[3] = dbdataset.new_uid()
+        data[4] = self.default()[4]
+        #data[10] = 1 + len(self.instances(parent))
+        #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
+        data[10] = 1 + max_number
+        for val in kwargs:
+            if val in self._descriptives:
+                data[self._descriptives[val]] = kwargs[val]
+
+        if self.value(key, 'SOPInstanceUID') is None:
+            # Empty series
+            key = self.update_row_data(key, data)
+        else:
+            # Series with existing instances
+            key = self.new_row(data)
+
+        if dataset is not None:
+            self.set_instance_dataset(data[3], dataset, key)
+
+        return data[3], key
+
+
+    def set_instance_dataset(self, instance, ds, key=None):
+
+        if isinstance(ds, list):
+            if len(ds) > 1:
+                raise ValueError('Cannot set multiple datasets to a single instance')
+            else:
+                ds = ds[0]
+        if key is None:
+            keys = self.keys(instance)
+            if keys == []: # instance does not exist
+                return
+            key = keys[0]
+
+        data = self.register.loc[key, self.columns]
+        data[4] = ds.SOPClassUID
+        key = self.update_row_data(key, data)
+        ds.set_values(self.columns, data)
+        self.dataset[key] = ds
+        return key
+
+        
+    def set_dataset(self, uid, dataset, keys=None):
+
+        if keys is None:
+            parent_keys = self.keys(uid)
+        else:
+            parent_keys = keys
+
+        # LOOKUP!!!
+        # ELIMINATE
+        if self.type(uid, parent_keys[0]) == 'Instance': 
+            self.set_instance_dataset(uid, dataset, parent_keys[0])
+            return
+
+        if not isinstance(dataset, list):
+           dataset = [dataset]
+         
+        attr, vals = self.series_header(parent_keys[0])
+        instances = self.value(parent_keys, 'SOPInstanceUID').tolist()
+
+        for ds in dataset:
+            try:
+                ind = instances.index(ds.SOPInstanceUID)
+            except:  
+                #If there is no corresponding instance, save dataset in new instance
+
+                # Set parent modules
+                ds.set_values(attr, vals)
+
+                # Create updated row data
+                key = parent_keys[0]
+                data = self.value(key, self.columns)
+                data[3] = dbdataset.new_uid()
+                data[4] = ds.SOPClassUID
+                nrs = self.value(parent_keys, 'InstanceNumber')
+                nrs = [n for n in nrs if n != -1]
+                if nrs == []:
+                    data[10] = 1
+                else:
+                    data[10] = 1 + max(nrs)
+                
+                # Add to database in memory as a new row
+                key = self.new_row(data)
+                ds.set_values(self.columns, data)
+                self.dataset[key] = ds
+
+            else: # If the instance is already in the object
+
+                key = parent_keys[ind]
+                data = self.value(key, self.columns)
+                data[4] = ds.SOPClassUID
+                key = self.update_row_data(key, data)
+                self.dataset[key] = ds
+
+        # If the series is empty and new instances have been added then delete the row  
+        self.drop_placeholder_row(parent_keys[0], missing='SOPInstanceUID')
+
+
+
     def delete_studies(self, studies: list):
         """Delete a list of studies"""
-        copy_data = []
-        copy_keys = []
+
         for study in studies:
             keys = self.keys(study=study)
             self.register.loc[keys,'removed'] = True
@@ -1312,17 +1211,12 @@ class Manager():
                 row = self.default()
                 row[0] = self.register.at[keys[0], 'PatientID']
                 row[5] = self.register.at[keys[0], 'PatientName']
-                copy_data.append(row)
-                copy_keys.append(self.new_key())
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+                self.new_row(row)
 
-      
+
     def delete_series(self, series: list):
         """Delete a list of series"""
-        copy_data = []
-        copy_keys = []
+
         for sery in series:
             keys = self.keys(series=sery)
             self.register.loc[keys,'removed'] = True
@@ -1339,15 +1233,11 @@ class Manager():
                 row[5] = self.register.at[keys[0], 'PatientName']
                 row[6] = self.register.at[keys[0], 'StudyDescription']
                 row[7] = self.register.at[keys[0], 'StudyDate']
-                copy_data.append(row)
-                copy_keys.append(self.new_key())
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+                self.new_row(row)
 
 
     def new_key(self):
-        """Generate a new key"""
+        # Generate a new key
         return os.path.join('dbdicom', dbdataset.new_uid() + '.dcm') 
 
 
@@ -1355,22 +1245,11 @@ class Manager():
         """Copy instances to another series"""
 
         attributes, values = self.series_header(target_keys[0])
-        
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
+        self.append_kwargs(kwargs, attributes, values)
 
         n = self.register.loc[target_keys,'InstanceNumber'].values
         n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
-        
-        #copy_data = []
-        #copy_keys = []
 
         new_instance = dbdataset.new_uid()
         new_key = self.new_key()
@@ -1378,15 +1257,8 @@ class Manager():
 
         if ds is None:
             row = self.value(instance_key, self.columns).tolist()
-            row[0] = self.value(target_keys[0], 'PatientID')
-            row[1] = self.value(target_keys[0], 'StudyInstanceUID')
-            row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
+            row = self.copy_series_data(target_keys[0], row)
             row[3] = new_instance
-            row[5] = self.value(target_keys[0], 'PatientName')
-            row[6] = self.value(target_keys[0], 'StudyDescription')
-            row[7] = self.value(target_keys[0], 'StudyDate')
-            row[8] = self.value(target_keys[0], 'SeriesDescription')
-            row[9] = self.value(target_keys[0], 'SeriesNumber')
             row[10] = 1 + max_number
             for val in kwargs:
                 if val in self._descriptives:
@@ -1402,29 +1274,17 @@ class Manager():
                 ds.write(self.filepath(new_key), self.status)
             row = ds.get_values(self.columns)
 
-        # Get new data for the dataframe
-        #copy_data.append(row)
-        #copy_keys.append(new_key)
-        copy_data = [row]
-        copy_keys = [new_key]
-
-        # Update the dataframe in the index
-
-        # If the series is empty and new instances have been added
-        # then delete the row 
-        if self.value(target_keys[0], 'SOPInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
-                else:
-                    self.register.at[target_keys[0], 'removed'] == True
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+        self.drop_placeholder_row(target_keys[0], missing='SOPInstanceUID')
+        self.new_row(row, new_key)
         
         return new_instance
 
+    def new_instance_number(self, series):
+        series_keys = self.keys(series=series)
+        n = self.register.loc[series_keys,'InstanceNumber'].values
+        n = n[n != -1]
+        max_number=0 if n.size==0 else np.amax(n)  
+        return max_number + 1 
 
     def copy_to_series(self, uids, target, **kwargs):
         """Copy instances to another series"""
@@ -1432,22 +1292,9 @@ class Manager():
         target_keys = self.keys(series=target)
 
         attributes, values = self.series_header(target_keys[0])
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
+        self.append_kwargs(kwargs, attributes, values)
 
-        n = self.register.loc[target_keys,'InstanceNumber'].values
-        n = n[n != -1]
-        max_number=0 if n.size==0 else np.amax(n)
-        
-        copy_data = []
-        copy_keys = []
-
+        max_number = self.new_instance_number(target)
         keys = self.keys(uids)
         new_instances = dbdataset.new_uid(len(keys))
 
@@ -1461,16 +1308,9 @@ class Manager():
             ds = self.get_dataset(instance_uid, [key])
             if ds is None:
                 row = self.value(key, self.columns).tolist()
-                row[0] = self.value(target_keys[0], 'PatientID')
-                row[1] = self.value(target_keys[0], 'StudyInstanceUID')
-                row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
+                row = self.copy_series_data(target_keys[0], row)
                 row[3] = new_instances[i]
-                row[5] = self.value(target_keys[0], 'PatientName')
-                row[6] = self.value(target_keys[0], 'StudyDescription')
-                row[7] = self.value(target_keys[0], 'StudyDate')
-                row[8] = self.value(target_keys[0], 'SeriesDescription')
-                row[9] = self.value(target_keys[0], 'SeriesNumber')
-                row[10] = i+1+max_number
+                row[10] = i + max_number
                 for val in kwargs:
                     if val in self._descriptives:
                         row[self._descriptives[val]] = kwargs[val]
@@ -1480,29 +1320,17 @@ class Manager():
                     self.dataset[new_key] = ds
                 ds.set_values( 
                     attributes + ['SOPInstanceUID', 'InstanceNumber'], 
-                    values + [new_instances[i], i+1+max_number])
+                    values + [new_instances[i], i + max_number])
                 if not key in self.dataset:
                     ds.write(self.filepath(new_key), self.status)
                 row = ds.get_values(self.columns)
 
-            # Get new data for the dataframe
-            copy_data.append(row)
-            copy_keys.append(new_key)
+            # Add new data for the dataframe
+            self.new_row(row, new_key)
 
-        # Update the dataframe in the index
+        # If the series is empty and new instances have been added, then delete the row 
+        self.drop_placeholder_row(target_keys[0], missing='SOPInstanceUID')
 
-        # If the series is empty and new instances have been added
-        # then delete the row 
-        if self.value(target_keys[0], 'SOPInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_keys[0], 'created']:
-                    self.register.drop(index=target_keys[0], inplace=True)
-                else:
-                    self.register.at[target_keys[0], 'removed'] == True
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
         if len(keys) > 1:
             self.status.hide()
 
@@ -1512,42 +1340,32 @@ class Manager():
             return new_instances
 
 
+    def new_series_number(self, study):
+        study_keys = self.keys(study=study)
+        n = self.value(study_keys, 'SeriesNumber')
+        n = n[n != -1]
+        max_number=0 if n.size==0 else np.amax(n)  
+        return max_number + 1 
+      
+
     def copy_to_study(self, uid, target, **kwargs):
         """Copy series to another study"""
 
-        #self.keys(series=uid)[0] in self.dataset
-
         target_keys = self.keys(study=target)
         target_key = target_keys[0]
-
         attributes, values = self.study_header(target_key)
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
+        self.append_kwargs(kwargs, attributes, values)
 
-        n = self.value(target_keys, 'SeriesNumber')
-        n = n[n != -1]
-        max_number=0 if n.size==0 else np.amax(n)
-
-        copy_data = []
-        copy_keys = []
-
+        max_number = self.new_series_number(target)
         all_series = self.series(uid)
         new_series = dbdataset.new_uid(len(all_series))
 
         for s, series in enumerate(all_series):
 
-            new_number = s + 1 + max_number
-
+            new_number = s + max_number
             series_keys = self.keys(series=series)
             for k, key in enumerate(series_keys):
 
-                #msg = 'Copying series ' + str(s+1) + ' of ' + str(len(all_series))
                 msg = 'Copying series ' + self.value(key, 'SeriesDescription')
                 msg += ' (' + str(s+1) + '/' + str(len(all_series)) + ')'
                 self.status.progress(k+1, len(series_keys), msg)
@@ -1558,13 +1376,9 @@ class Manager():
                 if ds is None:
                     # Fill in any register data provided
                     row = self.value(key, self.columns).tolist()
-                    row[0] = self.value(target_key, 'PatientID')
-                    row[1] = self.value(target_key, 'StudyInstanceUID')
+                    row = self.copy_study_data(target_key, row)
                     row[2] = new_series[s]
                     #row[3] = dbdataset.new_uid()
-                    row[5] = self.value(target_key, 'PatientName')
-                    row[6] = self.value(target_key, 'StudyDescription')
-                    row[7] = self.value(target_key, 'StudyDate')
                     row[9] = new_number
                     for val in kwargs:
                         if val in self._descriptives:
@@ -1589,24 +1403,13 @@ class Manager():
                     row = ds.get_values(self.columns)
 
                 # Get new data for the dataframe
-                
-                copy_data.append(row)
-                copy_keys.append(new_key)
+                self.new_row(row, new_key)
 
         # Update the dataframe in the index
 
         # If the study is empty and new series have been added
         # then delete the row 
-        if self.value(target_key, 'SeriesInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_key, 'created']:
-                    self.register.drop(index=target_key, inplace=True)
-                else:
-                    self.register.at[target_key, 'removed'] == True
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+        self.drop_placeholder_row(target_key, missing='SeriesInstanceUID')
         self.status.hide()
 
         if len(new_series) == 1:
@@ -1619,20 +1422,11 @@ class Manager():
         """Copy studies to another patient"""
 
         attributes, values = self.patient_header(target_key)
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
-
-        copy_data = []
-        copy_keys = []
+        self.append_kwargs(kwargs, attributes, values)
 
         all_studies = self.studies(uid)
         new_studies = dbdataset.new_uid(len(all_studies))
+
         for s, study in enumerate(all_studies):
             all_series = self.series(study)
             if all_series == []:
@@ -1649,8 +1443,7 @@ class Manager():
                     if val in self._descriptives:
                         row[self._descriptives[val]] = kwargs[val]
                 # Get new data for the dataframe
-                copy_data.append(row)
-                copy_keys.append(new_key)
+                self.new_row(row, new_key)
             for series in all_series:
                 new_series_uid = dbdataset.new_uid()
                 for key in self.keys(series=series):
@@ -1679,23 +1472,10 @@ class Manager():
                         row = ds.get_values(self.columns)
 
                     # Get new data for the dataframe
-                    copy_data.append(row)
-                    copy_keys.append(new_key)
+                    self.new_row(row, new_key)
 
-        # Update the dataframe in the index
-
-        # If the patient is empty and new studies have been added
-        # then delete the row 
-        if self.value(target_key, 'StudyInstanceUID') is None:
-            if copy_keys != []:
-                if self.register.at[target_key, 'created']:
-                    self.register.drop(index=target_key, inplace=True)
-                else:
-                    self.register.at[target_key, 'removed'] == True
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+        # If the patient is empty and new studies have been added, then delete the row 
+        self.drop_placeholder_row(target_key, missing='StudyInstanceUID')
 
         if len(new_studies) == 1:
             return new_studies[0]
@@ -1705,9 +1485,6 @@ class Manager():
 
     def copy_to_database(self, uid, **kwargs):
         """Copy patient to the database"""
-
-        copy_data = []
-        copy_keys = []
 
         all_patients = self.patients(uid)
         new_patients = dbdataset.new_uid(len(all_patients))
@@ -1747,29 +1524,48 @@ class Manager():
                             row = ds.get_values(self.columns)
 
                         # Get new data for the dataframe
-                        copy_data.append(row)
-                        copy_keys.append(new_key)
-
-        # Update the dataframe in the index
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+                        self.new_row(row, new_key)
 
         if len(new_patients) == 1:
             return new_patients[0]
         else:
             return new_patients
-            
 
-    def drop_if_missing(self, key, missing='SOPInstanceUID'):
-        # If the series was empty - now it has an instance so the original row can be removed
-        if key in self.register.index:
-            if self.value(key, missing) is None:
-                if self.register.at[key, 'created']:
-                    self.register.drop(index=key, inplace=True)
-                else:
-                    self.register.at[key, 'removed'] == True
+
+    def copy_series_data(self, key, row):
+        row[0] = self.register.at[key, 'PatientID']
+        row[1] = self.register.at[key, 'StudyInstanceUID']
+        row[2] = self.register.at[key, 'SeriesInstanceUID']
+        row[5] = self.register.at[key, 'PatientName']
+        row[6] = self.register.at[key, 'StudyDescription']
+        row[7] = self.register.at[key, 'StudyDate']
+        row[8] = self.register.at[key, 'SeriesDescription']
+        row[9] = self.register.at[key, 'SeriesNumber']
+        return row
+
+
+    def preserve_series_record(self, key):
+        # If this is the last instance in the series,
+        # keep the series as an empty series.
+        source_series = self.register.at[key, 'SeriesInstanceUID']
+        source_series = (self.register.removed == False) & (self.register.SeriesInstanceUID == source_series)
+        source_series_instances = self.register.SOPInstanceUID[source_series]
+        source_series_instances_cnt = source_series_instances.shape[0]
+        if source_series_instances_cnt == 1:
+            row = self.default()
+            row = self.copy_series_data(key, row)
+            self.new_row(row)
+
+
+    def append_kwargs(self, kwargs, attributes, values):
+        for key in kwargs:
+            try:
+                ind = attributes.index(key)
+            except:
+                attributes.append(key)
+                values.append(kwargs[key])
+            else:
+                values[ind] = kwargs[key]
 
 
     def move_to_series(self, uid, target, **kwargs):
@@ -1781,157 +1577,61 @@ class Manager():
             raise ValueError(msg)
 
         attributes, values = self.series_header(target_keys[0])
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
+        self.append_kwargs(kwargs, attributes, values)
 
         n = self.value(target_keys, 'InstanceNumber')
         n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
-        
-        copy_data = []
-        copy_keys = []       
-
+           
         keys = self.keys(uid)
 
         for i, key in enumerate(keys):
 
             self.status.progress(i+1, len(keys), message='Moving dataset..')
-
-            # If this is the last instance in the series,
-            # keep the series as an empty series.
-            source_series = self.register.at[key, 'SeriesInstanceUID']
-            source_series = (self.register.removed == False) & (self.register.SeriesInstanceUID == source_series)
-            source_series_instances = self.register.SOPInstanceUID[source_series]
-            source_series_instances_cnt = source_series_instances.shape[0]
-            if source_series_instances_cnt == 1:
-                row = self.default()
-                row[0] = self.register.at[key, 'PatientID']
-                row[1] = self.register.at[key, 'StudyInstanceUID']
-                row[2] = self.register.at[key, 'SeriesInstanceUID']
-                row[5] = self.register.at[key, 'PatientName']
-                row[6] = self.register.at[key, 'StudyDescription']
-                row[7] = self.register.at[key, 'StudyDate']
-                row[8] = self.register.at[key, 'SeriesDescription']
-                row[9] = self.register.at[key, 'SeriesNumber']
-                copy_keys.append(self.new_key())
-                copy_data.append(row)
-
-            instance_uid = self.value(key, 'SOPInstanceUID') 
+            self.preserve_series_record(key)
+            instance_uid = self.value(key, 'SOPInstanceUID')
             ds = self.get_dataset(instance_uid, [key])
 
             if ds is None:
-
                 row = self.value(key, self.columns).tolist()
-                row[0] = self.value(target_keys[0], 'PatientID')
-                row[1] = self.value(target_keys[0], 'StudyInstanceUID')
-                row[2] = self.value(target_keys[0], 'SeriesInstanceUID')
-                row[5] = self.value(target_keys[0], 'PatientName')
-                row[6] = self.value(target_keys[0], 'StudyDescription')
-                row[7] = self.value(target_keys[0], 'StudyDate')
-                row[8] = self.value(target_keys[0], 'SeriesDescription')
-                row[9] = self.value(target_keys[0], 'SeriesNumber')
-                row[10] = i+1 + max_number
+                row = self.copy_series_data(target_keys[0], row)
+                row[10] = i + 1 + max_number
                 for val in kwargs:
                     if val in self._descriptives:
                         row[self._descriptives[val]] = kwargs[val]
-
-                if self.value(key, 'created'):
-                    #self.register.loc[key, self.columns] = row
-                    for i, c in enumerate(self.columns):
-                        self.register.at[key, c] = row[i]
-                    self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
-                else:
-                    # If the dataset has not yet been edited
-                    # find the placeholder row and copy the data
-                    #placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                    #placeholder = placeholder[placeholder]
-                    placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                    placeholder = placeholder[placeholder.placeholder]
-                    placeholder = placeholder.index[0]
-                    #self.register.loc[placeholder, self.columns] = row
-                    for i, c in enumerate(self.columns): 
-                        self.register.at[placeholder, c] = row[i]
-                    # remove the current row and make the placeholder row current
-                    self.register.at[key, 'removed'] = True
-                    self.register.at[placeholder, 'removed'] = False
-                    self.register.at[placeholder, 'placeholder'] = False
-
-                    # self.register.at[key, 'removed'] = True
-                    # copy_data.append(row)
-                    # copy_keys.append(self.new_key())
-
+                self.update_row_data(key, row)
             else:
+                self.set_dataset_values(ds, key, attributes+['InstanceNumber'], values+[i+1+max_number])
 
-                # If the value has changed before.
-                if self.value(key, 'created'): 
-                    ds.set_values( 
-                        attributes + ['InstanceNumber'], 
-                        values + [i+1 + max_number])
-                    if not key in self.dataset:
-                        ds.write(self.filepath(key), self.status)
-                    row = ds.get_values(self.columns)
-                    for i, c in enumerate(self.columns): 
-                        self.register.at[key, c] = row[i]
-                    # for i, col in enumerate(attributes):
-                    #     if col in self.columns:
-                    #         self.register.at[key,col] = values[i]
-                    self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
-
-                # If this is the first change, then save results in a copy.
-                else:  
-                    # If the dataset has not yet been edited
-                    # find the placeholder row and copy the data
-                    # placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                    # placeholder = placeholder[placeholder]
-                    placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                    placeholder = placeholder[placeholder.placeholder]
-                    new_key = placeholder.index[0]
-                    #new_key = self.new_key()
-                    if key in self.dataset:
-                        ds = copy.deepcopy(ds)
-                        self.dataset[new_key] = ds
-                    ds.set_values(
-                        attributes + ['InstanceNumber'], 
-                        values + [i+1+max_number])
-                    if not key in self.dataset:
-                        ds.write(self.filepath(new_key), self.status)
-
-                    # Get new data for the dataframe
-                    row = ds.get_values(self.columns)
-                    #self.register.loc[new_key, self.columns] = row
-                    for i, c in enumerate(self.columns): 
-                        self.register.at[new_key, c] = row[i]
-                    # remove the current row and make the placeholder row current
-                    self.register.at[key, 'removed'] = True
-                    self.register.at[new_key, 'removed'] = False
-                    self.register.at[new_key, 'placeholder'] = False
-
-                    # self.register.at[key,'removed'] = True
-                    # copy_data.append(row)
-                    # copy_keys.append(new_key)
-
-        # Update the dataframe in the index
-
-        # If the series is empty and new instances have been added
-        # then delete the row 
-        if copy_keys != []:
-            self.drop_if_missing(target_keys[0], 'SOPInstanceUID')
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+        # If the series is empty and new instances have been added, then delete the row 
+        self.drop_placeholder_row(target_keys[0], 'SOPInstanceUID')
 
         if len(keys) == 1:
             return self.value(keys, 'SOPInstanceUID')
         else:
             return list(self.value(keys, 'SOPInstanceUID'))
+        
 
+    def copy_study_data(self, key, row):
+        row[0] = self.register.at[key, 'PatientID']
+        row[1] = self.register.at[key, 'StudyInstanceUID']
+        row[5] = self.register.at[key, 'PatientName']
+        row[6] = self.register.at[key, 'StudyDescription']
+        row[7] = self.register.at[key, 'StudyDate']
+        return row
+    
+
+    def preserve_study_record(self, key):
+        # If this is the last series in the study
+        # The create a new row for the empty study
+        source_study = self.register.at[key, 'StudyInstanceUID']
+        source_study_series = (self.register.removed == False) & (self.register.StudyInstanceUID == source_study)
+        source_study_series = self.register.SeriesInstanceUID[source_study_series]
+        source_study_series_cnt = len(source_study_series.unique())
+        if source_study_series_cnt == 1:
+            row = self.default()
+            row = self.copy_study_data(key, row)
+            self.new_row(row)
 
     def move_to_study(self, uid, target, **kwargs):
         """Copy series to another study"""
@@ -1939,137 +1639,41 @@ class Manager():
         target_keys = self.keys(study=target)
 
         attributes, values = self.study_header(target_keys[0])
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
+        self.append_kwargs(kwargs, attributes, values)
 
         n = self.value(target_keys, 'SeriesNumber')
         n = n[n != -1]
         max_number=0 if n.size==0 else np.amax(n)
-        
-        copy_data = []
-        copy_keys = []       
-
+            
         all_series = self.series(uid)
 
         for s, series in enumerate(all_series):
 
             self.status.progress(s+1, len(all_series), message='Moving series..')
             new_number = s + 1 + max_number
-
             keys = self.keys(series=series)
-
-            # If this is the last series in the study
-            # The create a new row for the empty study
-            source_study = self.register.at[keys[0], 'StudyInstanceUID']
-            source_study_series = (self.register.removed == False) & (self.register.StudyInstanceUID == source_study)
-            source_study_series = self.register.SeriesInstanceUID[source_study_series]
-            source_study_series_cnt = len(source_study_series.unique())
-            if source_study_series_cnt == 1:
-                row = self.default()
-                row[0] = self.register.at[keys[0], 'PatientID']
-                row[1] = self.register.at[keys[0], 'StudyInstanceUID']
-                row[5] = self.register.at[keys[0], 'PatientName']
-                row[6] = self.register.at[keys[0], 'StudyDescription']
-                row[7] = self.register.at[keys[0], 'StudyDate']
-                copy_keys.append(self.new_key())
-                copy_data.append(row)
-
+            self.preserve_study_record(keys[0])
+            
             for key in keys:
 
                 instance_uid = self.value(key, 'SOPInstanceUID')
                 ds = self.get_dataset(instance_uid, [key])
 
+                # If the instance is empty, just replace study data in the register.
                 if ds is None:
                     row = self.value(key, self.columns).tolist()
-                    row[0] = self.value(target_keys[0], 'PatientID')
-                    row[1] = self.value(target_keys[0], 'StudyInstanceUID')
-                    row[5] = self.value(target_keys[0], 'PatientName')
-                    row[6] = self.value(target_keys[0], 'StudyDescription')
-                    row[7] = self.value(target_keys[0], 'StudyDate')
+                    row = self.copy_study_data(target_keys[0], row)
                     row[9] = new_number
                     for val in kwargs:
                         if val in self._descriptives:
                             row[self._descriptives[val]] = kwargs[val]
-                    if self.value(key, 'created'):
-                        for i, c in enumerate(self.columns):
-                            self.register.at[key, c] = row[i]
-                        self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
-                    else:
-                        # If the dataset has not yet been edited
-                        # find the placeholder row
-                        placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                        placeholder = placeholder[placeholder.placeholder]
-                        # Write data in the placeholder row
-                        placeholder = placeholder.index[0]
-                        for i, c in enumerate(self.columns): 
-                            self.register.at[placeholder, c] = row[i]
-                        # remove the current row 
-                        self.register.at[key, 'removed'] = True
-                        # Make the placeholder row current
-                        self.register.at[placeholder, 'removed'] = False
-                        self.register.at[placeholder, 'placeholder'] = False
+                    self.update_row_data(key, row)
 
+                # Else set the values in the dataset and register.
                 else:
+                    self.set_dataset_values(ds, key, attributes+['SeriesNumber'], values+[new_number])
 
-                    # If the value has changed before.
-                    if self.value(key, 'created'): 
-                        ds.set_values( 
-                            attributes + ['SeriesNumber'], 
-                            values + [new_number])
-                        if not key in self.dataset:
-                            ds.write(self.filepath(key), self.status)
-                        row = ds.get_values(self.columns)
-                        for i, c in enumerate(self.columns): 
-                            self.register.at[key, c] = row[i]
-                        # for i, col in enumerate(attributes):
-                        #     if col in self.columns:
-                        #         self.register.at[key,col] = values[i]
-                        self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
-
-                    # If this is the first change, then save results in a copy.
-                    else:  
-                        # If the dataset has not yet been edited
-                        # find the placeholder row and copy the data
-                        # placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                        # placeholder = placeholder[placeholder]
-                        placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                        placeholder = placeholder[placeholder.placeholder]
-                        new_key = placeholder.index[0]
-                        #new_key = self.new_key()
-                        if key in self.dataset:
-                            ds = copy.deepcopy(ds)
-                            self.dataset[new_key] = ds
-                        ds.set_values(
-                            attributes + ['SeriesNumber'], 
-                            values + [new_number])
-                        if not key in self.dataset:
-                            ds.write(self.filepath(new_key), self.status)
-
-                        # Get new data for the dataframe
-                        row = ds.get_values(self.columns)
-                        #self.register.loc[new_key, self.columns] = row
-                        for i, c in enumerate(self.columns): 
-                            self.register.at[new_key, c] = row[i]   
-                        # remove the current row and make the placeholder row current
-                        self.register.at[key, 'removed'] = True
-                        self.register.at[new_key, 'removed'] = False
-                        self.register.at[new_key, 'placeholder'] = False
-
-        # Update the dataframe in the index
-        # If the target study was empty and new series have been added
-        # then delete the row 
-        if copy_keys != []:
-            self.drop_if_missing(target_keys[0], 'SeriesInstanceUID')
-
-        self._new_keys += copy_keys
-        self._new_data += copy_data
-        self.extend()
+        self.drop_placeholder_row(target_keys[0], 'SeriesInstanceUID')
 
         if len(all_series) == 1:
             return all_series[0]
@@ -2077,141 +1681,60 @@ class Manager():
             return all_series
 
 
+    def copy_patient_data(self, key, row):
+        row[0] = self.register.at[key, 'PatientID']
+        row[5] = self.register.at[key, 'PatientName']
+        return row
+
+
+    def preserve_patient_record(self, key):
+        # If this is the last study in the patient, create a new row for the empty patient record.
+        source_patient = self.register.at[key, 'PatientID']
+        source_patient = (self.register.removed == False) & (self.register.PatientID == source_patient)
+        source_patient_studies = self.register.StudyInstanceUID[source_patient]
+        source_patient_studies_cnt = len(source_patient_studies.unique())
+        if source_patient_studies_cnt == 1:
+            row = self.default()
+            row = self.copy_patient_data(key, row)
+            self.new_row(row)
+
+
     def move_to_patient(self, uid, target, **kwargs):
         """Copy series to another study"""
 
         target_keys = self.keys(patient=target)
-
         attributes, values = self.patient_header(target_keys[0])
-        for key in kwargs:
-            try:
-                ind = attributes.index(key)
-            except:
-                attributes.append(key)
-                values.append(kwargs[key])
-            else:
-                values[ind] = kwargs[key]
-
-        copy_data = []
-        copy_keys = []  
-
+        self.append_kwargs(kwargs, attributes, values)
         all_studies = self.studies(uid)
+
         for s, study in enumerate(all_studies):
             
             self.status.progress(s+1, len(all_studies), message='Moving study..')
-
-            # If this is the last study in the patient
-            # Keep the patient as an empty patient
             keys = self.keys(study=study)
-            source_patient = self.register.at[keys[0], 'PatientID']
-            source_patient = (self.register.removed == False) & (self.register.PatientID == source_patient)
-            source_patient_studies = self.register.StudyInstanceUID[source_patient]
-            source_patient_studies_cnt = len(source_patient_studies.unique())
-            if source_patient_studies_cnt == 1:
-                row = self.default()
-                row[0] = self.register.at[keys[0], 'PatientID']
-                row[5] = self.register.at[keys[0], 'PatientName']
-                copy_keys.append(self.new_key())
-                copy_data.append(row)
+            self.preserve_patient_record(keys[0])
 
-            #for series in self.series(study):
             for series in self.series(keys=keys):
 
+                # Move all instances one-by-one to new patient
                 for key in self.keys(series=series):
 
                     instance_uid = self.value(key, 'SOPInstanceUID')
                     ds = self.get_dataset(instance_uid, [key])
-
+                    
+                    # If the instance is empty, just update the register.
                     if ds is None:
-
                         row = self.value(key, self.columns).tolist()
-                        row[0] = self.value(target_keys[0], 'PatientID')
-                        row[5] = self.value(target_keys[0], 'PatientName')
+                        row = self.copy_patient_data(key, row)
                         for val in kwargs:
                             if val in self._descriptives:
                                 row[self._descriptives[val]] = kwargs[val]
+                        self.update_row_data(key, row)
 
-                        if self.value(key, 'created'):
-                            #self.register.loc[key, self.columns] = row
-                            for i, c in enumerate(self.columns):
-                                self.register.at[key, c] = row[i]
-                            self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
-                        else:
-                            # If the dataset has not yet been edited
-                            # find the placeholder row and copy the data
-                            #placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                            #placeholder = placeholder[placeholder]
-                            placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                            placeholder = placeholder[placeholder.placeholder]
-                            placeholder = placeholder.index[0]
-                            #self.register.loc[placeholder, self.columns] = row
-                            for i, c in enumerate(self.columns): 
-                                self.register.at[placeholder, c] = row[i]
-                            # remove the current row and make the placeholder row current
-                            self.register.at[key, 'removed'] = True
-                            self.register.at[placeholder, 'removed'] = False
-                            self.register.at[placeholder, 'placeholder'] = False
-                            # self.register.at[key,'removed'] = True
-                            # copy_data.append(row)
-                            # copy_keys.append(self.new_key())
-
+                    # Else set the values in the dataset and register.
                     else:
+                        self.set_dataset_values(ds, key, attributes, values)
 
-                        # If the value has changed before.
-                        if self.value(key, 'created'): 
-                            ds.set_values(attributes, values)
-                            if not key in self.dataset:
-                                ds.write(self.filepath(key), self.status)
-                            row = ds.get_values(self.columns)
-                            for i, c in enumerate(self.columns): 
-                                self.register.at[key, c] = row[i]
-                            # for i, col in enumerate(attributes):
-                            #     if col in self.columns:
-                            #         self.register.at[key,col] = values[i]
-                            self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
-
-                        # If this is the first change, then save results in a copy.
-                        else:  
-
-                            # If the dataset has not yet been edited
-                            # find the placeholder row and copy the data
-                            # placeholder = (self.register.SOPInstanceUID == instance_uid) & (self.register.placeholder)
-                            # placeholder = placeholder[placeholder]
-                            placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                            placeholder = placeholder[placeholder.placeholder]
-                            new_key = placeholder.index[0]
-                            #new_key = self.new_key()
-                            if key in self.dataset:
-                                ds = copy.deepcopy(ds)
-                                self.dataset[new_key] = ds
-                            ds.set_values(attributes, values)
-                            if not key in self.dataset:
-                                ds.write(self.filepath(new_key), self.status)
-
-                            # Get new data for the dataframe
-                            row = ds.get_values(self.columns)
-                            #self.register.loc[new_key, self.columns] = row
-                            for i, c in enumerate(self.columns): 
-                                self.register.at[new_key, c] = row[i]
-                            # remove the current row and make the placeholder row current
-                            self.register.at[key, 'removed'] = True
-                            self.register.at[new_key, 'removed'] = False
-                            self.register.at[new_key, 'placeholder'] = False
-
-                            # self.register.at[key,'removed'] = True
-                            # copy_data.append(row)
-                            # copy_keys.append(new_key)
-
-            # Update the dataframe in the index
-
-            # If the patient is empty and new studies have been added
-            # then delete the row 
-            if copy_keys != []:
-                self.drop_if_missing(target_keys[0], 'StudyInstanceUID')
-
-            self._new_keys += copy_keys
-            self._new_data += copy_data
-            self.extend()
+            self.drop_placeholder_row(target_keys[0], 'StudyInstanceUID')
 
         if len(all_studies) == 1:
             return all_studies[0]
@@ -2232,6 +1755,71 @@ class Manager():
             raise ValueError('Cannot move to an instance. Please move to series, study or patient.')
 
 
+    def create_new_instance(self, key, ds):
+        series_uid = self.value(key, 'SeriesInstanceUID')
+        if series_uid is None:
+            study_uid = self.value(key, 'StudyInstanceUID')
+            if study_uid is None:
+                patient_uid = self.value(key, 'PatientID')
+                if patient_uid is None:
+                    _, new_key = self.new_instance('Database', ds)
+                else:
+                    _, new_key = self.new_instance(patient_uid, ds)
+            else:
+                _, new_key = self.new_instance(study_uid, ds)
+        else:
+            _, new_key = self.new_instance(series_uid, ds)
+        return new_key
+
+
+    def force_get_dataset(self, key):
+
+        # Get a dataset for the instance, and create one in memory if needed.
+        instance_uid = self.value(key, 'SOPInstanceUID')
+
+        # If the record is empty, create a new instance and a dataset in memory
+        if instance_uid is None: 
+            ds = new_dataset('MRImage')
+            new_key = self.create_new_instance(key, ds)
+            return ds, new_key
+        
+        # If a dataset exists, return it.
+        ds = self.get_dataset(instance_uid, [key])
+        if ds is not None:
+            return ds, key
+
+        # If the instance has no data yet, create a dataset in memory.
+        ds = new_dataset('MRImage')
+        new_key = self.set_instance_dataset(instance_uid, ds, key)
+        return ds, key
+
+
+    def save_dataset(self, key, ds):
+        if key in self.dataset:
+            self.dataset[key] = ds
+        else:
+            path = self.filepath(key)
+            ds.write(path, self.status)
+
+
+    def set_dataset_values(self, ds, key, attributes, values):
+
+        # If the dataset is in memory and changing for the first time, we need to edit a copy so the changes can be restored if required.
+        if not self.value(key, 'created'): 
+            if key in self.dataset:
+                ds = copy.deepcopy(ds)
+
+        # Set the new values in the dataset
+        ds.set_values(attributes, values)
+
+        # Save the updated dataset
+        self.save_dataset(key, ds)
+
+        # Update register with new data
+        row = ds.get_values(self.columns)
+        self.update_row_data(key, row)
+
+
     def set_values(self, attributes, values, keys=None, uid=None):
         """Set values in a dataset"""
 
@@ -2240,88 +1828,17 @@ class Manager():
         if uids != []:
             raise ValueError('UIDs cannot be set using set_value(). Use copy_to() or move_to() instead.')
 
-        #copy_data = []
-        #copy_keys = []
-
         if keys is None:
             keys = self.keys(uid)
 
-        for i, key in enumerate(keys):
+        for key in keys:
 
-            instance_uid = self.value(key, 'SOPInstanceUID')
-            ds = self.get_dataset(instance_uid, [key])
-            if ds is None:
-                ds = new_dataset('MRImage')
-                if instance_uid is None: # instance not yet created
-                    series_uid = self.value(key, 'SeriesInstanceUID')
-                    if series_uid is None:
-                        study_uid = self.value(key, 'StudyInstanceUID')
-                        if study_uid is None:
-                            patient_uid = self.value(key, 'PatientUID')
-                            if patient_uid is None:
-                                instance_uid, _ = self.new_instance('Database', ds)
-                            else:
-                                instance_uid, _ = self.new_instance(patient_uid, ds)
-                        else:
-                            instance_uid, _ = self.new_instance(study_uid, ds)
-                    else:
-                        instance_uid, _ = self.new_instance(series_uid, ds)
-                else:
-                    #self.set_dataset(instance_uid, ds)
-                    key = self.set_instance_dataset(instance_uid, ds, key)
-                    
-            # If the value has changed before
-            if self.value(key, 'created'): 
-                ds.set_values(attributes, values)
-                if not key in self.dataset:
-                    ds.write(self.filepath(key), self.status)
-                # Get new data for the dataframe
-                # The variable values can't be used - if it is a custom attribute
-                # such as affine_matrix the this will have made other changes on the fly
-                # such as ImageOrientationPatient and SliceLocation
-                row = ds.get_values(self.columns)
-                for i, c in enumerate(self.columns): 
-                    self.register.at[key, c] = row[i]
-                # for i, col in enumerate(attributes):
-                #     if col in self.columns:
-                #         self.register.at[key,col] = values[i]
-                new_key = key
-            # If this is the first change, then save results in a copy
-            else:  
-    
-                # If the dataset has not yet been edited
-                # find the placeholder row and copy the data
-                placeholder = self.register[self.register.SOPInstanceUID == instance_uid]
-                placeholder = placeholder[placeholder.placeholder]
-                new_key = placeholder.index[0]
-                #new_key = self.new_key()
-        
-                if key in self.dataset:
-                    ds = copy.deepcopy(ds)
-                    self.dataset[new_key] = ds
-                ds.set_values(attributes, values)
-                if not key in self.dataset:
-                    ds.write(self.filepath(new_key), self.status)
+            # Get the dataset, and create one if needed
+            ds, new_key = self.force_get_dataset(key)
 
-                # Get new data for the dataframe
-                row = ds.get_values(self.columns)
-                # Note this is 10x faster than self.register.loc[new_key, self.columns] = row
-                for i, c in enumerate(self.columns): 
-                    self.register.at[new_key, c] = row[i]
-                # remove the current row and make the placeholder row current
-                self.register.at[key, 'removed'] = True
-                self.register.at[new_key, 'removed'] = False
-                self.register.at[new_key, 'placeholder'] = False
+            # Set the new values
+            self.set_dataset_values(ds, new_key, attributes, values)
 
-                # self.register.at[key,'removed'] = True
-                # copy_data.append(row)
-                # copy_keys.append(new_key)
-
-        #self._new_keys += copy_keys
-        #self._new_data += copy_data
-        #self.extend()
-
-        
         return new_key
 
  
