@@ -974,7 +974,7 @@ class Manager():
         parent_rows = self.register[parent] == parent_uid
         parent_keys = parent_rows[parent_rows].index
         if len(parent_keys) > 1:
-            empty = self.register.loc[parent_keys, missing] is None
+            empty = self.register.loc[parent_keys, missing] == None
             empty = empty[empty].index
             if len(empty) == 1:
                 self.delete_row(empty)
@@ -1513,6 +1513,7 @@ class Manager():
                                 if val in self._descriptives:
                                     row[self._descriptives[val]] = kwargs[val]
                         else:
+                            #TODO: Simplify with set_dataset_values()
                             if key in self.dataset:
                                 ds = copy.deepcopy(ds)
                                 self.dataset[new_key] = ds

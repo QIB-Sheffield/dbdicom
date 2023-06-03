@@ -62,13 +62,15 @@ class Record():
 
     def _set_key(self):
         loc = self.loc()
-        self._key = self.manager._keys(loc)[0]
-        #self._key = self.manager.register.index[self.loc()][0]
+        all_keys = self.manager._keys(loc)
+        if len(all_keys) == 0:
+            msg = 'This record has been removed from the database and can no longer be accessed.'
+            raise ValueError(msg)
+        self._key = all_keys[0]
 
     def key(self):
         try:
             key_removed = self.manager._at(self._key, 'removed')
-#         key_removed = self.manager.register.at[self._key, 'removed']
         except:
             self._set_key()
         else:
@@ -304,6 +306,7 @@ class Record():
         # It is included in the Record class only for documentation purposes.
         return None
 
+    
     def children(self, **kwargs)->list:
         """Return all children of the record.
 
@@ -344,6 +347,7 @@ class Record():
         # It is included in the Record class for documentation purposes.
         return []
     
+    
     def siblings(self, **kwargs)->list:
         """Return all siblings of the record.
 
@@ -373,6 +377,7 @@ class Record():
         siblings.remove(self)
         return siblings
 
+    
     def series(self, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs)->list:
         """Return a list of series under the record.
 
@@ -417,7 +422,7 @@ class Record():
         series = self.manager.series(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
         return [self.record('Series', uid) for uid in series]
 
-
+    
     def studies(self, sort=True, sortby=['PatientName', 'StudyDescription'], **kwargs)->list:
         """Return a list of studies under the record.
 
@@ -456,7 +461,7 @@ class Record():
         studies = self.manager.studies(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
         return [self.record('Study', uid) for uid in studies]
 
-
+    
     def patients(self, sort=True, sortby=['PatientName'], **kwargs)->list:
         """Return a list of patients under the record.
 
@@ -747,6 +752,7 @@ class Record():
         # Note this function is implemented in all subclasses - included here for documentation purposes.
         pass
 
+    
     def new_sibling(self, suffix:str=None, **kwargs):
         """Create a new sibling of the record under the same parent.
 
@@ -780,6 +786,7 @@ class Record():
         # Note the suffix argument is deprecated and should not be used.
         pass
 
+    
     def new_pibling(self, **kwargs):
         """Create a new sibling of the parent record (pibling).
 
@@ -816,6 +823,168 @@ class Record():
             return None
         return self.parent().new_sibling(**kwargs)
 
+    
+    def remove(self):
+        """Remove a record from the database.
+
+        See Also:
+            :func:`~copy`
+            :func:`~copy_to`
+            :func:`~move_to`
+
+        Example:
+            Create a new study in an empty database, then remove it again:
+
+            >>> database = db.database()
+            >>> study = database.new_study(StudyDescription='Demo Study')
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+                    Study Demo Study [None]
+            ----------------------------------
+
+            >>> study.remove()
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+            ----------------------------------
+
+            A record that has been removed from the database can no longer be accessed. Any attempt to do so will raise an error:
+
+            >>> print(study.label())
+            ValueError: This record has been removed from the database and can no longer be accessed.
+
+        Note: 
+            Removing a record will also remove all of its children, and this will be permanent after saving the record with :func:`~save`. 
+            
+            If a record has been removed accidentally in an interactive session, use :func:`~restore` to revert back to the last saved state. 
+        """
+        self.manager.delete(self.uid, keys=self.keys())
+
+
+    def move_to(self, parent):
+        """Move the record to another parent.
+
+        Args:
+            parent: parent where the record will be moved to.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy`
+            :func:`~copy_to`
+
+        Example:
+            Create a database with two studies and a single series in one:
+
+            >>> demo = db.series(SeriesDescription='!!WATCH ME MOVE!!')
+            >>> test = demo.new_pibling(StudyDescription='Test')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [!!WATCH ME MOVE!!]
+                        Nr of instances: 0
+            Study Test [None]
+            --------------------------------
+
+            Now move the series to the other study:
+
+            >>> series.move_to(study)
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                Study Test [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+
+        """
+        move_to(self, parent)
+        return self
+
+
+
+
+    def copy_to(self, parent, **kwargs):
+        """Return a copy of the record under another parent.
+
+        Args:
+            parent: parent where the copy will be placed.
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
+
+        Returns:
+            Record: copy of the same type.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy`
+            :func:`~move_to`
+
+        Example:
+            Create a database with a single patient/study/series:
+
+            >>> series = db.series(SeriesDescription='Demo')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+
+            Create a new study *Copies* under the same patient, and copy the the *Demo* series into it:
+
+            >>> study = series.new_pibling(StudyDescription='Copies')
+            >>> copy = series.copy_to(study, SeriesDescription='Copy of Demo')
+
+            The same patient now has two studies, each with a single series:
+
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study Copies [None]
+                    Series 001 [Copy of Demo]
+                        Nr of instances: 0
+                Study New Study [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+        """
+        return parent._copy_from(self, **kwargs)
+    
+    
+    def copy(self, **kwargs):
+        """Return a copy of the record under the same parent.
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
+
+        Returns:
+            Record: copy of the same type.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy_to`
+            :func:`~move_to`
+
+        Example:
+            Create a new DICOM study and build two copies in the same patient, assigning a new study description on the fly:
+
+            >>> study = db.study(StudyDescription='Original', StudyDate='20001231')
+            >>> copy1 = study.copy(StudyDescription='Copy 1')
+            >>> copy2 = study.copy(StudyDescription='Copy 2')
+            >>> study.parent().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study Copy 1 [20001231]
+                Study Copy 2 [20001231]
+                Study Original [20001231]
+            --------------------------------
+        """
+        return self.copy_to(self.parent(), **kwargs)
 
 
 
@@ -1187,152 +1356,6 @@ class Record():
 
 
 
-    def remove(self):
-        """Remove a record from the database.
-
-        See Also:
-            :func:`~copy`
-            :func:`~copy_to`
-            :func:`~move_to`
-
-        Example:
-            Create a new study in an empty database, then remove it again:
-
-            >>> database = db.database()
-            >>> study = database.new_study(StudyDescription='Demo Study')
-            >>> database.print()
-            >>> study.remove()
-            >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study Demo Study [None]
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-            --------------------------------------
-        """
-        self.manager.delete(self.uid, keys=self.keys())
-
-
-    def copy(self, **kwargs):
-        """Return a copy of the record under the same parent.
-
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
-
-        Returns:
-            Record: copy of the same type.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy_to`
-            :func:`~move_to`
-
-        Example:
-            Create a new DICOM study and build two copies in the same patient:
-
-            >>> study = db.study(StudyDescription='Original')
-            >>> copy1 = study.copy(StudyDescription='Copy 1')
-            >>> copy2 = study.copy(StudyDescription='Copy 2')
-            >>> study.parent().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-              Study Copy 1 [None]
-              Study Copy 2 [None]
-              Study Original [None]
-            --------------------------------
-        """
-        return self.copy_to(self.parent(), **kwargs)
-
-    def copy_to(self, parent, **kwargs):
-        """Return a copy of the record under another parent.
-
-        Args:
-            parent: parent where the copy will be placed.
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
-
-        Returns:
-            Record: copy of the same type.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy`
-            :func:`~move_to`
-
-        Example:
-            Create a database with a single patient/study/series:
-
-            >>> series = db.series(SeriesDescription='Demo')
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-            Study New Study [None]
-                Series 001 [Demo]
-                Nr of instances: 0
-            --------------------------------
-
-            Create a new study under the same patient, and populate it with a copy of the first series:
-
-            >>> study = series.new_pibling(StudyDescription='Copies')
-            >>> copy = series.copy_to(study, SeriesDescription='Copy of Demo')
-
-            The same patient now has two studies, each with a single series:
-
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-            Study Copies [None]
-                Series 001 [Copy of Demo]
-                Nr of instances: 0
-            Study New Study [None]
-                Series 001 [Demo]
-                Nr of instances: 0
-            --------------------------------
-        """
-        return parent._copy_from(self, **kwargs)
-    
-    def move_to(self, parent):
-        """Move the record to another parent.
-
-        Args:
-            parent: parent where the record will be moved to.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy`
-            :func:`~copy_to`
-
-        Example:
-            Create a database with two studies and a single series in one:
-
-            >>> series = db.series(SeriesDescription='Demo')
-            >>> study = series.new_pibling(StudyDescription='Test')
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-                Study New Study [None]
-                    Series 001 [Demo]
-                        Nr of instances: 0
-                Study Test [None]
-            --------------------------------
-
-            Now move the series to the other study:
-
-            >>> series.move_to(study)
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-                Study New Study [None]
-                Study Test [None]
-                    Series 001 [Demo]
-                        Nr of instances: 0
-            --------------------------------
-
-        """
-        move_to(self, parent)
-        return self
 
 
 
