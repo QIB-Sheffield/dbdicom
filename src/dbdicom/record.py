@@ -1068,18 +1068,19 @@ class Record():
             Now measure the time it takes to set the slice locations to a constant value:
 
             >>> t=time(); series.SliceLocation=1; print(time()-t)
-            6.860354423522949
+            17.664631605148315
 
             Since the series was created on disk, this is editing on disk. Now load the series into memory and perform the same steps:
 
             >>> series.load()
             >>> t=time(); series.SliceLocation=1; print(time()-t)
-            0.5065226554870605
+            2.3518126010894775
 
             On the machine where this was executed, the same computation runs more than 10 times faster in memory.
         """
         self.manager.read(self.uid, keys=self.keys())
         return self
+    
 
     def clear(self):
         """Clear the record from memory.
@@ -1103,15 +1104,15 @@ class Record():
             Now measure the time it takes to set the slice locations to a constant value:
 
             >>> t=time(); series.SliceLocation=1; print(time()-t)
-            0.39553403854370117
+            1.9060208797454834
 
             Since the series was created in memory, this is editing in memory. Now we clear the series from memory and perform the same computation:
 
             >>> series.clear()
             >>> t=time(); series.SliceLocation=1; print(time()-t)
-            11.600219488143921
+            17.933974981307983
 
-            The computation is now run from disk and is significantly slower because of the need to read and write the files.
+            The computation is now run from disk and is 10 times slower because of the need to read and write the files.
         """
         self.manager.clear(self.uid, keys=self.keys())
 
