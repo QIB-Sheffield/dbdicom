@@ -1,5 +1,5 @@
 sklearn
--------
+=======
 
 
 .. automodule:: dbdicom.wrappers.sklearn

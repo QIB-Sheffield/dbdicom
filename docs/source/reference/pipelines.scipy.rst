@@ -1,5 +1,5 @@
 scipy
------
+=====
 
 .. automodule:: dbdicom.wrappers.scipy
    :members:

@@ -1,5 +1,6 @@
+#########
 Tutorials
-=========
+#########
 
 List of jupyter notebooks illustrating common use cases of dbdicom.
 

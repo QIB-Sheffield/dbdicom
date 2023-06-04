@@ -1,5 +1,5 @@
 dipy
-----
+====
 
 
 .. automodule:: dbdicom.wrappers.dipy

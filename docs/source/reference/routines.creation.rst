@@ -1,11 +1,11 @@
 Record creation
----------------
+===============
 
 .. currentmodule:: dbdicom
 
 
 Record creation
-^^^^^^^^^^^^^^^
+----------------
 
 .. autosummary::
    :toctree: generated/
@@ -17,7 +17,7 @@ Record creation
 
 
 Series from value
-^^^^^^^^^^^^^^^^^
+-----------------
 
 .. autosummary::
    :toctree: generated/
@@ -27,7 +27,7 @@ Series from value
 
 
 Reference objects
-^^^^^^^^^^^^^^^^^
+-----------------
 
 .. autosummary::
    :toctree: generated/

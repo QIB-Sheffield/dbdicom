@@ -342,13 +342,12 @@ def database_hollywood()->Database:
 
 
 
-def as_series(array:np.ndarray, coords:dict={}, pixels_first=False, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
     """Create a DICOM series from a numpy array.
 
     Args:
         array (np.ndarray): numpy.ndarray with image data
         coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions this is required. The coordinate values can be one-dimensions for regularly gridded data, or n-dimensional for irregularly gridded data. 
-        pixels_first (bool, optional): Flag to specify whether the pixel indices are first or last. Defaults to False.
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
         in_database (Database, optional): If provided, the series is created in this database. Defaults to None.
@@ -368,7 +367,7 @@ def as_series(array:np.ndarray, coords:dict={}, pixels_first=False, dtype='mri',
     Example:
         Create a series containing a 4-dimensional array. Since the default format is single-frame MRImage, this produces 6 separate files.
 
-        >>> array = np.zeros((3, 2, 128, 128))
+        >>> array = np.zeros((128, 128, 3, 2))
         >>> zeros = db.as_series(array)
         >>> zeros.print()
         ---------- SERIES --------------
@@ -405,12 +404,12 @@ def as_series(array:np.ndarray, coords:dict={}, pixels_first=False, dtype='mri',
     """
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.mute()
-    sery.set_array(array, coords=coords, pixels_first=pixels_first)
+    sery.set_array(array, coords=coords, pixels_first=True)
     sery.unmute()
     return sery
 
 
-def zeros(shape:tuple, coords:dict={}, **kwargs) -> Series:
+def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
     """Create a DICOM series populated with zeros.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -429,19 +428,22 @@ def zeros(shape:tuple, coords:dict={}, **kwargs) -> Series:
     Example:
         Create a series containing a 4-dimensional array of zeros:
 
-        >>> zeros = db.zeros((2, 3, 128, 128))
+        >>> zeros = db.zeros((128, 128, 2, 3))
         >>> zeros.print()
         ---------- SERIES --------------
         Series 001 [New Series]
-            Nr of instances: 3 
+            Nr of instances: 6
                 MRImage 000001
                 MRImage 000002
                 MRImage 000003
+                MRImage 000004
+                MRImage 000005
+                MRImage 000006
         --------------------------------
 
         This is effectively shorthand for:
         
-        >>> array = np.zeros((2, 3, 128, 128))
+        >>> array = np.zeros((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
     array = np.zeros(shape, dtype=np.float32)

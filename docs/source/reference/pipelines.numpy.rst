@@ -1,5 +1,5 @@
 numpy
------
+=====
 
 
 .. automodule:: dbdicom.wrappers.numpy
