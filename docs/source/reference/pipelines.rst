@@ -1,5 +1,6 @@
+*********
 Pipelines
-=========
+*********
 
 Pipelines are functions that take ``dbdicom`` records as input and, where appropriate, produce ``dbdicom`` records as output - propagating both data and header information correctly.
 

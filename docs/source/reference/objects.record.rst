@@ -2,7 +2,7 @@
 
 
 Record
-------
+======
 
 ``Record`` is a base class grouping properties that are common to all types of DICOM records  (``Database``, ``Patient``, ``Study``, ``Series``). 
 
@@ -10,7 +10,7 @@ Record
 
 
 Properties
-^^^^^^^^^^
+----------
 
 .. autosummary::
    :toctree: generated/
@@ -23,7 +23,7 @@ Properties
 
 
 Up and down the database
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 .. autosummary::
    :toctree: generated/
@@ -38,7 +38,7 @@ Up and down the database
 
 
 Editing a record
-^^^^^^^^^^^^^^^^
+----------------
 
 .. autosummary::
    :toctree: generated/
@@ -56,7 +56,7 @@ Editing a record
    
    
 Loading and saving
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. autosummary::
    :toctree: generated/

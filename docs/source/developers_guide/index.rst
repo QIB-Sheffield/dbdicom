@@ -1,5 +1,6 @@
+###############
 Developer guide
-===============
+###############
 
 .. warning::
 
@@ -7,7 +8,7 @@ Developer guide
 
 
 Environment and dependencies
-----------------------------
+============================
 
 A working Python environment is required to run dbdicom. All required Python
 dependencies are specified within the ``requirements.txt`` and  ``pyproject.toml``
@@ -26,7 +27,7 @@ from `Anaconda's Python distribution <https://www.anaconda.com/download/>`_.
 
 
 Project setup and installation
-------------------------------
+==============================
 
 #. From the project root directory, run the following command to create a separate virtual environment:
 

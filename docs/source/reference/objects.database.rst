@@ -2,7 +2,7 @@
 
 
 Database
---------
+========
 
 .. autosummary::
    :toctree: generated/
