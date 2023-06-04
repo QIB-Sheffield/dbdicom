@@ -3,14 +3,15 @@ import sys
 import venv
 
 def distribute():
-    """Upload new version on PyPI
+    """Create new version on PyPI
     
     IMPORTANT! First increment your version number in pyproject.toml:
     - Increment the MAJOR version when you make incompatible API changes.
     - Increment the MINOR version when you add functionality in a backwards compatible manner.
     - Increment the PATCH version when you make backwards compatible bug fixes.
 
-    You need: PyPI username and password
+    You need: PyPI username and password.
+    You need to type in the PyPI password rather than copy-pasting.
     """
 
     install()

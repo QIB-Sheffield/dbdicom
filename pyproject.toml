@@ -3,7 +3,7 @@
 
 [project]
 name = "dbdicom"
-version = "0.1.8"
+version = "0.2.0"
 dependencies = [ 
     "matplotlib",
     "nibabel",
@@ -17,11 +17,11 @@ dependencies = [
 
 # optional information
 
-description = "Reading and writing DICOM databases"
+description = "A pythonic interface for reading and writing DICOM databases"
 readme = "README.md"
 authors = [
-  { name = "Joao Almeida e Sousa", email = "j.g.sousa@sheffield.ac.uk" }, 
-  { name = "Steven Sourbron", email = "s.sourbron@sheffield.ac.uk" }
+  { name = "Steven Sourbron", email = "s.sourbron@sheffield.ac.uk" },
+  { name = "Ebony Gunwhy", email = "e.gunwhy@sheffield.ac.uk" }, 
   ]
 license = { file = "LICENSE" }
 classifiers = [
@@ -47,7 +47,7 @@ keywords = ['python', "medical imaging", "DICOM"]
 requires-python = ">=3.6"
 
 [project.urls]
-"Homepage" = "https://github.com/QIB-Sheffield/dbdicom"
+"Homepage" = "https://qib-sheffield.github.io/dbdicom/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
