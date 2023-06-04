@@ -91,12 +91,16 @@ class Series(Record):
 
 
     def export_as_dicom(self, path): 
-        instance = self.instance()
-        patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
-        study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
-        series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
-        path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
-        path = export_path(path)
+        # instance = self.instance()
+        # patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
+        # study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
+        # series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
+        # path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
+        # path = export_path(path)
+
+        folder = self.label()
+        path = export_path(path, folder)
+
         copy = self.copy()
         mgr = Manager(path, status=self.status)
         mgr.open(path)
@@ -421,7 +425,7 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, **kwargs): 
+def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -569,7 +573,6 @@ def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, *
         if coords != {}: # ADDED 31/05/2023
             for c in coords:
                 image[c] = coords[c][i]
-
         image.set_pixel_array(array[i,...])
         image.clear()
 

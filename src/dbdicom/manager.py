@@ -963,21 +963,21 @@ class Manager():
     def drop_placeholder_row(self, parent_key, missing='SOPInstanceUID'):
         # If a parent has more than one children, and one of them is None, then delete that row.
         if missing == 'SOPInstanceUID':
-            parent = 'SeriesInstanceUID'
+            parent_uid = self.value(parent_key, 'SeriesInstanceUID')
+            parent_keys = self.keys(series=parent_uid)
         elif missing == 'SeriesInstanceUID':
-            parent = 'StudyInstanceUID'
+            parent_uid = self.value(parent_key, 'StudyInstanceUID')
+            parent_keys = self.keys(study=parent_uid)
         elif missing == 'StudyInstanceUID':
-            parent = 'PatientID'
+            parent_uid = self.value(parent_key, 'PatientID')
+            parent_keys = self.keys(patient=parent_uid)
         elif missing == 'PatientID':
-            parent = 'Database'
-        parent_uid = self.register.at[parent_key, parent]
-        parent_rows = self.register[parent] == parent_uid
-        parent_keys = parent_rows[parent_rows].index
+            parent_keys = self.register.index
         if len(parent_keys) > 1:
-            empty = self.register.loc[parent_keys, missing] == None
-            empty = empty[empty].index
+            df = self.register.loc[parent_keys, missing]
+            empty = df[df.values == None].index
             if len(empty) == 1:
-                self.delete_row(empty)
+                self.delete_row(empty[0])
 
     
     def update_row_data(self, key, data):
@@ -997,6 +997,7 @@ class Manager():
         else:
             self.register.at[key, 'removed'] = True
             key = self.new_row(data)
+
         return key
     
 
@@ -1725,7 +1726,7 @@ class Manager():
                     # If the instance is empty, just update the register.
                     if ds is None:
                         row = self.value(key, self.columns).tolist()
-                        row = self.copy_patient_data(key, row)
+                        row = self.copy_patient_data(target_keys[0], row)
                         for val in kwargs:
                             if val in self._descriptives:
                                 row[self._descriptives[val]] = kwargs[val]
@@ -1773,26 +1774,6 @@ class Manager():
         return new_key
 
 
-    def force_get_dataset(self, key):
-
-        # Get a dataset for the instance, and create one in memory if needed.
-        instance_uid = self.value(key, 'SOPInstanceUID')
-
-        # If the record is empty, create a new instance and a dataset in memory
-        if instance_uid is None: 
-            ds = new_dataset('MRImage')
-            new_key = self.create_new_instance(key, ds)
-            return ds, new_key
-        
-        # If a dataset exists, return it.
-        ds = self.get_dataset(instance_uid, [key])
-        if ds is not None:
-            return ds, key
-
-        # If the instance has no data yet, create a dataset in memory.
-        ds = new_dataset('MRImage')
-        new_key = self.set_instance_dataset(instance_uid, ds, key)
-        return ds, key
 
 
     def save_dataset(self, key, ds):
@@ -1805,19 +1786,72 @@ class Manager():
 
     def set_dataset_values(self, ds, key, attributes, values):
 
-        # If the dataset is in memory and changing for the first time, we need to edit a copy so the changes can be restored if required.
-        if not self.value(key, 'created'): 
-            if key in self.dataset:
+        # If the dataset is in memory and has not yet been modified, then edit a copy.
+        if key in self.dataset:
+            if not self.value(key, 'created'):
                 ds = copy.deepcopy(ds)
 
-        # Set the new values in the dataset
+        # Change the values and get the register row data
         ds.set_values(attributes, values)
-
-        # Save the updated dataset
-        self.save_dataset(key, ds)
-
-        # Update register with new data
         row = ds.get_values(self.columns)
+
+        # Update the register and save the modified dataset
+        key = self.update_row_data(key, row)
+        self.save_dataset(key, ds)
+        return key # added
+    
+    # def force_get_dataset(self, key):
+    
+    #     # Get a dataset for the instance, and create one in memory if needed.
+    #     instance_uid = self.value(key, 'SOPInstanceUID')
+
+    #     # If the record is empty, create a new instance and a dataset in memory
+    #     if instance_uid is None: 
+    #         ds = new_dataset('MRImage')
+    #         new_key = self.create_new_instance(key, ds)
+    #         return ds, new_key
+        
+    #     # If a dataset exists, return it.
+    #     ds = self.get_dataset(instance_uid, [key])
+    #     if ds is not None:
+    #         return ds, key
+
+    #     # If the instance has no data yet, create a dataset in memory.
+    #     ds = new_dataset('MRImage')
+    #     new_key = self.set_instance_dataset(instance_uid, ds, key)
+    #     return ds, key
+
+    # def _set_values(self, attributes, values, keys=None, uid=None):
+    #     """Set values in a dataset"""
+    #     # PASSES ALL TESTS but creates datasets when attributes of empty records are set
+
+    #     uids = ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
+    #     uids = [i for i in uids if i in attributes]
+    #     if uids != []:
+    #         raise ValueError('UIDs cannot be set using set_value(). Use copy_to() or move_to() instead.')
+
+    #     if keys is None:
+    #         keys = self.keys(uid)
+
+    #     for key in keys:
+
+    #         # Get the dataset, and create one if needed
+    #         ds, new_key = self.force_get_dataset(key)
+
+    #         # Set the new values
+    #         self.set_dataset_values(ds, new_key, attributes, values)
+
+    #     return new_key
+    
+
+    def set_row_values(self, key, attributes, values):
+        if not isinstance(values, list):
+            values = [values]
+            attributes = [attributes]
+        row = self.value(key, self.columns).tolist()
+        for i, attr in enumerate(attributes):
+            if attr in self._descriptives:
+                row[self._descriptives[attr]] = values[i]
         self.update_row_data(key, row)
 
 
@@ -1834,13 +1868,19 @@ class Manager():
 
         for key in keys:
 
-            # Get the dataset, and create one if needed
-            ds, new_key = self.force_get_dataset(key)
+            # Get the dataset
+            instance_uid = self.value(key, 'SOPInstanceUID')
+            if instance_uid is None: 
+                ds = None
+            else:
+                ds = self.get_dataset(instance_uid, [key])
 
-            # Set the new values
-            self.set_dataset_values(ds, new_key, attributes, values)
-
-        return new_key
+            if ds is None:
+                # Update register entries only
+                self.set_row_values(key, attributes, values)
+            else:
+                # Set the new values
+                self.set_dataset_values(ds, key, attributes, values)
 
  
     def get_values(self, attributes, keys=None, uid=None):

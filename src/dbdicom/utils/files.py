@@ -42,6 +42,11 @@ def export_path(basepath, folder=None):
     while os.path.isdir(path):
         cnt += 1
         path = basepath + ' [' + str(cnt) + ']'
+    if platform.system() == 'Windows':
+        if len(path) >= 260:
+            msg = 'Cannot write to ' + path + '\n'
+            msg + 'Path name is too long.'
+            raise ValueError(msg)
     os.makedirs(path)
     return path
 

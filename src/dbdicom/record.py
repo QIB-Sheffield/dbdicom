@@ -1357,11 +1357,6 @@ class Record():
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
         return self.record('Instance', uid, key, **attr)
 
-
-
-
-
-
     def set_values(self, attributes, values):
         keys = self.keys()
         self._key = self.manager.set_values(attributes, values, keys)
@@ -1376,35 +1371,38 @@ class Record():
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
 
-
-
-
-
-  
-
-
-
-
-    def export_as_dicom(self, path): 
-        folder = self.label()
+    def export_as_dicom(self, path):
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_dicom(path)
 
     def export_as_png(self, path): 
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_png(path)
 
     def export_as_csv(self, path):
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_csv(path)
 
     def export_as_nifti(self, path):
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_nifti(path)

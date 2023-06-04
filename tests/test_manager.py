@@ -30,7 +30,7 @@ def remove_tmp_database(tmp):
 
 
 # CONSTANTS
-N_COLUMNS = 20
+N_COLUMNS = 19
 
 
 def test_init():
@@ -53,7 +53,7 @@ def test_read_dataframe():
     mgr = Manager(tmp)
     #mgr.read_dataframe()
     mgr.scan()
-    assert mgr.register.shape == (24*2, N_COLUMNS)
+    assert mgr.register.shape == (24, 19)
     remove_tmp_database(tmp)
 
 
@@ -77,7 +77,7 @@ def test_multiframe_to_singleframe():
     tmp = create_tmp_database(multiframe)
     mgr = Manager(tmp)
     mgr.scan()
-    assert mgr.register.shape == (124*2, N_COLUMNS)
+    assert mgr.register.shape == (124, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_scan():
@@ -85,7 +85,7 @@ def test_scan():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.scan()
-    assert mgr.register.shape == (24*2, N_COLUMNS)
+    assert mgr.register.shape == (24, N_COLUMNS)
     remove_tmp_database(tmp)
 
 def test_type():
@@ -500,28 +500,28 @@ def test_set_instance_dataset():
 
     instance1 = mgr.instances(series1).values.tolist()[0]
     ds1 = mgr.get_dataset(instance1)
-    ds1.PatientName = 'Blabla'
-    ds1.AcquisitionTime = '000000.00'
+    ds1.set_values('PatientName', 'Blabla')
+    ds1.set_values('AcquisitionTime', 0.0)
     mgr.set_instance_dataset(instance1, ds1)
-    assert ds1.PatientName != 'Blabla'
-    assert ds1.AcquisitionTime == mgr.get_values('AcquisitionTime', uid=instance1)
+    assert ds1.get_values('PatientName') != 'Blabla'
+    assert ds1.get_values('AcquisitionTime') == mgr.get_values('AcquisitionTime', uid=instance1)
 
     instance1 = mgr.instances(series1).values.tolist()[0]
     ds1 = mgr.get_dataset(instance1)
-    ds1.PatientName = 'Blabla'
-    ds1.AcquisitionTime = '000001.00'
+    ds1.set_values('PatientName', 'Blabla')
+    ds1.set_values('AcquisitionTime', 1.0)
     instance, _ = mgr.new_instance(series1)
     mgr.set_instance_dataset(instance, ds1)
-    assert ds1.PatientName != 'Blabla'
-    assert ds1.AcquisitionTime == mgr.get_values('AcquisitionTime', uid=instance)
+    assert ds1.get_values('PatientName') != 'Blabla'
+    assert ds1.get_values('AcquisitionTime') == mgr.get_values('AcquisitionTime', uid=instance)
 
     instance1 = mgr.instances(series1).values.tolist()[0]
     ds1 = MRImage()
-    ds1.PatientName = 'Blabla'
-    ds1.AcquisitionTime = '000002.00'
+    ds1.set_values('PatientName', 'Blabla')
+    ds1.set_values('AcquisitionTime', 2.0)
     mgr.set_instance_dataset(instance1, ds1)
-    assert ds1.PatientName != 'Blabla'
-    assert ds1.AcquisitionTime == mgr.get_values('AcquisitionTime', uid=instance1)
+    assert ds1.get_values('PatientName') != 'Blabla'
+    assert ds1.get_values('AcquisitionTime') == mgr.get_values('AcquisitionTime', uid=instance1)
 
 
 def test_set_dataset():
@@ -535,23 +535,23 @@ def test_set_dataset():
 
     # Save datasets in new instances
     dataset = mgr.get_dataset(series1)
-    dataset[0].ContentTime = '000000'
+    dataset[0].set_values('ContentTime', 0.0)
     n = len(mgr.instances(series2))
     mgr.set_dataset(series2, dataset[:2])
     assert len(mgr.instances(series2)) == n+2
-    assert '000000' in mgr.get_values('ContentTime', uid=series2)
+    assert 0.0 in mgr.get_values('ContentTime', uid=series2)
     mgr.restore()
     assert len(mgr.instances(series2)) == n
-    assert '000000' not in mgr.get_values('ContentTime', uid=series2)
+    assert None is mgr.get_values('ContentTime', uid=series2)
 
     # Save datasets in existing instances
     dataset = mgr.get_dataset(series2)
-    dataset[0].ContentTime = '000000'
+    dataset[0].set_values('ContentTime', 0.0)
     n = len(mgr.instances(series2))
     assert n == len(dataset)
     mgr.set_dataset(series2, dataset[:2])
     assert len(mgr.instances(series2)) == n
-    assert '000000' in mgr.get_values('ContentTime', uid=series2)
+    assert 0.0 in mgr.get_values('ContentTime', uid=series2)
     
     remove_tmp_database(tmp)
 
@@ -688,7 +688,7 @@ def test_open_close():
     tmp = create_tmp_database(rider)
     mgr = Manager(tmp)
     mgr.open()
-    assert mgr.register.shape == (24*2, N_COLUMNS)
+    assert mgr.register.shape == (24, N_COLUMNS)
     mgr.save()
     #mgr.save('Database')
     mgr.close()
@@ -704,7 +704,7 @@ def test_open_close():
 
     tmp = create_tmp_database(twofiles)
     mgr.open(tmp)
-    assert mgr.register.shape == (2*2, N_COLUMNS)
+    assert mgr.register.shape == (2, N_COLUMNS)
     mgr.save()
     #mgr.save('Database')
     mgr.close()
@@ -722,7 +722,7 @@ def test_inmemory_vs_ondisk():
     mgr.open(tmp)   
     df = mgr.register
     mgr.close()
-    assert df.shape == (24*2, N_COLUMNS)
+    assert df.shape == (24, N_COLUMNS)
     assert mgr.register is None
 
     remove_tmp_database(tmp)
@@ -731,7 +731,7 @@ def test_inmemory_vs_ondisk():
     # Try to read a dataframe and check 
     # that this this is empty
     mgr.register = df
-    assert mgr.register.shape == (24*2, N_COLUMNS)
+    assert mgr.register.shape == (24, N_COLUMNS)
     mgr.scan()
     assert mgr.register.empty
 
@@ -992,16 +992,16 @@ def test_set_values():
     for t in mgr.value(mgr.keys(patient), 'SeriesDescription'):
         assert t != 'Desc'
     for instance in mgr.instances(patient).values.tolist():
-        assert mgr.get_dataset(instance).get_values('AcquisitionTime') != '000000.00'
+        assert mgr.get_dataset(instance).get_values('AcquisitionTime') != 0.0
 
-    mgr.set_values(['PatientName', 'SeriesDescription', 'AcquisitionTime'], ['Anonymous', 'Desc', '000000.00'], uid=patient)
+    mgr.set_values(['PatientName', 'SeriesDescription', 'AcquisitionTime'], ['Anonymous', 'Desc', 0.0], uid=patient)
 
     for name in mgr.value(mgr.keys(patient), 'PatientName'):
         assert name == 'Anonymous'
     for t in mgr.value(mgr.keys(patient), 'SeriesDescription'):
         assert t == 'Desc'
     for instance in mgr.instances(patient).values.tolist():
-        assert mgr.get_dataset(instance).get_values('AcquisitionTime') == '000000.00'
+        assert mgr.get_dataset(instance).get_values('AcquisitionTime') == 0.0
 
     remove_tmp_database(tmp)
 
@@ -1024,12 +1024,12 @@ def test_get_values():
     assert set(values) == set(['ax 10 flip', 'ax 5 flip', 'sag 3d gre +c'])
 
     values = mgr.get_values('AcquisitionTime', uid=patient)
-    assert set(values) == set(['074424.477508', '074443.472496', '074615.472480', '074634.479981', '075505.670007', '075611.105017'])
+    assert set(values) == set([27864.477508, 27883.472496, 27975.47248, 27994.479981, 28505.670007, 28571.105017])
 
     values = mgr.get_values(attributes, uid=patient)
     assert values[0] == '281949'
     assert set(values[1]) == set(['ax 10 flip', 'ax 5 flip', 'sag 3d gre +c'])
-    assert set(values[2]) == set(['074424.477508', '074443.472496', '074615.472480', '074634.479981', '075505.670007', '075611.105017'])
+    assert set(values[2]) == set([27864.477508, 27883.472496, 27975.47248, 27994.479981, 28505.670007, 28571.105017])
 
     values = mgr.get_values('PatientName', uid=patient)
     assert values == '281949'

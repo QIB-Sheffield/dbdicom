@@ -279,6 +279,7 @@ def set_values(ds, tags, values, VR=None):
     elif VR is None:
         VR = [None] * len(tags)
     for i, tag in enumerate(tags):
+                
         if values[i] is None:
             if isinstance(tag, str):
                 if hasattr(ds, tag):
@@ -294,7 +295,6 @@ def set_values(ds, tags, values, VR=None):
         else:
             if isinstance(tag, str):
                 if hasattr(ds, tag):
-                #if tag in ds:
                     ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if hasattr(ds, 'set_attribute_' + tag):
@@ -346,12 +346,13 @@ def get_values(ds, tags):
                 if hasattr(ds, 'get_attribute_' + tag):
                     value = getattr(ds, 'get_attribute_' + tag)()
             else:
-                value = to_set_type(ds[tag].value)
+                pydcm_value = ds[tag].value
+                value = to_set_type(pydcm_value, pydicom.datadict.dictionary_VR(tag))
 
         # If the tag is a tuple of hexadecimal values
         else: 
             if tag in ds:
-                value = to_set_type(ds[tag].value)
+                value = to_set_type(ds[tag].value, pydicom.datadict.dictionary_VR(tag))
 
         # If a tag is not present in the dataset, check if it can be derived
         if value is None:
@@ -393,13 +394,19 @@ def format_value(value, VR=None, tag=None):
     return value
 
 
-def to_set_type(value):
+def to_set_type(value, VR):
     """
     Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
+    # Not a good idea to modify pydicom set/get values. confusing and requires extra VR lookups
+
+    if VR == 'TM':
+        # pydicom sometimes returns string values for TM data types
+        if isinstance(value, str):
+            return variables.str_to_seconds(value)
 
     if value.__class__.__name__ == 'MultiValue':
-        return [to_set_type(v) for v in value]
+        return [to_set_type(v, VR) for v in value]
     if value.__class__.__name__ == 'PersonName':
         return str(value)
     if value.__class__.__name__ == 'Sequence':
@@ -418,8 +425,8 @@ def to_set_type(value):
         return float(value)
     if value.__class__.__name__ == 'DSdecimal': 
         return int(value)
-    else:
-        return value
+    
+    return value
 
 
 def new_uid(n=None):

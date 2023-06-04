@@ -115,8 +115,11 @@ def test_to_set_type():
 
     ds = dbdataset.read(files[0])
 
-    assert isinstance(dbdataset.to_set_type(ds.PatientName), str)   # PN
-    assert isinstance(dbdataset.to_set_type(ds.AcquisitionTime), str)   # TM
+    patient_name = dbdataset.to_set_type(ds.PatientName, pydicom.datadict.dictionary_VR('PatientName'))
+    acq_time = dbdataset.to_set_type(ds.AcquisitionTime, pydicom.datadict.dictionary_VR('AcquisitionTime'))
+    
+    assert isinstance(patient_name, str)   # PN
+    assert isinstance(acq_time, float)   # TM
 
     remove_tmp_database(tmp)
 
@@ -150,7 +153,7 @@ def test_get_values():
 
     assert values[0] is None
     assert values[1] == '281949'
-    assert values[2] == '075649.057496'
+    assert values[2] == 28609.057496
 
 def test_set_values():
 
@@ -160,7 +163,7 @@ def test_set_values():
 
     # set new values
     ds = dbdataset.read(files[0])
-    values = ['Anonymous', '000000.00']
+    values = ['Anonymous', 0.0]
     ds.set_values(['PatientName', 'AcquisitionTime'], values)
 
     # check if new values are preserved after writing
@@ -168,16 +171,19 @@ def test_set_values():
     ds.write(copy)
     ds_copy = dbdataset.read(copy)
 
-    assert ds.PatientName == values[0]
-    assert ds.AcquisitionTime == values[1]
-    assert ds_copy.PatientName == values[0]
-    assert ds_copy.AcquisitionTime == values[1]
+    v = ds.get_values(['PatientName', 'AcquisitionTime'])
+    v_copy = ds.get_values(['PatientName', 'AcquisitionTime'])
+
+    assert v[0] == values[0]
+    assert v[1] == values[1]
+    assert v_copy[0] == values[0]
+    assert v_copy[1] == values[1]
 
     # Check setting of None values (equivalent to deleting the data element)
 
     # set new values
     ds = dbdataset.read(files[0])
-    values = [None, '000000.00']
+    values = [None, 0.0]
     ds.set_values(['PatientName', 'AcquisitionTime'], values)
 
     values = ds.get_values(['PatientName', 'AcquisitionTime'])
@@ -190,7 +196,7 @@ def test_set_values():
     values = ds_copy.get_values(['PatientName', 'AcquisitionTime'])
 
     assert values[0] is None
-    assert values[1] == '000000.00'
+    assert values[1] == 0.0
 
     remove_tmp_database(tmp)
 
