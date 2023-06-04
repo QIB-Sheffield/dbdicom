@@ -347,7 +347,7 @@ def get_values(ds, tags):
                     value = getattr(ds, 'get_attribute_' + tag)()
             else:
                 pydcm_value = ds[tag].value
-                value = to_set_type(pydcm_value, pydicom.datadict.dictionary_VR(tag))
+                value = to_set_type(pydcm_value, pydicom.datadict.dictionary_VR(tag)) # ELIMINATE THIS STEP - return pydicom datatypes
 
         # If the tag is a tuple of hexadecimal values
         else: 
