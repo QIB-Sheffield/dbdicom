@@ -2,6 +2,10 @@ import math
 import datetime
 
 def str_to_seconds(dicom_tm):
+    if dicom_tm is None:
+        return None
+    if dicom_tm == '':
+        return None
     # dicom_tm is of the form 'HHMMSS.FFFFFF'
     # Split the seconds into seconds and fractional seconds
     seconds, fractional_seconds = dicom_tm.split('.')
@@ -16,6 +20,8 @@ def str_to_seconds(dicom_tm):
     return seconds_since_midnight
 
 def seconds_to_str(seconds_since_midnight):
+    if not isinstance(seconds_since_midnight, float): 
+        return None
     hours = math.floor(seconds_since_midnight/3600)
     minutes = math.floor((seconds_since_midnight-hours*3600)/60)
     seconds = math.floor(seconds_since_midnight-hours*3600-minutes*60)
@@ -32,6 +38,8 @@ def seconds_to_str(seconds_since_midnight):
     return hours + minutes + seconds + '.' + fractional_seconds
 
 def time_to_seconds(tm):
+    if tm is None:
+        return None
     hours = tm.hour
     minutes = tm.minute
     seconds = tm.second
@@ -40,6 +48,8 @@ def time_to_seconds(tm):
     return seconds_since_midnight
 
 def seconds_to_time(seconds_since_midnight):
+    if not isinstance(seconds_since_midnight, float): 
+        return None
     hours = math.floor(seconds_since_midnight/3600)
     minutes = math.floor((seconds_since_midnight-hours*3600)/60)
     seconds = math.floor(seconds_since_midnight-hours*3600-minutes*60)
@@ -48,6 +58,8 @@ def seconds_to_time(seconds_since_midnight):
     return datetime.time(int(hours), int(minutes), int(seconds), int(microseconds))
 
 def time_to_str(tm):
+    if tm is None:
+        return None
     hours = tm.hour
     minutes = tm.minute
     seconds = tm.second
@@ -61,12 +73,16 @@ def time_to_str(tm):
     return hours + minutes + seconds + '.' + fractional_seconds 
 
 def date_to_str(tm):
+    if tm is None:
+        return None
     year = str(tm.year).rjust(4, '0')
     month = str(tm.month).rjust(2, '0')
     day = str(tm.day).rjust(2, '0')
     return year + month + day
 
 def datetime_to_str(dt):
+    if dt is None:
+        return None
     date = date_to_str(dt.date())
     time = time_to_str(dt.time())
     return date + time
@@ -74,6 +90,7 @@ def datetime_to_str(dt):
 
 def test_all_conversions(sec, dcm, tim, date, date_str, dt, dt_str):
 
+    assert seconds_to_str(None) is None
     assert str_to_seconds(dcm) == sec
     assert seconds_to_str(sec) == dcm
     assert str_to_seconds(seconds_to_str(sec)) == sec

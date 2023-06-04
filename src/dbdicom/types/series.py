@@ -70,7 +70,10 @@ class Series(Record):
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
-    def set_array(*args, **kwargs):
+    def set_ndarray(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
+
+    def set_array(*args, **kwargs): # obsolete - phase out and replace by set_ndarray()
         set_pixel_array(*args, **kwargs)
 
 
@@ -88,12 +91,16 @@ class Series(Record):
 
 
     def export_as_dicom(self, path): 
-        instance = self.instance()
-        patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
-        study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
-        series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
-        path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
-        path = export_path(path)
+        # instance = self.instance()
+        # patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
+        # study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
+        # series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
+        # path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
+        # path = export_path(path)
+
+        folder = self.label()
+        path = export_path(path, folder)
+
         copy = self.copy()
         mgr = Manager(path, status=self.status)
         mgr.open(path)
@@ -418,7 +425,7 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, **kwargs): 
+def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -555,7 +562,6 @@ def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, *
 
     # Flatten array for iterating
     array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    series.manager.pause_extensions()
     for i, image in enumerate(copy_source):
         series.progress(i+1, len(copy_source), 'Saving array..')
         image.read()
@@ -569,18 +575,17 @@ def set_pixel_array(series, array, coords={}, source=None, pixels_first=False, *
                 image[c] = coords[c][i]
         image.set_pixel_array(array[i,...])
         image.clear()
-    series.manager.resume_extensions()
+
 
 
     # More compact but does not work with pause extensions
-    # series.manager.pause_extensions()
     # for i, s in enumerate(source):
     #     series.status.progress(i+1, len(source), 'Writing array..')
     #     if s not in instances:
     #         s.copy_to(series).set_pixel_array(array[i,...])
     #     else:
     #         s.set_pixel_array(array[i,...])
-    # series.manager.resume_extensions()
+
 
 
 

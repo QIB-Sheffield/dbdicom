@@ -22,8 +22,8 @@ Properties
    Record.label
 
 
-Moving through the hierarchy
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Up and down the database
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autosummary::
    :toctree: generated/
@@ -37,8 +37,8 @@ Moving through the hierarchy
    Record.database
 
 
-Editing a database
-^^^^^^^^^^^^^^^^^^
+Editing a record
+^^^^^^^^^^^^^^^^
 
 .. autosummary::
    :toctree: generated/
@@ -50,24 +50,23 @@ Editing a database
    Record.new_pibling
    Record.new_child
    Record.remove
-   Record.copy
-   Record.copy_to
    Record.move_to
-
-
-Reading and writing
-^^^^^^^^^^^^^^^^^^^
-
-.. autosummary::
-   :toctree: generated/
-
-
-Saving and restoring
-^^^^^^^^^^^^^^^^^^^^
-
-.. autosummary::
-   :toctree: generated/
+   Record.copy_to
+   Record.copy
    
+   
+Loading and saving
+^^^^^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: generated/
+
+   Record.save
+   Record.restore
+   Record.load
+   Record.clear
+
+
 
 User interactions
 ^^^^^^^^^^^^^^^^^

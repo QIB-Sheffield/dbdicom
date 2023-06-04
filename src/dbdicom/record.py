@@ -48,7 +48,8 @@ class Record():
         # return (df.removed==False) & (df[self.name]==self.uid)
 
     def keys(self):
-        keys = self.manager._keys(self.loc())
+        loc = self.loc()
+        keys = self.manager._keys(loc)
 #        keys = self.manager.register.index[self.loc()]
         if len(keys) == 0:
             if self.name == 'Database':
@@ -60,13 +61,16 @@ class Record():
             return keys
 
     def _set_key(self):
-        self._key = self.manager._keys(self.loc())[0]
-        #self._key = self.manager.register.index[self.loc()][0]
+        loc = self.loc()
+        all_keys = self.manager._keys(loc)
+        if len(all_keys) == 0:
+            msg = 'This record has been removed from the database and can no longer be accessed.'
+            raise ValueError(msg)
+        self._key = all_keys[0]
 
     def key(self):
         try:
             key_removed = self.manager._at(self._key, 'removed')
-#         key_removed = self.manager.register.at[self._key, 'removed']
         except:
             self._set_key()
         else:
@@ -84,6 +88,9 @@ class Record():
     
 
     
+# Properties
+
+
     def print(self):
         """Print a summary of the record and its contents.
 
@@ -162,7 +169,6 @@ class Record():
 
             >>> database = db.database('path\\to\\DICOM\\database')
             >>> print(database.path())
-
             path\to\DICOM\database
         """
         return self.manager.path
@@ -186,29 +192,33 @@ class Record():
             >>> print(database.empty)
             False
 
-            A new database is empty by default:
+            Create a new database from scratch and verify that it is empty:
 
             >>> database = db.database()
             >>> print(database.empty())
             True
 
-            A new series is empty by default, but since this automatically generates a default study and patient, the database is no longer empty:
+            Creating a new series in the database, and verify that it is no longer empty:
 
-            >>> database = db.database()
             >>> series = database.new_series()
-            >>> print(series.empty(), database.empty())
-            True, False            
+            >>> print(database.empty())
+            False   
 
-            If the new series is populated with data on creation, it is not empty:
-            >>> database = db.database()
-            >>> series = db.zeros((3,128,128), in_database=database)
-            >>> print(series.empty(), database.empty())
-            False, False 
+            Verify that the new series is empty:
+
+            >>> print(series.empty())
+            True
+
+            Populate the series with a numpy array and verify that it is now no longer empty:
+
+            >>> zeros = np.zeros((3, 2, 128, 128))
+            >>> series.set_ndarray(zeros)
+            >>> print(series.empty())
+            False
         """
         if self.manager.register.empty:
             return True
         return self.children() == []
-        return not self.loc().any() # This gives the incorrect result for empty series, study, patients
     
 
     def files(self) -> list:
@@ -236,9 +246,8 @@ class Record():
             >>> print(series.files())
             []
 
-            If a series is created in memory, then written to disk, there are files associated. Since the default format is single-frame DICOM, there are 3 files in this case:
+            If a series is created in memory, then written to disk, there are files associated. Since the default format is single-frame MRImage, there are 3 files in this case:
 
-            >>> series = db.zeros((3,128,128))
             >>> series.write('path\\to\\DICOM\\database')
             >>> print(series.files())
             ['path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.10200622747714198480020099226433338888.dcm', 'path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.95074529334441498207488699470663781148.dcm', 'path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.30452523525370800574103459899629273584.dcm']
@@ -246,6 +255,7 @@ class Record():
         files = [self.manager.filepath(key) for key in self.keys()]
         files = [f for f in files if f is not None] # Added 29/05/23 - check if this creates issues
         return files
+    
     
     def label(self)->str:
         """Return a human-readable label describing the record.
@@ -259,15 +269,852 @@ class Record():
         Example:
             Print the label of a default series:
 
-            >>> series = db.zeros((3,128,128))
+            >>> series = db.zeros((3,128,128), SeriesDescription='Empty demo')
             >>> print(series.label())
-            Series 001 [New Series]
+            Series 001 [Empty demo]
         """
         return self.manager.label(self.uid, key=self.key(), type=self.__class__.__name__)
     
 
 
+# Navigating the tree
 
+
+    def parent(self):
+        """Return the parent of the record.
+
+        Returns:
+            Record: The parent object.
+
+        See Also:
+            :func:`~children`
+            :func:`~siblings`
+            :func:`~series`
+            :func:`~studies`
+            :func:`~patients`
+            :func:`~database`
+            
+        Example:
+            Find the parent of a study:
+
+            >>> study = db.study()
+            >>> patient = study.parent()
+            >>> print(patient.PatientName)
+            New Patient
+        """
+        # Note this function is reimplemented in all subclasses. 
+        # It is included in the Record class only for documentation purposes.
+        return None
+
+    
+    def children(self, **kwargs)->list:
+        """Return all children of the record.
+
+        Args:
+            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.
+
+        Returns:
+            list: A list of all children.
+
+        See Also:
+            :func:`~parent`
+            :func:`~siblings`
+            :func:`~series`
+            :func:`~studies`
+            :func:`~patients`
+            :func:`~database`
+            
+        Example:
+            Find the patients of a given database:
+
+            >>> database = db.database_hollywood()
+            >>> patients = database.children()
+            >>> print([p.PatientName for p in patients])
+            ['James Bond', 'Scarface']
+
+            Find all patients with a given name:
+
+            >>> patients = database.children(PatientName='James Bond')
+            >>> print([p.PatientName for p in patients])
+            ['James Bond']
+
+            Find the studies that have been performed on a given patient:
+            >>> studies = patients[0].children()
+            >>> print([s.StudyDescription for s in studies])
+            ['MRI', 'Xray']
+        """
+        # Note this function is reimplemented in all subclasses. 
+        # It is included in the Record class for documentation purposes.
+        return []
+    
+    
+    def siblings(self, **kwargs)->list:
+        """Return all siblings of the record.
+
+        Args:
+            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.
+
+        Returns:
+            list: A list of all siblings.
+
+        See Also:
+            :func:`~parent`
+            :func:`~children`
+            :func:`~series`
+            :func:`~studies`
+            :func:`~patients`
+            :func:`~database`
+            
+        Example:
+            Retrieve a study from a database, and find all other studies performed on the same patient:
+
+            >>> database = db.database_hollywood()
+            >>> study = database.studies()[0]
+            >>> print([s.StudyDescription for s in study.siblings()])
+            ['Xray']
+        """
+        siblings = self.parent().children(**kwargs)
+        siblings.remove(self)
+        return siblings
+
+    
+    def series(self, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs)->list:
+        """Return a list of series under the record.
+
+        If the record is a study, this returns the record's children. If it is a patient, this returns a list the record's grand children.
+
+        Args:
+            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
+            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName', 'StudyDescription', 'SeriesNumber'].
+            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain series with the appropriate values
+
+        Returns:
+            list: A list of dbdicom Series objects.
+
+        See Also:
+            :func:`~parent`
+            :func:`~children`
+            :func:`~siblings`
+            :func:`~studies`
+            :func:`~patients`
+            :func:`~database`
+
+        Example:
+            Find all series in a database, and print their labels:
+
+            >>> database = db.database_hollywood()
+            >>> series_list = database.series()
+            >>> print([s.label() for s in series_list])
+            ['Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]', 'Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]']
+
+            Find all series with a given SeriesDescription:
+
+            >>> series_list = database.series(SeriesDescription='Chest')
+            >>> print([s.label() for s in series_list])
+            ['Series 001 [Chest]', 'Series 001 [Chest]']
+
+            Find all series with a given SeriesDescription of a given Patient:
+
+            >>> series_list = database.series(SeriesDescription='Chest', PatientName='James Bond')
+            >>> print([s.label() for s in series_list])
+            ['Series 001 [Chest]']
+        """
+        series = self.manager.series(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+        return [self.record('Series', uid) for uid in series]
+
+    
+    def studies(self, sort=True, sortby=['PatientName', 'StudyDescription'], **kwargs)->list:
+        """Return a list of studies under the record.
+
+        If the record is a patient, this returns the record's children. If it is a series, this returns the parent study.
+
+        Args:
+            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
+            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName', 'StudyDescription'].
+            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain studies with the appropriate values.
+
+        Returns:
+            list: A list of dbdicom Study objects.
+
+        See Also:
+            :func:`~parent`
+            :func:`~children`
+            :func:`~siblings`
+            :func:`~series`
+            :func:`~patients`
+            :func:`~database`
+        
+        Example:
+            Find all studies in a database:
+
+            >>> database = db.database_hollywood()
+            >>> studies_list = database.studies()
+            >>> print([s.label() for s in studies_list])
+            ['Study MRI [19821201]', 'Study Xray [19821205]', 'Study MRI [19850105]', 'Study Xray [19850106]']
+
+            Find all studies of a given Patient:
+
+            >>> studies_list = database.studies(PatientName='James Bond')
+            >>> print([s.label() for s in studies_list])
+            ['Study MRI [19821201]', 'Study Xray [19821205]']
+        """
+        studies = self.manager.studies(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+        return [self.record('Study', uid) for uid in studies]
+
+    
+    def patients(self, sort=True, sortby=['PatientName'], **kwargs)->list:
+        """Return a list of patients under the record.
+
+        If the record is a database, this returns the children. If it is a series or a study, this returns the parent patient.
+
+        Args:
+            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
+            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName'].
+            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain patients with the appropriate values.
+
+        Returns:
+            list: A list of dbdicom Patient objects.
+
+        See Also:
+            :func:`~parent`
+            :func:`~children`
+            :func:`~siblings`
+            :func:`~series`
+            :func:`~studies`
+            :func:`~database`
+
+        Example:
+            Find all patients in a database:
+
+            >>> database = db.database_hollywood()
+            >>> patients_list = database.patients()
+            >>> print([s.label() for s in patients_list])
+            ['Patient James Bond', 'Patient Scarface']
+
+            Find all patients with a given name:
+
+            >>> patients_list = database.patients(PatientName='James Bond')
+            >>> print([s.label() for s in patients_list])
+            ['Patient James Bond']
+        """
+        patients = self.manager.patients(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+        return [self.record('Patient', uid) for uid in patients]
+    
+    
+    def database(self):
+        """Return the database of the record.
+
+        Returns:
+            Database: Database of the record
+
+        See Also:
+            :func:`~parent`
+            :func:`~children`
+            :func:`~siblings`
+            :func:`~series`
+            :func:`~studies`
+
+        Example:
+            Get the database of a study:
+
+            >>> study = db.study()
+            >>> database = study.database()
+            >>> print(database.label())
+            Database [in memory]
+        """
+        return self.record('Database')
+
+
+# Edit a record
+
+
+    def new_patient(self, **kwargs):
+        """Create a new patient.
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new patient.
+
+        Returns:
+            Patient: instance of the new patient
+
+        See Also:
+            :func:`~new_study`
+            :func:`~new_series`
+            :func:`~new_pibling`
+
+        Example:
+            Create a new patient in a database:
+
+            >>> database = db.database()
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+            ----------------------------------
+            
+            >>> nemo = database.new_patient(PatientName='Nemo')
+            >>> dory = database.new_patient(PatientName='Dory')
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+            Patient Dory
+            Patient Nemo
+            ----------------------------------
+
+            A lower-level record can also create a new patient. Create a new series and show its default database:
+
+            >>> series = db.series()
+            >>> series.database().print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+                    Study New Study [None]
+                    Series 001 [New Series]
+                        Nr of instances: 0
+            ----------------------------------
+
+            The series can create new patients in its database directly:
+
+            >>> dory = series.new_patient(PatientName='Dory')
+            >>> nemo = series.new_patient(PatientName='Nemo')
+            >>> series.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient Dory
+                Patient Nemo
+                Patient New Patient
+                    Study New Study [None]
+                        Series 001 [New Series]
+                            Nr of instances: 0
+            ----------------------------------
+        """
+        attr = {**kwargs, **self.attributes}
+        uid, key = self.manager.new_patient(parent=self.uid, **attr)
+        return self.record('Patient', uid, key, **attr)
+    
+
+    def new_study(self, **kwargs):
+        """Create a new study.
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new study.
+
+        Returns:
+            Study: instance of the new study
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_series`
+            :func:`~new_pibling`
+
+        Example:
+            Create a new study in a patient:
+
+            >>> dory = db.patient(PatientName='Dory')
+            >>> dory.print()
+            ---------- PATIENT -------------
+            Patient Dory
+            --------------------------------
+
+            >>> fMRI = dory.new_study(StudyDescription='fMRI', StudyDate='20091001')
+            >>> CThead = dory.new_study(StudyDescription='CT head', StudyDate='20091002')
+            >>> dory.print()
+            ---------- PATIENT -------------
+            Patient Dory
+                Study CT head [20091002]
+                Study fMRI [20091001]
+            --------------------------------
+
+            Any other record can also create a new study. Missing intermediate generations are created automatically:
+
+            >>> database = db.database()
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+            ----------------------------------
+
+            >>> fMRI = database.new_study(StudyDescription='fMRI')
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+                    Study fMRI [None]
+            ----------------------------------
+        """
+        attr = {**kwargs, **self.attributes}
+        uid, key = self.manager.new_study(parent=self.uid, key=self.key(),**attr)
+        return self.record('Study', uid, key, **attr)
+    
+
+    def new_series(self, **kwargs):
+        """Create a new series.
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new series.
+
+        Returns:
+            Series: instance of the new series
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_pibling`
+
+        Example:
+            Consider an empty study:
+
+            >>> fMRI = db.study(StudyDescription='fMRI', StudyDate='20230203')
+            >>> fMRI.print()
+            ---------- STUDY ---------------
+            Study fMRI [20230203]
+            --------------------------------
+
+            Create two new series in the study:
+
+            >>> rstate = fMRI.new_series(SeriesDescription='Resting state')
+            >>> ftap = fMRI.new_series(SeriesDescription='Finger tap')
+            >>> fMRI.print()
+            ---------- STUDY ---------------
+            Study fMRI [20230203]
+                Series 001 [Resting state]
+                    Nr of instances: 0
+                Series 002 [Finger tap]
+                    Nr of instances: 0
+            --------------------------------
+
+            Any other record can also create a new series. Missing intermediate generations are created automatically:
+
+            >>> database = db.database()
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+            ----------------------------------
+
+            >>> rstate = database.new_series(SeriesDescription='Resting state')
+            >>> ftap = database.new_series(SeriesDescription='Finger tap')
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [Resting state]
+                        Nr of instances: 0
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [Finger tap]
+                        Nr of instances: 0
+            ----------------------------------
+
+            Note since any missing levels in the hierarchy are automatically created, these new series now end up in different patients.
+
+        """
+        attr = {**kwargs, **self.attributes}
+        uid, key = self.manager.new_series(parent=self.uid, **attr)
+        return self.record('Series', uid, key, **attr)
+    
+
+    def new_child(self, **kwargs):
+        """Create a new child of the record.
+
+        Args:
+            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_series`
+            :func:`~new_sibling`
+            :func:`~new_pibling`
+
+        Example:
+            Consider an empty study:
+
+            >>> fMRI = db.study(StudyDescription='fMRI', StudyDate='20230203')
+            >>> fMRI.print()
+            ---------- STUDY ---------------
+            Study fMRI [20230203]
+            --------------------------------
+
+            Create two new series in the study:
+
+            >>> rstate = fMRI.new_child(SeriesDescription='Resting state')
+            >>> ftap = fMRI.new_child(SeriesDescription='Finger tap')
+            >>> fMRI.print()
+            ---------- STUDY ---------------
+            Study fMRI [20230203]
+                Series 001 [Resting state]
+                    Nr of instances: 0
+                Series 002 [Finger tap]
+                    Nr of instances: 0
+            --------------------------------
+
+            Note the same result could also be obtained by calling :func:`~new_series` on the study.
+        """
+        # Note this function is implemented in all subclasses - included here for documentation purposes.
+        pass
+
+    
+    def new_sibling(self, suffix:str=None, **kwargs):
+        """Create a new sibling of the record under the same parent.
+
+        Args:
+            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
+
+        Raises:
+            RuntimeError: when called on a Record of type Database. New records can only be created within an existing database.
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_series`
+            :func:`~new_pibling`
+
+        Example:
+            Create a sibling series under the same study:
+
+            >>> rstate = db.series(SeriesDescription='Resting state')
+            >>> ftap = rstate.new_sibling(SeriesDescription='Finger tap')
+            >>> rstate.parent().print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+                Series 001 [Resting state]
+                    Nr of instances: 0
+                Series 002 [Finger tap]
+                    Nr of instances: 0
+            --------------------------------
+        """
+        # Note this function is implemented in all subclasses - included here for documentation purposes.
+        # Note the suffix argument is deprecated and should not be used.
+        pass
+
+    
+    def new_pibling(self, **kwargs):
+        """Create a new sibling of the parent record (pibling).
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new pibling.
+
+        Returns:
+            Record: instance of the new parent
+
+        See Also:
+            :func:`~new_patient`
+            :func:`~new_study`
+            :func:`~new_series`
+
+        Example:
+            Use a series to create a new study directly. A use case is where image processing results derived from a series should be saved in a separate study under the same patient. 
+
+            >>> fMRI = db.study(StudyDescription='fMRI', StudyDate='202305010')
+            >>> rstate = fMRI.new_series(SeriesDescription='Resting state')
+            >>> rstate_results = rstate.new_pibling(StudyDescription='fMRI resting state analysis', StudyDate='20230603')
+            >>> rstate.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+            Study New Study [None]
+                Series 001 [Resting state]
+                    Nr of instances: 0
+            Study fMRI resting state analysis [20230603]
+            --------------------------------
+        """
+        type = self.__class__.__name__
+        if type == 'Database':
+            return None
+        if type == 'Patient':
+            return None
+        return self.parent().new_sibling(**kwargs)
+
+    
+    def remove(self):
+        """Remove a record from the database.
+
+        See Also:
+            :func:`~copy`
+            :func:`~copy_to`
+            :func:`~move_to`
+
+        Example:
+            Create a new study in an empty database, then remove it again:
+
+            >>> database = db.database()
+            >>> study = database.new_study(StudyDescription='Demo Study')
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+                    Study Demo Study [None]
+            ----------------------------------
+
+            >>> study.remove()
+            >>> database.print()
+            ---------- DATABASE --------------
+            Location:  In memory
+                Patient New Patient
+            ----------------------------------
+
+            A record that has been removed from the database can no longer be accessed. Any attempt to do so will raise an error:
+
+            >>> print(study.label())
+            ValueError: This record has been removed from the database and can no longer be accessed.
+
+        Note: 
+            Removing a record will also remove all of its children, and this will be permanent after saving the record with :func:`~save`. 
+            
+            If a record has been removed accidentally in an interactive session, use :func:`~restore` to revert back to the last saved state. 
+        """
+        self.manager.delete(self.uid, keys=self.keys())
+
+
+    def move_to(self, parent):
+        """Move the record to another parent.
+
+        Args:
+            parent: parent where the record will be moved to.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy`
+            :func:`~copy_to`
+
+        Example:
+            Create a database with two studies and a single series in one:
+
+            >>> demo = db.series(SeriesDescription='!!WATCH ME MOVE!!')
+            >>> test = demo.new_pibling(StudyDescription='Test')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [!!WATCH ME MOVE!!]
+                        Nr of instances: 0
+            Study Test [None]
+            --------------------------------
+
+            Now move the series to the other study:
+
+            >>> series.move_to(study)
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                Study Test [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+
+        """
+        move_to(self, parent)
+        return self
+
+
+
+
+    def copy_to(self, parent, **kwargs):
+        """Return a copy of the record under another parent.
+
+        Args:
+            parent: parent where the copy will be placed.
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
+
+        Returns:
+            Record: copy of the same type.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy`
+            :func:`~move_to`
+
+        Example:
+            Create a database with a single patient/study/series:
+
+            >>> series = db.series(SeriesDescription='Demo')
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study New Study [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+
+            Create a new study *Copies* under the same patient, and copy the the *Demo* series into it:
+
+            >>> study = series.new_pibling(StudyDescription='Copies')
+            >>> copy = series.copy_to(study, SeriesDescription='Copy of Demo')
+
+            The same patient now has two studies, each with a single series:
+
+            >>> series.patient().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study Copies [None]
+                    Series 001 [Copy of Demo]
+                        Nr of instances: 0
+                Study New Study [None]
+                    Series 001 [Demo]
+                        Nr of instances: 0
+            --------------------------------
+        """
+        return parent._copy_from(self, **kwargs)
+    
+    
+    def copy(self, **kwargs):
+        """Return a copy of the record under the same parent.
+
+        Args:
+            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
+
+        Returns:
+            Record: copy of the same type.
+
+        See Also:
+            :func:`~remove`
+            :func:`~copy_to`
+            :func:`~move_to`
+
+        Example:
+            Create a new DICOM study and build two copies in the same patient, assigning a new study description on the fly:
+
+            >>> study = db.study(StudyDescription='Original', StudyDate='20001231')
+            >>> copy1 = study.copy(StudyDescription='Copy 1')
+            >>> copy2 = study.copy(StudyDescription='Copy 2')
+            >>> study.parent().print()
+            ---------- PATIENT -------------
+            Patient New Patient
+                Study Copy 1 [20001231]
+                Study Copy 2 [20001231]
+                Study Original [20001231]
+            --------------------------------
+        """
+        return self.copy_to(self.parent(), **kwargs)
+
+
+# Load and save
+
+
+    def restore(self):
+        """Restore the record to the last changed state.
+
+        .. warning::
+
+            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.
+
+        See Also:
+            :func:`~save`
+        
+            Create a new patient and change the name:
+
+            >>> patient = db.patient(PatientName='James Bond')
+            >>> patient.PatientName = 'Scarface'
+            >>> print(patient.PatientName)
+            Scarface
+
+            Calling restore will undo the changes:
+
+            >>> patient.restore()
+            >>> print(patient.PatientName)
+            James Bond
+        """        
+        rows = self.manager._extract_record(self.name, self.uid)
+        self.manager.restore(rows)
+        self.write()
+
+
+    def save(self, path=None):
+        """Save any changes made to the record.
+
+        .. warning::
+
+            Saving is irreversible! Any edits made to the record before saving cannot be undone.
+
+        See Also:
+            :func:`~restore`
+        
+        Example:
+            Create a new patient, change the name, and save:
+
+            >>> patient = db.patient(PatientName='James Bond')
+            >>> patient.PatientName = 'Scarface'
+            >>> patient.save()
+
+            At this point the original information can no longer be restored. Calling restore does not revert back to the original:
+
+            >>> patient.restore()
+            >>> print(patient.PatientName)
+            Scarface
+        """
+        rows = self.manager._extract_record(self.name, self.uid)
+        self.manager.save(rows)
+        self.write(path)
+        
+
+    def load(self):
+        """Load the record into memory.
+
+        After loading the record into memory, all subsequent changes will be made in memory only. Call clear() to write any changes to disk and remove it from memory. 
+
+        Note: 
+            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.
+
+        See Also:
+            :func:`~clear`
+
+        Example:
+
+            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series on disk: 
+
+            >>> from time import time
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series = db.zeros((20,20,256,256), in_database=db.database(path))
+
+            Now measure the time it takes to set the slice locations to a constant value:
+
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            17.664631605148315
+
+            Since the series was created on disk, this is editing on disk. Now load the series into memory and perform the same steps:
+
+            >>> series.load()
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            2.3518126010894775
+
+            On the machine where this was executed, the same computation runs more than 10 times faster in memory.
+        """
+        self.manager.read(self.uid, keys=self.keys())
+        return self
+    
+
+    def clear(self):
+        """Clear the record from memory.
+
+        This will write the record to disk and clear it from memory. After this step, subsequent calculations will be performed from disk.
+
+        Note: 
+            If the record does not exist in memory, or if its database does not have a path on disk associated, read() does nothing.
+
+        See Also:
+            :func:`~read`
+
+        Example:
+
+            As an example, we can verify that editing data in memory is faster than on disk. We'll need the time package and a large series in memory. We also provide a path to a directory for writing data: 
+
+            >>> from time import time
+            >>> series = db.zeros((20,20,256,256))
+            >>> series.database().set_path(path)
+
+            Now measure the time it takes to set the slice locations to a constant value:
+
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            1.9060208797454834
+
+            Since the series was created in memory, this is editing in memory. Now we clear the series from memory and perform the same computation:
+
+            >>> series.clear()
+            >>> t=time(); series.SliceLocation=1; print(time()-t)
+            17.933974981307983
+
+            The computation is now run from disk and is 10 times slower because of the need to read and write the files.
+        """
+        self.manager.clear(self.uid, keys=self.keys())
 
 
     def progress(self, value: float, maximum: float, message: str=None):
@@ -416,244 +1263,7 @@ class Record():
         inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, images=True, **kwargs)
         return [self.record('Instance', uid, key) for key, uid in inst.items()]
 
-    def parent(self):
-        """Return the parent of the record.
 
-        Returns:
-            Record: The parent object.
-
-        See Also:
-            :func:`~children`
-            :func:`~siblings`
-            :func:`~series`
-            :func:`~studies`
-            :func:`~patients`
-            :func:`~database`
-            
-        Example:
-            Find the parent of a given study:
-
-            >>> study = db.study()
-            >>> patient = study.parent()
-            >>> print(patient.PatientName)
-            New Patient
-        """
-        # Note this function is reimplemented in all subclasses. 
-        # It is included in the Record class only for documentation purposes.
-        return None
-
-    def children(self, **kwargs)->list:
-        """Return all children of the record.
-
-        Args:
-            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.
-
-        Returns:
-            list: A list of all children.
-
-        See Also:
-            :func:`~parent`
-            :func:`~siblings`
-            :func:`~series`
-            :func:`~studies`
-            :func:`~patients`
-            :func:`~database`
-            
-        Example:
-            Find the patients of a given database:
-
-            >>> database = db.database_hollywood()
-            >>> patients = database.children()
-            >>> print([p.PatientName for p in patients])
-            ['James Bond', 'Scarface']
-
-            Find all patients with a given name:
-
-            >>> database = db.database_hollywood()
-            >>> patients = database.children(PatientName='James Bond')
-            >>> print([p.PatientName for p in patients])
-            ['James Bond']
-        """
-        # Note this function is reimplemented in all subclasses. 
-        # It is included in the Record class for documentation purposes.
-        return []
-    
-    def siblings(self, **kwargs)->list:
-        """Return all siblings of the record.
-
-        Args:
-            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.
-
-        Returns:
-            list: A list of all siblings.
-
-        See Also:
-            :func:`~parent`
-            :func:`~children`
-            :func:`~series`
-            :func:`~studies`
-            :func:`~patients`
-            :func:`~database`
-            
-        Example:
-            For a given study, find all other studies of the same patient:
-
-            >>> database = db.database_hollywood()
-            >>> study = database.studies()[0]
-            >>> siblings = study.siblings()
-            >>> print([s.StudyDescription for s in siblings])
-            ['Xray']
-        """
-        siblings = self.parent().children(**kwargs)
-        siblings.remove(self)
-        return siblings
-        # uids = self.manager.siblings(self.uid, **kwargs)
-        # return [self.__class__(self.new, self.manager, uid) for uid in uids]
-
-    def series(self, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs)->list:
-        """Return a list of series under the record.
-
-        If the record is a study, this returns the record's children. If it is a patient, this returns a list the record's grand children.
-
-        Args:
-            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
-            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName', 'StudyDescription', 'SeriesNumber'].
-            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain series with the appropriate values
-
-        Returns:
-            list: A list of dbdicom Series objects.
-
-        See Also:
-            :func:`~parent`
-            :func:`~children`
-            :func:`~siblings`
-            :func:`~studies`
-            :func:`~patients`
-            :func:`~database`
-
-        Example:
-            Find all series in a database:
-
-            >>> database = db.database_hollywood()
-            >>> series_list = database.series()
-            >>> print([s.label() for s in series_list])
-            ['Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]', 'Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]']
-
-            Find all series with a given SeriesDescription:
-
-            >>> series_list = database.series(SeriesDescription='Chest')
-            >>> print([s.label() for s in series_list])
-            ['Series 001 [Chest]', 'Series 001 [Chest]']
-
-            Find all series with a given SeriesDescription of a given Patient:
-
-            >>> series_list = database.series(SeriesDescription='Chest', PatientName='James Bond')
-            >>> print([s.label() for s in series_list])
-            ['Series 001 [Chest]']
-        """
-        series = self.manager.series(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
-        return [self.record('Series', uid) for uid in series]
-
-    def studies(self, sort=True, sortby=['PatientName', 'StudyDescription'], **kwargs)->list:
-        """Return a list of studies under the record.
-
-        If the record is a patient, this returns the record's children. If it is a series, this returns the parent study.
-
-        Args:
-            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
-            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName', 'StudyDescription'].
-            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain studies with the appropriate values.
-
-        Returns:
-            list: A list of dbdicom Study objects.
-
-        See Also:
-            :func:`~parent`
-            :func:`~children`
-            :func:`~siblings`
-            :func:`~series`
-            :func:`~patients`
-            :func:`~database`
-        
-        Example:
-            Find all studies in a database:
-
-            >>> database = db.database_hollywood()
-            >>> studies_list = database.studies()
-            >>> print([s.label() for s in studies_list])
-            ['Study MRI [None]', 'Study Xray [None]', 'Study MRI [None]', 'Study Xray [None]']
-
-            Find all studies of a given Patient:
-
-            >>> database = db.database_hollywood()
-            >>> studies_list = database.studies(PatientName='James Bond')
-            >>> print([s.label() for s in studies_list])
-            ['Study MRI [None]', 'Study Xray [None]']
-        """
-        studies = self.manager.studies(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
-        return [self.record('Study', uid) for uid in studies]
-
-
-    def patients(self, sort=True, sortby=['PatientName'], **kwargs)->list:
-        """Return a list of patients under the record.
-
-        If the record is a database, this returns the children. If it is a series or a study, this returns the parent patient.
-
-        Args:
-            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.
-            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to ['PatientName'].
-            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain patients with the appropriate values.
-
-        Returns:
-            list: A list of dbdicom Patient objects.
-
-        See Also:
-            :func:`~parent`
-            :func:`~children`
-            :func:`~siblings`
-            :func:`~series`
-            :func:`~studies`
-            :func:`~database`
-
-        Example:
-            Find all patients in a database:
-
-            >>> database = db.database_hollywood()
-            >>> patients_list = database.patients()
-            >>> print([s.label() for s in patients_list])
-            ['Patient James Bond', 'Patient Scarface']
-
-            Find all patients with a given name:
-
-            >>> database = db.database_hollywood()
-            >>> patients_list = database.patients(PatientName='James Bond')
-            >>> print([s.label() for s in patients_list])
-            ['Patient James Bond']
-        """
-        patients = self.manager.patients(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
-        return [self.record('Patient', uid) for uid in patients]
-    
-    def database(self):
-        """Return the database of the record.
-
-        Returns:
-            Database: Database of the record
-
-        See Also:
-            :func:`~parent`
-            :func:`~children`
-            :func:`~siblings`
-            :func:`~series`
-            :func:`~studies`
-
-        Example:
-            >>> study = db.study()
-            >>> database = study.database()
-            >>> print(database.label())
-            Database [in memory]
-        """
-        return self.record('Database')
-    
 
     # This needs a test whether the instance is an image - else move to the next
     def image(self, **kwargs):
@@ -721,480 +1331,35 @@ class Record():
 
 
 
-    def save(self, path=None):
-        #rows = self.manager.register[self.name] == self.uid
-        rows = self.manager._extract_record(self.name, self.uid)
-        self.manager.save(rows)
-        self.write(path)
-        
-    def restore(self):
-        #rows = self.manager.register[self.name] == self.uid
-        rows = self.manager._extract_record(self.name, self.uid)
-        self.manager.restore(rows)
-        self.write()
 
-    def read(self):
-        """Read the record into memory.
+    def read(self): # Obsolete - replace by load()
+        return self.load()
 
-        After reading the record into memory, all subsequent changes will be made in memory only. In order to update the version on disk, call .write(), or .clear() to write and subsequently remove it from memory and continue working from disk. 
-
-        Note: 
-            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.
-
-        See Also:
-            :func:`~write` 
-            :func:`~clear`
-
-        Example:
-
-            Open a database currently on disk:
-
-            >>> location = 'path\\to\\DICOM\\database'
-            >>> rider = db.database(location)
-        """
-        self.manager.read(self.uid, keys=self.keys())
-        return self
 
     def write(self, path=None):
         if path is not None:
             self.manager.path = path
-        self.manager.write(self.uid, keys=self.keys())
+        try:
+            keys = self.keys()
+        except: # empty database
+            pass
+        else:
+            self.manager.write(self.uid, keys=keys)
         self.manager._write_df()
 
-    def clear(self):
-        self.manager.clear(self.uid, keys=self.keys())
 
 
 
-    def new_patient(self, **kwargs):
-        """Create a new patient.
 
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new patient.
-
-        Returns:
-            Patient: instance of the new patient
-
-        See Also:
-            :func:`~new_study`
-            :func:`~new_series`
-            :func:`~new_pibling`
-
-        Example:
-            Create a new patient in a database:
-
-            >>> database = db.database()
-            >>> database.print()
-            >>> patient = database.new_patient(PatientName='John Dory')
-            >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient John Dory      
-            --------------------------------------
-
-            A lower-level record can also create a new patient:
-
-            >>> series = db.series()
-            >>> series.print()
-            >>> patient = series.new_patient(PatientName='John Dory')
-            >>> series.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient John Dory
-            PATIENT [1]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-        """
-        attr = {**kwargs, **self.attributes}
-        uid, key = self.manager.new_patient(parent=self.uid, **attr)
-        return self.record('Patient', uid, key, **attr)
-
-    def new_study(self, **kwargs):
-        """Create a new study.
-
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new study.
-
-        Returns:
-            Study: instance of the new study
-
-        See Also:
-            :func:`~new_patient`
-            :func:`~new_series`
-            :func:`~new_pibling`
-
-        Example:
-            Create a new study in a patient:
-
-            >>> patient = db.patient()
-            >>> patient.print()
-            >>> study = patient.new_study(StudyDescription='Manager protocol')
-            >>> patient.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study Manager protocol [None]
-            --------------------------------------
-
-            Any other record can also create a new study. Missing intermediate generations are created automatically:
-
-            >>> database = db.database()
-            >>> database.print()
-            >>> study = database.new_study(StudyDescription='Manager protocol')
-            >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study Manager protocol [None]
-            --------------------------------------
-        """
-        attr = {**kwargs, **self.attributes}
-        uid, key = self.manager.new_study(parent=self.uid, key=self.key(),**attr)
-        return self.record('Study', uid, key, **attr)
-
-    def new_series(self, **kwargs):
-        """Create a new series.
-
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new series.
-
-        Returns:
-            Series: instance of the new series
-
-        See Also:
-            :func:`~new_patient`
-            :func:`~new_study`
-            :func:`~new_pibling`
-
-        Example:
-            Create a new series in a study:
-
-            >>> study = db.study()
-            >>> study.print()
-            >>> study = study.new_series(SeriesDescription='MRI T2w')
-            >>> study.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [MRI T2w]
-                    Nr of instances: 0
-            --------------------------------------
-
-            Any other record can also create a new series. Missing intermediate generations are created automatically:
-
-            >>> database = db.database()
-            >>> database.print()
-            >>> series = database.new_series(SeriesDescription='MRI T2w')
-            >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient   
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [MRI T2w]
-                    Nr of instances: 0
-            --------------------------------------
-        """
-        attr = {**kwargs, **self.attributes}
-        uid, key = self.manager.new_series(parent=self.uid, **attr)
-        return self.record('Series', uid, key, **attr)
 
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
         return self.record('Instance', uid, key, **attr)
 
-
-    def new_child(self, **kwargs):
-        """Create a new child of the record.
-
-        Args:
-            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
-
-        See Also:
-            :func:`~new_patient`
-            :func:`~new_study`
-            :func:`~new_series`
-            :func:`~new_sibling`
-            :func:`~new_pibling`
-
-        Example:
-            Create an empty study:
-
-            >>> study = db.study()
-            >>> study.print()
-            ---------- STUDY ---------------
-            Study New Study [None]
-            --------------------------------
-
-            Add a new series in the study:
-
-            >>> new = study.new_child(SeriesDescription='Newborn')
-            >>> study.print()
-            ---------- STUDY ---------------
-            Study New Study [None]
-            Series 001 [Newborn]
-                Nr of instances: 0
-            --------------------------------
-        """
-        # Note this function is implemented in all subclasses - included here for documentation purposes.
-        pass
-
-    def new_sibling(self, suffix:str=None, **kwargs):
-        """Create a new sibling of the record under the same parent.
-
-        Args:
-            suffix (str, optional): A string to be appended to the Description. Defaults to None.
-            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.
-
-        Raises:
-            RuntimeError: when called on a Record of type Database. New records can only be created within an existing database.
-
-        See Also:
-            :func:`~new_patient`
-            :func:`~new_study`
-            :func:`~new_series`
-            :func:`~new_pibling`
-
-        Example:
-            Create a sibling series under the same study:
-
-            >>> series = db.series()
-            >>> new = series.new_sibling(suffix='Brother')
-            >>> series.parent().print()
-            ---------- STUDY ---------------
-            Study New Study [None]
-                Series 001 [New Series]
-                    Nr of instances: 0
-                Series 002 [New Series [Brother]]
-                    Nr of instances: 0
-            --------------------------------
-        """
-        # Note this function is implemented in all subclasses - included here for documentation purposes.
-        pass
-
-    def new_pibling(self, **kwargs):
-        """Create a new sibling of the parent record (pibling).
-
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new pibling.
-
-        Returns:
-            Record: instance of the new parent
-
-        See Also:
-            :func:`~new_patient`
-            :func:`~new_study`
-            :func:`~new_series`
-
-        Example:
-            Create a new study as sibling of the parent study:
-
-            >>> series = db.series()
-            >>> series.print()
-            >>> study = series.new_pibling(StudyDescription='Manager protocol')
-            >>> series.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study Manager protocol [None]
-                STUDY [1]: Study New Study [None]
-                SERIES [0]: Series 001 [New Series]
-                    Nr of instances: 0
-            --------------------------------------
-        """
-        type = self.__class__.__name__
-        if type == 'Database':
-            return None
-        if type == 'Patient':
-            return None
-        return self.parent().new_sibling(**kwargs)
-
-    def remove(self):
-        """Remove a record from the database.
-
-        See Also:
-            :func:`~copy`
-            :func:`~copy_to`
-            :func:`~move_to`
-
-        Example:
-            Create a new study in an empty database, then remove it again:
-
-            >>> database = db.database()
-            >>> study = database.new_study(StudyDescription='Demo Study')
-            >>> database.print()
-            >>> study.remove()
-            >>> database.print()
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-                STUDY [0]: Study Demo Study [None]
-            --------------------------------------
-            ---------- DICOM FOLDER --------------
-            DATABASE:  new
-            PATIENT [0]: Patient New Patient
-            --------------------------------------
-        """
-        self.manager.delete(self.uid, keys=self.keys())
-
-
-    def copy(self, **kwargs):
-        """Return a copy of the record under the same parent.
-
-        Args:
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
-
-        Returns:
-            Record: copy of the same type.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy_to`
-            :func:`~move_to`
-
-        Example:
-            Create a new DICOM study and build two copies in the same patient:
-
-            >>> study = db.study(StudyDescription='Original')
-            >>> copy1 = study.copy(StudyDescription='Copy 1')
-            >>> copy2 = study.copy(StudyDescription='Copy 2')
-            >>> study.parent().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-              Study Copy 1 [None]
-              Study Copy 2 [None]
-              Study Original [None]
-            --------------------------------
-        """
-        return self.copy_to(self.parent(), **kwargs)
-
-    def copy_to(self, parent, **kwargs):
-        """Return a copy of the record under another parent.
-
-        Args:
-            parent: parent where the copy will be placed.
-            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.
-
-        Returns:
-            Record: copy of the same type.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy`
-            :func:`~move_to`
-
-        Example:
-            Create a database with a single patient/study/series:
-
-            >>> series = db.series(SeriesDescription='Demo')
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-            Study New Study [None]
-                Series 001 [Demo]
-                Nr of instances: 0
-            --------------------------------
-
-            Create a new study under the same patient, and populate it with a copy of the first series:
-
-            >>> study = series.new_pibling(StudyDescription='Copies')
-            >>> copy = series.copy_to(study, SeriesDescription='Copy of Demo')
-
-            The same patient now has two studies, each with a single series:
-
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-            Study Copies [None]
-                Series 001 [Copy of Demo]
-                Nr of instances: 0
-            Study New Study [None]
-                Series 001 [Demo]
-                Nr of instances: 0
-            --------------------------------
-        """
-        return parent._copy_from(self, **kwargs)
-    
-    def move_to(self, parent):
-        """Move the record to another parent.
-
-        Args:
-            parent: parent where the record will be moved to.
-
-        See Also:
-            :func:`~remove`
-            :func:`~copy`
-            :func:`~copy_to`
-
-        Example:
-            Create a database with two studies and a single series in one:
-
-            >>> series = db.series(SeriesDescription='Demo')
-            >>> study = series.new_pibling(StudyDescription='Test')
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-                Study New Study [None]
-                    Series 001 [Demo]
-                        Nr of instances: 0
-                Study Test [None]
-            --------------------------------
-
-            Now move the series to the other study:
-
-            >>> series.move_to(study)
-            >>> series.patient().print()
-            ---------- PATIENT -------------
-            Patient New Patient
-                Study New Study [None]
-                Study Test [None]
-                    Series 001 [Demo]
-                        Nr of instances: 0
-            --------------------------------
-
-        """
-        move_to(self, parent)
-        return self
-
-
-
     def set_values(self, attributes, values):
-        self._key = self.manager.set_values(attributes, values, self.keys())
+        keys = self.keys()
+        self._key = self.manager.set_values(attributes, values, keys)
 
     def get_values(self, attributes):
         return self.manager.get_values(attributes, self.keys())
@@ -1206,35 +1371,38 @@ class Record():
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
 
-
-
-
-
-  
-
-
-
-
-    def export_as_dicom(self, path): 
-        folder = self.label()
+    def export_as_dicom(self, path):
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_dicom(path)
 
     def export_as_png(self, path): 
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_png(path)
 
     def export_as_csv(self, path):
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_csv(path)
 
     def export_as_nifti(self, path):
-        folder = self.label()
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_nifti(path)

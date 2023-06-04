@@ -21,6 +21,13 @@ class Database(Record):
         else:
             self._key = None
 
+    def close(self):
+        return self.manager.close()
+
+    def set_path(self,path):
+        # Used in example of clear
+        self.manager.path=path
+
     def parent(self):
         return
 
