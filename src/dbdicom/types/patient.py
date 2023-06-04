@@ -1,6 +1,9 @@
-from dbdicom.record import DbRecord
+# Importing annotations to handle or sign in import type hints
+from __future__ import annotations
 
-class Patient(DbRecord):
+from dbdicom.record import Record
+
+class Patient(Record):
 
     name = 'PatientID'
 
@@ -18,12 +21,20 @@ class Patient(DbRecord):
     def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
         return self.new_study(**attr)
+    
+    def new_sibling(self, suffix=None, **kwargs):
+        if suffix is not None:
+            desc = self.manager._at(self.key(), 'PatientName')
+            kwargs['PatientName'] = desc + ' [' + suffix + ']'
+        return self.parent().new_child(**kwargs)
 
     def _copy_from(self, record, **kwargs):
         attr = {**kwargs, **self.attributes}
         uids = self.manager.copy_to_patient(record.uid, self.key(), **attr)
         if isinstance(uids, list):
-            return [self.record('Study', uid) for uid in uids]
+            return [self.record('Study', uid, **attr) for uid in uids]
         else:
-            return self.record('Study', uids)
+            return self.record('Study', uids, **attr)
+
+
 

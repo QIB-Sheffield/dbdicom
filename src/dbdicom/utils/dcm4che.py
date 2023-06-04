@@ -32,6 +32,8 @@ def split_multiframe(filepath):
     description = os.path.basename(filepath)
     multiframeDir = os.path.dirname(filepath)
     outputDir = os.path.join(multiframeDir, description + '_sf') 
+    if os.path.isdir(outputDir):
+        shutil.rmtree(outputDir)
     os.mkdir(outputDir)
 
     fileBase = 'single_frame_'
@@ -40,6 +42,10 @@ def split_multiframe(filepath):
     try:
         subprocess.call(command, stdout=subprocess.PIPE)
     except:
+        msg = '!ERROR converting multiframe files!\n'
+        msg += 'Call to dcm4che failed \n'
+        msg += 'This may happen when file permissions prevent reading of the package source data.'
+        print(msg)
         return []
 
     # Return a list of newly created files
@@ -51,8 +57,9 @@ def split_multiframe(filepath):
 
     for i, file in enumerate(new_files):
         ds = pydicom.dcmread(file, force=True)
-        if (0x2001,0x100a) in ds:
-            ds.SliceLocation = ds[0x2001,0x100a].value
+        # Commented out 24 / 05 / 2023 - slice location automatically read by dataset
+        # if (0x2001,0x100a) in ds:
+        #     ds.SliceLocation = ds[0x2001,0x100a].value
         ds.save_as(output_files[i])
         os.remove(file)
 

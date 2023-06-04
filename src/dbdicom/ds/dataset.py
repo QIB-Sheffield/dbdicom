@@ -11,8 +11,13 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.util.codify import code_file
+import pydicom.config
 
 import dbdicom.utils.image as image
+import dbdicom.utils.variables as variables
+
+# This ensures that dates and times are read as TM, DT and DA classes
+pydicom.config.datetime_conversion= True
 
 
 class DbDataset(Dataset):
@@ -111,9 +116,15 @@ def set_window(ds, center, width):
     ds.WindowWidth = width
 
 
-def read(file, dialog=None):
+def read(file, dialog=None, nifti=False):
     try:
-        ds = pydicom.dcmread(file)
+        if nifti:
+            nim = nib.load(file)
+            ds = nim.header.extensions[0].get_content()
+            array = nim.get_fdata()
+            set_pixel_array(ds, array)
+        else:
+            ds = pydicom.dcmread(file)
         return DbDataset(ds)
     except:
         message = "Failed to read " + file
@@ -151,7 +162,54 @@ def codify(source_file, save_file, **kwargs):
     file.close()
 
 
-def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..'):
+def read_data(files, tags, status=None, path=None, message='Reading DICOM folder..', images_only=False):
+    """Reads a list of tags in a list of files.
+
+    Arguments
+    ---------
+    files : str or list
+        A filepath or a list of filepaths
+    tags : str or list 
+        A DICOM tag or a list of DICOM tags
+    status : StatusBar
+
+    Creates
+    -------
+    dataframe : pandas.DataFrame
+        A Pandas dataframe with one row per file
+        The index is the file path 
+        Each column corresponds to a Tag in the list of Tags
+        The returned dataframe is sorted by the given tags.
+    """
+    if not isinstance(files, list):
+        files = [files]
+    if not isinstance(tags, list):
+        tags = [tags]
+    dict = {}
+    for i, file in enumerate(files):
+        if status is not None: 
+            status.progress(i+1, len(files))
+        try:
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags+['Rows'])
+        except:
+            pass
+        else:
+            if isinstance(ds, pydicom.dataset.FileDataset):
+                if 'TransferSyntaxUID' in ds.file_meta:
+                    if images_only:
+                        if not 'Rows' in ds:
+                            continue
+                    row = get_values(ds, tags)
+                    if path is None:
+                        index = file
+                    else:
+                        index = os.path.relpath(file, path)
+                    dict[index] = row 
+    return dict
+
+
+
+def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM folder..', images_only=False):
     """Reads a list of tags in a list of files.
 
     Arguments
@@ -177,13 +235,18 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
     array = []
     dicom_files = []
     for i, file in enumerate(files):
+        if status is not None: 
+            status.progress(i+1, len(files))
         try:
-            ds = pydicom.dcmread(file, force=True, specific_tags=tags)
+            ds = pydicom.dcmread(file, force=True, specific_tags=tags+['Rows'])
         except:
             pass
         else:
             if isinstance(ds, pydicom.dataset.FileDataset):
                 if 'TransferSyntaxUID' in ds.file_meta:
+                    if images_only:
+                        if not 'Rows' in ds:
+                            continue
                     row = get_values(ds, tags)
                     array.append(row)
                     if path is None:
@@ -191,19 +254,32 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
                     else:
                         index = os.path.relpath(file, path)
                     dicom_files.append(index) 
-        if status is not None: 
-            status.progress(i+1, len(files))
     df = pd.DataFrame(array, index = dicom_files, columns = tags)
     return df
 
 
-def set_values(ds, tags, values):
-    """Sets DICOM tags in the pydicom dataset in memory"""
+
+def set_values(ds, tags, values, VR=None):
+    """
+    Sets DICOM tags in the pydicom dataset in memory
+    
+    Private and standard tags can both be set.
+    tags, values and VR must either be lists of equal lengths,
+    or single values.
+    VR is required for private tags. 
+    If private and standard tags are set in the same function call, 
+    VR can be set to any value for the standard tags: e.g. 
+        set_values(ds, ['Rows', (0x0019, 0x0100)], [128, 'Hello'], [None, 'LO'])
+    """
 
     if not isinstance(tags, list): 
         tags = [tags]
         values = [values]
+        VR = [VR]
+    elif VR is None:
+        VR = [None] * len(tags)
     for i, tag in enumerate(tags):
+                
         if values[i] is None:
             if isinstance(tag, str):
                 if hasattr(ds, tag):
@@ -219,31 +295,37 @@ def set_values(ds, tags, values):
         else:
             if isinstance(tag, str):
                 if hasattr(ds, tag):
-                #if tag in ds:
                     ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     if hasattr(ds, 'set_attribute_' + tag):
                         getattr(ds, 'set_attribute_' + tag)(values[i])
                         continue
-                    if not isinstance(tag, pydicom.tag.BaseTag):
-                        tag = pydicom.tag.Tag(tag)
-                    if not tag.is_private: # Add a new data element
-                        VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, format_value(values[i], VR))
-                    else:
-                        pass # for now
+                    _add_new(ds, tag, values[i], VR=VR[i])
             else: # hexadecimal tuple
                 if tag in ds:
                     ds[tag].value = format_value(values[i], tag=tag)
                 else:
-                    if not isinstance(tag, pydicom.tag.BaseTag):
-                        tag = pydicom.tag.Tag(tag)
-                    if not tag.is_private: # Add a new data element
-                        VR = pydicom.datadict.dictionary_VR(tag)
-                        ds.add_new(tag, VR, format_value(values[i], VR))
-                    else:
-                        pass # for now
+                    _add_new(ds, tag, values[i], VR=VR[i])
     return ds
+
+
+def _add_new(ds, tag, value, VR='OW'):
+    if not isinstance(tag, pydicom.tag.BaseTag):
+        tag = pydicom.tag.Tag(tag)
+    if not tag.is_private: # Add a new data element
+        value_repr = pydicom.datadict.dictionary_VR(tag)
+        if value_repr == 'US or SS':
+            if value >= 0:
+                value_repr = 'US'
+            else:
+                value_repr = 'SS'
+        elif value_repr == 'OB or OW':
+            value_repr = 'OW'
+        ds.add_new(tag, value_repr, format_value(value, value_repr))
+    else:
+        if (tag.group, 0x0010) not in ds:
+            ds.private_block(tag.group, 'Wezel ' + str(tag.group), create=True)
+        ds.add_new(tag, VR, format_value(value, VR))
 
 
 def get_values(ds, tags):
@@ -256,20 +338,48 @@ def get_values(ds, tags):
     row = []  
     for tag in tags:
         value = None
+
+        # If the tag is provided as string
+        # check first if it is a custom attribute
         if isinstance(tag, str):
             if not hasattr(ds, tag):
                 if hasattr(ds, 'get_attribute_' + tag):
                     value = getattr(ds, 'get_attribute_' + tag)()
             else:
-                value = to_set_type(ds[tag].value)
-        else: # tuple of hexadecimal values
+                pydcm_value = ds[tag].value
+                value = to_set_type(pydcm_value, pydicom.datadict.dictionary_VR(tag)) # ELIMINATE THIS STEP - return pydicom datatypes
+
+        # If the tag is a tuple of hexadecimal values
+        else: 
             if tag in ds:
-                value = to_set_type(ds[tag].value)
+                value = to_set_type(ds[tag].value, pydicom.datadict.dictionary_VR(tag))
+
+        # If a tag is not present in the dataset, check if it can be derived
+        if value is None:
+            value = derive_data_element(ds, tag)
+
         row.append(value)
     return row
 
 
+def derive_data_element(ds, tag):
+    """Tags that are not required but can be derived from other required tags"""
+
+    if tag == 'SliceLocation' or tag == (0x0020, 0x1041):
+        if 'ImageOrientationPatient' in ds and 'ImagePositionPatient' in ds:
+            return image.slice_location(
+                ds['ImageOrientationPatient'].value, 
+                ds['ImagePositionPatient'].value,
+            )
+    # To be extended ad hoc with other tags that can be derived
+
+
 def format_value(value, VR=None, tag=None):
+
+    # If the change below is made (TM, DA, DT) then this needs to 
+    # convert those to string before setting
+
+    # Slow - dictionary lookup for every value write
 
     if VR is None:
         VR = pydicom.datadict.dictionary_VR(tag)
@@ -278,37 +388,45 @@ def format_value(value, VR=None, tag=None):
         if len(value) > 64:
             return value[-64:]
             #return value[:64]
-
+    if VR == 'TM':
+        return variables.seconds_to_str(value)
+    
     return value
 
 
-def to_set_type(value):
+def to_set_type(value, VR):
     """
     Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
+    # Not a good idea to modify pydicom set/get values. confusing and requires extra VR lookups
+
+    if VR == 'TM':
+        # pydicom sometimes returns string values for TM data types
+        if isinstance(value, str):
+            return variables.str_to_seconds(value)
 
     if value.__class__.__name__ == 'MultiValue':
-        return [to_set_type(v) for v in value]
+        return [to_set_type(v, VR) for v in value]
     if value.__class__.__name__ == 'PersonName':
         return str(value)
     if value.__class__.__name__ == 'Sequence':
         return [ds for ds in value]
     if value.__class__.__name__ == 'TM': 
-        return str(value) 
+        return variables.time_to_seconds(value) # return datetime.time
     if value.__class__.__name__ == 'UID': 
         return str(value) 
     if value.__class__.__name__ == 'IS': 
         return int(value)
     if value.__class__.__name__ == 'DT': 
-        return str(value)
-    if value.__class__.__name__ == 'DA': 
-        return str(value)
+        return variables.datetime_to_str(value) # return datetime.datetime
+    if value.__class__.__name__ == 'DA':  # return datetime.date
+        return variables.date_to_str(value)
     if value.__class__.__name__ == 'DSfloat': 
         return float(value)
     if value.__class__.__name__ == 'DSdecimal': 
         return int(value)
-    else:
-        return value
+    
+    return value
 
 
 def new_uid(n=None):
@@ -322,17 +440,23 @@ def new_uid(n=None):
 def get_affine_matrix(ds):
     """Affine transformation matrix for a DICOM image"""
 
+    # slice_spacing = get_values(ds, 'SpacingBetweenSlices')
+    # if slice_spacing is None:
+    #     slice_spacing = get_values(ds, 'SliceThickness')
+    slice_spacing = get_values(ds, 'SliceThickness')
+
     return image.affine_matrix(
         get_values(ds, 'ImageOrientationPatient'), 
         get_values(ds, 'ImagePositionPatient'), 
         get_values(ds, 'PixelSpacing'), 
-        get_values(ds, 'SliceThickness'))
+        slice_spacing)
 
 
 def set_affine_matrix(ds, affine):
     v = image.dismantle_affine_matrix(affine)
     set_values(ds, 'PixelSpacing', v['PixelSpacing'])
-    set_values(ds, 'SliceThickness', v['SliceThickness'])
+    #set_values(ds, 'SpacingBetweenSlices', v['SpacingBetweenSlices'])
+    set_values(ds, 'SliceThickness', v['SpacingBetweenSlices'])
     set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
     set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
 
@@ -490,7 +614,11 @@ def get_lut(ds):
 def get_pixel_array(ds):
     """Read the pixel array from an image"""
 
-    array = ds.pixel_array.astype(np.float32)
+    try:
+        array = ds.pixel_array
+    except:
+        return None
+    array = array.astype(np.float32)
     slope = float(getattr(ds, 'RescaleSlope', 1)) 
     intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
     array *= slope
@@ -513,10 +641,10 @@ def set_pixel_array(ds, array, value_range=None):
     shape = np.shape(array)
 
     ds.PixelRepresentation = 0
-    #ds.SmallestImagePixelValue = int(maximum)
-    #ds.LargestImagePixelValue = int(minimum)
-    ds.SmallestImagePixelValue = int(0)
-    ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
+    #ds.SmallestImagePixelValue = int(0)
+    #ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
+    ds.set_values('SmallestImagePixelValue', int(0))
+    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

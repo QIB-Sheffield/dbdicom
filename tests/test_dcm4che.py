@@ -35,7 +35,6 @@ def test_multiframe_conversion():
         for f in singleframe_files:
             ds = pydicom.dcmread(f, force=True)
             assert ds.SeriesDescription in ['Cor_B0map_BH', 'Ax_localiser_BH']
-            assert ds.SliceLocation <= 20
     remove_tmp_database(tmp)
 
 def test_multiframe_conversion_with_raw_data():

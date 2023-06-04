@@ -1,6 +1,28 @@
 import os
 import platform
 import zipfile
+import imageio
+import numpy as np
+
+from PIL import Image, ImageSequence
+import numpy as np
+
+
+def _load_gif_frames(image: Image, mode='RGBA'):
+    return np.array([
+        np.array(frame.convert(mode))
+        for frame in ImageSequence.Iterator(image)
+    ])
+
+def gif2numpy(file):
+    with Image.open(file) as im:
+        frames = _load_gif_frames(im)
+    # GIF files are in RGBA format but assume grescale for now
+    frames = frames[...,0] 
+    # Transpose in-plane x-y
+    frames = np.transpose(frames, (0,2,1))
+    return frames
+    #return imageio.imread(file)
 
 def all_files(path):
     files = [item.path for item in scan_tree(path) if item.is_file()]
@@ -8,6 +30,25 @@ def all_files(path):
     if platform.system() == 'Windows':
         files = [f for f in files if len(f) <= 260]
     return files
+
+def export_path(basepath, folder=None):
+    if folder is not None:
+        # remove illegal characters
+        #folder = "".join(x for x in folder if x.isalnum()) 
+        folder = "".join([c if c.isalnum() else "_" for c in folder])
+        basepath = os.path.join(basepath, folder)
+    path = basepath
+    cnt = 1
+    while os.path.isdir(path):
+        cnt += 1
+        path = basepath + ' [' + str(cnt) + ']'
+    if platform.system() == 'Windows':
+        if len(path) >= 260:
+            msg = 'Cannot write to ' + path + '\n'
+            msg + 'Path name is too long.'
+            raise ValueError(msg)
+    os.makedirs(path)
+    return path
 
 def _unzip_files(path, status):
     """

@@ -1,15 +1,20 @@
+# Importing annotations to handle or sign in import type hints
+from __future__ import annotations
+
 import os
 import math
 
 import numpy as np
 
-from dbdicom.record import DbRecord
+from dbdicom.record import Record, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
 import dbdicom.utils.image as image_utils
-import dbdicom.utils.scipy as scipy_utils
+from dbdicom.manager import Manager
+# import dbdicom.wrappers.scipy as scipy_utils
+from dbdicom.utils.files import export_path
 
 
-class Series(DbRecord):
+class Series(Record):
 
     name = 'SeriesInstanceUID'
 
@@ -20,7 +25,8 @@ class Series(DbRecord):
         self.manager.delete_series([self.uid])
 
     def parent(self):
-        uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        #uid = self.manager.register.at[self.key(), 'StudyInstanceUID']
+        uid = self.manager._at(self.key(), 'StudyInstanceUID')
         return self.record('Study', uid, key=self.key())
 
     def children(self, **kwargs):
@@ -29,6 +35,12 @@ class Series(DbRecord):
     def new_child(self, dataset=None, **kwargs): 
         attr = {**kwargs, **self.attributes}
         return self.new_instance(dataset=dataset, **attr)
+
+    def new_sibling(self, suffix=None, **kwargs):
+        if suffix is not None:
+            desc = self.manager._at(self.key(), 'SeriesDescription') 
+            kwargs['SeriesDescription'] = desc + ' [' + suffix + ']'
+        return self.parent().new_child(**kwargs)
 
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
@@ -48,12 +60,280 @@ class Series(DbRecord):
         attr = {**kwargs, **self.attributes}
         uids = self.manager.copy_to_series(record.uid, self.uid, **attr)
         if isinstance(uids, list):
-            return [self.record('Instance', uid) for uid in uids]
+            return [self.record('Instance', uid, **attr) for uid in uids]
         else:
-            return self.record('Instance', uids)
+            return self.record('Instance', uids, **attr)
+
+
+
+
+    def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
+        """Export array in numpy format"""
+
+        if directory is None: 
+            directory = self.dialog.directory(message='Please select a folder for the png data')
+        if filename is None:
+            filename = self.SeriesDescription
+        array, _ = self.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
+        file = os.path.join(directory, filename + '.npy')
+        with open(file, 'wb') as f:
+            np.save(f, array)
+
+
+    def export_as_dicom(self, path): 
+        # instance = self.instance()
+        # patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
+        # study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
+        # series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
+        # path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
+        # path = export_path(path)
+
+        folder = self.label()
+        path = export_path(path, folder)
+
+        copy = self.copy()
+        mgr = Manager(path, status=self.status)
+        mgr.open(path)
+        mgr.import_datasets(copy.files())
+        copy.remove()
+
+
+    def export_as_png(self, path):
+        """Export all images as png files"""
+        folder = self.label()
+        path = export_path(path, folder)
+        images = self.images()
+        for i, img in enumerate(images):
+            img.status.progress(i+1, len(images), 'Exporting png..')
+            img.export_as_png(path)
+
+
+    def export_as_csv(self, path):
+        """Export all images as csv files"""
+        folder = self.label()
+        path = export_path(path, folder)
+        images = self.images()
+        for i, img in enumerate(images):
+            img.status.progress(i+1, len(images), 'Exporting csv..')
+            img.export_as_csv(path)
+
+
+    def export_as_nifti(self, path: str):
+        """Export images in nifti format.
+
+        Args:
+            path (str): path where results are to be saved.
+        """
+        folder = self.label()
+        path = export_path(path, folder)
+        affine = self.affine_matrix()
+        if not isinstance(affine, list):
+            affine = [affine]
+        for a in affine:
+            matrix = a[0]
+            images = a[1]
+            for i, img in enumerate(images):
+                img.status.progress(i+1, len(images), 'Exporting nifti..')
+                img.export_as_nifti(path, matrix)
+
+
+    def subseries(*args, move=False, **kwargs):
+        return subseries(*args, move=move, **kwargs)
+
+    
+    def split_by(self, keyword: str | tuple) -> list:
+        """Split the series into multiple subseries based on keyword value.
+
+        Args:
+            keyword (str | tuple): A valid DICOM keyword or hexadecimal (group, element) tag.
+
+        Raises:
+            ValueError: if an invalid or missing keyword is provided.
+            ValueError: if all images have the same value for the keyword, so no subseries can be derived. An exception is raised rather than a copy of the series to avoid unnecessary copies being made. If that is the intention, use series.copy() instead.
+
+        Returns:
+            list: A list of subseries, where each element has the same value of the given keyword.
+
+        Example: 
+
+            Create a single-slice series with multiple flip angles and repetition times:
+
+            >>> coords = {
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0, 7.5],
+            ... }
+            >>> zeros = db.zeros((3,2,128,128), coords)
+            >>> print(zeros)
+            ---------- SERIES --------------
+            Series 001 [New Series]
+                Nr of instances: 6
+                    MRImage 000001
+                    MRImage 000002
+                    MRImage 000003
+                    MRImage 000004
+                    MRImage 000005
+                    MRImage 000006
+            --------------------------------
+
+            Splitting this series by FlipAngle now creates 3 new series in the same study, with 2 images each. By default the fixed value of the splitting attribute is written in the series description:
+
+            >>> zeros_FA = zeros.split_by('FlipAngle')
+            >>> zeros.study().print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+                Series 001 [New Series]
+                    Nr of instances: 6
+                Series 002 [New Series[FlipAngle = 2.0]]
+                    Nr of instances: 2
+                Series 003 [New Series[FlipAngle = 15.0]]
+                    Nr of instances: 2
+                Series 004 [New Series[FlipAngle = 30.0]]
+                    Nr of instances: 2
+            --------------------------------
+        """
+        
+        self.status.message('Reading values..')
+        try:
+            values = self[keyword]
+        except:
+            msg = str(keyword) + ' is not a valid DICOM keyword'
+            raise ValueError(msg)
+        if len(values) == 1:
+            msg = 'Cannot split by ' + str(keyword) + '\n' 
+            msg += 'All images have the same value'
+            raise ValueError(msg)
+        
+        self.status.message('Splitting series..')
+        split_series = []
+        desc = self.instance().SeriesDescription + '[' + keyword + ' = '
+        for v in values:
+            kwargs = {keyword: v}
+            new = self.subseries(**kwargs)
+            new.SeriesDescription = desc + str(v) + ']'
+            split_series.append(new)
+        return split_series
+
+
+    def import_dicom(self, files):
+        uids = self.manager.import_datasets(files)
+        self.manager.move_to(uids, self.uid)
+
+    def slice_groups(*args, **kwargs):
+        return slice_groups(*args, **kwargs)
+
 
     def affine_matrix(self):
         return affine_matrix(self)
+    
+
+    def ndarray(self, dims=('InstanceNumber',)) -> np.ndarray:
+        """Return a numpy.ndarray with pixel data.
+
+        Args:
+            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',).
+
+        Returns:
+            np.ndarray: pixel data. The number of dimensions will be 2 plus the number of elements in dim. The first two indices will enumerate (x,y) coordinates in the slice, the other dimensions are as specified by the dims argument.
+
+        See also:
+            :func:`~set_ndarray`
+
+        Example:
+            Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+            >>> zeros = db.zeros((128,128,8,3,2), coords)
+
+            To retrieve the array, the dimensions need to be provided:
+
+            >>> dims = ('SliceLocation', 'FlipAngle', 'RepetitionTime')
+            >>> array = zeros.ndarray(dims)
+            >>> print(array.shape)
+            (128, 128, 8, 3, 2)
+
+            The dimensions are the keys of the coordinate dictionary, so this could also have been called as:
+
+            >>> array = zeros.ndarray(dims=tuple(coords)) 
+            >>> print(array.shape)
+            (128, 128, 8, 3, 2)
+        """
+        array, _ = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
+        return array
+
+
+    def set_ndarray(self, array:np.ndarray, dims=('InstanceNumber',), coords:dict=None):
+        """Assign new pixel data with a new numpy.ndarray. 
+
+        Args:
+            array (np.ndarray): array with new pixel data.
+            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',). Must be provided if coords are not given.
+            coords (dict, optional): Provide coordinates for the array explicitly, using a dictionary with dimensions as keys and as values either 1D or meshgrid arrays of coordinates. If coords are not provided, then dimensions a default range array will be used. If coordinates are provided, then the dimensions argument is ignored.
+
+        Raises:
+            ValueError: if dimensions and coordinates are both provided with incompatible dimensions.
+
+        See also:
+            :func:`~ndarray`
+
+        Warning:
+            Currently this function assumes that the new array has the same shape as the current array. This will be generalised in an upcoming update - for now please look at the pipelines examples for saving different dimensions using the current interface. 
+
+        Example:
+            Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+            >>> series = db.zeros((128,128,8,3,2), coords)
+
+            Retrieve the array and check that it is populated with zeros:
+
+            >>> array = series.ndarray(dims=tuple(coords)) 
+            >>> print(np.mean(array))
+            0.0
+
+            Now overwrite the values with a new array of ones. Coordinates are not changed so only dimensions need to be specified:
+
+            >>> ones = np.ones((128,128,8,3,2))
+            >>> series.set_ndarray(ones, dims=tuple(coords))
+
+            Retrieve the array and check that it is now populated with ones:
+
+            >>> array = series.ndarray(dims=tuple(coords)) 
+            >>> print(np.mean(array))
+            1.0
+        """
+        # TODO: Include a reshaping option!!!!
+        
+        # TODO: set_pixel_array has **kwargs to allow setting other properties on the fly to save extra reading and writing. This makes sense but should be handled by a more general function, such as:
+        # #  
+        # series.set_properties(ndarray:np.ndarray, coords:{}, affine:np.ndarray, **kwargs)
+        # #
+
+        # Lazy solution - first get the header information (slower than propagating explicitly but conceptually more convenient - can be rationalised later - pixel values can be set on the fly as the header is retrieved)
+
+        # If coordinates are provided, the dimensions are taken from that. Dimensions are not needed in this case but if they are set they need to be the same as those specified in the coordinates. Else an error is raised.
+        if coords is not None:
+            if dims != tuple(coords):
+                msg = 'Coordinates do not have the correct dimensions \n'
+                msg += 'Note: if coordinates are defined than the dimensions argument is ignored. Hence you can remove the dimensions argument in this call, or else make sure it matches up with the dimensions in coordinates.'
+                raise ValueError(msg)
+            else:
+                dims = tuple(coords)
+        _, headers = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
+        set_pixel_array(self, array, source=headers, pixels_first=True, coords=coords)
+
+
+    #
+    # Following APIs are obsolete and will be removed in future versions
+    #
+
 
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
@@ -61,43 +341,30 @@ class Series(DbRecord):
     def set_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
-    def map_to(*args, **kwargs):
-        return scipy_utils.map_to(*args, **kwargs)
-
-    def map_mask_to(*args, **kwargs):
-        return scipy_utils.map_mask_to(*args, **kwargs)
-
-    def export_as_npy(*args, **kwargs):
-        export_as_npy(*args, **kwargs)
-
-    def subseries(*args, move=False, **kwargs):
-        return subseries(*args, move=move, **kwargs)
-
-    def import_dicom(*args, **kwargs):
-        import_dicom(*args, **kwargs)
-
-    #
-    # Following APIs are obsolete and will be removed in future versions
-    #
-
-    # Obsolete - use array()
     def get_pixel_array(*args, **kwargs): 
         return get_pixel_array(*args, **kwargs)
 
-    # Obsolete - use set_array()
     def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
 
 
-def import_dicom(series, files):
-    uids = series.manager.import_datasets(files)
-    series.manager.move_to(uids, series.uid)
+
+
+
+def slice_groups(series): # not yet in use
+    slice_groups = []
+    for orientation in series.ImageOrientationPatient:
+        sg = series.instances(ImageOrientationPatient=orientation)
+        slice_groups.append(sg)
+    return slice_groups
 
 def subseries(record, move=False, **kwargs):
     """Extract subseries"""
     series = record.new_sibling()
-    for instance in record.instances(**kwargs):
+    instances = record.instances(**kwargs)
+    for i, instance in enumerate(instances):
+        record.status.progress(i+1, len(instances), 'Extracting subseries..')
         if move:
             instance.move_to(series)
         else:
@@ -116,17 +383,6 @@ def read_npy(record):
         array = np.load(f)
     return array
 
-def export_as_npy(record, directory=None, filename=None, sortby=None, pixels_first=False):
-    """Export array in numpy format"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-    if filename is None:
-        filename = record.SeriesDescription
-    array, _ = record.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
-    file = os.path.join(directory, filename + '.npy')
-    with open(file, 'wb') as f:
-        np.save(f, array)
 
 def affine_matrix(series):
     """Returns the affine matrix of a series.
@@ -136,18 +392,24 @@ def affine_matrix(series):
     one for each slice orientation.
     """
     image_orientation = series.ImageOrientationPatient
+    if image_orientation is None:
+        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
+        msg = 'This is a required DICOM field \n'
+        msg += 'The data may be corrupted - please check'
+        raise ValueError(msg)
     # Multiple slice groups in series - return list of affine matrices
     if isinstance(image_orientation[0], list):
         affine_matrices = []
         for dir in image_orientation:
             slice_group = series.instances(ImageOrientationPatient=dir)
-            mat = _slice_group_affine_matrix(slice_group, dir)
-            affine_matrices.append(mat)
+            affine = _slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append((affine, slice_group))
         return affine_matrices
     # Single slice group in series - return a single affine matrix
     else:
         slice_group = series.instances()
-        return _slice_group_affine_matrix(slice_group, image_orientation)
+        affine = _slice_group_affine_matrix(slice_group, image_orientation)
+        return affine, slice_group
 
 
 def _slice_group_affine_matrix(slice_group, image_orientation):
@@ -158,19 +420,34 @@ def _slice_group_affine_matrix(slice_group, image_orientation):
         return slice_group[0].affine_matrix
     # multi slice
     else:
-        image_position_patient = [s.ImagePositionPatient for s in slice_group]
-        if len(image_position_patient) == 1: 
+        pos = [s.ImagePositionPatient for s in slice_group]
+        # Find unique elements
+        pos = [x for i, x in enumerate(pos) if i==pos.index(x)]
+
+        # One slice location
+        if len(pos) == 1: 
             return slice_group[0].affine_matrix
+        
         # Slices with different locations
         else:
             return image_utils.affine_matrix_multislice(
-                image_orientation,
-                image_position_patient,
+                image_orientation, pos,
                 slice_group[0].PixelSpacing)    # assume all the same pixel spacing
 
 
+def array(record, **kwargs):
+    if isinstance(record, list): # array of instances
+        arr = np.empty(len(record), dtype=object)
+        for i, rec in enumerate(record):
+            arr[i] = rec
+        return _get_pixel_array_from_instance_array(arr, **kwargs)
+    elif isinstance(record, np.ndarray): # array of instances
+        return _get_pixel_array_from_instance_array(record, **kwargs)
+    else:
+        return get_pixel_array(record, **kwargs)
+    
 
-def get_pixel_array(record, sortby=None, pixels_first=False): 
+def get_pixel_array(record, sortby=None, first_volume=False, **kwargs): 
     """Pixel values of the object as an ndarray
     
     Args:
@@ -212,20 +489,39 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
         TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
         ```  
     """
-    if sortby is not None:
-        if not isinstance(sortby, list):
-            sortby = [sortby]
+
     source = instance_array(record, sortby)
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+    if first_volume:
+        return array[...,0], headers[...,0]
+    else:
+        return array, headers
+
+
+def _get_pixel_array_from_instance_array(instance_array, sortby=None, **kwargs):
+    source = sort_instance_array(instance_array, sortby)
+    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)   
+
+
+def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
+
     array = []
     instances = source.ravel()
+    im = None
     for i, im in enumerate(instances):
-        record.progress(i, len(instances), 'Reading pixel data..')
         if im is None:
             array.append(np.zeros((1,1)))
         else:
+            im.progress(i+1, len(instances), 'Reading pixel data..')
             array.append(im.get_pixel_array())
-    record.status.hide()
+    if im is not None:
+        im.status.hide()
     array = _stack(array)
+    if array is None:
+        msg = 'Pixel array is empty. \n'
+        msg += 'Either because one or more of the keywords used for sorting does not exist; \n'
+        msg += 'or the series does not have any image data..'
+        raise ValueError(msg)
     array = array.reshape(source.shape + array.shape[1:])
     if pixels_first:
         array = np.moveaxis(array, -1, 0)
@@ -233,7 +529,7 @@ def get_pixel_array(record, sortby=None, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False): 
+def set_pixel_array(series, array, source=None, pixels_first=False, coords=None, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -303,84 +599,101 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
         ```
     """
 
-    if pixels_first:    # Move to the end (default)
+    # Move pixels to the end (default)
+    if pixels_first:    
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
-    # if no header data is provided, use template headers.
-    # Note - looses information on dimensionality of array
-    # Everything is reduced to 3D
+    # If source data are provided, then coordinates are optional. 
+    # If no source data are given, then coordinates MUST be defined to ensure array data can be retrieved in the proper order..
     if source is None:
-        if array.ndim <= 2:
-            n = 1
-        else:
-            n = np.prod(array.shape[:-2])
-        source = np.empty(n, dtype=object)
-        for i in range(n): 
-            source[i] = series.new_instance(MRImage())  
-        if array.ndim > 2:
-            source = source.reshape(array.shape[:-2])
-        set_pixel_array(series, array, source)
-        #source = instance_array(series)
+        if coords is None:
+            if array.ndim > 4:
+                msg = 'For arrays with more than 4 dimensions, \n'
+                msg += 'either coordinate labels or headers must be provided'
+                raise ValueError(msg)
+            elif array.ndim == 4:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                    'AcquisitionTime':np.arange(array.shape[1]),
+                }
+            elif array.ndim == 3:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                }
 
-    # Return with error message if dataset and array do not match.
+    # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
+    if coords is not None:
+        v0 = list(coords.values())[0]
+        if np.array(v0).ndim==1: # regular grid
+            pos = tuple([coords[c] for c in coords])
+            pos = np.meshgrid(*pos)
+            for i, c in enumerate(coords):
+                coords[c] = pos[i].ravel()
+
+    # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
-    if nr_of_slices != np.prod(source.shape):
-        message = 'Error in set_array(): array and source do not match'
-        message += '\n Array has ' + str(nr_of_slices) + ' elements'
-        message += '\n Source has ' + str(np.prod(source.shape)) + ' elements'
-        series.dialog.error(message)
-        raise ValueError(message)
+    if source is None:
+        source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
 
-    # Flatten array and source for iterating
-    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    source = source.reshape(nr_of_slices).tolist() # shape (i,)
+    # If the header data are not the same size, use only the first one.
+    else:
+        if isinstance(source, list):
+            pass
+        elif isinstance(source, np.ndarray):
+            source = source.ravel().tolist()
+        else: # assume scalar
+            source = [source] * nr_of_slices
+        if nr_of_slices != len(source):
+            source = [source[0]] * nr_of_slices
 
-    # set_array replaces current array
-    # -> remove all instances not in the source
-    instances = series.instances()
-    for i in series.instances():
-        if i not in source:
-            i.remove()
-
-    # Any sources currently not in the series
-    # -> replace by a copy in the series
-    instances = series.instances()
+    # Copy all sources to the series, if they are not part of it
     copy_source = []
+    instances = series.instances()
     for i, s in enumerate(source):
-        series.status.progress(i+1, len(source), 'Saving array (1/2): Copying series..')
         if s in instances:
             copy_source.append(s)
         else:
+            series.progress(i+1, len(source), 'Copying series..')
             copy_source.append(s.copy_to(series))
-    # if series.instances() == []:
-    #     copy = copy_to(source.tolist(), series)
-    # else:
-    #     copy = source.tolist()
 
-    series.manager.pause_extensions()
-    for i, s in enumerate(copy_source):
-        series.status.progress(i+1, len(copy_source), 'Saving array (2/2): Writing array..')
-        s.set_pixel_array(array[i,...])
-    series.manager.resume_extensions()
+    # Faster but does not work if all sources are the same
+    # series.status.message('Saving array (1/2): Copying series..')
+    # instances = series.instances()
+    # to_copy = [i for i in range(len(source)) if source[i] not in instances]
+    # copied = series.adopt([source[i] for i in to_copy])
+    # for i, c in enumerate(copied):
+    #     source[to_copy[i]] = c
 
-    # Then replace array
-    # series.manager.pause_extensions()
-    # for i, instance in enumerate(copy):
-    #     series.status.progress(i+1, len(copy), 'Writing array to file..')
-    #     instance.set_pixel_array(array[i,...])
-    # series.manager.resume_extensions()
+    # Flatten array for iterating
+    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+    for i, image in enumerate(copy_source):
+        series.progress(i+1, len(copy_source), 'Saving array..')
+        image.read()
+
+        for attr, vals in kwargs.items(): 
+            if isinstance(vals, list):
+                setattr(image, attr, vals[i])
+            else:
+                setattr(image, attr, vals)
+
+        # If coordinates are provided, these will override the values from the sources.
+        if coords is not None: # ADDED 31/05/2023
+            for c in coords:
+                image[c] = coords[c][i]
+        image.set_pixel_array(array[i,...])
+        image.clear()
+
 
 
     # More compact but does not work with pause extensions
-    # series.manager.pause_extensions()
     # for i, s in enumerate(source):
     #     series.status.progress(i+1, len(source), 'Writing array..')
     #     if s not in instances:
     #         s.copy_to(series).set_pixel_array(array[i,...])
     #     else:
     #         s.set_pixel_array(array[i,...])
-    # series.manager.resume_extensions()
+
 
 
 
@@ -390,6 +703,16 @@ def set_pixel_array(series, array, source=None, pixels_first=False):
 ## Helper functions
 ##
 
+def sort_instance_array(instance_array, sortby=None, status=True):
+    if sortby is None:
+        return instance_array
+    else:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
+        df = read_dataframe_from_instance_array(instance_array, sortby + ['SOPInstanceUID'])
+        df.sort_values(sortby, inplace=True) 
+        return df_to_sorted_instance_array(instance_array[0], df, sortby, status=status)
+        
 
 def instance_array(record, sortby=None, status=True): 
     """Sort instances by a list of attributes.
@@ -407,30 +730,32 @@ def instance_array(record, sortby=None, status=True):
             array[i] = instance
         return array
     else:
+        if not isinstance(sortby, list):
+            sortby = [sortby]
         df = record.read_dataframe(sortby + ['SOPInstanceUID'])
-        # if set(sortby) <= set(record.manager.register):
-        #     df = record.manager.register.loc[dataframe(record).index, sortby]  # obsolete replace by below
-        #     # df = record.manager.register.loc[record.register().index, sortby]
-        # else:
-        #     ds = record.get_dataset()
-        #     df = dbdataset.get_dataframe(ds, sortby)
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
-# def dataframe(record): # OBSOLETE replace by record.register()
-
-#     keys = record.manager.keys(record.uid)
-#     return record.manager.register.loc[keys, :]
-
 
 def df_to_sorted_instance_array(record, df, sortby, status=True): 
+    # note record here only passed for access to the function instance() and progress()
+    # This really should be db.instance()
 
     data = []
     vals = df[sortby[0]].unique()
     for i, c in enumerate(vals):
         if status: 
-            record.progress(i, len(vals), message='Sorting..')
-        dfc = df[df[sortby[0]] == c]
+            record.progress(i, len(vals), message='Sorting pixel data..')
+        # if a type is not supported by np.isnan()
+        # assume it is not a nan
+        try: 
+            nan = np.isnan(c)
+        except: 
+            nan = False
+        if nan:
+            dfc = df[df[sortby[0]].isnull()]
+        else:
+            dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
         else:
@@ -443,13 +768,10 @@ def df_to_instance_array(record, df):
     """Return datasets as numpy array of object type"""
 
     data = np.empty(df.shape[0], dtype=object)
-    # for i, uid in enumerate(df.SOPInstanceUID.values): 
-    #     data[i] = record.instance(uid)
-    #for i, item in enumerate(df.SOPInstanceUID.items()): 
     for i, item in enumerate(df.SOPInstanceUID.items()):
-        #data[i] = record.instance(item[1], item[0])
         data[i] = record.instance(key=item[0])
     return data
+
 
 def _stack(arrays, align_left=False):
     """Stack a list of arrays of different shapes but same number of dimensions.
@@ -457,10 +779,14 @@ def _stack(arrays, align_left=False):
     This generalises numpy.stack to arrays of different sizes.
     The stack has the size of the largest array.
     If an array is smaller it is zero-padded and centred on the middle.
+    None items are removed first before stacking
     """
 
     # Get the dimensions of the stack
     # For each dimension, look for the largest values across all arrays
+    arrays = [a for a in arrays if a is not None]
+    if arrays == []:
+        return
     ndim = len(arrays[0].shape)
     dim = [0] * ndim
     for array in arrays:

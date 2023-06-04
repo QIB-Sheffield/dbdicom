@@ -1,3 +1,6 @@
+# Importing annotations to handle or sign in import type hints
+from __future__ import annotations
+
 import timeit
 import os
 import numpy as np
@@ -6,12 +9,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-from dbdicom.record import DbRecord
+from dbdicom.record import Record
 from dbdicom.ds.create import new_dataset
 import dbdicom.utils.image as image
 
 
-class Instance(DbRecord):
+class Instance(Record):
 
     name = 'SOPInstanceUID'
 
@@ -19,7 +22,8 @@ class Instance(DbRecord):
         return [self.key()]
 
     def parent(self):
-        uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        #uid = self.manager.register.at[self.key(), 'SeriesInstanceUID']
+        uid = self.manager._at(self.key(), 'SeriesInstanceUID')
         return self.record('Series', uid, key=self.key())
 
     def children(self, **kwargs):
@@ -38,19 +42,24 @@ class Instance(DbRecord):
     def array(self):
         return self.get_pixel_array()
 
-    def set_array(self, array):
-        self.set_pixel_array(array)
-        
     def get_pixel_array(self):
         ds = self.get_dataset()
         return ds.get_pixel_array()
 
+    def set_array(self, array):
+        self.set_pixel_array(array)
+        
     def set_pixel_array(self, array):
         ds = self.get_dataset()
         if ds is None:
             ds = new_dataset('MRImage')
         ds.set_pixel_array(array)
-        self.set_dataset(ds)
+        in_memory = self.key() in self.manager.dataset
+        self.set_dataset(ds) 
+        # This bit added ad-hoc because set_dataset() places the datset in memory
+        # So if the instance is not in memory, it needs to be written and removed again
+        if not in_memory:
+            self.clear()
 
     def set_dataset(self, dataset):
         self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())
@@ -61,14 +70,53 @@ class Instance(DbRecord):
     def map_mask_to(self, target):
         return map_mask_to(self, target)
 
-    def export_as_csv(*args, **kwargs):
-        export_as_csv(*args, **kwargs)
 
-    def export_as_png(*args, **kwargs):
-        export_as_png(*args, **kwargs)
+    def export_as_png(self, path):
+        """Export image in png format."""
+        pixelArray = np.transpose(self.array())
+        centre, width = self.window
+        minValue = centre - width/2
+        maxValue = centre + width/2
+        #cmap = plt.get_cmap(colourTable)
+        cmap = self.colormap
+        if cmap is None:
+            cmap='gray'
+        #plt.imshow(pixelArray, cmap=cmap)
+        plt.imshow(pixelArray, cmap=cmap, vmin=minValue, vmax=maxValue)
+        #plt.imshow(pixelArray, cmap=colourTable)
+        #plt.clim(int(minValue), int(maxValue))
+        cBar = plt.colorbar()
+        cBar.minorticks_on()
+        filename = self.label()
+        filename = os.path.join(path, filename + '.png')
+        plt.savefig(fname=filename)
+        plt.close()
 
-    def export_as_nifti(*args, **kwargs):
-        export_as_nifti(*args, **kwargs)
+
+    def export_as_csv(self, path):
+        """Export 2D pixel Array in csv format"""
+        table = np.transpose(self.array())
+        cols = ['Column' + str(x) for x in range(table.shape[0])]
+        rows = ['Row' + str(y) for y in range(table.shape[1])]
+        filepath = self.label()
+        filepath = os.path.join(path, filepath + '.csv')
+        df = pd.DataFrame(table, index=rows, columns=cols)
+        df.to_csv(filepath)
+
+
+    def export_as_nifti(self, path, affine=None):
+        """Export series as a single Nifty file"""
+        ds = self.get_dataset()
+        if affine is None:
+            affine = ds.get_values('affine_matrix')
+        array = self.array()
+        dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
+        niftiObj = nib.Nifti1Image(array, image.affine_to_RAH(affine))
+        niftiObj.header.extensions.append(dicomHeader)
+        filepath = self.label()
+        filepath = os.path.join(path, filepath + '.nii')
+        nib.save(niftiObj, filepath)
+
 
     def BGRA_array(self):
         return image.BGRA(
@@ -131,65 +179,6 @@ def map_mask_to(record, target):
     return result
 
 
-def export_as_csv(record, directory=None, filename=None, columnHeaders=None):
-    """Export 2D pixel Array in csv format"""
 
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the csv data')
-    if filename is None:
-        filename = record.SeriesDescription
-
-    filename = os.path.join(directory, filename + '.csv')
-    table = record.get_pixel_array()
-    if columnHeaders is None:
-        columnHeaders = []
-        counter = 0
-        for _ in table:
-            counter += 1
-            columnHeaders.append("Column" + str(counter))
-    df = pd.DataFrame(np.transpose(table), columns=columnHeaders)
-    df.to_csv(filename, index=False)
-
-
-def export_as_png(record, directory=None, filename=None):
-    """Export image in png format."""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the png data')
-
-    pixelArray = np.transpose(record.get_pixel_array())
-    centre, width = record.window
-    minValue = centre - width/2
-    maxValue = centre + width/2
-    #cmap = plt.get_cmap(colourTable)
-    cmap = record.colormap
-    if cmap is None:
-        cmap='gray'
-    #plt.imshow(pixelArray, cmap=cmap)
-    plt.imshow(pixelArray, cmap=cmap, vmin=minValue, vmax=maxValue)
-    #plt.imshow(pixelArray, cmap=colourTable)
-    #plt.clim(int(minValue), int(maxValue))
-    cBar = plt.colorbar()
-    cBar.minorticks_on()
-    if filename is None:
-        filename = record.label()
-    filename = os.path.join(directory, filename + '.png')
-    plt.savefig(fname=filename + '.png')
-    plt.close() 
-
-def export_as_nifti(record, directory=None, filename=None):
-    """Export series as a single Nifty file"""
-
-    if directory is None: 
-        directory = record.dialog.directory(message='Please select a folder for the nifty data')
-    if filename is None:
-        filename = record.SeriesDescription
-
-    ds = record.get_dataset()
-    dicomHeader = nib.nifti1.Nifti1DicomExtension(2, ds)
-    array = record.get_pixel_array()
-    niftiObj = nib.Nifti1Image(array, ds.get_values('affine_matrix'))
-    niftiObj.header.extensions.append(dicomHeader)
-    nib.save(niftiObj, directory + '/' + filename + '.nii')
 
 

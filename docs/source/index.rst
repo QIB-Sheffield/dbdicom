@@ -3,25 +3,30 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the dbdicom documentation!
-=====================================
+#####################
+dbdicom documentation
+#####################
 
-``dbdicom`` is a new Python interface for reading and writing DICOM databases. 
+A Python interface for reading and writing DICOM databases.
 
 .. warning::
 
-   ``dbdicom`` is developed in public, however it is a work in progress. 
-   Therefore, please bear in mind some features are still in development and **backwards compatibility is not likely to happen**.
+   ``dbdicom`` is developed in public and currently being trialled in ongoing multi-centre clinical studies `iBEAt <https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-020-01901-x>`_ and `AFiRM <https://www.uhdb.nhs.uk/afirm-study/>`_. However, ``dbdicom`` is work in progress and **not yet sufficiently stable for wider use**. Current dissemination activities, such as on the `ISMRM (Toronto 2023) <https://www.ismrm.org/23m/>`_, are limited in scope and intended only to get early feedback from the community. 
+
+
+Ambition
+^^^^^^^^
+
+The DICOM format is the universally recognised standard for medical imaging, but working with DICOM data remains a challenging task for data scientists. 
+
+``dbdicom`` aims to provide an *intuitive* programming interface for reading and writing DICOM databases - replacing unfamiliar DICOM-native concepts by more pythonic language and syntax. 
+
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Contents:
-
-   readme
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   :maxdepth: 2
+   
+   user_guide/index
+   reference/index
+   tutorials/index
+   developers_guide/index
+   about/index
