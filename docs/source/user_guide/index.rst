@@ -9,6 +9,12 @@ User guide
 
    pip install dbdicom
 
+For the code examples in this guide, we assume dbdicom has been imported with:
+
+.. code-block:: console
+
+   import dbdicom as db
+
 
 .. toctree::
    :caption: Basic usage
