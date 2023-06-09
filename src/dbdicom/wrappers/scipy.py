@@ -1391,7 +1391,7 @@ def _reslice_slice_group(series, affine_source, slice_group, orientation='axial'
                 output_shape = output_shape,
             )
             # Saving results at each time to avoid memory problems.
-            # Assign acquisition time of slice=0 to all slices
+            # Assign acquisition time of slice=0 to all slices.
             resliced_series.set_array(resliced, 
                 source = headers[0,t,k],
                 pixels_first = True,

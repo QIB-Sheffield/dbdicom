@@ -404,7 +404,7 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
     """
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.mute()
-    sery.set_array(array, coords=coords, pixels_first=True)
+    sery.set_ndarray(array, coords=coords)
     sery.unmute()
     return sery
 
