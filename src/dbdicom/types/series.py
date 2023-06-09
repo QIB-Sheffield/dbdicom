@@ -64,9 +64,6 @@ class Series(Record):
         else:
             return self.record('Instance', uids, **attr)
 
-
-
-
     def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
         """Export array in numpy format"""
 
@@ -78,7 +75,6 @@ class Series(Record):
         file = os.path.join(directory, filename + '.npy')
         with open(file, 'wb') as f:
             np.save(f, array)
-
 
     def export_as_dicom(self, path): 
         # instance = self.instance()
@@ -137,8 +133,62 @@ class Series(Record):
                 img.export_as_nifti(path, matrix)
 
 
-    def subseries(*args, move=False, **kwargs):
-        return subseries(*args, move=move, **kwargs)
+    def import_dicom(self, files):
+        uids = self.manager.import_datasets(files)
+        self.manager.move_to(uids, self.uid)
+
+
+
+    def subseries(self, **kwargs)->Series:
+        """Extract a subseries based on values of header elements.
+
+        Args:
+            kwargs: Any number of valid DICOM (tag, value) keyword arguments.
+
+        Returns:
+            Series: a new series as a sibling under the same parent.
+
+        See Also:
+            :func:`~split_by`
+
+        Example:
+
+            Create a multi-slice series with multiple flip angles and repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(16),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0, 7.5],
+            ... }
+            >>> zeros = db.zeros((128, 128, 16, 3, 2), coords)
+
+            Create a new series containing only the data with flip angle 2 and repetition time 7.5:
+
+            >>> volume = zeros.subseries(FlipAngle=2.0, RepetitionTime=7.5)
+
+            Check that the volume series now has two dimensions of size 1:
+
+            >>> array = volume.ndarray(dims=tuple(coords))
+            >>> print(array.shape)
+            (128, 128, 16, 1, 1)
+
+            and only one flip angle and repetition time:
+
+            >>> print(volume.FlipAngle, volume.RepetitionTime)
+            2.0 7.5
+
+            and that the parent study now has two series:
+
+            >>> volume.study().print()
+            ---------- STUDY ---------------
+            Study New Study [None]
+            Series 001 [New Series]
+                Nr of instances: 96
+            Series 002 [New Series]
+                Nr of instances: 16
+            --------------------------------
+        """
+        return subseries(self, move=False, **kwargs)
 
     
     def split_by(self, keyword: str | tuple) -> list:
@@ -152,7 +202,10 @@ class Series(Record):
             ValueError: if all images have the same value for the keyword, so no subseries can be derived. An exception is raised rather than a copy of the series to avoid unnecessary copies being made. If that is the intention, use series.copy() instead.
 
         Returns:
-            list: A list of subseries, where each element has the same value of the given keyword.
+            list: A list of ``Series`` instances, where each element has the same value of the given keyword.
+
+        See Also:
+            :func:`~subseries`
 
         Example: 
 
@@ -160,10 +213,10 @@ class Series(Record):
 
             >>> coords = {
             ...    'FlipAngle': [2, 15, 30],
-            ...    'RepetitionTime': [2.5, 5.0, 7.5],
+            ...    'RepetitionTime': [2.5, 7.5],
             ... }
-            >>> zeros = db.zeros((3,2,128,128), coords)
-            >>> print(zeros)
+            >>> zeros = db.zeros((128, 128, 3, 2), coords)
+            >>> zeros.print()
             ---------- SERIES --------------
             Series 001 [New Series]
                 Nr of instances: 6
@@ -177,7 +230,7 @@ class Series(Record):
 
             Splitting this series by FlipAngle now creates 3 new series in the same study, with 2 images each. By default the fixed value of the splitting attribute is written in the series description:
 
-            >>> zeros_FA = zeros.split_by('FlipAngle')
+            >>> FA = zeros.split_by('FlipAngle')
             >>> zeros.study().print()
             ---------- STUDY ---------------
             Study New Study [None]
@@ -190,6 +243,13 @@ class Series(Record):
                 Series 004 [New Series[FlipAngle = 30.0]]
                     Nr of instances: 2
             --------------------------------
+
+            Check the flip angle of the split series:
+            >>> for series in FA: 
+            ...     print(series.FlipAngle)
+            2.0
+            15.0
+            30.0
         """
         
         self.status.message('Reading values..')
@@ -214,17 +274,139 @@ class Series(Record):
         return split_series
 
 
-    def import_dicom(self, files):
-        uids = self.manager.import_datasets(files)
-        self.manager.move_to(uids, self.uid)
 
-    def slice_groups(*args, **kwargs):
-        return slice_groups(*args, **kwargs)
+    def affine(self)->list:
+        """Return a list of unique affine matrices in the series
+
+        Raises:
+            ValueError: if the file is corrupted and necessary DICOM attributes are not included.
+
+        Returns:
+            list: list of 4x4 ndarrays with the unique affine matrices of the series.
+
+        See also:
+            :func:`~set_affine`
+
+        Example:
+            Check that the default affine is the identity:
+
+            >>> zeros = db.zeros((128,128,10))
+            >>> print(zeros.affine())
+            [array([
+                [1., 0., 0., 0.],
+                [0., 1., 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.]], dtype=float32)]
+
+            Note this is a list of one single element as the series only has a single slice group.
+        """
+        image_orientation = self.ImageOrientationPatient
+        if image_orientation is None:
+            msg = 'ImageOrientationPatient not defined in the DICOM header \n'
+            msg += 'This is a required DICOM field \n'
+            msg += 'The data may be corrupted - please check'
+            raise ValueError(msg)
+        # Multiple slice groups in series - return list of affine matrices
+        if isinstance(image_orientation[0], list):
+            affine_matrices = []
+            for dir in image_orientation:
+                slice_group = self.instances(ImageOrientationPatient=dir)
+                affine = _slice_group_affine_matrix(slice_group, dir)
+                affine_matrices.append(affine)
+            return affine_matrices
+        # Single slice group in series - return a list with a single affine matrix
+        else:
+            slice_group = self.instances()
+            affine = _slice_group_affine_matrix(slice_group, image_orientation)
+            return [affine]
 
 
-    def affine_matrix(self):
-        return affine_matrix(self)
-    
+    def set_affine(self, affine:np.eye()):
+        """Set the affine matrix of a series.
+
+        The affine is defined as a 4x4 numpy array with bottom row [0,0,0,1]. The final column represents the position of the top right hand corner of the first slice. The first three columns represent rotation and scaling with respect to the axes of the reference frame.
+
+        Args:
+            affine (numpy.ndarray): 4x4 numpy array 
+
+        Raises:
+            ValueError: if the series is empty. The information of the affine matrix is stored in the header and can not be stored in an empty series.
+
+        See also:
+            :func:`~affine`
+
+        Example:
+            Create a series with unit affine array:
+
+            >>> zeros = db.zeros((128,128,10))
+            >>> print(zeros.affine())
+            [array([
+                [1., 0., 0., 0.],
+                [0., 1., 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.]], dtype=float32)]
+
+            Rotate the volume over 90 degrees in the xy-plane:
+
+            >>> affine = np.array([
+            ... [1., 0., 0., 0.],
+            ... [0., 1., 0., 0.],
+            ... [0., 0., 1., 0.],
+            ... [0., 0., 0., 1.],
+            ... ]) 
+            >>> zeros.set_affine(affine)
+
+            Apart from the rotation, also change the resolution to (3mm, 3mm, 1.5mm):
+
+            >>> affine = np.array([
+            ... [0., -3., 0., 0.],
+            ... [3., 0., 0., 0.],
+            ... [0., 0., 1.5, 0.],
+            ... [0., 0., 0., 1.],
+            ... ])  
+            >>> zeros.set_affine(affine)
+
+            # Now rotate, change resolution, and shift the top right hand corner of the lowest slice to position (-30mm, 20mm, 120mm):
+
+            >>> affine = np.array([
+            ... [0., -3., 0., -30.],
+            ... [3., 0., 0., 20.],
+            ... [0., 0., 1.5, 120.],
+            ... [0., 0., 0., 1.],
+            ... ])  
+            >>> zeros.set_affine(affine)
+
+            Note changing the affine will affect multiple DICOM tags, such as slice location and image positions:
+
+            >>> print(zeros.SliceLocation)
+            [120.0, 121.5, 123.0, 124.5, 126.0, 127.5, 129.0, 130.5, 132.0, 133.5]
+
+            In this case, since the slices are stacked in parallel to the z-axis, the slice location starts at the lower z-coordinate of 120mm and then increments slice-by-slice with the slice thickness of 1.5mm.
+        
+        """
+        images = instance_array(self, sortby='SliceLocation')
+        if images is None:
+            msg = 'Cannot set affine matrix in an empty series \n'
+            msg += 'Set some data with series.ndarray() and then try again.'
+            raise ValueError(msg)
+        images = images[...,0]
+        affine_z = affine.copy()
+
+        # For each slice location, the slice position needs to be updated too
+        # Need the coordinates of the vector parallel to the z-axis of the volume.
+        a = image_utils.dismantle_affine_matrix(affine)
+        ez = a['SpacingBetweenSlices']*np.array(a['slice_cosine'])
+
+        # Set the affine slice-by-slice
+        nz = images.shape[0]
+        for z in range(nz):
+            self.progress(z+1, nz, 'Writing affine..')
+            affine_z[:3, 3] = affine[:3, 3] + z*ez
+            images[z].read()
+            images[z].affine_matrix = affine_z
+            images[z].clear()
+
+        
 
     def ndarray(self, dims=('InstanceNumber',)) -> np.ndarray:
         """Return a numpy.ndarray with pixel data.
@@ -264,6 +446,7 @@ class Series(Record):
         array, _ = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
         return array
 
+# Needs a slice option.
 
     def set_ndarray(self, array:np.ndarray, dims=('InstanceNumber',), coords:dict=None):
         """Assign new pixel data with a new numpy.ndarray. 
@@ -271,16 +454,10 @@ class Series(Record):
         Args:
             array (np.ndarray): array with new pixel data.
             dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',). Must be provided if coords are not given.
-            coords (dict, optional): Provide coordinates for the array explicitly, using a dictionary with dimensions as keys and as values either 1D or meshgrid arrays of coordinates. If coords are not provided, then dimensions a default range array will be used. If coordinates are provided, then the dimensions argument is ignored.
-
-        Raises:
-            ValueError: if dimensions and coordinates are both provided with incompatible dimensions.
+            coords (dict, optional): Provide coordinates for the array explicitly, using a dictionary with dimensions as keys and as values either 1D or meshgrid arrays of coordinates. If coords are not provided, then a default range array will be allocated to the attributes specified in dims. If coordinates are provided, then the dimensions argument is ignored.
 
         See also:
             :func:`~ndarray`
-
-        Warning:
-            Currently this function assumes that the new array has the same shape as the current array. This will be generalised in an upcoming update - for now please look at the pipelines examples for saving different dimensions using the current interface. 
 
         Example:
             Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
@@ -298,36 +475,46 @@ class Series(Record):
             >>> print(np.mean(array))
             0.0
 
-            Now overwrite the values with a new array of ones. Coordinates are not changed so only dimensions need to be specified:
+            Now overwrite the values with a new array of ones in a new shape:
 
-            >>> ones = np.ones((128,128,8,3,2))
-            >>> series.set_ndarray(ones, dims=tuple(coords))
+            >>> new_shape = (128,128,8)
+            >>> new_coords = {
+            ...     'SliceLocation': np.arange(8),
+            ... }
+            >>> ones = np.ones(new_shape)
+            >>> series.set_ndarray(ones, coords=new_coords)
 
-            Retrieve the array and check that it is now populated with ones:
+            Retrieve the new array and check shape:
+            
+            >>> array = series.ndarray(dims=tuple(new_coords))
+            >>> print(array.shape)
+            (128,128,8)
 
-            >>> array = series.ndarray(dims=tuple(coords)) 
+            Check that the value is overwritten:
+
             >>> print(np.mean(array))
             1.0
         """
-        # TODO: Include a reshaping option!!!!
         
         # TODO: set_pixel_array has **kwargs to allow setting other properties on the fly to save extra reading and writing. This makes sense but should be handled by a more general function, such as:
         # #  
-        # series.set_properties(ndarray:np.ndarray, coords:{}, affine:np.ndarray, **kwargs)
+        # series.set(ndarray:np.ndarray, coords:dict, affine:np.ndarray, **kwargs)
         # #
-
-        # Lazy solution - first get the header information (slower than propagating explicitly but conceptually more convenient - can be rationalised later - pixel values can be set on the fly as the header is retrieved)
 
         # If coordinates are provided, the dimensions are taken from that. Dimensions are not needed in this case but if they are set they need to be the same as those specified in the coordinates. Else an error is raised.
         if coords is not None:
-            if dims != tuple(coords):
-                msg = 'Coordinates do not have the correct dimensions \n'
-                msg += 'Note: if coordinates are defined than the dimensions argument is ignored. Hence you can remove the dimensions argument in this call, or else make sure it matches up with the dimensions in coordinates.'
-                raise ValueError(msg)
+            dims = tuple(coords)
+        headers = instance_array(self, sortby=list(dims))
+        if headers is None:
+            set_ndarray(self, array, coords=coords)
+        else:
+            headers = headers[...,0]
+            if array.shape[2:] == headers.shape:
+                # If the new array has the same shape, use the exact headers
+                set_ndarray(self, array, source=headers, coords=coords)
             else:
-                dims = tuple(coords)
-        _, headers = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
-        set_pixel_array(self, array, source=headers, pixels_first=True, coords=coords)
+                # If the new array has a different shape, use the first header for all
+                set_ndarray(self, array, source=headers.ravel()[0], coords=coords)
 
 
     #
@@ -335,6 +522,12 @@ class Series(Record):
     #
 
 
+    def slice_groups(*args, **kwargs):
+        return slice_groups(*args, **kwargs)
+    
+    def affine_matrix(self):
+        return affine_matrix(self)
+    
     def array(*args, **kwargs):
         return get_pixel_array(*args, **kwargs)
 
@@ -349,6 +542,117 @@ class Series(Record):
 
 
 
+def set_ndarray(series, array, source=None, coords=None, **kwargs): 
+
+    # Move pixels to the end (UNNECESSARY - remove)
+    array = np.moveaxis(array, 0, -1)
+    array = np.moveaxis(array, 0, -1)
+
+    # If source data are provided, then coordinates are optional. 
+    # If no source data are given, then coordinates MUST be defined to ensure array data can be retrieved in the proper order..
+    if source is None:
+        if coords is None:
+            if array.ndim > 4:
+                msg = 'For arrays with more than 4 dimensions, \n'
+                msg += 'either coordinate labels or headers must be provided'
+                raise ValueError(msg)
+            elif array.ndim == 4:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                    'AcquisitionTime':np.arange(array.shape[1]),
+                }
+            elif array.ndim == 3:
+                coords = {
+                    'SliceLocation':np.arange(array.shape[0]),
+                }
+
+    # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
+    if coords is not None:
+        v0 = list(coords.values())[0]
+        if np.array(v0).ndim==1: # regular grid
+            pos = tuple([coords[c] for c in coords])
+            pos = np.meshgrid(*pos)
+            for i, c in enumerate(coords):
+                coords[c] = pos[i].ravel()
+
+    
+    nr_of_slices = int(np.prod(array.shape[:-2]))
+    affine = None
+    # if no header data are provided, use template headers.
+    if source is None:
+        affine = np.eye(4)
+        source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
+
+    else:
+        if isinstance(source, list):
+            pass
+        elif isinstance(source, np.ndarray):
+            source = source.ravel().tolist()
+
+        # If only one header is provided, use the same for all slices.
+        else:
+            affine = np.eye(4)
+            source = [source] + [source.copy_to(series) for _ in range(nr_of_slices-1)]
+            #source = [source] * nr_of_slices # THIS DOES NOT WORK?? ALL the same instance
+
+        # If the header data are not the same size, use only the first one.
+        if nr_of_slices != len(source):
+            affine = np.eye(4)
+            source = [source.copy_to(series) for _ in range(nr_of_slices)]
+            #source = [source[0]] * nr_of_slices
+
+
+    # Added 07 06 23: remove instances that are not used
+    instances = series.instances()
+    source_instances = []
+    for s in instances: 
+        if s in source:
+            source_instances.append(s)
+        else:
+            s.remove()
+
+    # Copy all sources to the series, if they are not part of it
+    copy_source = []    
+    for i, s in enumerate(source):
+        if s in source_instances:
+            copy_source.append(s)
+        else:
+            series.progress(i+1, len(source), 'Copying series..')
+            copy_source.append(s.copy_to(series))
+
+    # Faster but does not work if all sources are the same
+    # series.status.message('Saving array (1/2): Copying series..')
+    # instances = series.instances()
+    # to_copy = [i for i in range(len(source)) if source[i] not in instances]
+    # copied = series.adopt([source[i] for i in to_copy])
+    # for i, c in enumerate(copied):
+    #     source[to_copy[i]] = c
+
+    # Flatten array for iterating
+    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
+    for i, image in enumerate(copy_source):
+        series.progress(i+1, len(copy_source), 'Saving array..')
+        image.read()
+
+        # If needed, use Defaults for geometry markers
+        if affine is not None:
+            affine[2, 3] = i
+            image.affine_matrix = affine
+
+        # Update any other header data provided
+        for attr, vals in kwargs.items(): 
+            if isinstance(vals, list):
+                setattr(image, attr, vals[i])
+            else:
+                setattr(image, attr, vals)
+
+        # If coordinates are provided, these will override the values from the sources.
+        if coords is not None: # ADDED 31/05/2023
+            for c in coords:
+                image[c] = coords[c][i] 
+
+        image.set_pixel_array(array[i,...])
+        image.clear()
 
 
 
@@ -359,8 +663,8 @@ def slice_groups(series): # not yet in use
         slice_groups.append(sg)
     return slice_groups
 
+
 def subseries(record, move=False, **kwargs):
-    """Extract subseries"""
     series = record.new_sibling()
     instances = record.instances(**kwargs)
     for i, instance in enumerate(instances):
@@ -374,6 +678,7 @@ def subseries(record, move=False, **kwargs):
     # series.adopt(instances)
     return series
 
+
 def read_npy(record):
     # Not in use - loading of temporary numpy files
     file = record.manager.npy()
@@ -383,56 +688,6 @@ def read_npy(record):
         array = np.load(f)
     return array
 
-
-def affine_matrix(series):
-    """Returns the affine matrix of a series.
-    
-    If the series consists of multiple slice groups with different 
-    image orientations, then a list of affine matrices is returned,
-    one for each slice orientation.
-    """
-    image_orientation = series.ImageOrientationPatient
-    if image_orientation is None:
-        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
-        msg = 'This is a required DICOM field \n'
-        msg += 'The data may be corrupted - please check'
-        raise ValueError(msg)
-    # Multiple slice groups in series - return list of affine matrices
-    if isinstance(image_orientation[0], list):
-        affine_matrices = []
-        for dir in image_orientation:
-            slice_group = series.instances(ImageOrientationPatient=dir)
-            affine = _slice_group_affine_matrix(slice_group, dir)
-            affine_matrices.append((affine, slice_group))
-        return affine_matrices
-    # Single slice group in series - return a single affine matrix
-    else:
-        slice_group = series.instances()
-        affine = _slice_group_affine_matrix(slice_group, image_orientation)
-        return affine, slice_group
-
-
-def _slice_group_affine_matrix(slice_group, image_orientation):
-    """Return the affine matrix of a slice group"""
-
-    # single slice
-    if len(slice_group) == 1:
-        return slice_group[0].affine_matrix
-    # multi slice
-    else:
-        pos = [s.ImagePositionPatient for s in slice_group]
-        # Find unique elements
-        pos = [x for i, x in enumerate(pos) if i==pos.index(x)]
-
-        # One slice location
-        if len(pos) == 1: 
-            return slice_group[0].affine_matrix
-        
-        # Slices with different locations
-        else:
-            return image_utils.affine_matrix_multislice(
-                image_orientation, pos,
-                slice_group[0].PixelSpacing)    # assume all the same pixel spacing
 
 
 def array(record, **kwargs):
@@ -448,47 +703,6 @@ def array(record, **kwargs):
     
 
 def get_pixel_array(record, sortby=None, first_volume=False, **kwargs): 
-    """Pixel values of the object as an ndarray
-    
-    Args:
-        sortby: 
-            Optional list of DICOM keywords by which the volume is sorted
-        pixels_first: 
-            If True, the (x,y) dimensions are the first dimensions of the array.
-            If False, (x,y) are the last dimensions - this is the default.
-
-    Returns:
-        An ndarray holding the pixel data.
-
-        An ndarry holding the datasets (instances) of each slice.
-
-    Examples:
-        ``` ruby
-        # return a 3D array (z,x,y)
-        # with the pixel data for each slice
-        # in no particular order (z)
-        array, _ = series.array()    
-
-        # return a 3D array (x,y,z)   
-        # with pixel data in the leading indices                               
-        array, _ = series.array(pixels_first = True)    
-
-        # Return a 4D array (x,y,t,k) sorted by acquisition time   
-        # The last dimension (k) enumerates all slices with the same acquisition time. 
-        # If there is only one image for each acquision time, 
-        # the last dimension is a dimension of 1                               
-        array, data = series.array('AcquisitionTime', pixels_first=True)                         
-        v = array[:,:,10,0]                 # First image at the 10th location
-        t = data[10,0].AcquisitionTIme      # acquisition time of the same image
-
-        # Return a 4D array (loc, TI, x, y) 
-        sortby = ['SliceLocation','InversionTime']
-        array, data = series.array(sortby) 
-        v = array[10,6,0,:,:]            # First slice at 11th slice location and 7th inversion time    
-        Loc = data[10,6,0][sortby[0]]    # Slice location of the same slice
-        TI = data[10,6,0][sortby[1]]     # Inversion time of the same slice
-        ```  
-    """
 
     source = instance_array(record, sortby)
     array, headers = _get_pixel_array_from_sorted_instance_array(source, **kwargs)
@@ -529,107 +743,13 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False, coords=None, **kwargs): 
-    """
-    Set pixel values of a series from a numpy ndarray.
+def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs): 
 
-    Since the pixel data do not hold any information about the 
-    image such as geometry, or other metainformation,
-    a dataset must be provided as well with the same 
-    shape as the array except for the slice dimensions. 
-
-    If a dataset is not provided, header info is 
-    derived from existing instances in order.
-
-    Args:
-        array: 
-            numpy ndarray with pixel data.
-
-        dataset: 
-            numpy ndarray
-
-            Instances holding the header information. 
-            This *must* have the same shape as array, minus the slice dimensions.
-
-        pixels_first: 
-            bool
-
-            Specifies whether the pixel dimensions are the first or last dimensions of the series.
-            If not provided it is assumed the slice dimensions are the last dimensions
-            of the array.
-
-        inplace: 
-            bool
-
-            If True (default) the current pixel values in the series 
-            are overwritten. If set to False, the new array is added to the series.
-    
-    Examples:
-        ```ruby
-        # Invert all images in a series:
-        array, _ = series.array()
-        series.set_array(-array)
-
-        # Create a maximum intensity projection of the series.
-        # Header information for the result is taken from the first image.
-        # Results are saved in a new sibling series.
-        array, data = series.array()
-        array = np.amax(array, axis=0)
-        data = np.squeeze(data[0,...])
-        series.new_sibling().set_array(array, data)
-
-        # Create a 2D maximum intensity projection along the SliceLocation direction.
-        # Header information for the result is taken from the first slice location.
-        # Current data of the series are overwritten.
-        array, data = series.array('SliceLocation')
-        array = np.amax(array, axis=0)
-        data = np.squeeze(data[0,...])
-        series.set_array(array, data)
-
-        # In a series with multiple slice locations and inversion times,
-        # replace all images for each slice location with that of the shortest inversion time.
-        array, data = series.array(['SliceLocation','InversionTime']) 
-        for loc in range(array.shape[0]):               # loop over slice locations
-            slice0 = np.squeeze(array[loc,0,0,:,:])     # get the slice with shortest TI 
-            TI0 = data[loc,0,0].InversionTime           # get the TI of that slice
-            for TI in range(array.shape[1]):            # loop over TIs
-                array[loc,TI,0,:,:] = slice0            # replace each slice with shortest TI
-                data[loc,TI,0].InversionTime = TI0      # replace each TI with shortest TI
-        series.set_array(array, data)
-        ```
-    """
 
     # Move pixels to the end (default)
     if pixels_first:    
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
-
-    # If source data are provided, then coordinates are optional. 
-    # If no source data are given, then coordinates MUST be defined to ensure array data can be retrieved in the proper order..
-    if source is None:
-        if coords is None:
-            if array.ndim > 4:
-                msg = 'For arrays with more than 4 dimensions, \n'
-                msg += 'either coordinate labels or headers must be provided'
-                raise ValueError(msg)
-            elif array.ndim == 4:
-                coords = {
-                    'SliceLocation':np.arange(array.shape[0]),
-                    'AcquisitionTime':np.arange(array.shape[1]),
-                }
-            elif array.ndim == 3:
-                coords = {
-                    'SliceLocation':np.arange(array.shape[0]),
-                }
-
-    # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
-    if coords is not None:
-        v0 = list(coords.values())[0]
-        if np.array(v0).ndim==1: # regular grid
-            pos = tuple([coords[c] for c in coords])
-            pos = np.meshgrid(*pos)
-            for i, c in enumerate(coords):
-                coords[c] = pos[i].ravel()
 
     # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
@@ -670,30 +790,13 @@ def set_pixel_array(series, array, source=None, pixels_first=False, coords=None,
     for i, image in enumerate(copy_source):
         series.progress(i+1, len(copy_source), 'Saving array..')
         image.read()
-
         for attr, vals in kwargs.items(): 
             if isinstance(vals, list):
                 setattr(image, attr, vals[i])
             else:
                 setattr(image, attr, vals)
-
-        # If coordinates are provided, these will override the values from the sources.
-        if coords is not None: # ADDED 31/05/2023
-            for c in coords:
-                image[c] = coords[c][i]
         image.set_pixel_array(array[i,...])
         image.clear()
-
-
-
-    # More compact but does not work with pause extensions
-    # for i, s in enumerate(source):
-    #     series.status.progress(i+1, len(source), 'Writing array..')
-    #     if s not in instances:
-    #         s.copy_to(series).set_pixel_array(array[i,...])
-    #     else:
-    #         s.set_pixel_array(array[i,...])
-
 
 
 
@@ -702,6 +805,29 @@ def set_pixel_array(series, array, source=None, pixels_first=False, coords=None,
 ##
 ## Helper functions
 ##
+
+def _slice_group_affine_matrix(slice_group, image_orientation):
+    """Return the affine matrix of a slice group"""
+
+    # single slice
+    if len(slice_group) == 1:
+        return slice_group[0].affine_matrix
+    # multi slice
+    else:
+        pos = [s.ImagePositionPatient for s in slice_group]
+        # Find unique elements
+        pos = [x for i, x in enumerate(pos) if i==pos.index(x)]
+
+        # One slice location
+        if len(pos) == 1: 
+            return slice_group[0].affine_matrix
+        
+        # Slices with different locations
+        else:
+            return image_utils.affine_matrix_multislice(
+                image_orientation, pos,
+                slice_group[0].PixelSpacing)    # assume all the same pixel spacing
+        
 
 def sort_instance_array(instance_array, sortby=None, status=True):
     if sortby is None:
@@ -748,14 +874,17 @@ def df_to_sorted_instance_array(record, df, sortby, status=True):
             record.progress(i, len(vals), message='Sorting pixel data..')
         # if a type is not supported by np.isnan()
         # assume it is not a nan
-        try: 
-            nan = np.isnan(c)
-        except: 
-            nan = False
-        if nan:
+        if c is None: # this happens when undefined keywrod is used
             dfc = df[df[sortby[0]].isnull()]
         else:
-            dfc = df[df[sortby[0]] == c]
+            try: 
+                nan = np.isnan(c)
+            except: 
+                nan = False
+            if nan:
+                dfc = df[df[sortby[0]].isnull()]
+            else:
+                dfc = df[df[sortby[0]] == c]
         if len(sortby) == 1:
             datac = df_to_instance_array(record, dfc)
         else:
@@ -813,4 +942,38 @@ def _stack(arrays, align_left=False):
         stack[tuple(index)] = array
 
     return stack
+
+
+
+
+# OBSOLETE - functions below here are obsolete and should not be used further
+
+
+def affine_matrix(series):
+    """Returns the affine matrix of a series.
+    
+    If the series consists of multiple slice groups with different 
+    image orientations, then a list of affine matrices is returned,
+    one for each slice orientation.
+    """
+    image_orientation = series.ImageOrientationPatient
+    if image_orientation is None:
+        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
+        msg = 'This is a required DICOM field \n'
+        msg += 'The data may be corrupted - please check'
+        raise ValueError(msg)
+    # Multiple slice groups in series - return list of affine matrices
+    if isinstance(image_orientation[0], list):
+        affine_matrices = []
+        for dir in image_orientation:
+            slice_group = series.instances(ImageOrientationPatient=dir)
+            affine = _slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append((affine, slice_group))
+        return affine_matrices
+    # Single slice group in series - return a single affine matrix
+    else:
+        slice_group = series.instances()
+        affine = _slice_group_affine_matrix(slice_group, image_orientation)
+        return affine, slice_group
+
 
