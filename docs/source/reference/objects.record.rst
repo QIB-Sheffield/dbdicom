@@ -77,6 +77,7 @@ Export to other formats
    Record.export_as_png
    Record.export_as_csv
    Record.export_as_nifti
+   Record.export_as_npy
 
 
 User interactions
