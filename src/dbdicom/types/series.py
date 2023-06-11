@@ -5,6 +5,7 @@ import os
 import math
 
 import numpy as np
+import nibabel as nib
 
 from dbdicom.record import Record, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
@@ -64,6 +65,7 @@ class Series(Record):
         else:
             return self.record('Instance', uids, **attr)
 
+
     def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
         """Export array in numpy format"""
 
@@ -76,36 +78,32 @@ class Series(Record):
         with open(file, 'wb') as f:
             np.save(f, array)
 
-    def export_as_dicom(self, path): 
-        # instance = self.instance()
-        # patient = "".join([c if c.isalnum() else "_" for c in instance.PatientID])
-        # study = "".join([c if c.isalnum() else "_" for c in instance.StudyDescription])
-        # series = "".join([c if c.isalnum() else "_" for c in instance.SeriesDescription])
-        # path = os.path.join(os.path.join(os.path.join(path, patient), study), series)
-        # path = export_path(path)
 
+    def export_as_dicom(self, path): 
         folder = self.label()
         path = export_path(path, folder)
-
+        # Create a copy so that exported datasets have different UIDs.
         copy = self.copy()
         mgr = Manager(path, status=self.status)
         mgr.open(path)
-        mgr.import_datasets(copy.files())
+        for i in copy.instances():
+            ds = i.get_dataset()
+            mgr.import_dataset(ds)
         copy.remove()
 
 
-    def export_as_png(self, path):
-        """Export all images as png files"""
+    def export_as_png(self, path, **kwargs):
+        #Export all images as png files
         folder = self.label()
         path = export_path(path, folder)
         images = self.images()
         for i, img in enumerate(images):
             img.status.progress(i+1, len(images), 'Exporting png..')
-            img.export_as_png(path)
+            img.export_as_png(path, **kwargs)
 
 
     def export_as_csv(self, path):
-        """Export all images as csv files"""
+        #Export all images as csv files
         folder = self.label()
         path = export_path(path, folder)
         images = self.images()
@@ -114,23 +112,30 @@ class Series(Record):
             img.export_as_csv(path)
 
 
-    def export_as_nifti(self, path: str):
-        """Export images in nifti format.
-
-        Args:
-            path (str): path where results are to be saved.
-        """
-        folder = self.label()
-        path = export_path(path, folder)
-        affine = self.affine_matrix()
-        if not isinstance(affine, list):
-            affine = [affine]
-        for a in affine:
-            matrix = a[0]
-            images = a[1]
-            for i, img in enumerate(images):
-                img.status.progress(i+1, len(images), 'Exporting nifti..')
-                img.export_as_nifti(path, matrix)
+    def export_as_nifti(self, path, dims=None):
+        if dims is None:
+            folder = self.label()
+            path = export_path(path, folder)
+            affine = self.affine_matrix()
+            if not isinstance(affine, list):
+                affine = [affine]
+            for a in affine:
+                matrix = a[0]
+                images = a[1]
+                for i, img in enumerate(images):
+                    img.progress(i+1, len(images), 'Exporting nifti..')
+                    img.export_as_nifti(path, matrix)
+        else:
+            ds = self.instance().get_dataset()
+            sgroups = self.slice_groups(dims=dims)
+            for i, sg in enumerate(sgroups):
+                self.progress(i+1, len(sgroups), 'Exporting nifti..')
+                dicom_header = nib.nifti1.Nifti1DicomExtension(2, ds)
+                nifti1_image = nib.Nifti1Image(sg['ndarray'], image_utils.affine_to_RAH(sg['affine']))
+                nifti1_image.header.extensions.append(dicom_header)
+                filepath = self.label()
+                filepath = os.path.join(path, filepath + '[' + str(i) + '].nii')
+                nib.save(nifti1_image, filepath)
 
 
     def import_dicom(self, files):
@@ -274,6 +279,67 @@ class Series(Record):
         return split_series
 
 
+    # TODO: This needs the same API as ndarray with coord and slice arguments.
+    # TODO: This also needs a set_slice_group.
+    # TODO: Currently based on image orientation only rather than complete affine.
+    def slice_groups(self, dims=('InstanceNumber',)) -> list:
+        """Return a list of slice groups in the series.
+
+        In dbdicom, a *slice group* is defined as a series of slices that have the same orientation. It is common for a single series to have images with multiple orientations, such as in localizer series in MRI. For such a series, returning all data in a single array may not be meaningful. 
+
+        Formally, a *slice group* is a dictionary with two entries: 'ndarray' is the numpy.ndarray with the data along the dimensions provided by the dims argument, and 'affine' is the 4x4 affine matrix of the slice group. The function returns a list of such dictionaries, one for each slice group in the series.
+
+        Args:
+            dims (tuple, optional): Dimensions for the returned arrays. Defaults to ('InstanceNumber',).
+
+        Returns:
+            list: A list of slice groups (dictionaries), one for each slice group in the series.
+
+        Examples:
+
+            >>> series = db.ones((128,128,5,10))
+            >>> sgroups = series.slice_groups(dims=('SliceLocation', 'AcquisitionTime'))
+
+            Since there is only one slice group in the series, ``sgroups`` is a list with one element:
+
+            >>> print(len(sgroups))
+            1
+
+            The array of the slice group is the entire volume of the series:
+
+            >>> print(sgroups[0]['ndarray'].shape)
+            (128, 128, 5, 10)
+
+            And the affine of the series has not changed from the default (identity):
+
+            >>> print(sgroups[0]['affine'])
+            [[1. 0. 0. 0.]
+             [0. 1. 0. 0.]
+             [0. 0. 1. 0.]
+             [0. 0. 0. 1.]]
+
+        """
+        
+        slice_groups = []
+        image_orientation = self.ImageOrientationPatient
+
+        # Multiple slice groups in series - return list of cuboids
+        if isinstance(image_orientation[0], list):
+            for dir in image_orientation:
+                slice_group = instance_array(self, ImageOrientationPatient=dir)
+                affine = _slice_group_affine_matrix(list(slice_group), dir)
+                array, _ = _get_pixel_array_from_instance_array(slice_group, sortby=list(dims), pixels_first=True)
+                slice_groups.append({'ndarray': array[...,0], 'affine': affine})
+        
+        # Single slice group in series - return a list with a single affine matrix
+        else:
+            slice_group = instance_array(self)
+            affine = _slice_group_affine_matrix(list(slice_group), image_orientation)
+            array, _ = _get_pixel_array_from_instance_array(slice_group, sortby=list(dims), pixels_first=True)
+            slice_groups.append({'ndarray': array[...,0], 'affine': affine})
+
+        return slice_groups
+        
 
     def affine(self)->list:
         """Return a list of unique affine matrices in the series
@@ -651,8 +717,8 @@ class Series(Record):
     #
 
 
-    def slice_groups(*args, **kwargs):
-        return slice_groups(*args, **kwargs)
+    # def slice_groups(*args, **kwargs):
+    #     return slice_groups(*args, **kwargs)
     
     def affine_matrix(self):
         return affine_matrix(self)
@@ -710,12 +776,12 @@ def set_ndarray(series, array, source=None, coords=None, affine=None, **kwargs):
         image.clear()
 
 
-def slice_groups(series): # not yet in use
-    slice_groups = []
-    for orientation in series.ImageOrientationPatient:
-        sg = series.instances(ImageOrientationPatient=orientation)
-        slice_groups.append(sg)
-    return slice_groups
+# def slice_groups(series): # not yet in use
+#     slice_groups = []
+#     for orientation in series.ImageOrientationPatient:
+#         sg = series.instances(ImageOrientationPatient=orientation)
+#         slice_groups.append(sg)
+#     return slice_groups
 
 
 def subseries(record, move=False, **kwargs):
@@ -855,11 +921,33 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
 
 
 
-
-
-##
-## Helper functions
-##
+def affine_matrix(series):
+    """Returns the affine matrix of a series.
+    
+    If the series consists of multiple slice groups with different 
+    image orientations, then a list of affine matrices is returned,
+    one for each slice orientation.
+    """
+    image_orientation = series.ImageOrientationPatient
+    if image_orientation is None:
+        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
+        msg = 'This is a required DICOM field \n'
+        msg += 'The data may be corrupted - please check'
+        raise ValueError(msg)
+    # Multiple slice groups in series - return list of affine matrices
+    if isinstance(image_orientation[0], list):
+        affine_matrices = []
+        for dir in image_orientation:
+            slice_group = series.instances(ImageOrientationPatient=dir)
+            affine = _slice_group_affine_matrix(slice_group, dir)
+            affine_matrices.append((affine, slice_group))
+        return affine_matrices
+    # Single slice group in series - return a single affine matrix
+    else:
+        slice_group = series.instances()
+        affine = _slice_group_affine_matrix(slice_group, image_orientation)
+        return affine, slice_group
+    
 
 def _slice_group_affine_matrix(slice_group, image_orientation):
     """Return the affine matrix of a slice group"""
@@ -895,7 +983,7 @@ def sort_instance_array(instance_array, sortby=None, status=True):
         return df_to_sorted_instance_array(instance_array[0], df, sortby, status=status)
         
 
-def instance_array(record, sortby=None, status=True): 
+def instance_array(record, sortby=None, status=True, **filters): 
     """Sort instances by a list of attributes.
     
     Args:
@@ -905,7 +993,7 @@ def instance_array(record, sortby=None, status=True):
         An ndarray holding the instances sorted by sortby.
     """
     if sortby is None:
-        instances = record.instances()
+        instances = record.instances(**filters)
         array = np.empty(len(instances), dtype=object)
         for i, instance in enumerate(instances): 
             array[i] = instance
@@ -913,7 +1001,7 @@ def instance_array(record, sortby=None, status=True):
     else:
         if not isinstance(sortby, list):
             sortby = [sortby]
-        df = record.read_dataframe(sortby + ['SOPInstanceUID'])
+        df = record.read_dataframe(sortby + ['SOPInstanceUID']) # needs a **filters option
         df = df[df.SOPInstanceUID.values != None]
         if df.empty:
             return np.array([])
@@ -1008,31 +1096,6 @@ def _stack(arrays, align_left=False):
 # OBSOLETE - functions below here are obsolete and should not be used further
 
 
-def affine_matrix(series):
-    """Returns the affine matrix of a series.
-    
-    If the series consists of multiple slice groups with different 
-    image orientations, then a list of affine matrices is returned,
-    one for each slice orientation.
-    """
-    image_orientation = series.ImageOrientationPatient
-    if image_orientation is None:
-        msg = 'ImageOrientationPatient not defined in the DICOM header \n'
-        msg = 'This is a required DICOM field \n'
-        msg += 'The data may be corrupted - please check'
-        raise ValueError(msg)
-    # Multiple slice groups in series - return list of affine matrices
-    if isinstance(image_orientation[0], list):
-        affine_matrices = []
-        for dir in image_orientation:
-            slice_group = series.instances(ImageOrientationPatient=dir)
-            affine = _slice_group_affine_matrix(slice_group, dir)
-            affine_matrices.append((affine, slice_group))
-        return affine_matrices
-    # Single slice group in series - return a single affine matrix
-    else:
-        slice_group = series.instances()
-        affine = _slice_group_affine_matrix(slice_group, image_orientation)
-        return affine, slice_group
+
 
 

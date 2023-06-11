@@ -71,20 +71,23 @@ class Instance(Record):
         return map_mask_to(self, target)
 
 
-    def export_as_png(self, path):
-        """Export image in png format."""
-        pixelArray = np.transpose(self.array())
-        centre, width = self.window
-        minValue = centre - width/2
-        maxValue = centre + width/2
-        #cmap = plt.get_cmap(colourTable)
-        cmap = self.colormap
-        if cmap is None:
-            cmap='gray'
-        #plt.imshow(pixelArray, cmap=cmap)
-        plt.imshow(pixelArray, cmap=cmap, vmin=minValue, vmax=maxValue)
-        #plt.imshow(pixelArray, cmap=colourTable)
-        #plt.clim(int(minValue), int(maxValue))
+    def export_as_png(self, path, center=None, width=None, colormap=None):
+        # Export image in png format.
+        if center is None or width is None:
+            c, w = self.window
+        if center is None:
+            center = c
+        if width is None:
+            width = w
+        if colormap is None:
+            colormap = self.colormap
+        if colormap is None:
+            colormap = 'gray'
+
+        vmin = center - width/2
+        vmax = center + width/2
+        array = np.transpose(self.array())
+        plt.imshow(array, cmap=colormap, vmin=vmin, vmax=vmax)
         cBar = plt.colorbar()
         cBar.minorticks_on()
         filename = self.label()
@@ -94,7 +97,7 @@ class Instance(Record):
 
 
     def export_as_csv(self, path):
-        """Export 2D pixel Array in csv format"""
+        # Export 2D pixel Array in csv format
         table = np.transpose(self.array())
         cols = ['Column' + str(x) for x in range(table.shape[0])]
         rows = ['Row' + str(y) for y in range(table.shape[1])]
@@ -105,7 +108,7 @@ class Instance(Record):
 
 
     def export_as_nifti(self, path, affine=None):
-        """Export series as a single Nifty file"""
+        # Export series as a single Nifty file
         ds = self.get_dataset()
         if affine is None:
             affine = ds.get_values('affine_matrix')

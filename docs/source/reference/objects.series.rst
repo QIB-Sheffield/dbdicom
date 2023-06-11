@@ -22,6 +22,7 @@ Working with arrays
    Series.set_ndarray
    Series.affine
    Series.set_affine
+   Series.slice_groups
 
 
 Series editing

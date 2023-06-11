@@ -433,8 +433,7 @@ def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
         Series: DICOM series with zero values
 
     See Also:
-        :func:`~series`
-        :func:`~as_series`
+        :func:`~ones`
 
     Example:
         Create a series containing a 4-dimensional array of zeros:
@@ -468,4 +467,54 @@ def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
             if len(shape) > 3:
                 coords['AcquisitionTime'] = np.arange(shape[3])
     array = np.zeros(shape, dtype=np.float32)
+    return as_series(array, coords=coords, **kwargs)
+
+
+def ones(shape:tuple, coords:dict=None, **kwargs) -> Series:
+    """Create a DICOM series populated with ones.
+
+    This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
+
+    Args:
+        shape (tuple): shape of the array
+        kwargs: see :func:`~series`
+        
+    Returns:
+        Series: DICOM series with values of one.
+
+    See Also:
+        :func:`~zeros`
+
+    Example:
+        Create a series containing a 4-dimensional array of ones:
+
+        >>> zeros = db.ones((128, 128, 2, 3))
+        >>> zeros.print()
+        ---------- SERIES --------------
+        Series 001 [New Series]
+            Nr of instances: 6
+                MRImage 000001
+                MRImage 000002
+                MRImage 000003
+                MRImage 000004
+                MRImage 000005
+                MRImage 000006
+        --------------------------------
+
+        This is effectively shorthand for:
+        
+        >>> array = np.ones((128, 128, 2, 3))
+        >>> zeros = db.as_series(array)
+    """
+    if coords is None:
+        if len(shape) > 4:
+            msg = 'With more than 4 dimensions, the coordinates argument is required'
+            raise ValueError(msg)
+        else:
+            coords = {}
+            if len(shape) > 2:
+                coords['SliceLocation'] = np.arange(shape[2])
+            if len(shape) > 3:
+                coords['AcquisitionTime'] = np.arange(shape[3])
+    array = np.ones(shape, dtype=np.float32)
     return as_series(array, coords=coords, **kwargs)

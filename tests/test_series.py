@@ -203,7 +203,14 @@ def test_split_by():
         assert split[i].FlipAngle == coords['FlipAngle'][i]
 
 
-
+def test_slice_groups():
+    shape = (128,128,5,10)
+    series = db.ones(shape)
+    dims = ('SliceLocation', 'AcquisitionTime')
+    sgroups = series.slice_groups(dims)
+    assert len(sgroups) == 1
+    assert sgroups[0]['ndarray'].shape == shape
+    assert np.array_equal(sgroups[0]['affine'], np.eye(4))
 
 
 if __name__ == "__main__":
@@ -214,6 +221,7 @@ if __name__ == "__main__":
     test_set_affine()
     test_subseries()
     test_split_by()
+    test_slice_groups()
 
     print('------------------------')
     print('series passed all tests!')
