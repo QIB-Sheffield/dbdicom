@@ -121,6 +121,15 @@ class Instance(Record):
         nib.save(niftiObj, filepath)
 
 
+    def export_as_npy(self, path):
+        # Export instance as a single NPY file
+        array = self.array()
+        filepath = self.label()
+        filepath = os.path.join(path, filepath + '.npy')
+        with open(filepath, 'wb') as f:
+            np.save(f, array)
+
+
     def BGRA_array(self):
         return image.BGRA(
             self.get_pixel_array(),

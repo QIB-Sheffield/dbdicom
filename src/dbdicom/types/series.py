@@ -66,17 +66,7 @@ class Series(Record):
             return self.record('Instance', uids, **attr)
 
 
-    def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
-        """Export array in numpy format"""
 
-        if directory is None: 
-            directory = self.dialog.directory(message='Please select a folder for the png data')
-        if filename is None:
-            filename = self.SeriesDescription
-        array, _ = self.get_pixel_array(sortby=sortby, pixels_first=pixels_first)
-        file = os.path.join(directory, filename + '.npy')
-        with open(file, 'wb') as f:
-            np.save(f, array)
 
 
     def export_as_dicom(self, path): 
@@ -110,6 +100,21 @@ class Series(Record):
         for i, img in enumerate(images):
             img.status.progress(i+1, len(images), 'Exporting csv..')
             img.export_as_csv(path)
+
+    def export_as_npy(self, path, dims=None):
+        if dims is None:
+            folder = self.label()
+            path = export_path(path, folder)
+            images = self.images()
+            for i, img in enumerate(images):
+                img.progress(i+1, len(images), 'Exporting npy..')
+                img.export_as_npy(path)
+        else:
+            array = self.ndarray(dims)
+            filepath = self.label()
+            filepath = os.path.join(path, filepath + '.npy')
+            with open(filepath, 'wb') as f:
+                np.save(f, array)
 
 
     def export_as_nifti(self, path, dims=None):

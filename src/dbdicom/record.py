@@ -1201,7 +1201,7 @@ class Record():
 
         Args:
             path (str): path to export directory.
-            dims (tuple, optional): when set, 3d volumes are extracted along the given dimensions and exported in single files. If dims is not set, each image will be exported in its own file. 
+            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set, each image will be exported in its own file. 
 
         Example:
 
@@ -1229,6 +1229,42 @@ class Record():
         path = export_path(path, folder)
         for child in self.children():
             child.export_as_nifti(path, dims=dims)
+
+
+    def export_as_npy(self, path:str, dims:tuple=None):
+        """Export record in numpy's NPY format to an external directory.
+
+        Args:
+            path (str): path to export directory.
+            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set (None), each image will be exported in its own file. Defaults to None.
+
+        Example:
+
+            Create a 4D series:
+
+            >>> series = db.ones((128, 128, 10, 5))
+
+            Export the series as npy, which each slice in a separate file:
+
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_npy(path)
+
+            This will create 50 npy files in the folder, one for each image. To save the entire volume in a single file, specify the dimensions of the volume:
+
+            >>> dims = ('SliceLocation', 'AcquisitionTime')
+            >>> series.export_as_npy(path, dims)
+
+            This will create a single npy file. 
+
+            Note: in this case the dimensions must be specified as slice location and acquisition time because these are the default dimensions used by series creation functions like :func:`~ones`.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_npy(path, dims=dims)
 
 
 
