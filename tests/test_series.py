@@ -35,7 +35,7 @@ def remove_tmp_database(tmp):
 def test_ndarray():
     # Test taken from docstring
     coords = {
-        'SliceLocation': np.arange(8),
+        'SliceLocation': 10*np.arange(8),
         'FlipAngle': [2, 15, 30],
         'RepetitionTime': [2.5, 5.0],
     }
@@ -44,6 +44,22 @@ def test_ndarray():
     dims = ('SliceLocation', 'FlipAngle', 'RepetitionTime')
     array = zeros.ndarray(dims)
     assert array.shape == (128, 128, 8, 3, 2)
+
+    coords = {
+        'SliceLocation': 10*np.arange(8),
+        'FlipAngle': [15],
+        'RepetitionTime': [2.5, 5.0],
+    }
+    array = zeros.ndarray(coords=coords)
+    assert array.shape == (128, 128, 8, 1, 2)
+
+    slice = {
+        'SliceLocation': np.arange(8),
+        'FlipAngle': [1],
+        'RepetitionTime': np.arange(2),
+    }
+    array = zeros.ndarray(slice=slice)
+    assert array.shape == (128, 128, 8, 1, 2)
 
 
 def test_set_ndarray():
@@ -65,10 +81,9 @@ def test_set_ndarray():
     assert np.mean(array) == 0.0
 
     # Now overwrite the values with a new array of ones. 
-    # Coordinates are not changed so only dimensions need to be specified.
 
     ones = np.ones(shape)
-    series.set_ndarray(ones, dims=tuple(coords))
+    series.set_ndarray(ones, coords)
 
     #Retrieve the array and check that it is now populated with ones:
 
@@ -76,34 +91,33 @@ def test_set_ndarray():
     assert array.shape == shape
     assert np.mean(array) == 1.0
 
-    # Now set a new array with a just slice location (e.g. T1 map derived from data)
+    # Now set the pixels with flip angle 15 to zero:
 
-    new_shape = (128,128,8)
-    new_coords = {
+    zeros = np.zeros((128,128,8,1,2))
+    coords['FlipAngle'] = [15]
+    series.set_ndarray(zeros, coords)
+
+    # Extract the complete array again and check the values:
+
+    array = series.ndarray(tuple(coords))
+    assert array.shape == shape
+    assert np.mean(array[:,:,:,0,:]) == 1.0
+    assert np.mean(array[:,:,:,1,:]) == 0.0
+    assert np.mean(array[:,:,:,2,:]) == 1.0
+
+    # Set the FA=15 subarray to 1 by index:
+
+    ones = np.ones((128,128,8,1,2))
+    slice = {
         'SliceLocation': np.arange(8),
+        'FlipAngle': [1],
+        'RepetitionTime': np.arange(2),
     }
-    zeros = np.zeros(new_shape)
-    series.set_ndarray(zeros, coords=new_coords)
-
-    # Retrieve the new array and check shape and values
-    array = series.ndarray(dims=tuple(new_coords))
-    assert array.shape == new_shape
-    assert np.mean(array) == 0.0
-
-    # Now set a new array with a completelt different shape
-
-    new_shape = (64,64,3,2)
-    new_coords = {
-        'SliceLocation': np.arange(3),
-        'AcquisitionTime': np.arange(2),
-    }
-    ones = np.ones(new_shape)
-    series.set_ndarray(ones, coords=new_coords)
-
-    # Retrieve the new array and check shape and values
-    array = series.ndarray(dims=tuple(new_coords))
-    assert array.shape == new_shape
-    assert np.mean(array) == 1.0
+    series.set_ndarray(ones, slice=slice)
+    array = series.ndarray(tuple(slice))
+    assert np.mean(array[:,:,:,0,:]) == 1.0
+    assert np.mean(array[:,:,:,1,:]) == 1.0
+    assert np.mean(array[:,:,:,2,:]) == 1.0    
 
 
 def test_affine():

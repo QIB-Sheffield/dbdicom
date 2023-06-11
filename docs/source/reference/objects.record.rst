@@ -69,7 +69,7 @@ Loading and saving
 
 
 User interactions
-^^^^^^^^^^^^^^^^^
+-----------------
 
 .. autosummary::
    :toctree: generated/

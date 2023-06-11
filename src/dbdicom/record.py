@@ -1370,6 +1370,7 @@ class Record():
 
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
+        
 
     def export_as_dicom(self, path):
         if self.name == 'Database':

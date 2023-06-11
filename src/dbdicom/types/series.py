@@ -385,7 +385,7 @@ class Series(Record):
         
         """
         images = instance_array(self, sortby='SliceLocation')
-        if images is None:
+        if images.size == 0:
             msg = 'Cannot set affine matrix in an empty series \n'
             msg += 'Set some data with series.ndarray() and then try again.'
             raise ValueError(msg)
@@ -408,23 +408,27 @@ class Series(Record):
 
         
 
-    def ndarray(self, dims=('InstanceNumber',)) -> np.ndarray:
+    def ndarray(self, dims=('InstanceNumber',), coords:dict=None, slice:dict=None) -> np.ndarray:
         """Return a numpy.ndarray with pixel data.
 
         Args:
             dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',).
+            coords (dict, optional): Dictionary with coordinates to retrieve a slice of the entire array. If coords is provided, the dims argument is ignored.
+            slice (dict, optional): Dictionary with coordinates to retrieve a slice of the entire array. If slice is provided, then the dims argument is ignored. The difference with coords is that the dictionary values in slice specify the indices rather than the values of the coordinates.
 
         Returns:
-            np.ndarray: pixel data. The number of dimensions will be 2 plus the number of elements in dim. The first two indices will enumerate (x,y) coordinates in the slice, the other dimensions are as specified by the dims argument.
+            np.ndarray: pixel data. The number of dimensions will be 2 plus the number of elements in dim, or the number of entries in slice or islice. The first two indices will enumerate (x,y) coordinates in the slice, the other dimensions are as specified by the dims, slice or islice argument. 
+            
+            The function returns an empty array when no data are found at the specified slices.
 
         See also:
             :func:`~set_ndarray`
 
         Example:
-            Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
+            Create a zero-filled array, describing 8 MRI slices (10mm apart) each measured at 3 flip angles and 2 repetition times:
 
             >>> coords = {
-            ...    'SliceLocation': np.arange(8),
+            ...    'SliceLocation': 10*np.arange(8),
             ...    'FlipAngle': [2, 15, 30],
             ...    'RepetitionTime': [2.5, 5.0],
             ... }
@@ -437,24 +441,93 @@ class Series(Record):
             >>> print(array.shape)
             (128, 128, 8, 3, 2)
 
-            The dimensions are the keys of the coordinate dictionary, so this could also have been called as:
+            Note the dimensions are the keys of the coordinate dictionary, so this could also have been called as:
 
             >>> array = zeros.ndarray(dims=tuple(coords)) 
             >>> print(array.shape)
             (128, 128, 8, 3, 2)
+
+            To retrieve a slice of the volume, specify the coordinates of the slice as a dictionary. For instance, to retrieve the pixel data measured with a flip angle of 15:
+
+            >>> coords = {
+            ...    'SliceLocation': 10*np.arange(8),
+            ...    'FlipAngle': [15],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+
+            Now pass this as coordinates in the call to ndarray:
+
+            >>> array = zeros.ndarray(coords=coords) 
+            >>> print(array.shape)
+            (128, 128, 8, 1, 2)
+
+            A slice can also be specified with indices rather than absolute values of the coordinates:
+
+            >>> slice = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [1],
+            ...    'RepetitionTime': np.arange(2),
+            ... }
+
+            Now pass this as index coordinates in the call to ndarray:
+
+            >>> array = zeros.ndarray(slice=slice) 
+            >>> print(array.shape)
+            (128, 128, 8, 1, 2)
         """
-        array, _ = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
-        return array
+        if coords is not None:
+            dims = tuple(coords)
+        if slice is not None:
+            dims = tuple(slice)
+        source = instance_array(self, list(dims))
+        if source.size == 0:
+            return np.array([])
+        if slice is not None:
+            for d, dim in enumerate(slice):
+                ind = slice[dim]
+                source = source.take(ind, axis=d)
+        if coords is not None:
+            for d, dim in enumerate(coords):
+                ind = []
+                for i in range(source.shape[d]):
+                    si = source.take(i,axis=d).ravel()
+                    if si[0][dim] in coords[dim]:
+                        ind.append(i)
+                source = source.take(ind, axis=d)
+        if source.size == 0:
+            return np.array([])
+        array = []
+        instances = source.ravel()
+        im = None
+        for i, im in enumerate(instances):
+            if im is None:
+                array.append(np.zeros((1,1)))
+            else:
+                im.progress(i+1, len(instances), 'Reading pixel data..')
+                array.append(im.get_pixel_array())
+        if im is not None:
+            im.status.hide()
+        array = _stack(array)
+        if array is None:
+            return np.array([])
+        array = array.reshape(source.shape + array.shape[1:])
+        # Move pixel coordinates to front
+        array = np.moveaxis(array, -1, 0)
+        array = np.moveaxis(array, -1, 0)
+        return array[...,0]
+    
 
-# Needs a slice option.
-
-    def set_ndarray(self, array:np.ndarray, dims=('InstanceNumber',), coords:dict=None):
+    def set_ndarray(self, array:np.ndarray, coords:dict=None, slice:dict=None):
         """Assign new pixel data with a new numpy.ndarray. 
 
         Args:
             array (np.ndarray): array with new pixel data.
-            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',). Must be provided if coords are not given.
-            coords (dict, optional): Provide coordinates for the array explicitly, using a dictionary with dimensions as keys and as values either 1D or meshgrid arrays of coordinates. If coords are not provided, then a default range array will be allocated to the attributes specified in dims. If coordinates are provided, then the dimensions argument is ignored.
+            coords (dict, optional): Provide coordinates for the array, using a dictionary where the keys list the dimensions, and the values are provided as 1D or meshgrid arrays of coordinates. If data already exist at the specified coordinates, these will be overwritten. If not, the new data will be added to the series.
+            slice (dict, optional): Provide a slice of existing data that will be overwritten with the new array. The format is the same as the dictionary of coordinates, except that the slice is identified by indices rather than values. 
+
+        Raises:
+            ValueError: if neither coords or slice or provided, if both are provided, or if the dimensions in coords or slice does not match up with the dimensions of the array.
+            IndexError: when attempting to set a slice in an empty array, or when the indices in slice are out of range of the existing coordinates. 
 
         See also:
             :func:`~ndarray`
@@ -501,20 +574,76 @@ class Series(Record):
         # series.set(ndarray:np.ndarray, coords:dict, affine:np.ndarray, **kwargs)
         # #
 
-        # If coordinates are provided, the dimensions are taken from that. Dimensions are not needed in this case but if they are set they need to be the same as those specified in the coordinates. Else an error is raised.
+        # Check whether the arguments are valid, and initialize dims.
+        cnt = 0
         if coords is not None:
+            cnt+=1
             dims = tuple(coords)
-        headers = instance_array(self, sortby=list(dims))
-        if headers is None:
-            set_ndarray(self, array, coords=coords)
+            if len(dims) != array.ndim-2:
+                msg = 'One coordinate must be specified for each dimensions in the array.'
+                raise ValueError(msg)
+            for d, dim in enumerate(coords):
+                if len(coords[dim]) != array.shape[d+2]:
+                    msg = str(dim) + ' in the coords must have the same number of elements as the corresponding dimension in the array'
+                    raise ValueError(msg)
+        if slice is not None:
+            cnt+=1
+            dims = tuple(slice)
+            if len(dims) != array.ndim-2:
+                msg = 'One coordinate must be specified for each dimensions in the array.'
+                raise ValueError(msg)
+        if cnt == 0:
+            msg = 'At least one of the optional arguments coords or slice must be provided'
+            raise ValueError(msg)
+        if cnt == 2:
+            msg = 'Only one of the optional arguments coords or slice must be provided'
+            raise ValueError(msg)
+
+        source = instance_array(self, sortby=list(dims))
+        
+        if coords is not None:
+            # Retrieve the instances corresponding to the coordinates.
+            if source.size != 0:
+                for d, dim in enumerate(coords):
+                    ind = []
+                    for i in range(source.shape[d]):
+                        si = source.take(i,axis=d).ravel()
+                        if si[0][dim] in coords[dim]:
+                            ind.append(i)
+                    source = source.take(ind, axis=d)
+        elif slice is not None:
+            # Retrieve the instances of the slice, as well as their coordinates.
+            coords = {}
+            for d, dim in enumerate(slice):
+                ind = slice[dim]
+                try:
+                    source = source.take(ind, axis=d)
+                except IndexError as e:
+                    msg = str(e) + '\n'
+                    msg += 'The indices for ' + str(dim) + ' in the slice argument are out of bounds'
+                    raise IndexError(msg)
+                coords[dim] = []
+                for i in range(source.shape[d]):
+                    si = source.take(i,axis=d).ravel()
+                    coords[dim].append(si[0][dim])  
+
+        nr_of_slices = int(np.prod(array.shape[2:]))
+        if source.size == 0:
+            # If there are not yet any instances at the correct coordinates, they will be created from scratch
+            source = [self.new_instance(MRImage()) for _ in range(nr_of_slices)]
+            set_ndarray(self, array, source=source, coords=coords, affine=np.eye(4))
+        elif array.shape[2:] == source.shape:
+            # If the new array has the same shape, use the exact headers.
+            set_ndarray(self, array, source=source.ravel().tolist(), coords=coords)
         else:
-            headers = headers[...,0]
-            if array.shape[2:] == headers.shape:
-                # If the new array has the same shape, use the exact headers
-                set_ndarray(self, array, source=headers, coords=coords)
-            else:
-                # If the new array has a different shape, use the first header for all
-                set_ndarray(self, array, source=headers.ravel()[0], coords=coords)
+            # If the new array has a different shape, use the first header for all and delete all the others
+            # This happens when some of the new coordinates are present, but not all.
+            # TODO: This is overkill - only fill in the gaps with copies.
+            source = source.ravel().tolist()
+            for series in source[1:]:
+                series.remove()
+            source = [source[0]] + [source[0].copy_to(self) for _ in range(nr_of_slices-1)]
+            set_ndarray(self, array, source=source, coords=coords, affine=np.eye(4))
 
 
     #
@@ -541,97 +670,23 @@ class Series(Record):
         set_pixel_array(*args, **kwargs)
 
 
-
-def set_ndarray(series, array, source=None, coords=None, **kwargs): 
-
-    # Move pixels to the end (UNNECESSARY - remove)
-    array = np.moveaxis(array, 0, -1)
-    array = np.moveaxis(array, 0, -1)
-
-    # If source data are provided, then coordinates are optional. 
-    # If no source data are given, then coordinates MUST be defined to ensure array data can be retrieved in the proper order..
-    if source is None:
-        if coords is None:
-            if array.ndim > 4:
-                msg = 'For arrays with more than 4 dimensions, \n'
-                msg += 'either coordinate labels or headers must be provided'
-                raise ValueError(msg)
-            elif array.ndim == 4:
-                coords = {
-                    'SliceLocation':np.arange(array.shape[0]),
-                    'AcquisitionTime':np.arange(array.shape[1]),
-                }
-            elif array.ndim == 3:
-                coords = {
-                    'SliceLocation':np.arange(array.shape[0]),
-                }
+def set_ndarray(series, array, source=None, coords=None, affine=None, **kwargs): 
 
     # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
     if coords is not None:
+        mesh_coords = {}
         v0 = list(coords.values())[0]
         if np.array(v0).ndim==1: # regular grid
             pos = tuple([coords[c] for c in coords])
             pos = np.meshgrid(*pos)
             for i, c in enumerate(coords):
-                coords[c] = pos[i].ravel()
-
-    
-    nr_of_slices = int(np.prod(array.shape[:-2]))
-    affine = None
-    # if no header data are provided, use template headers.
-    if source is None:
-        affine = np.eye(4)
-        source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
-
-    else:
-        if isinstance(source, list):
-            pass
-        elif isinstance(source, np.ndarray):
-            source = source.ravel().tolist()
-
-        # If only one header is provided, use the same for all slices.
-        else:
-            affine = np.eye(4)
-            source = [source] + [source.copy_to(series) for _ in range(nr_of_slices-1)]
-            #source = [source] * nr_of_slices # THIS DOES NOT WORK?? ALL the same instance
-
-        # If the header data are not the same size, use only the first one.
-        if nr_of_slices != len(source):
-            affine = np.eye(4)
-            source = [source.copy_to(series) for _ in range(nr_of_slices)]
-            #source = [source[0]] * nr_of_slices
-
-
-    # Added 07 06 23: remove instances that are not used
-    instances = series.instances()
-    source_instances = []
-    for s in instances: 
-        if s in source:
-            source_instances.append(s)
-        else:
-            s.remove()
-
-    # Copy all sources to the series, if they are not part of it
-    copy_source = []    
-    for i, s in enumerate(source):
-        if s in source_instances:
-            copy_source.append(s)
-        else:
-            series.progress(i+1, len(source), 'Copying series..')
-            copy_source.append(s.copy_to(series))
-
-    # Faster but does not work if all sources are the same
-    # series.status.message('Saving array (1/2): Copying series..')
-    # instances = series.instances()
-    # to_copy = [i for i in range(len(source)) if source[i] not in instances]
-    # copied = series.adopt([source[i] for i in to_copy])
-    # for i, c in enumerate(copied):
-    #     source[to_copy[i]] = c
+                mesh_coords[c] = pos[i].ravel()
 
     # Flatten array for iterating
-    array = array.reshape((nr_of_slices, array.shape[-2], array.shape[-1])) # shape (i,x,y)
-    for i, image in enumerate(copy_source):
-        series.progress(i+1, len(copy_source), 'Saving array..')
+    nr_of_slices = int(np.prod(array.shape[2:]))
+    array = array.reshape((array.shape[0], array.shape[1], nr_of_slices)) # shape (x,y,i)
+    for i, image in enumerate(source):
+        series.progress(i+1, len(source), 'Saving array..')
         image.read()
 
         # If needed, use Defaults for geometry markers
@@ -646,14 +701,13 @@ def set_ndarray(series, array, source=None, coords=None, **kwargs):
             else:
                 setattr(image, attr, vals)
 
-        # If coordinates are provided, these will override the values from the sources.
-        if coords is not None: # ADDED 31/05/2023
-            for c in coords:
-                image[c] = coords[c][i] 
+        # Set coordinates.
+        if mesh_coords is not None:
+            for c in mesh_coords:
+                image[c] = mesh_coords[c][i] 
 
-        image.set_pixel_array(array[i,...])
+        image.set_pixel_array(array[:,:,i])
         image.clear()
-
 
 
 def slice_groups(series): # not yet in use
@@ -745,7 +799,6 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
 
 def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs): 
 
-
     # Move pixels to the end (default)
     if pixels_first:    
         array = np.moveaxis(array, 0, -1)
@@ -754,6 +807,8 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
     # if no header data are provided, use template headers.
     nr_of_slices = int(np.prod(array.shape[:-2]))
     if source is None:
+        source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
+    if source.size == 0:
         source = [series.new_instance(MRImage()) for _ in range(nr_of_slices)]
 
     # If the header data are not the same size, use only the first one.
@@ -859,6 +914,9 @@ def instance_array(record, sortby=None, status=True):
         if not isinstance(sortby, list):
             sortby = [sortby]
         df = record.read_dataframe(sortby + ['SOPInstanceUID'])
+        df = df[df.SOPInstanceUID.values != None]
+        if df.empty:
+            return np.array([])
         df.sort_values(sortby, inplace=True) 
         return df_to_sorted_instance_array(record, df, sortby, status=status)
 
@@ -913,9 +971,10 @@ def _stack(arrays, align_left=False):
 
     # Get the dimensions of the stack
     # For each dimension, look for the largest values across all arrays
-    arrays = [a for a in arrays if a is not None]
+    #arrays = [a for a in arrays if a is not None]
+    arrays = [a for a in arrays if a.size != 0]
     if arrays == []:
-        return
+        return np.array([])
     ndim = len(arrays[0].shape)
     dim = [0] * ndim
     for array in arrays:

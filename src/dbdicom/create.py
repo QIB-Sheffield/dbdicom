@@ -402,6 +402,17 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
         >>> print(zeros.RepetitionTime)
         [2.5, 5.0]
     """
+    shape = array.shape
+    if coords is None:
+        if len(shape) > 4:
+            msg = 'With more than 4 dimensions, the coordinates argument is required'
+            raise ValueError(msg)
+        else:
+            coords = {}
+            if len(shape) > 2:
+                coords['SliceLocation'] = np.arange(array.shape[2])
+            if len(shape) > 3:
+                coords['AcquisitionTime'] = np.arange(array.shape[3])
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.mute()
     sery.set_ndarray(array, coords=coords)
@@ -446,5 +457,15 @@ def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
         >>> array = np.zeros((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
+    if coords is None:
+        if len(shape) > 4:
+            msg = 'With more than 4 dimensions, the coordinates argument is required'
+            raise ValueError(msg)
+        else:
+            coords = {}
+            if len(shape) > 2:
+                coords['SliceLocation'] = np.arange(shape[2])
+            if len(shape) > 3:
+                coords['AcquisitionTime'] = np.arange(shape[3])
     array = np.zeros(shape, dtype=np.float32)
     return as_series(array, coords=coords, **kwargs)
