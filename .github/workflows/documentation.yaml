@@ -3,7 +3,7 @@ run-name: "Updating Docs as ${{ github.actor }} has pushed changes to developmen
 on:
   push:
     branches: 
-    - development
+    - main
 
 jobs:
   docs:
