@@ -67,9 +67,21 @@ Loading and saving
    Record.clear
 
 
+Export to other formats
+-----------------------
+
+.. autosummary::
+   :toctree: generated/
+
+   Record.export_as_dicom
+   Record.export_as_png
+   Record.export_as_csv
+   Record.export_as_nifti
+   Record.export_as_npy
+
 
 User interactions
-^^^^^^^^^^^^^^^^^
+-----------------
 
 .. autosummary::
    :toctree: generated/

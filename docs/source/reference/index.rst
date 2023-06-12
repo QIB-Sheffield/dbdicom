@@ -14,5 +14,5 @@ Many docstrings contain example code, which demonstrates basic usage of the rout
 
    objects
    routines
-   pipelines
+   extensions
    

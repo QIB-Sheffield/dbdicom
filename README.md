@@ -16,7 +16,7 @@ The DICOM format is the universally recognised standard for medical imaging, but
 
 # Disclaimer
 
-`dbdicom` is developed in public and currently trialled in ongoing multi-centre clinical studies [iBEAt](https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-020-01901-x>) and [AFiRM] (https://www.uhdb.nhs.uk/afirm-study/). However, ``dbdicom`` is work in progress and **not yet sufficiently stable for wider use**. Current dissemination activities, such as on the [ISMRM (Toronto 2023)](https://www.ismrm.org/23m/), are limited in scope and intended to get early feedback from the community. 
+`dbdicom` is developed in public and currently trialled in ongoing multi-centre clinical studies [iBEAt](https://bmcnephrol.biomedcentral.com/articles/10.1186/s12882-020-01901-x>) and [AFiRM](https://www.uhdb.nhs.uk/afirm-study/). However, ``dbdicom`` is work in progress and **not yet sufficiently stable for wider use**. Current dissemination activities, such as on the [ISMRM (Toronto 2023)](https://www.ismrm.org/23m/), are limited in scope and intended to get early feedback from the community. 
 
 
 

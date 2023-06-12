@@ -7,6 +7,7 @@ from .create import (
     series, 
     as_series,
     zeros,
+    ones,
 )
 from .record import (
     copy_to, 

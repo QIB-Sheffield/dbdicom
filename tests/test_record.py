@@ -1150,11 +1150,26 @@ def test_series_export_as_nifti():
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     export = create_tmp_database(path=None, name='export')
+
+    # Export from disk
     series = database.series()
     try:
         series[0].export_as_nifti(export)
     except:
         assert False
+
+    # Export from memory
+    series = db.ones((128, 128, 10, 5))
+    try:
+        series.export_as_nifti(export)
+    except:
+        assert False
+    try:
+        dims = ('SliceLocation', 'AcquisitionTime')
+        series.export_as_nifti(export, dims=dims)
+    except:
+        assert False
+
     remove_tmp_database(tmp)
     remove_tmp_database(export)
 
@@ -1188,6 +1203,7 @@ def test_subseries():
 
 def test_export_as_dicom():
 
+    # Export data on disk
     tmp = create_tmp_database(rider)
     database = db.database(tmp)
     export = create_tmp_database(name='export')
@@ -1197,6 +1213,11 @@ def test_export_as_dicom():
         database.export_as_dicom(export)
     except:
         assert False
+
+    # Export data in memory
+    series = db.ones((128, 128, 10, 5))
+    series.export_as_dicom(export)
+
     remove_tmp_database(tmp)
     remove_tmp_database(export)
 

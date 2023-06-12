@@ -4,8 +4,8 @@ Record creation
 .. currentmodule:: dbdicom
 
 
-Record creation
-----------------
+Empty records
+-------------
 
 .. autosummary::
    :toctree: generated/
@@ -24,6 +24,7 @@ Series from value
 
    as_series
    zeros
+   ones
 
 
 Reference objects
