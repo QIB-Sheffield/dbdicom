@@ -1117,6 +1117,187 @@ class Record():
         self.manager.clear(self.uid, keys=self.keys())
 
 
+    def export_as_dicom(self, path:str):
+        """Export record in DICOM format to an external directory.
+
+        Note since this is exporting outside of the current database this will assign new identifiers to the exported data. 
+
+        Args:
+            path (str): path to export directory.
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
+
+        Example:
+
+            Create a 4D series and export as DICOM
+
+            >>> series = db.ones((128, 128, 10, 5))
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_dicom(path)
+
+            This should create a single folder in the directory, populated with 50 DICOM files.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_dicom(path)
+
+
+    def export_as_png(self, path:str, center:float=None, width:float=None, colormap:str=None): 
+        """Export record in PNG format.
+
+        Args:
+            path (str): path to export directory.
+            center (float, optional): center of the color window. Defaults to None, in which case the center is taken from the DICOM header.
+            width (float, optional): width of the color window. Defaults to None, in which case the width is taken from the DICOM header.
+            colormap (str, optional): color map to use as lookup table. Any valid matplotlib colormap can be entered here. Please the `matplotlib colormap reference <https://matplotlib.org/stable/gallery/color/colormap_reference.html>`_ for a complete list. Defaults to None, in which case the colormap is taken from the DICOM header. 
+
+        See Also:
+            :func:`~export_as_dicom`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
+
+        Example:
+
+            Create a 4D series and export as PNG, using the colormap plasma:
+
+            >>> series = db.ones((128, 128, 10, 5))
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_png(path, center=1, width=0.5, colormap='plasma')
+
+            This should create a single folder in the directory, populated with 50 PNG files.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_png(path, center=center, width=width, colormap=colormap)
+
+    def export_as_csv(self, path:str):
+        """Export record in CSV format to an external directory.
+
+        Args:
+            path (str): path to export directory.
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_dicom`
+
+        Example:
+
+            Create a 4D series and export as CSV:
+
+            >>> series = db.ones((128, 128, 10, 5))
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_csv(path)
+
+            This should create a single folder in the directory, populated with 50 CSV files.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_csv(path)
+
+
+    def export_as_nifti(self, path:str, dims:tuple=None):
+        """Export record in NIFTI format to an external directory.
+
+        Args:
+            path (str): path to export directory.
+            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set, each image will be exported in its own file. 
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_dicom`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
+
+        Example:
+
+            Create a 4D series and export as NIFTI:
+
+            >>> series = db.ones((128, 128, 10, 5))
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_nifti(path)
+
+            This should create a single folder in the directory, populated with 50 NIFTI files.
+
+            In order to export the entire series in a single volume, provide the dimensions along which the volume is to be taken:
+
+            >>> dims = ('SliceLocation', 'AcquisitionTime')
+            >>> series.export_as_nifti(path, dims=dims)
+
+            This will now create a single nifti file.
+
+            Note: in this case the dimensions must be specified as slice location and acquisition time because these are the default dimensions used by series creation functions like :func:`~ones`.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_nifti(path, dims=dims)
+
+
+    def export_as_npy(self, path:str, dims:tuple=None):
+        """Export record in numpy's NPY format to an external directory.
+
+        Args:
+            path (str): path to export directory.
+            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set (None), each image will be exported in its own file. Defaults to None.
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_dicom`
+            :func:`~export_as_csv`
+
+        Example:
+
+            Create a 4D series:
+
+            >>> series = db.ones((128, 128, 10, 5))
+
+            Export the series as npy, with each slice in a separate file:
+
+            >>> path = 'path\\to\\empty\\folder'
+            >>> series.export_as_npy(path)
+
+            This will create 50 npy files in the folder, one for each image. To save the entire volume in a single file, specify the dimensions of the volume:
+
+            >>> dims = ('SliceLocation', 'AcquisitionTime')
+            >>> series.export_as_npy(path, dims)
+
+            This will create a single npy file. 
+
+            Note: in this case the dimensions must be specified as slice location and acquisition time because these are the default dimensions used by series creation functions like :func:`~ones`.
+        """
+        if self.name == 'Database':
+            folder = 'Database' 
+        else:
+            folder = self.label()
+        path = export_path(path, folder)
+        for child in self.children():
+            child.export_as_npy(path, dims=dims)
+
+
+
     def progress(self, value: float, maximum: float, message: str=None):
         """Print progress message to the terminal..
 
@@ -1371,44 +1552,7 @@ class Record():
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
 
-    def export_as_dicom(self, path):
-        if self.name == 'Database':
-            folder = 'Database' 
-        else:
-            folder = self.label()
-        path = export_path(path, folder)
-        for child in self.children():
-            child.export_as_dicom(path)
 
-    def export_as_png(self, path): 
-        if self.name == 'Database':
-            folder = 'Database' 
-        else:
-            folder = self.label()
-        path = export_path(path, folder)
-        for child in self.children():
-            child.export_as_png(path)
-
-    def export_as_csv(self, path):
-        if self.name == 'Database':
-            folder = 'Database' 
-        else:
-            folder = self.label()
-        path = export_path(path, folder)
-        for child in self.children():
-            child.export_as_csv(path)
-
-    def export_as_nifti(self, path):
-        if self.name == 'Database':
-            folder = 'Database' 
-        else:
-            folder = self.label()
-        path = export_path(path, folder)
-        for child in self.children():
-            child.export_as_nifti(path)
-
-    # def sort(self, sortby=['StudyDate','SeriesNumber','InstanceNumber']):
-    #     self.manager.register.sort_values(sortby, inplace=True)
 
     def read_dataframe(*args, **kwargs):
         return read_dataframe(*args, **kwargs)

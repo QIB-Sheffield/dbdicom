@@ -20,6 +20,9 @@ Working with arrays
 
    Series.ndarray
    Series.set_ndarray
+   Series.affine
+   Series.set_affine
+   Series.slice_groups
 
 
 Series editing
@@ -29,3 +32,4 @@ Series editing
    :toctree: generated/
 
    Series.split_by
+   Series.subseries

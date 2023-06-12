@@ -459,6 +459,7 @@ def set_affine_matrix(ds, affine):
     set_values(ds, 'SliceThickness', v['SpacingBetweenSlices'])
     set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
     set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
+    set_values(ds, 'SliceLocation', np.dot(v['ImagePositionPatient'], v['slice_cosine']))
 
 
 def map_mask_to(ds_source, ds_target):

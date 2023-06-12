@@ -20,8 +20,11 @@ def str_to_seconds(dicom_tm):
     return seconds_since_midnight
 
 def seconds_to_str(seconds_since_midnight):
-    if not isinstance(seconds_since_midnight, float): 
+    # if not isinstance(seconds_since_midnight, float): 
+    #     return None
+    if seconds_since_midnight is None:
         return None
+    seconds_since_midnight = float(seconds_since_midnight)
     hours = math.floor(seconds_since_midnight/3600)
     minutes = math.floor((seconds_since_midnight-hours*3600)/60)
     seconds = math.floor(seconds_since_midnight-hours*3600-minutes*60)
@@ -48,8 +51,11 @@ def time_to_seconds(tm):
     return seconds_since_midnight
 
 def seconds_to_time(seconds_since_midnight):
-    if not isinstance(seconds_since_midnight, float): 
+    # if not isinstance(seconds_since_midnight, float): 
+    #     return None
+    if seconds_since_midnight is None:
         return None
+    seconds_since_midnight = float(seconds_since_midnight)
     hours = math.floor(seconds_since_midnight/3600)
     minutes = math.floor((seconds_since_midnight-hours*3600)/60)
     seconds = math.floor(seconds_since_midnight-hours*3600-minutes*60)

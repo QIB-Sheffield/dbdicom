@@ -3,7 +3,7 @@
 
 .. Note::
 
-   Under construction.. Please come back later.
+   There is currently no dedicated functionality at study level. This page is a placeholder for future functionality.
 
 
 Study

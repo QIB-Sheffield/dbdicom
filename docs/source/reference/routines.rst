@@ -2,7 +2,7 @@
 Routines
 ********
 
-In this chapter routine docstrings are presented, grouped by functionality.
+This section presents functions that produce and/or operate on ``dbdicom`` records, or lists of ``dbdicom`` records.
 
 .. toctree::
    :maxdepth: 2

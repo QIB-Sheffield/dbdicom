@@ -1961,6 +1961,27 @@ class Manager():
         return values
 
 
+    def import_dataset(self, ds):
+
+        # Do not import SOPInstances that are already in the database
+        uid = ds.SOPInstanceUID
+        keys = self.keys(instance=uid)
+        if keys != []:
+            msg = 'Cannot import a dataset that is already in the database.'
+            raise ValueError(msg)
+
+        # Add a row to the register
+        row = ds.get_values(self.columns)
+        new_key = self.new_key()
+        self.new_row(row, new_key)
+        
+        # If the database exists on disk, write file
+        if self.path is not None:
+            path = self.filepath(new_key)
+            ds.write(path)
+
+
+    # Misleading name because files are not datasets - e.g. does not work for datasets in memory.
     def import_datasets(self, files):
 
         # Read manager data
