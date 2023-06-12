@@ -1098,9 +1098,6 @@ def _stack(arrays, align_left=False):
 
 
 
-# OBSOLETE - functions below here are obsolete and should not be used further
-
-
 
 
 

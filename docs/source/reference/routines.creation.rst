@@ -4,8 +4,8 @@ Record creation
 .. currentmodule:: dbdicom
 
 
-Record creation
-----------------
+Empty records
+-------------
 
 .. autosummary::
    :toctree: generated/

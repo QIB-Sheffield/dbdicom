@@ -1125,6 +1125,12 @@ class Record():
         Args:
             path (str): path to export directory.
 
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
+
         Example:
 
             Create a 4D series and export as DICOM
@@ -1153,6 +1159,12 @@ class Record():
             width (float, optional): width of the color window. Defaults to None, in which case the width is taken from the DICOM header.
             colormap (str, optional): color map to use as lookup table. Any valid matplotlib colormap can be entered here. Please the `matplotlib colormap reference <https://matplotlib.org/stable/gallery/color/colormap_reference.html>`_ for a complete list. Defaults to None, in which case the colormap is taken from the DICOM header. 
 
+        See Also:
+            :func:`~export_as_dicom`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
+
         Example:
 
             Create a 4D series and export as PNG, using the colormap plasma:
@@ -1176,6 +1188,12 @@ class Record():
 
         Args:
             path (str): path to export directory.
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_npy`
+            :func:`~export_as_dicom`
 
         Example:
 
@@ -1202,6 +1220,12 @@ class Record():
         Args:
             path (str): path to export directory.
             dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set, each image will be exported in its own file. 
+
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_dicom`
+            :func:`~export_as_npy`
+            :func:`~export_as_csv`
 
         Example:
 
@@ -1238,13 +1262,19 @@ class Record():
             path (str): path to export directory.
             dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set (None), each image will be exported in its own file. Defaults to None.
 
+        See Also:
+            :func:`~export_as_png`
+            :func:`~export_as_nifti`
+            :func:`~export_as_dicom`
+            :func:`~export_as_csv`
+
         Example:
 
             Create a 4D series:
 
             >>> series = db.ones((128, 128, 10, 5))
 
-            Export the series as npy, which each slice in a separate file:
+            Export the series as npy, with each slice in a separate file:
 
             >>> path = 'path\\to\\empty\\folder'
             >>> series.export_as_npy(path)

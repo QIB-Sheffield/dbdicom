@@ -2,7 +2,7 @@
 
 .. Note::
 
-   Under construction.. Please come back later.
+   There is currently no dedicated functionality at patient level. This page is a placeholder for future functionality.
 
 
 Patient
