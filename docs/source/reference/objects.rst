@@ -1,5 +1,6 @@
+*******
 Objects
--------
+*******
 
 .. toctree::
    :maxdepth: 2

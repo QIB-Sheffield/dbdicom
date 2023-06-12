@@ -1,5 +1,6 @@
+*****************
 User interactions
------------------
+*****************
 
 ``dbdicom`` can be used in standalone scripts or interactively. To streamline integration in a GUI, communication with the user is performed via two dedicated attributes ``status`` and ``dialog``. dialog and status attributes are available to any DICOM object. The status attribute is used to send messages to the user, or update on progress of a calculation:
 

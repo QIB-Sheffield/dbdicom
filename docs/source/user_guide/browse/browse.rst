@@ -1,6 +1,6 @@
 
 Reading and opening a DICOM database
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open a DICOM database in a given folder, and print a summary of the content:
 
@@ -52,17 +52,15 @@ A DICOM database has a hierarchical structure.
 
 A *patient* can be an actual patient but can also be a healthy volunteer, an animal, a physical reference object, or a digital reference object. Typically a *study* consist of all the data derived in a single examination of a subject. A *series* usually represents and individual examination in a study, such an MR sequence. The files contain the data and are *instances* of real-world objects such as images or regions-of-interest. 
 
-To return a list of all patients, studies, series or instances in the folder: 
+To return a list of all patients, studies or series in the folder: 
 
 .. code-block:: python
 
-    instances = database.instances()
     series = database.series()
     studies = database.studies()
     patients = database.patients()
 
-The same functions can be used to retrieve the children of a certain parent object. For instance, 
-to get all studies of a patient:
+The same functions can be used to retrieve the children of a certain parent object. For instance, to get all studies of a patient:
 
 .. code-block:: python
 
@@ -74,13 +72,6 @@ Or all series under the first of those studies:
 .. code-block:: python
 
     series = studies()[0].series()
-
-
-Or all instances of a study:
-
-.. code-block:: python
-
-    instances = study.instances()
 
 
 And so on for all other levels in the hierarchy. These functions also work to find objects higher up in the hierarchy. For instance, to find the patient of a given series:
@@ -101,14 +92,14 @@ Each known attribute is identified most easily by a keyword, which has a capital
 
 .. code-block:: python
 
-    instances = database.instances(PatientName = 'John Dory')
+    series = database.series(PatientName = 'John Dory')
 
 
-This will only return the instances for patient John Dory. This also works with multiple DICOM tags:
+This will only return the series for patient John Dory. This also works with multiple DICOM tags:
 
 .. code-block:: python
 
-    series = database.instances(
+    series = database.series(
         PatientName = 'John Dory', 
         ReferringPhysicianName = 'Dr. No', 
     )
@@ -147,10 +138,10 @@ To remove an object from the folder, call ``remove()`` on the object:
 .. code-block:: python
 
     study.remove()
-    instance.remove()
+    series.remove()
 
 
-``remove()`` can  be called on Patient, Study, Series or Instances.
+``remove()`` can  be called on Patient, Study or Series.
 
 Moving an object to another parent can be done with ``move_to()``. For instance to move a study from one patient to another:
 
@@ -204,7 +195,7 @@ To create a new object, call ``new_child()`` on the parent:
 
     series = study.new_series()
 
-And equivalently for ``new_patient``, ``new_study`` and ``new_instance``. New sibling objects under the same parent can be created by:
+And equivalently for ``new_patient`` and ``new_study``. New sibling objects under the same parent can be created by:
 
 .. code-block:: python
 
@@ -268,11 +259,11 @@ The pixel data from a series can also be exported in numpy format:
 
     series.export_as_npy(path)
 
-This exports the array in dimensions ``(n,x,y)`` where ``n`` enumerates the images and ``x,y`` are the pixels. To export in different dimensions use the ``sortby`` keyword with one or more DICOM tags:
+This exports the array in dimensions ``(x,y,n)`` where ``n`` enumerates the images and ``x,y`` are the pixels. To export in different dimensions use the ``sortby`` keyword with one or more DICOM tags:
 
 .. code-block:: python
 
     series.export_as_npy(path, sortby=['SliceLocation','AcquisitionTime'])
 
 
-This exports an array with dimensions ``(z,t,n,x,y)`` sorted by slice location and acquisition time.
+This exports an array with dimensions ``(x,y,z,t,n)`` sorted by slice location and acquisition time.

@@ -1,5 +1,5 @@
 vreg
-----
+====
 
 
 .. automodule:: dbdicom.wrappers.vreg

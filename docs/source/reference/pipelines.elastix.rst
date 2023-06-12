@@ -1,5 +1,5 @@
 elastix
--------
+=======
 
 
 .. automodule:: dbdicom.wrappers.elastix

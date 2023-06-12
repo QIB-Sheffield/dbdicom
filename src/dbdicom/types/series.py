@@ -64,17 +64,7 @@ class Series(Record):
         else:
             return self.record('Instance', uids, **attr)
 
-    def affine_matrix(self):
-        return affine_matrix(self)
 
-    def array(*args, **kwargs):
-        return get_pixel_array(*args, **kwargs)
-
-    def set_ndarray(*args, **kwargs):
-        set_pixel_array(*args, **kwargs)
-
-    def set_array(*args, **kwargs): # obsolete - phase out and replace by set_ndarray()
-        set_pixel_array(*args, **kwargs)
 
 
     def export_as_npy(self, directory=None, filename=None, sortby=None, pixels_first=False):
@@ -231,15 +221,129 @@ class Series(Record):
     def slice_groups(*args, **kwargs):
         return slice_groups(*args, **kwargs)
 
+
+    def affine_matrix(self):
+        return affine_matrix(self)
+    
+
+    def ndarray(self, dims=('InstanceNumber',)) -> np.ndarray:
+        """Return a numpy.ndarray with pixel data.
+
+        Args:
+            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',).
+
+        Returns:
+            np.ndarray: pixel data. The number of dimensions will be 2 plus the number of elements in dim. The first two indices will enumerate (x,y) coordinates in the slice, the other dimensions are as specified by the dims argument.
+
+        See also:
+            :func:`~set_ndarray`
+
+        Example:
+            Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+            >>> zeros = db.zeros((128,128,8,3,2), coords)
+
+            To retrieve the array, the dimensions need to be provided:
+
+            >>> dims = ('SliceLocation', 'FlipAngle', 'RepetitionTime')
+            >>> array = zeros.ndarray(dims)
+            >>> print(array.shape)
+            (128, 128, 8, 3, 2)
+
+            The dimensions are the keys of the coordinate dictionary, so this could also have been called as:
+
+            >>> array = zeros.ndarray(dims=tuple(coords)) 
+            >>> print(array.shape)
+            (128, 128, 8, 3, 2)
+        """
+        array, _ = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
+        return array
+
+
+    def set_ndarray(self, array:np.ndarray, dims=('InstanceNumber',), coords:dict=None):
+        """Assign new pixel data with a new numpy.ndarray. 
+
+        Args:
+            array (np.ndarray): array with new pixel data.
+            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. Defaults to ('InstanceNumber',). Must be provided if coords are not given.
+            coords (dict, optional): Provide coordinates for the array explicitly, using a dictionary with dimensions as keys and as values either 1D or meshgrid arrays of coordinates. If coords are not provided, then dimensions a default range array will be used. If coordinates are provided, then the dimensions argument is ignored.
+
+        Raises:
+            ValueError: if dimensions and coordinates are both provided with incompatible dimensions.
+
+        See also:
+            :func:`~ndarray`
+
+        Warning:
+            Currently this function assumes that the new array has the same shape as the current array. This will be generalised in an upcoming update - for now please look at the pipelines examples for saving different dimensions using the current interface. 
+
+        Example:
+            Create a zero-filled array, describing 8 MRI slices each measured at 3 flip angles and 2 repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+            >>> series = db.zeros((128,128,8,3,2), coords)
+
+            Retrieve the array and check that it is populated with zeros:
+
+            >>> array = series.ndarray(dims=tuple(coords)) 
+            >>> print(np.mean(array))
+            0.0
+
+            Now overwrite the values with a new array of ones. Coordinates are not changed so only dimensions need to be specified:
+
+            >>> ones = np.ones((128,128,8,3,2))
+            >>> series.set_ndarray(ones, dims=tuple(coords))
+
+            Retrieve the array and check that it is now populated with ones:
+
+            >>> array = series.ndarray(dims=tuple(coords)) 
+            >>> print(np.mean(array))
+            1.0
+        """
+        # TODO: Include a reshaping option!!!!
+        
+        # TODO: set_pixel_array has **kwargs to allow setting other properties on the fly to save extra reading and writing. This makes sense but should be handled by a more general function, such as:
+        # #  
+        # series.set_properties(ndarray:np.ndarray, coords:{}, affine:np.ndarray, **kwargs)
+        # #
+
+        # Lazy solution - first get the header information (slower than propagating explicitly but conceptually more convenient - can be rationalised later - pixel values can be set on the fly as the header is retrieved)
+
+        # If coordinates are provided, the dimensions are taken from that. Dimensions are not needed in this case but if they are set they need to be the same as those specified in the coordinates. Else an error is raised.
+        if coords is not None:
+            if dims != tuple(coords):
+                msg = 'Coordinates do not have the correct dimensions \n'
+                msg += 'Note: if coordinates are defined than the dimensions argument is ignored. Hence you can remove the dimensions argument in this call, or else make sure it matches up with the dimensions in coordinates.'
+                raise ValueError(msg)
+            else:
+                dims = tuple(coords)
+        _, headers = get_pixel_array(self, sortby=list(dims), first_volume=True, pixels_first=True)
+        set_pixel_array(self, array, source=headers, pixels_first=True, coords=coords)
+
+
     #
     # Following APIs are obsolete and will be removed in future versions
     #
 
-    # Obsolete - use array()
+
+    def array(*args, **kwargs):
+        return get_pixel_array(*args, **kwargs)
+
+    def set_array(*args, **kwargs):
+        set_pixel_array(*args, **kwargs)
+
     def get_pixel_array(*args, **kwargs): 
         return get_pixel_array(*args, **kwargs)
 
-    # Obsolete - use set_array()
     def set_pixel_array(*args, **kwargs):
         set_pixel_array(*args, **kwargs)
 
@@ -425,7 +529,7 @@ def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
     return array, source 
 
 
-def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, **kwargs): 
+def set_pixel_array(series, array, source=None, pixels_first=False, coords=None, **kwargs): 
     """
     Set pixel values of a series from a numpy ndarray.
 
@@ -500,9 +604,10 @@ def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, *
         array = np.moveaxis(array, 0, -1)
         array = np.moveaxis(array, 0, -1)
 
-    # If coordinates are not provided, and no source data are given, create default coordinates.
-    if coords == {}:
-        if source is None:
+    # If source data are provided, then coordinates are optional. 
+    # If no source data are given, then coordinates MUST be defined to ensure array data can be retrieved in the proper order..
+    if source is None:
+        if coords is None:
             if array.ndim > 4:
                 msg = 'For arrays with more than 4 dimensions, \n'
                 msg += 'either coordinate labels or headers must be provided'
@@ -518,7 +623,7 @@ def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, *
                 }
 
     # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
-    if coords != {}:
+    if coords is not None:
         v0 = list(coords.values())[0]
         if np.array(v0).ndim==1: # regular grid
             pos = tuple([coords[c] for c in coords])
@@ -565,12 +670,15 @@ def set_pixel_array(series, array, source=None, pixels_first=False, coords={}, *
     for i, image in enumerate(copy_source):
         series.progress(i+1, len(copy_source), 'Saving array..')
         image.read()
-        for attr, vals in kwargs.items():
+
+        for attr, vals in kwargs.items(): 
             if isinstance(vals, list):
                 setattr(image, attr, vals[i])
             else:
                 setattr(image, attr, vals)
-        if coords != {}: # ADDED 31/05/2023
+
+        # If coordinates are provided, these will override the values from the sources.
+        if coords is not None: # ADDED 31/05/2023
             for c in coords:
                 image[c] = coords[c][i]
         image.set_pixel_array(array[i,...])

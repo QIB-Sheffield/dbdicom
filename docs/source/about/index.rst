@@ -1,8 +1,9 @@
-About dbdicom
-=============
+#####
+About
+#####
 
 Why DICOM?
-----------
+==========
 
 *[...] after 2 hours of reading, I still cannot figure out how to determine the 3D orientation of a multi-slice (Supplement 49) DICOM file. I'm sure it is in there somewhere, but if this minor factoid can't be deciphered in 2 hours, then the format and its documentation is too intricate.*. Robert W. Cox, PhD, Director, Scientific and Statistical Computing Core, National Institute of Mental Health `link <https://afni.nimh.nih.gov/pub/dist/doc/nifti/nifti_revised.html>`_.
 
@@ -13,7 +14,7 @@ But there are good reasons for that. DICOM not only retains imaging data, but al
 DICOM does this well and has for that reason grown to be the single accepted standard in medical imaging. This also explains the outdated look and feel. DICOM standardises not only the format, but also the language of medical imaging. And successful standards, by definition, don't change.
 
 Why dbdicom?
-------------
+============
 
 Reading and especially writing DICOM data remains a challenging enterprise for the practicing data scientist. A typical image processing pipeline might use the excellent python package ``pydicom`` for extracting image arrays and any required header information from DICOM data, but will then write out the results in more manageable format such as nifty. In the process the majority of header information will have to be discarded, including detailed imaging parameters and linkage between original and derived images, follow-up studies, etc.
 
@@ -23,7 +24,7 @@ DICOM integration of processing outputs is typically performed by DICOM speciali
 
 
 What is dbdicom?
-----------------
+================
 
 ``dbdicom`` is a programming interface that makes reading and writing DICOM data intuitive for the practicing medical imaging scientist working in Python. DICOM-native language and terminology is hidden and replaced by concepts that are more natural for those developing in Python. The documentation therefore does not reference confusing DICOM concepts such as composite information object definitions, application entities, service-object pairs, unique identifiers, etc.
 
@@ -32,6 +33,6 @@ What is dbdicom?
 ``dbdicom`` is developed by through the `UKRIN-MAPS <https://www.nottingham.ac.uk/research/groups/spmic/research/uk-renal-imaging-network/ukrin-maps.aspx>`_ project of the UK renal imaging network, which aims to provide clinical translation of quantitative renal MRI on a multi-vendor platform. UKRIN-MAPS is funded by the UK's `Medical Research Council <https://gtr.ukri.org/projects?ref=MR%2FR02264X%2F1>`_.
 
 Acknowledgements
-----------------
+================
 
 ``dbdicom`` relies heavily on ``pydicom`` for read/write of individual DICOM files, with some additional features provided by ``nibabel`` and ``dcm4che``. Basic array manipulation is provided by ```numpy``, and sorting and tabulating of data by ``pandas``. Export to other formats is provided by ``matplotlib``.

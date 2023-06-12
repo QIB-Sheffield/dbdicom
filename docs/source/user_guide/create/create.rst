@@ -7,10 +7,10 @@ An object's DICOM attributes can be read by using the DICOM keyword of the attri
 
 .. code-block:: python
 
-    nr_of_rows = instance.Rows
+    nr_of_rows = series.Rows
 
 
-All attributes can also be accessed at series, study, patient or folder level. In this case they will return a list of unique values. For instance to return a list with all distinct series descriptions in a study:
+All attributes can be accessed at series, study, patient or folder level and will return a list of unique values. For instance to return a list with all distinct series descriptions in a study:
 
 .. code-block:: python
 
@@ -20,15 +20,15 @@ DICOM attributes can also be accessed using the list notation, using either the 
 
 .. code-block:: python
 
-    columns = instance['Columns']
-    columns = instance[(0x0028, 0x0010)]
+    columns = series['Columns']
+    columns = series[(0x0028, 0x0010)]
 
 The tags can also be accessed as a list, for instance:
 
 .. code-block:: python
 
     dimensions = ['Rows', (0x0028, 0x0010)]
-    dimensions = instance[dimensions] 
+    dimensions = series[dimensions] 
 
 
 This will return a list with two items. As shown in the example, the items in the list can be either KeyWord strings or (group, element) pairs. This also works on higher-level objects:
@@ -47,28 +47,28 @@ DICOM tags can be modified using the same notations:
 
 .. code-block:: python
 
-    instance.EchoTime = 23.0
+    series.EchoTime = 23.0
 
 or also:
 
 .. code-block:: python
 
-    instance['EchoTime'] = 23.0
+    series['EchoTime'] = 23.0
 
 or also:
 
 .. code-block:: python
 
-    instance[(0x0018, 0x0081)] = 23.0
+    series[(0x0018, 0x0081)] = 23.0
 
 Multiple tags can be inserted in the same line:
 
 .. code-block:: python
 
     shape = ['Rows', 'Columns']
-    instance[shape] = [128, 192]
+    series[shape] = [128, 192]
 
-When setting values in a series, study or patient, all the instances in the object will be modified. For instance, to set all the Rows in all instances of a series to 128:
+When setting values in a series, study or patient, all the datasets in the object will be modified. For instance, to set all the Rows in all datasets of a series to 128:
 
 .. code-block:: python
 
@@ -78,13 +78,13 @@ When setting values in a series, study or patient, all the instances in the obje
 Custom attributes
 ^^^^^^^^^^^^^^^^^
 
-Apart from the predefined public and private DICOM keywords, ``dbdicom`` also provides a number of custom attributes for more convenient access to higher level properties. In order to distinguish these from existing DICOM attributes which are defined in ``CamelCase``, the custom attributes follow the ``lower_case`` notation. 
+Apart from the predefined public and private DICOM keywords, ``dbdicom`` also provides a number of custom attributes for more convenient access to higher level properties. In order to distinguish these from existing DICOM attributes which are defined in *CamelCase*, the custom attributes follow the *lower_case* notation. 
 
 For instance, to set one of the standard `matplotlib color maps <https://matplotlib.org/stable/tutorials/colors/colormaps.html>`_, you can do:
 
 .. code-block:: python
 
-    image.colormap = 'YlGnBu'
+    series.colormap = 'YlGnBu'
     series.colormap = 'Oranges'
 
 
@@ -92,7 +92,6 @@ and so on.. The colormaps can be retrieved the same way:
 
 .. code-block:: python
 
-    cm_image = image.colormap
     cm_series = series.colormap
 
 
@@ -101,22 +100,22 @@ As for standard DICOM attributes this returns a list if unique values for the se
 Custom attributes can easily be added to any DICOM dataset type and the number of available attributes is set to grow as the need arises.
 
 
-Read and write
+Load and clear
 ^^^^^^^^^^^^^^
 
 By default all changes to a database are made on disk. For instance if a DICOM attribute is changed
 
 .. code-block:: python
 
-    instance.Rows = 128
+    series.Rows = 128
 
-The data are read from disk, the change is made, the data are written to disk again and memory is cleared. Equally, if a series is copied to another study, all its instances will be read, any necessary changes made, and then written to disk and cleared from memory. 
+The data are read from disk, the change is made, the data are written to disk again and memory is cleared. Equally, if a series is copied to another study, all its datasets will be read, any necessary changes made, and then written to disk and cleared from memory. 
 
 For many applications reading and writing from disk is too slow. For faster access at the cost of some memory usage, the data can be read into memory before performing any manipulations:
 
 .. code-block:: python
 
-    series.read()
+    series.load()
 
 After this all changes are made in memory. To clear the data from memory and continue working from disk, use `clear()`:
 
@@ -126,7 +125,7 @@ After this all changes are made in memory. To clear the data from memory and con
     series.clear()
 
 
-These operations can be called on the entire database, on patients, studies, series or instances. 
+These operations can be called on the entire database, on patients, studies, or series. 
 
 
 Save and restore
@@ -139,7 +138,7 @@ To save all changes, use ``save()``:
 
     database.save()
 
-This will permanently burn all changes that are made on disk. In order to reverse any changes made, use ``restore()`` to revert back to the last saved state:
+This will permanently save all changes. In order to reverse any changes made, use ``restore()`` to revert back to the last saved state:
 
 .. code-block:: python
 
@@ -171,53 +170,24 @@ To extract the images in a series as a numpy array, use ``array()``:
 
 .. code-block:: python
 
-    array, _ = series.array()
+    array = series.ndarray()
 
 
-This will return an array with dimensions ``(n,x,y)`` where ``n`` enumerates the images in the series. The array can also be returned with other dimensions:
-
-.. code-block:: python
-
-    array, _ = series.array(['SliceLocation', 'FlipAngle'])
-
-
-This returns an array with dimensions ``(z,t,n,x,y)`` where ``z`` corresponds to slice locations and ``t`` to flip angles. The 3d dimension ``n`` enumerates images at the same slice location and flip angle. Any number of dimensions can be added in this way. If an application requires the pixels to be listed first, use the ``pixels_first`` keyword:
+This will return an array with dimensions ``(x,y,n)`` where ``n`` enumerates the images in the series. The array can also be returned with other dimensions:
 
 .. code-block:: python
 
-    array, _ = series.array(['SliceLocation', 'FlipAngle'], pixels_first=True)
+    array = series.ndarray(dims=('SliceLocation', 'FlipAngle'))
 
 
-In this case the array has dimensions ``(x,y,z,t,n)``. Replacing the images of a series with a given numpy array works the same way:
+This returns an array with dimensions ``(x,y,z,t)`` where ``z`` corresponds to slice locations and ``t`` to flip angles. Any number of dimensions can be added in this way. 
 
-.. code-block:: python
-
-    series.array(array)
-
-The function ``array()`` also returns the header information for each slice in a second return value:
+Replacing the images of a series with a given numpy array works the same way:
 
 .. code-block:: python
 
-    array, header = series.array(['SliceLocation', 'FlipAngle'])
+    series.set_ndarray(array, dims=('SliceLocation', 'FlipAngle'))
 
-
-The header is a numpy array of instances with the same dimensions as the array - except for the pixel coordinates: in this case ``(z,t,n)``. This can be used to access any additional data in a transparent way. For instance, to list the flip angles of the first slice ``z=0, n=0``:
-
-.. code-block:: python
-
-    FA = [hdr.FlipAngle for hdr in header[0,:,0]]
-
-The header array is also useful when a calculation is performed on the array and the results need to be saved in the DICOM database again. In this case ``header`` can be used to carry over the metadata. 
-
-As an example, let's calculate a maximum intensity projection (MIP) of a 4D time series and write the result out in the same series:
-
-.. code-block:: python
-
-    array, header = series.array(['SliceLocation', 'AcquisitionTime'])
-    mip = np.amax(array, axis=0)
-    series.set_array(mip, header[0,:,:])
-
-In this case the header information of the MIP is taken from the first image of the time series. Provding header information is not required - if the header argument is not specified then a template header is used.
 
 Another useful tool on series level is extracting a subseries. Let's say we have an MRI series with phase and magnitude data mixed, and we want to split it up into separate series:
 
@@ -233,7 +203,7 @@ This will create two new series in the same study. The ``image_type`` keyword is
 
     sub = series.subseries(FlipAngle=20, RepetitionTime=5)
 
-Another useful feature at series level is to overlay one series on another. 
+As an example of additional functions that can be built on top of standard packages, consider the use of scipy's ``map_coordinates`` function to overly two images. The pipeline for scipy provides a wrapper for this functions which makes the operation available directly on ``dbdicom`` series:
 
 .. code-block:: python
 
@@ -258,7 +228,7 @@ To create a DICOM series from a numpy array, use ``dbdicom.series()``:
     import dbdicom as db
 
     array = np.random.normal(size=(10, 128, 192))
-    series = db.series(array)
+    series = db.as_series(array)
 
 
 After this you can save it to a folder in DICOM, or set some header elements before saving:
@@ -267,7 +237,7 @@ After this you can save it to a folder in DICOM, or set some header elements bef
 
     series.PatientName = 'Random noise'
     series.StudyDate = '19112022'
-    series.AcquisitionTime = '120000'
+    series.AcquisitionTime = 12*60*60
     series.save(path)
 
 You can build an entire database explicitly as well. For instance, the following code builds a database with two patients (James Bond and Scarface) who each underwent and MRI and an XRay study:
@@ -296,17 +266,11 @@ You can build an entire database explicitly as well. For instance, the following
 Creating objects
 ^^^^^^^^^^^^^^^^
 
-Some routines are available for creating DICOM objects from scratch, modelled on ``numpy`` creation routines. For instance, to create a new series with given dimensions in a study you can do:
-
-.. code-block:: python
-
-    img = study.zeros((10, 128, 192), dtype='mri')
-
-This will create a DICOM series of type 'MRImage' (shorthand 'mri') with 10 slices of 128 columns and 192 rows each. This can also be done from scratch:
+Some routines are available for creating DICOM objects from scratch, modelled on ``numpy`` creation routines. For instance, to create a new series with given dimensions:
 
 .. code-block:: python
 
     import dbdicom as db
     series = db.series((10, 128, 192))
 
-Currently, writing in data types other than 'MRImage' is not supported, so the data type argument is not necessary.
+This will create a DICOM series of type 'MRImage' (shorthand 'mri') with 10 slices of 128 columns and 192 rows each. Currently, writing in data types other than 'MRImage' is not supported, so the data type argument is not necessary.

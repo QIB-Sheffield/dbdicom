@@ -3,8 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to dbdicom!
-===================
+#####################
+dbdicom documentation
+#####################
 
 A Python interface for reading and writing DICOM databases.
 
@@ -16,9 +17,9 @@ A Python interface for reading and writing DICOM databases.
 Ambition
 ^^^^^^^^
 
-The DICOM format is the universally recognised standard for medical imaging,
-but reading and writing DICOM data remains a challenging task for data
-scientists. ``dbdicom`` aims to provide an intuitive programming interface for reading and writing DICOM databases - replacing confusing DICOM-native concepts by language and notations that will be more familiar to data scientists working in Python. 
+The DICOM format is the universally recognised standard for medical imaging, but working with DICOM data remains a challenging task for data scientists. 
+
+``dbdicom`` aims to provide an *intuitive* programming interface for reading and writing DICOM databases - replacing unfamiliar DICOM-native concepts by more pythonic language and syntax. 
 
 
 .. toctree::
