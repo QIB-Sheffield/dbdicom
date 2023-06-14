@@ -299,6 +299,54 @@ def envelope(d, affine):
     return output_shape, output_pos
 
 
+def bounding_box(array:np.ndarray, affine:np.ndarray)->tuple:
+    """Return a bounding box around a region of interest.
+
+    For a given mask array with know affine this finds the bounding box around the mask, and returns its shape and affine.
+
+    Args:
+        array (np.ndarray): 3d binary array with mask data (1=inside, 0=outside).
+        affine (np.ndarray): affine of the 3d volume as a 4x4 numpy array.
+
+    Returns:
+        tuple: shape and affine of the bounding box, where shape is a tuple of 3 values and affine is a 4x4 numpy array.
+    """
+
+    # Find shape and location of the box in array coordinates and get array.
+    x, y, z = np.where(array != 0)
+    x0, x1 = np.amin(x), np.amax(x)
+    y0, y1 = np.amin(y), np.amax(y)
+    z0, z1 = np.amin(z), np.amax(z)
+    nx = 1 + np.ceil(x1-x0).astype(np.int16)
+    ny = 1 + np.ceil(y1-y0).astype(np.int16)
+    nz = 1 + np.ceil(z1-z0).astype(np.int16)
+    box_array = array[x0:x0+nx, y0:y0+ny, z0:z0+nz]
+
+    # Get the corner in absolute coordinates and offset the affine.
+    nd = 3
+    matrix = affine[:nd,:nd]
+    offset = affine[:nd, nd]
+    r0 = np.array([x0,y0,z0])
+    r0 = np.dot(r0, matrix.T) + offset
+    box_affine = affine.copy()
+    box_affine[:nd, nd] = r0
+
+    return box_array, box_affine
+
+
+def mask_volume(array, affine, array_mask, affine_mask):
+
+    # Overlay the mask on the array.
+    array_mask, _ = affine_reslice(array_mask, affine_mask, affine, array.shape)
+
+    # Mask out array pixels outside of region.
+    array *= array_mask
+
+    # Extract bounding box around non-zero pixels in masked array.
+    array, affine = bounding_box(array, affine)
+    
+    return array, affine
+
 
 def apply_affine(affine, coord):
     """Apply affine transformation to an array of coordinates"""
@@ -809,8 +857,8 @@ def sum_of_squares(static, transformed, nan=None):
     else:
         return np.sum(np.square(static-transformed))
 
-
-def mutual_information(static, transformed, nan=None):
+# This requires discrete values - probably need to cluster the images before applying this
+def _mutual_information(static, transformed, nan=None):
     if nan is not None:
         i = np.where(transformed != nan)
         return sklearn.metrics.mutual_info_score(static[i], transformed[i])
@@ -818,12 +866,33 @@ def mutual_information(static, transformed, nan=None):
         return sklearn.metrics.mutual_info_score(static, transformed)
     
 
-def normalized_mutual_information(static, transformed, nan=None):
+# This requires discrete values - probably need to cluster the images before applying this
+def _normalized_mutual_information(static, transformed, nan=None):
     if nan is not None:
         i = np.where(transformed != nan)
         return sklearn.metrics.normalized_mutual_info_score(static[i], transformed[i])
     else:
         return sklearn.metrics.normalized_mutual_info_score(static, transformed)
+    
+
+def mutual_information(static, transformed, nan=None):
+
+    # Mask if needed
+    if nan is not None:
+        i = np.where(transformed != nan)
+        st, tr = static[i], transformed[i]
+    else:
+        st, tr = static, transformed
+    # Calculate 2d histogram
+    hist_2d, _, _ = np.histogram2d(st.ravel(), tr.ravel(), bins=20)
+    # Convert bins counts to probability values
+    pxy = hist_2d / float(np.sum(hist_2d))
+    px = np.sum(pxy, axis=1) # marginal for x over y
+    py = np.sum(pxy, axis=0) # marginal for y over x
+    px_py = px[:, None] * py[None, :] # Broadcast to multiply marginals
+    # Now we can do the calculation using the pxy, px_py 2D arrays
+    nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
+    return -np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
 
 
@@ -1272,6 +1341,22 @@ def plot_affine_transformed(input_data, input_affine, output_data, output_affine
     pl.show()
 
 
+def plot_bounding_box(input_data, input_affine, output_shape, output_affine):
+
+    pl = plot_volume(input_data, input_affine)
+
+    # Plot wireframe around edges of resliced volume
+    vertices, faces = parallellepid(output_shape, affine=output_affine)
+    box = pv.PolyData(vertices, faces)
+    pl.add_mesh(box,
+        style='wireframe',
+        opacity=1.0,
+        color=(255,0,0), 
+    ) 
+    
+    pl.show()
+
+
 def plot_freeform_transformed(input_data, input_affine, output_data, output_affine):
 
     pl = plot_affine_resliced(input_data, input_affine, output_data, output_affine)
@@ -1709,6 +1794,28 @@ def test_plot(n=1):
     pl = plot_volume(input_data, input_affine)
     pl.show_grid()
     pl.show()
+
+
+def test_bounding_box():
+
+    # Define geometry of source data
+    input_shape = np.array([300, 250, 12])   # mm
+    pixel_spacing = np.array([1.25, 1.25, 10]) # mm
+    rotation_angle = 0.5 * (np.pi/2) # radians
+    rotation_axis = [1,0,0]
+    translation = np.array([0, -40, 180]) # mm
+
+    # Generate reference volume
+    rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
+    input_affine = affine_matrix(rotation=rotation, translation=translation, pixel_spacing=pixel_spacing)
+    #input_data, input_affine = generate('double ellipsoid', shape=input_shape, affine=input_affine, markers=False)
+    input_data, input_affine = generate('triple ellipsoid', shape=input_shape, affine=input_affine, markers=False)
+
+    # Perform translation with reshaping
+    output_data, output_affine = bounding_box(input_data, input_affine)
+
+    # Display results
+    plot_bounding_box(input_data, input_affine, output_data.shape, output_affine)
 
 
 def test_affine_reslice(n=1):
@@ -2588,6 +2695,7 @@ if __name__ == "__main__":
     # Test plotting
     # -------------
     # test_plot(1)
+    test_bounding_box()
 
 
     # Test affine transformations
@@ -2621,6 +2729,6 @@ if __name__ == "__main__":
     # test_align_stretch(n=2)
     # test_align_rigid(n=1)
     # test_align_affine(n=1)
-    test_align_freeform(n=3)
+    # test_align_freeform(n=3)
 
 
