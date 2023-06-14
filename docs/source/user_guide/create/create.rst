@@ -100,34 +100,6 @@ As for standard DICOM attributes this returns a list if unique values for the se
 Custom attributes can easily be added to any DICOM dataset type and the number of available attributes is set to grow as the need arises.
 
 
-Load and clear
-^^^^^^^^^^^^^^
-
-By default all changes to a database are made on disk. For instance if a DICOM attribute is changed
-
-.. code-block:: python
-
-    series.Rows = 128
-
-The data are read from disk, the change is made, the data are written to disk again and memory is cleared. Equally, if a series is copied to another study, all its datasets will be read, any necessary changes made, and then written to disk and cleared from memory. 
-
-For many applications reading and writing from disk is too slow. For faster access at the cost of some memory usage, the data can be read into memory before performing any manipulations:
-
-.. code-block:: python
-
-    series.load()
-
-After this all changes are made in memory. To clear the data from memory and continue working from disk, use `clear()`:
-
-
-.. code-block:: python
-
-    series.clear()
-
-
-These operations can be called on the entire database, on patients, studies, or series. 
-
-
 Save and restore
 ^^^^^^^^^^^^^^^^
 
