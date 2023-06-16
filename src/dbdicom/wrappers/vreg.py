@@ -107,7 +107,7 @@ def find_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual
     return translation_estimate
 
 
-def apply_translation(series_moving:Series, parameters:np.ndarray, target:Series=None)->Series:
+def apply_translation(series_moving:Series, parameters:np.ndarray, target:Series=None, description:str=None)->Series:
     """Apply active translation of an image volume.
 
     Args:
@@ -147,8 +147,10 @@ def apply_translation(series_moving:Series, parameters:np.ndarray, target:Series
         affine_moved = target.affine()[0]
 
     series_moving.message('Applying translation..')   
+    if description is None:
+        description = desc_moving + ' [translation]'
     array_moved = vreg.translate(array_moving, affine_moving, shape_moved, affine_moved, parameters)
-    series_moved = series_moving.new_sibling(SeriesDescription = desc_moving + ' [translation]')
+    series_moved = series_moving.new_sibling(SeriesDescription=description)
     series_moved.set_ndarray(array_moved, coords={'SliceLocation': np.arange(array_moved.shape[-1])})
     series_moved.set_affine(affine_moved)
     return series_moved
@@ -204,7 +206,7 @@ def find_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metri
     return rigid_estimate
 
 
-def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  target:Series=None)->Series:
+def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  target:Series=None, description:str=None)->Series:
     """Apply rigid transformation of an image volume.
 
     Args:
@@ -219,6 +221,7 @@ def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  tar
     Returns:
         dbdicom.Series: Sibling dbdicom series in the same study, containing the transformed volume.
     """
+    # TODO: target is not the right word. geometry?
     desc_moving = series_moving.instance().SeriesDescription
     affine_moving = series_moving.affine()
     if len(affine_moving) > 1:
@@ -244,7 +247,9 @@ def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  tar
 
     series_moving.message('Applying rigid transformation..')
     array_moved = vreg.rigid(array_moving, affine_moving, shape_moved, affine_moved, parameters)
-    series_moved = series_moving.new_sibling(SeriesDescription = desc_moving + ' [rigid]')
+    if description is None:
+        description = desc_moving + ' [rigid]'
+    series_moved = series_moving.new_sibling(SeriesDescription = description)
     series_moved.set_ndarray(array_moved, coords={'SliceLocation': np.arange(array_moved.shape[-1])})
     series_moved.set_affine(affine_moved)
     return series_moved
