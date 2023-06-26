@@ -347,12 +347,20 @@ def get_values(ds, tags):
                     value = getattr(ds, 'get_attribute_' + tag)()
             else:
                 pydcm_value = ds[tag].value
-                value = to_set_type(pydcm_value, pydicom.datadict.dictionary_VR(tag)) # ELIMINATE THIS STEP - return pydicom datatypes
+                try:
+                    VR = pydicom.datadict.dictionary_VR(tag)
+                except:
+                    VR = None
+                value = to_set_type(pydcm_value, VR) # ELIMINATE THIS STEP - return pydicom datatypes
 
         # If the tag is a tuple of hexadecimal values
         else: 
             if tag in ds:
-                value = to_set_type(ds[tag].value, pydicom.datadict.dictionary_VR(tag))
+                try:
+                    VR = pydicom.datadict.dictionary_VR(tag)
+                except:
+                    VR = None
+                value = to_set_type(ds[tag].value, VR)
 
         # If a tag is not present in the dataset, check if it can be derived
         if value is None:

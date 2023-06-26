@@ -1367,7 +1367,10 @@ class Manager():
             series_keys = self.keys(series=series)
             for k, key in enumerate(series_keys):
 
-                msg = 'Copying series ' + self.value(key, 'SeriesDescription')
+                desc = self.value(key, 'SeriesDescription')
+                if desc is None:
+                    desc = 'Unknown'
+                msg = 'Copying series ' + desc
                 msg += ' (' + str(s+1) + '/' + str(len(all_series)) + ')'
                 self.status.progress(k+1, len(series_keys), msg)
 
