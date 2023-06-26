@@ -1009,6 +1009,29 @@ def uniform_filter(input, size=3, **kwargs):
         image.clear()
     input.status.hide()
     return filtered
+
+
+#https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.uniform_filter.html#scipy.ndimage.uniform_filter
+# This has a bug it seems
+def uniform_filter_3d(input, size=3, **kwargs):
+    """
+    wrapper for scipy.ndimage.uniform_filter.
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    array, headers = input.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    input.message('Computing uniform filter..')
+    array = scipy.ndimage.uniform_filter(array, size=size, **kwargs)
+    suffix = ' [Uniform Filter x ' + str(size) + ']'
+    output = input.new_sibling(suffix=suffix)
+    output.set_array(array, headers, pixels_first=True)
+    return output
     
 
 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html#scipy.ndimage.gaussian_filter
@@ -1041,6 +1064,28 @@ def gaussian_filter(input, sigma, **kwargs):
         image.clear()
     input.status.hide()
     return filtered
+
+
+# https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.gaussian_filter.html#scipy.ndimage.gaussian_filter
+def gaussian_filter_3d(input, sigma, **kwargs):
+    """
+    wrapper for scipy.ndimage.gaussian_filter.
+
+    Parameters
+    ----------
+    input: dbdicom series
+
+    Returns
+    -------
+    filtered : dbdicom series
+    """
+    suffix = ' [Gaussian Filter x ' + str(sigma) + ' ]'
+    array, headers = input.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    input.message('Computing Gaussian filter..')
+    array = scipy.ndimage.gaussian_filter(array, sigma, **kwargs)
+    output = input.new_sibling(suffix=suffix)
+    output.set_array(array, headers, pixels_first=True)
+    return output
 
 
 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.fourier_shift.html#scipy.ndimage.fourier_shift

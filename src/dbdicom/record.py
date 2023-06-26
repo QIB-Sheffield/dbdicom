@@ -1,6 +1,9 @@
 # Importing annotations to handle or sign in import type hints
 from __future__ import annotations
 
+import os
+import datetime
+
 # Import packages
 import numpy as np
 import pandas as pd
@@ -15,12 +18,14 @@ class Record():
 
     def __init__(self, create, manager, uid='Database', key=None, **kwargs):   
 
+        self._logfile = None
         self._key = key
         self._mute = False
         self.uid = uid
         self.attributes = kwargs
         self.manager = manager
         self.new = create
+        
     
     def __eq__(self, other):
         if other is None:
@@ -34,7 +39,7 @@ class Record():
         return self.get_values(attributes)
 
     def __setattr__(self, attribute, value):
-        if attribute in ['_key','_mute', 'uid', 'manager', 'attributes', 'new']:
+        if attribute in ['_key','_mute', 'uid', 'manager', 'attributes', 'new', '_logfile']:
             self.__dict__[attribute] = value
         else:
             self.set_values([attribute], [value])
@@ -86,7 +91,35 @@ class Record():
     def dialog(self):
         return self.manager.dialog
     
-
+    def set_log(self, filepath=None):
+        if filepath is None:
+            self._logfile = None
+            return
+        if filepath == 'Default':
+            # Use default log name
+            self._logfile = os.path.join(self.manager.path, "activity_log.txt")
+        else:
+            self._logfile = filepath
+        try:
+            file = open(self._logfile, 'a')
+            file.write(str(datetime.datetime.now())[0:19] + "Starting a new log..")
+            file.close()
+        except:
+            msg = 'Cannot write to log ' + self._logfile
+            raise FileNotFoundError(msg)
+        
+    def log(self, msg):
+        self.message(msg)
+        if self._logfile is None:
+            return
+        try:
+            file = open(self._logfile, 'a')
+            file.write("\n"+str(datetime.datetime.now())[0:19] + ": " + msg)
+            file.close()
+        except:
+            msg = 'Cannot write to log ' + self._logfile
+            raise FileNotFoundError(msg)
+        
     
 # Properties
 

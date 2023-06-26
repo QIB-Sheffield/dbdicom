@@ -299,7 +299,7 @@ def envelope(d, affine):
     return output_shape, output_pos
 
 
-def bounding_box(array:np.ndarray, affine:np.ndarray)->tuple:
+def bounding_box(array:np.ndarray, affine:np.ndarray, margin:float=0)->tuple:
     """Return a bounding box around a region of interest.
 
     For a given mask array with know affine this finds the bounding box around the mask, and returns its shape and affine.
@@ -307,16 +307,25 @@ def bounding_box(array:np.ndarray, affine:np.ndarray)->tuple:
     Args:
         array (np.ndarray): 3d binary array with mask data (1=inside, 0=outside).
         affine (np.ndarray): affine of the 3d volume as a 4x4 numpy array.
+        margin (float): margin (in mm) to include around the bounding box. (default=0)
 
     Returns:
         tuple: shape and affine of the bounding box, where shape is a tuple of 3 values and affine is a 4x4 numpy array.
     """
 
+    _, _, pixel_spacing = affine_components(affine)
+    xmargin = np.around(margin/pixel_spacing[0]).astype(np.int16)
+    ymargin = np.around(margin/pixel_spacing[1]).astype(np.int16)
+    zmargin = np.around(margin/pixel_spacing[2]).astype(np.int16)
+
     # Find shape and location of the box in array coordinates and get array.
     x, y, z = np.where(array != 0)
-    x0, x1 = np.amin(x), np.amax(x)
-    y0, y1 = np.amin(y), np.amax(y)
-    z0, z1 = np.amin(z), np.amax(z)
+    x0, x1 = np.amin(x)-xmargin, np.amax(x)+xmargin
+    y0, y1 = np.amin(y)-ymargin, np.amax(y)+ymargin
+    z0, z1 = np.amin(z)-zmargin, np.amax(z)+zmargin
+    x0, x1 = np.amax([0, x0]), np.amin([x1, array.shape[0]-1])
+    y0, y1 = np.amax([0, y0]), np.amin([y1, array.shape[1]-1])
+    z0, z1 = np.amax([0, z0]), np.amin([z1, array.shape[2]-1])
     nx = 1 + np.ceil(x1-x0).astype(np.int16)
     ny = 1 + np.ceil(y1-y0).astype(np.int16)
     nz = 1 + np.ceil(z1-z0).astype(np.int16)
@@ -334,7 +343,7 @@ def bounding_box(array:np.ndarray, affine:np.ndarray)->tuple:
     return box_array, box_affine
 
 
-def mask_volume(array, affine, array_mask, affine_mask):
+def mask_volume(array, affine, array_mask, affine_mask, margin:float=0):
 
     # Overlay the mask on the array.
     array_mask, _ = affine_reslice(array_mask, affine_mask, affine, array.shape)
@@ -343,7 +352,7 @@ def mask_volume(array, affine, array_mask, affine_mask):
     array *= array_mask
 
     # Extract bounding box around non-zero pixels in masked array.
-    array, affine = bounding_box(array, affine)
+    array, affine = bounding_box(array, affine, margin)
     
     return array, affine
 
@@ -856,23 +865,6 @@ def sum_of_squares(static, transformed, nan=None):
         return np.sum(np.square(static[i]-transformed[i]))
     else:
         return np.sum(np.square(static-transformed))
-
-# This requires discrete values - probably need to cluster the images before applying this
-def _mutual_information(static, transformed, nan=None):
-    if nan is not None:
-        i = np.where(transformed != nan)
-        return sklearn.metrics.mutual_info_score(static[i], transformed[i])
-    else:
-        return sklearn.metrics.mutual_info_score(static, transformed)
-    
-
-# This requires discrete values - probably need to cluster the images before applying this
-def _normalized_mutual_information(static, transformed, nan=None):
-    if nan is not None:
-        i = np.where(transformed != nan)
-        return sklearn.metrics.normalized_mutual_info_score(static[i], transformed[i])
-    else:
-        return sklearn.metrics.normalized_mutual_info_score(static, transformed)
     
 
 def mutual_information(static, transformed, nan=None):
@@ -893,58 +885,6 @@ def mutual_information(static, transformed, nan=None):
     # Now we can do the calculation using the pxy, px_py 2D arrays
     nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
     return -np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
-
-
-
-# Generic objective function
-def _objective_function(
-        params, 
-        moving: np.ndarray, 
-        static: np.ndarray, 
-        transformation, 
-        metric,
-        moving_affine,
-        static_affine,
-        moving_mask, 
-        static_mask, 
-        transformation_args, 
-        metric_args):
-
-    # # Get static size (TODO: use shape instead of size in transformations)
-    # _, _, static_pixel_spacing = affine_components(static_affine)
-    # static_size = np.multiply(np.array(static.shape)-1, static_pixel_spacing)
-
-    # Transform the moving image
-    nan = 0
-    if transformation_args is None:
-        transformed = transformation(moving, moving_affine, static.shape, static_affine, params, cval=nan)
-    else:
-        transformed = transformation(moving, moving_affine, static.shape, static_affine, params, transformation_args, cval=nan)
-
-    # If a moving mask is provided, transform this as well
-    if moving_mask is not None:
-        if transformation_args is None:
-            transformed_mask = transformation(moving_mask, moving_affine, static.shape, static_affine, params)
-        else:
-            transformed_mask = transformation(moving_mask, moving_affine, static.shape, static_affine, params, transformation_args)
-        transformed_mask[transformed_mask > 0.5] = 1
-        transformed_mask[transformed_mask <= 0.5] = 0
-
-    # Get the indices in the static data where the mask is non-zero
-    if static_mask is not None and moving_mask is not None:
-        ind = np.where(transformed!=nan and static_mask==1 and transformed_mask==1)
-    elif static_mask is not None:
-        ind = np.where(transformed!=nan and static_mask==1) 
-    elif moving_mask is not None:
-        ind = np.where(transformed!=nan and transformed_mask==1)
-    else:
-        ind = np.where(transformed!=nan)
-        
-    # Calculate the cost function         
-    if metric_args is None:
-        return metric(static[ind], transformed[ind])
-    else:
-        return metric(static[ind], transformed[ind], metric_args)
 
 
 def print_current(xk):
@@ -1113,16 +1053,30 @@ def line_search(cost_function, grad, p0, stepsize0, f0, bounds, *args, tolerance
             raise ValueError(msg) 
         
 
-def goodness_of_alignment(params, transformation, metric, moving, moving_affine, static, static_affine, coord):
+def goodness_of_alignment(params, transformation, metric, moving, moving_affine, static, static_affine, coord, moving_mask, static_mask_ind):
 
     # Transform the moving image
     nan = 2**16-2 #np.nan does not work
     transformed = transformation(moving, moving_affine, static.shape, static_affine, params, output_coordinates=coord, cval=nan)
-        
-    # Calculate the cost function  
-    ls = metric(static, transformed, nan=nan)
     
-    return ls
+    # If a moving mask is provided, this needs to be transformed in the same way
+    if moving_mask is None:
+        moving_mask_ind = None
+    else:
+        mask_transformed = transformation(moving_mask, moving_affine, static.shape, static_affine, params, output_coordinates=coord, cval=nan)
+        moving_mask_ind = np.where(mask_transformed >= 0.5)
+
+    # Calculate matric in indices exposed by the mask(s)
+    if static_mask_ind is None and moving_mask_ind is None:
+        return metric(static, transformed, nan=nan)
+    if static_mask_ind is None and moving_mask_ind is not None:
+        return metric(static[moving_mask_ind], transformed[moving_mask_ind], nan=nan)
+    if static_mask_ind is not None and moving_mask_ind is None:
+        return metric(static[static_mask_ind], transformed[static_mask_ind], nan=nan)
+    if static_mask_ind is not None and moving_mask_ind is not None:
+        ind = static_mask_ind or moving_mask_ind
+        return metric(static[ind], transformed[ind], nan=nan)
+    
     
 
 def align(
@@ -1134,7 +1088,11 @@ def align(
         transformation = translate,
         metric = sum_of_squares,
         optimization = {'method':'GD', 'options':{}},
-        resolutions = [1]):
+        resolutions = [1], 
+        static_mask = None,
+        static_mask_affine = None, 
+        moving_mask = None,
+        moving_mask_affine = None):
     
     # Set defaults
     if moving is None:
@@ -1154,7 +1112,12 @@ def align(
         moving_affine = np.eye(1 + moving.ndim)
     if static_affine is None:
         static_affine = np.eye(1 + static.ndim)
-
+    if moving_mask is not None:
+        if moving_mask_affine is None:
+            moving_mask_affine = moving_affine
+    if static_mask is not None:
+        if static_mask_affine is None:
+            static_mask_affine = static_affine
 
     # Perform multi-resolution loop
     for res in resolutions:
@@ -1175,17 +1138,25 @@ def align(
             static_resampled_affine = affine_matrix(rotation=r, translation=t, pixel_spacing=p*res)
             static_resampled, static_resampled_affine = affine_reslice(static, static_affine, static_resampled_affine)
 
+        # resample the masks on the geometry of the target volumes
+        if moving_mask is None:
+            moving_mask_resampled = None
+        else:
+            moving_mask_resampled, _ = affine_reslice(moving_mask, moving_mask_affine, moving_resampled_affine, moving_resampled.shape)
+        if static_mask is None:
+            static_mask_resampled_ind = None
+        else:
+            static_mask_resampled, _ = affine_reslice(static_mask, static_mask_affine, static_resampled_affine, static_resampled.shape)
+            static_mask_resampled_ind = np.where(static_mask_resampled >= 0.5)
+
         coord = volume_coordinates(static_resampled.shape) 
         # Here we need a generic precomputation step:
         # prec = precompute(moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine)
         # args = (transformation, metric, moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine, coord, prec)
-        args = (transformation, metric, moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine, coord)
+        args = (transformation, metric, moving_resampled, moving_resampled_affine, static_resampled, static_resampled_affine, coord, moving_mask_resampled, static_mask_resampled_ind)
         parameters = minimize(goodness_of_alignment, parameters, args=args, **optimization)
 
     return parameters
-
-
-
 
 
 def align_slice_by_slice(
@@ -1199,7 +1170,11 @@ def align_slice_by_slice(
         optimization = {'method':'GD', 'options':{}},
         resolutions = [1],
         slice_thickness = None,
-        progress = None):
+        progress = None,
+        static_mask = None,
+        static_mask_affine = None, 
+        moving_mask = None,
+        moving_mask_affine = None):
     
     # If a single slice thickness is provided, turn it into a list.
     nz = moving.shape[2]
@@ -1215,6 +1190,10 @@ def align_slice_by_slice(
         
         # Get the slice and its affine
         moving_z, moving_affine_z = extract_slice(moving, moving_affine, z, slice_thickness)
+        if moving_mask is None:
+            moving_mask_z, moving_mask_affine_z = None, None
+        else:
+            moving_mask_z, moving_mask_affine_z = extract_slice(moving_mask, moving_mask_affine, z, slice_thickness)
 
         # Align volumes
         try:
@@ -1228,6 +1207,10 @@ def align_slice_by_slice(
                 transformation = transformation,
                 metric = metric,
                 optimization = optimization,
+                static_mask = static_mask,
+                static_mask_affine = static_mask_affine, 
+                moving_mask = moving_mask_z,
+                moving_mask_affine = moving_mask_affine_z,
             )
         except:
             estimate_z = parameters
@@ -1804,6 +1787,7 @@ def test_bounding_box():
     rotation_angle = 0.5 * (np.pi/2) # radians
     rotation_axis = [1,0,0]
     translation = np.array([0, -40, 180]) # mm
+    margin = 10 # mm
 
     # Generate reference volume
     rotation = rotation_angle * np.array(rotation_axis)/np.linalg.norm(rotation_axis)
@@ -1812,7 +1796,7 @@ def test_bounding_box():
     input_data, input_affine = generate('triple ellipsoid', shape=input_shape, affine=input_affine, markers=False)
 
     # Perform translation with reshaping
-    output_data, output_affine = bounding_box(input_data, input_affine)
+    output_data, output_affine = bounding_box(input_data, input_affine, margin=margin)
 
     # Display results
     plot_bounding_box(input_data, input_affine, output_data.shape, output_affine)
@@ -2695,7 +2679,7 @@ if __name__ == "__main__":
     # Test plotting
     # -------------
     # test_plot(1)
-    test_bounding_box()
+    # test_bounding_box()
 
 
     # Test affine transformations
@@ -2727,7 +2711,7 @@ if __name__ == "__main__":
     # test_align_translation(dataset)
     # test_align_rotation()
     # test_align_stretch(n=2)
-    # test_align_rigid(n=1)
+    test_align_rigid(n=1)
     # test_align_affine(n=1)
     # test_align_freeform(n=3)
 
