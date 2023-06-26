@@ -5,9 +5,7 @@ from dbdicom import Series
 def print_current(vk):
     print(vk)
 
-
-def _get_input(moving, static, region=None):
-
+def _get_input_volumes(moving, static):
     # Get affine matrices and check that there is a single value
     affine_moving = moving.affine_matrix()
     if isinstance(affine_moving, list):
@@ -24,7 +22,6 @@ def _get_input(moving, static, region=None):
     else:
         affine_static = affine_static[0]
 
-
     # Get arrays for static and moving series, and region if required
     array_static, headers_static = static.array('SliceLocation', pixels_first=True, first_volume=True)
     if array_static is None:
@@ -34,6 +31,12 @@ def _get_input(moving, static, region=None):
     if array_moving is None:
         msg = 'Moving series is empty - cannot perform alignment.'
         raise ValueError(msg)
+    return array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving
+
+
+def _get_input(moving, static, region=None, margin=0):
+
+    array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving = _get_input_volumes(moving, static)
     
     moving.message('Performing coregistration. Please be patient. Its hard work and I need to concentrate..')
     
@@ -52,14 +55,14 @@ def _get_input(moving, static, region=None):
             msg = 'Region series is empty - cannot perform alignment to region.'
             raise ValueError(msg)  
  
-        array_static, affine_static = vreg.mask_volume(array_static, affine_static, array_region, affine_region)
+        array_static, affine_static = vreg.mask_volume(array_static, affine_static, array_region, affine_region, margin)
     
     return array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving
 
 
 
 
-def find_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None)->np.ndarray:
+def find_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0)->np.ndarray:
     """Find the translation that maps a moving volume onto a static volume.
 
     Args:
@@ -68,12 +71,13 @@ def find_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual
         tolerance (float, optional): Positive tolerance parameter to decide convergence of the gradient descent. A smaller value means a more accurate solution but also a lomger computation time. Defaults to 0.1.
         metric (str, option): Determines which metric to use in the optimization. Current options are 'mutual information' (default) or 'sum of squares'.
         region (dbdicom.Series, optional): Series with region of interest to restrict the alignment. The translation will be chosen based on the goodness of the alignment in the bounding box of this region. If none is provided, the entire volume is used. Defaults to None.
+        margin (float, optional): in case a region is provided, this specifies a margin (in mm) to take around the region. Default is 0 (no margin)
 
     Returns:
         np.ndarray: 3-element numpy array with values of the translation that maps the moving volume on to the static volume.
     """
 
-    array_static, affine_static, array_moving, affine_moving, _, _ = _get_input(moving, static, region=region)
+    array_static, affine_static, array_moving, affine_moving, _, _ = _get_input(moving, static, region=region, margin=margin)
 
     # Define initial values and optimization
     _, _, static_pixel_spacing = vreg.affine_components(affine_static)
@@ -156,7 +160,7 @@ def apply_translation(series_moving:Series, parameters:np.ndarray, target:Series
     return series_moved
 
 
-def find_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None)->np.ndarray:
+def find_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0)->np.ndarray:
     """Find the rigid transform that maps a moving volume onto a static volume.
 
     Args:
@@ -165,12 +169,13 @@ def find_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metri
         tolerance (float, optional): Positive tolerance parameter to decide convergence of the gradient descent. A smaller value means a more accurate solution but also a lomger computation time. Defaults to 0.1.
         metric (str, option): Determines which metric to use in the optimization. Current options are 'mutual information' (default) or 'sum of squares'.
         region (dbdicom.Series, optional): Series with region of interest to restrict the alignment. The rigid transform will be chosen based on the goodness of the alignment in the bounding box of this region. If none is provided, the entire volume is used. Defaults to None.
+        margin (float, optional): in case a region is provided, this specifies a margin (in mm) to take around the region. Default is 0 (no margin).
 
     Returns:
         np.ndarray: 6-element numpy array with values of the translation (first 3 elements) and rotation vector (last 3 elements) that map the moving volume on to the static volume. The vectors are defined in an absolute reference frame in units of mm.
     """
 
-    array_static, affine_static, array_moving, affine_moving, _, _ = _get_input(moving, static, region=region)
+    array_static, affine_static, array_moving, affine_moving, _, _ = _get_input(moving, static, region=region, margin=margin)
 
     # Define initial values and optimization
     _, _, static_pixel_spacing = vreg.affine_components(affine_static)
@@ -256,7 +261,7 @@ def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  tar
 
 
 
-def find_sbs_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None)->np.ndarray:
+def find_sbs_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0)->np.ndarray:
     """Find the slice-by-slice translation that maps a moving volume onto a static volume.
 
     Args:
@@ -265,12 +270,13 @@ def find_sbs_translation(moving:Series, static:Series, tolerance=0.1, metric='mu
         tolerance (float, optional): Positive tolerance parameter to decide convergence of the gradient descent. A smaller value means a more accurate solution but also a lomger computation time. Defaults to 0.1.
         metric (str, option): Determines which metric to use in the optimization. Current options are 'mutual information' (default) or 'sum of squares'.
         region (dbdicom.Series, optional): Series with region of interest to restrict the alignment. The translation will be chosen based on the goodness of the alignment in the bounding box of this region. If none is provided, the entire volume is used. Defaults to None.
+        margin (float, optional): in case a region is provided, this specifies a margin (in mm) to take around the region. Default is 0 (no margin).
 
     Returns:
         np.ndarray: list of 3-element numpy arrays with values of the translation that maps the moving volume onto the static volume. The list has one entry per slice of the volume.
     """
 
-    array_static, affine_static, array_moving, affine_moving, _, headers_moving = _get_input(moving, static, region=region)
+    array_static, affine_static, array_moving, affine_moving, _, headers_moving = _get_input(moving, static, region=region, margin=margin)
     slice_thickness = [headers_moving[z].SliceThickness for z in range(headers_moving.size)]
 
     # Define initial values and optimization
@@ -354,7 +360,7 @@ def apply_sbs_translation(series_moving:Series, parameters:np.ndarray, target:Se
     return series_moved
 
 
-def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None)->np.ndarray:
+def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0, moving_mask:Series, static_mask:Series)->np.ndarray:
     """Find the slice-by-slice rigid transformation that maps a moving volume onto a static volume.
 
     Args:
@@ -363,12 +369,16 @@ def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, m
         tolerance (float, optional): Positive tolerance parameter to decide convergence of the gradient descent. A smaller value means a more accurate solution but also a lomger computation time. Defaults to 0.1.
         metric (str, option): Determines which metric to use in the optimization. Current options are 'mutual information' (default) or 'sum of squares'.
         region (dbdicom.Series, optional): Series with region of interest to restrict the alignment. The translation will be chosen based on the goodness of the alignment in the bounding box of this region. If none is provided, the entire volume is used. Defaults to None.
+        margin (float, optional): in case a region is provided, this specifies a margin (in mm) to take around the region. Default is 0 (no margin).
+        moving_mask (dbdicom.Series): Series for masking the moving volume.
+        static_mask (dbdicom.Series): Series for masking the static volume.
 
     Returns:
         np.ndarray: list of 6-element numpy arrays with values of the translation (first 3 elements) and rotation vector (last 3 elements) that map the moving volume on to the static volume. The list contains one entry per slice, ordered by slice location. The vectors are defined in an absolute reference frame in units of mm.
     """
 
-    array_static, affine_static, array_moving, affine_moving, _, headers_moving = _get_input(moving, static, region=region)
+    array_static, affine_static, array_moving, affine_moving, _, headers_moving = _get_input(moving, static, region=region, margin=margin)
+    array_static_mask, affine_static_mask, array_moving_mask, affine_moving_mask, _, _ = _get_input_volumes(moving_mask, static_mask)
     slice_thickness = [headers_moving[z].SliceThickness for z in range(headers_moving.size)]
 
     # Define initial values and optimization
@@ -398,6 +408,10 @@ def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, m
             optimization = optimization,
             slice_thickness = slice_thickness,
             progress = lambda z, nz: moving.progress(z+1, nz, 'Coregistering slice-by-slice using rigid transformations'),
+            static_mask = array_static_mask,
+            static_mask_affine = affine_static_mask,
+            moving_mask = array_moving_mask,
+            moving_mask_affine = affine_moving_mask,
         )
     except:
         print('Failed to align volumes..')
