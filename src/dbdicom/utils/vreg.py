@@ -826,14 +826,15 @@ def freeform(input_data, input_affine, output_shape, output_affine, parameters, 
     output_to_input = np.linalg.inv(input_affine).dot(output_affine)
     return freeform_deformation(input_data, parameters, output_shape, output_to_input, **kwargs)
 
+
 def freeform_align(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
     output_to_input = np.linalg.inv(input_affine).dot(output_affine)
     return freeform_deformation_align(input_data, parameters, output_shape, output_to_input, **kwargs)
 
+
 def transform_slice_by_slice(input_data, input_affine, output_shape, output_affine, parameters, transformation=translate, slice_thickness=None):
     
     # Note this does not work for center of mass rotation because weight array has different center of mass.
-            
     nz = input_data.shape[2]
     if slice_thickness is not None:
         if not isinstance(slice_thickness, list):
@@ -852,8 +853,17 @@ def transform_slice_by_slice(input_data, input_affine, output_shape, output_affi
     # Average each pixel value over all slices that have sampled it
     nozero = np.where(weight > 0)
     coregistered[nozero] = coregistered[nozero]/weight[nozero]
-
     return coregistered
+
+
+def passive_rigid_transform_slice_by_slice(input_affine, parameters):
+    output_affine = []
+    for pz in parameters:
+        affine_z = affine_matrix(rotation=pz[:3], translation=pz[3:])
+        affine_z = affine_z.dot(input_affine)
+        output_affine.append(affine_z)
+    return output_affine
+
 
 
 # default metrics
@@ -1078,7 +1088,6 @@ def goodness_of_alignment(params, transformation, metric, moving, moving_affine,
         return metric(static[ind], transformed[ind], nan=nan)
     
     
-
 def align(
         moving = None, 
         static = None, 
@@ -1221,8 +1230,6 @@ def align_slice_by_slice(
 
 
 
-
-
 #############################
 # Plot results
 #############################
@@ -1335,8 +1342,7 @@ def plot_bounding_box(input_data, input_affine, output_shape, output_affine):
         style='wireframe',
         opacity=1.0,
         color=(255,0,0), 
-    ) 
-    
+    )
     pl.show()
 
 

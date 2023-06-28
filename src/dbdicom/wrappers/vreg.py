@@ -5,56 +5,35 @@ from dbdicom import Series
 def print_current(vk):
     print(vk)
 
-def _get_input_volumes(moving, static):
-    # Get affine matrices and check that there is a single value
-    affine_moving = moving.affine_matrix()
-    if isinstance(affine_moving, list):
-        msg = 'This function only works for series with a single slice group. \n'
-        msg += 'Multiple slice groups detected in moving series - please split the series first.'
-        raise ValueError(msg)
-    else:
-        affine_moving = affine_moving[0]
-    affine_static = static.affine_matrix()
-    if isinstance(affine_static, list):
-        msg = 'This function only works for series with a single slice group. \n'
-        msg += 'Multiple slice groups detected in static series - please split the series first.'
-        raise ValueError(msg)
-    else:
-        affine_static = affine_static[0]
 
-    # Get arrays for static and moving series, and region if required
-    array_static, headers_static = static.array('SliceLocation', pixels_first=True, first_volume=True)
-    if array_static is None:
-        msg = 'Fixed series is empty - cannot perform alignment.'
+def _get_input_volume(series):
+    if series is None:
+        return None, None, None
+    desc = series.instance().SeriesDescription
+    affine = series.affine_matrix()
+    if isinstance(affine, list):
+        msg = 'This function only works for series with a single slice group. \n'
+        msg += 'Multiple slice groups detected in ' + desc + ' - please split the series first.'
         raise ValueError(msg)
-    array_moving, headers_moving = moving.array('SliceLocation', pixels_first=True, first_volume=True)
-    if array_moving is None:
-        msg = 'Moving series is empty - cannot perform alignment.'
-        raise ValueError(msg)
-    return array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving
+    else:
+        affine = affine[0]
+    array, headers = series.array('SliceLocation', pixels_first=True, first_volume=True)
+    if array is None:
+        msg = 'Series ' + desc + ' is empty - cannot perform alignment.'
+        raise ValueError(msg)  
+    return array, affine, headers
 
 
 def _get_input(moving, static, region=None, margin=0):
 
-    array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving = _get_input_volumes(moving, static)
+    array_moving, affine_moving, headers_moving = _get_input_volume(moving)
+    array_static, affine_static, headers_static = _get_input_volume(static)
     
     moving.message('Performing coregistration. Please be patient. Its hard work and I need to concentrate..')
     
     # If a region is provided, use it extract a bounding box around the static array
     if region is not None:
-
-        affine_region = region.affine_matrix()
-        if isinstance(affine_region, list):
-            msg = 'This function only works for series with a single slice group. \n'
-            msg += 'Multiple slice groups detected in region - please split the series first.'
-            raise ValueError(msg)
-        else:
-            affine_region = affine_region[0]
-        array_region, _ = region.array('SliceLocation', pixels_first=True, first_volume=True)
-        if array_region is None:
-            msg = 'Region series is empty - cannot perform alignment to region.'
-            raise ValueError(msg)  
- 
+        array_region, affine_region, _ = _get_input_volume(region)
         array_static, affine_static = vreg.mask_volume(array_static, affine_static, array_region, affine_region, margin)
     
     return array_static, affine_static, array_moving, affine_moving, headers_static, headers_moving
@@ -360,7 +339,7 @@ def apply_sbs_translation(series_moving:Series, parameters:np.ndarray, target:Se
     return series_moved
 
 
-def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0, moving_mask:Series, static_mask:Series)->np.ndarray:
+def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0, moving_mask:Series=None, static_mask:Series=None, resolutions=[4,2,1])->np.ndarray:
     """Find the slice-by-slice rigid transformation that maps a moving volume onto a static volume.
 
     Args:
@@ -378,7 +357,10 @@ def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, m
     """
 
     array_static, affine_static, array_moving, affine_moving, _, headers_moving = _get_input(moving, static, region=region, margin=margin)
-    array_static_mask, affine_static_mask, array_moving_mask, affine_moving_mask, _, _ = _get_input_volumes(moving_mask, static_mask)
+    #array_static_mask, affine_static_mask, array_moving_mask, affine_moving_mask, _, _ = _get_input_volumes(moving_mask, static_mask)
+    array_moving_mask, affine_moving_mask, _ = _get_input_volume(moving_mask)
+    array_static_mask, affine_static_mask, _ = _get_input_volume(static_mask)
+
     slice_thickness = [headers_moving[z].SliceThickness for z in range(headers_moving.size)]
 
     # Define initial values and optimization
@@ -402,7 +384,7 @@ def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, m
             static = array_static, 
             static_affine = affine_static, 
             parameters = np.array([0, 0, 0, 0, 0, 0], dtype=np.float32), 
-            resolutions = [4,2,1],
+            resolutions = resolutions,
             transformation = vreg.rigid,
             metric = func[metric],
             optimization = optimization,
@@ -420,8 +402,47 @@ def find_sbs_rigid_transformation(moving:Series, static:Series, tolerance=0.1, m
     return parameters
 
 
+def apply_sbs_passive_rigid_transformation(series_moving:Series, parameters:np.ndarray)->Series:
+    """Apply slice-by-slice passive rigid transformation of an image volume.
+
+    Passive in this context means that the coordinates are transformed rather than the image array itself.
+
+    Args:
+        series_moving (dbdicom.Series): Series containing the volune to be moved.
+        parameters (np.ndarray): 6-element numpy array with values of the translation (first 3 elements) and rotation vector (last 3 elements) that map the moving volume on to the static volume. The list contains one entry per slice, ordered by slice location. The vectors are defined in an absolute reference frame in units of mm.
+
+    Raises:
+        ValueError: If the moving series contains multiple slice groups with different orientations. 
+        ValueError: If the array to be moved is empty.
+
+    Returns:
+        dbdicom.Series: Sibling dbdicom series in the same study, containing the translated volume.
+    """
+    desc_moving = series_moving.instance().SeriesDescription
+    affine_moving = series_moving.affine()
+    if len(affine_moving) > 1:
+        msg = 'Multiple slice groups detected in ' + desc_moving + '\n'
+        msg += 'This function only works for series with a single slice group. \n'
+        msg += 'Please split the series first.'
+        raise ValueError(msg)
+    else:
+        affine_moving = affine_moving[0]
+
+    _, headers_moving = series_moving.array('SliceLocation', pixels_first=True, first_volume=True)
+
+    series_moving.message('Applying slice-by-slice passive rigid transformation..')
+    output_affine = vreg.passive_rigid_transform_slice_by_slice(affine_moving, parameters)
+    series_moved = series_moving.new_sibling(SeriesDescription = desc_moving + ' [sbs passive rigid]')
+    for z in range(headers_moving.size):
+        imz = headers_moving[z].copy_to(series_moved)
+        affine_z = output_affine[z]
+        affine_z[:3,2] *= imz.SliceThickness/np.linalg.norm(affine_z[:3,2])
+        imz.set_affine(affine_z)
+    return series_moved
+
+
 def apply_sbs_rigid_transformation(series_moving:Series, parameters:np.ndarray, target:Series=None)->Series:
-    """Apply slice-by-slice translation of an image volume.
+    """Apply slice-by-slice rigid transformation of an image volume.
 
     Args:
         series_moving (dbdicom.Series): Series containing the volune to be moved.

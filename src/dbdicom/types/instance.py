@@ -137,6 +137,17 @@ class Instance(Record):
             width = self.WindowWidth,
             center = self.WindowCenter,
         )
+    
+    def set_affine(self, affine):
+        p = image.dismantle_affine_matrix(affine)
+        self.read()
+        self.SpacingBetweenSlices = p['SpacingBetweenSlices']
+        self.SliceThickness = p['SpacingBetweenSlices']
+        self.PixelSpacing = p['PixelSpacing']
+        self.ImageOrientationPatient = p['ImageOrientationPatient']
+        self.ImagePositionPatient = p['ImagePositionPatient']
+        self.SliceLocation = np.dot(p['ImagePositionPatient'], p['slice_cosine'])
+        self.clear()
 
 
 def map_to(source, target):
