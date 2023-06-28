@@ -815,31 +815,34 @@ def read_npy(record):
 
 
 
-def array(record, **kwargs):
+def array(record, sortby=None, pixels_first=False, first_volume=False):
     if isinstance(record, list): # array of instances
         arr = np.empty(len(record), dtype=object)
         for i, rec in enumerate(record):
             arr[i] = rec
-        return _get_pixel_array_from_instance_array(arr, **kwargs)
+        return _get_pixel_array_from_instance_array(arr, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     elif isinstance(record, np.ndarray): # array of instances
-        return _get_pixel_array_from_instance_array(record, **kwargs)
+        return _get_pixel_array_from_instance_array(record, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     else:
-        return get_pixel_array(record, **kwargs)
+        return get_pixel_array(record, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     
 
-def get_pixel_array(record, sortby=None, first_volume=False, **kwargs): 
-
+def get_pixel_array(record, sortby=None, first_volume=False, pixels_first=False):
     source = instance_array(record, sortby)
-    array, headers = _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, pixels_first=pixels_first)
     if first_volume:
         return array[...,0], headers[...,0]
     else:
         return array, headers
 
 
-def _get_pixel_array_from_instance_array(instance_array, sortby=None, **kwargs):
+def _get_pixel_array_from_instance_array(instance_array, sortby=None, pixels_first=False, first_volume=False):
     source = sort_instance_array(instance_array, sortby)
-    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)   
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, pixels_first=pixels_first) 
+    if first_volume:
+        return array[...,0], headers[...,0]
+    else:
+        return array, headers  
 
 
 def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
