@@ -270,19 +270,85 @@ def map_to(source, target, **kwargs):
     return mapped_series
 
 
+# def _map_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
+
+#     if isinstance(affine_source, list):
+#         mapped_series = []
+#         for affine_slice_group in affine_source:
+#             slice_group_source = source.new_sibling()
+#             slice_group_source.adopt(affine_slice_group[1])
+#             mapped = _map_slice_group_to_slice_group(slice_group_source, affine_slice_group[0], target, affine_target, **kwargs)
+#             mapped_series.append(mapped)
+#             slice_group_source.remove()
+#         return dbdicom.merge(mapped_series, inplace=True)
+#     else:
+#         return _map_slice_group_to_slice_group(source, affine_source[0], target, affine_target, **kwargs)
+    
+
 def _map_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
 
     if isinstance(affine_source, list):
-        mapped_series = []
+        array_target, headers_target = target.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+        array = None
         for affine_slice_group in affine_source:
             slice_group_source = source.new_sibling()
             slice_group_source.adopt(affine_slice_group[1])
-            mapped = _map_slice_group_to_slice_group(slice_group_source, affine_slice_group[0], target, affine_target, **kwargs)
-            mapped_series.append(mapped)
+            array_sg, weight_sg = _map_slice_group_to_slice_group_array(slice_group_source, affine_slice_group[0], target, affine_target, array_target.shape[:3], **kwargs)
             slice_group_source.remove()
-        return dbdicom.merge(mapped_series, inplace=True)
+            if array is None:
+                array = array_sg
+                weight = weight_sg
+            else:
+                array += weight_sg*array_sg
+                weight += weight_sg   
+        nozero = np.where(weight > 0)
+        array[nozero] = array[nozero]/weight[nozero]
+
+        # Create new series
+        mapped_series = source.new_sibling(suffix='overlay')
+        ns, nt, nk = array.shape[2], array.shape[3], array.shape[4]
+        cnt=0
+        for t in range(nt):
+            for k in range(nk):
+                for s in range(ns):
+                    cnt+=1
+                    source.progress(cnt, ns*nt*nk, 'Saving results..')
+                    image = headers_target[s,0,0].copy_to(mapped_series)
+                    image.AcquisitionTime = t
+                    image.set_array(array[:,:,s,t,k])
+        return mapped_series
     else:
         return _map_slice_group_to_slice_group(source, affine_source[0], target, affine_target, **kwargs)
+    
+
+def _map_slice_group_to_slice_group_array(source, affine_source, target, output_affine, target_shape, **kwargs):
+
+    # Get source arrays
+    array_source, headers_source = source.array(['SliceLocation','AcquisitionTime'], pixels_first=True)
+    
+    # Get message status updates
+    source_desc = source.instance().SeriesDescription
+    target_desc = target.instance().SeriesDescription
+    message = 'Mapping ' + source_desc + ' onto ' + target_desc
+    source.message(message)
+
+    array_mapped = multislice_affine_transform(
+        array_source, 
+        affine_source, 
+        output_affine, 
+        output_shape = target_shape, 
+        slice_thickness = headers_source[0,0,0].SliceThickness, 
+        **kwargs,
+    )
+    weights_mapped = multislice_affine_transform(
+        np.ones(array_source.shape), 
+        affine_source, 
+        output_affine, 
+        output_shape = target_shape, 
+        slice_thickness = headers_source[0,0,0].SliceThickness, 
+        **kwargs,
+    )
+    return array_mapped, weights_mapped
 
 
 def _map_slice_group_to_slice_group(source, affine_source, target, output_affine, **kwargs):
@@ -306,19 +372,13 @@ def _map_slice_group_to_slice_group(source, affine_source, target, output_affine
         **kwargs,
     )
 
-    # TODO
-    # Preserve source window settings and set the same in result
-    # 
-
+    # Create new series
     # Retain source acquisition times
     # Assign acquisition time of slice=0 to all slices
-    nt = headers_source.shape[1]
-    acq_times = [headers_source[0,t,0].AcquisitionTime for t in range(nt)]
-
-    # Create new series
     mapped_series = source.new_sibling(suffix='overlay')
     nt, nk = array_source.shape[3], array_source.shape[4]
     ns = headers_target.shape[0] 
+    acq_times = [headers_source[0,t,0].AcquisitionTime for t in range(nt)]
     cnt=0
     for t in range(nt):
         for k in range(nk):
