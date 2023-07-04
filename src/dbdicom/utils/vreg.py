@@ -703,10 +703,9 @@ def freeform_deformation_align(input_data, displacement, output_shape=None, outp
     return output_data
 
 
-def extract_slice(array, affine, z, slice_thickness=None):
+def affine_slice(affine, z, slice_thickness=None):
 
     # Get the slice and its affine
-    array_z = array[:,:,z]
     affine_z = affine.copy()
     affine_z[:3,3] += z*affine[:3,2]
     # Set the slice spacing to equal the slice thickness.
@@ -714,7 +713,21 @@ def extract_slice(array, affine, z, slice_thickness=None):
     if slice_thickness is not None:
         slice_spacing = np.linalg.norm(affine[:3,2])
         affine_z[:3,2] *= slice_thickness[z]/slice_spacing
+    return affine_z
 
+
+def extract_slice(array, affine, z, slice_thickness=None):
+
+    # Get the slice and its affine
+    array_z = array[:,:,z]
+    affine_z = affine_slice(affine, z, slice_thickness=slice_thickness)
+    # affine_z = affine.copy()
+    # affine_z[:3,3] += z*affine[:3,2]
+    # # Set the slice spacing to equal the slice thickness.
+    # # Note: both are equal for 3D array but different for 2D multislice
+    # if slice_thickness is not None:
+    #     slice_spacing = np.linalg.norm(affine[:3,2])
+    #     affine_z[:3,2] *= slice_thickness[z]/slice_spacing
     return array_z, affine_z
 
     
@@ -858,10 +871,12 @@ def transform_slice_by_slice(input_data, input_affine, output_shape, output_affi
 
 def passive_rigid_transform_slice_by_slice(input_affine, parameters):
     output_affine = []
-    for pz in parameters:
-        affine_z = affine_matrix(rotation=pz[:3], translation=pz[3:])
-        affine_z = affine_z.dot(input_affine)
-        output_affine.append(affine_z)
+    for z, pz in enumerate(parameters):
+        input_affine_z = affine_slice(input_affine, z)
+        rigid_transform = affine_matrix(rotation=pz[:3], translation=pz[3:])
+        #rigid_transform = affine_matrix(rotation=z*(np.pi/180)*np.array([1,0,0])) # for debugging
+        transformed_input_affine = rigid_transform.dot(input_affine_z)
+        output_affine.append(transformed_input_affine)
     return output_affine
 
 
