@@ -1241,16 +1241,26 @@ def test_import_dicom():
     remove_tmp_database(export)
 
 
-def test_series():
+def test_as_series():
+
+    path = create_tmp_database(path=None, name='export')
+
+    array = np.random.normal(loc=50, scale=20, size=(128, 192))
+    series = db.as_series(array)
+    series.PatientName = 'Random noise slice'
+    series.StudyDate = '20221119'
+    series.AcquisitionTime = 12.0*60*60
+    series.save(path)
 
     array = np.random.normal(loc=50, scale=20, size=(10, 128, 192))
-    #array = np.zeros((10, 128, 192))
     series = db.as_series(array)
     series.PatientName = 'Random noise'
     series.StudyDate = '20221119'
-    series.AcquisitionTime = 12.0*60*60
-    path = create_tmp_database(path=None, name='export')
+    series.AcquisitionTime = 12.0*60*60 + 1
     series.save(path)
+
+
+
     remove_tmp_database(path)
 
 
@@ -1368,7 +1378,7 @@ if __name__ == "__main__":
     test_subseries()
     test_export_as_dicom()
     test_import_dicom()
-    test_series()
+    test_as_series()
     test_custom_attributes()
     test_affine_matrix()
     test_read_time()
