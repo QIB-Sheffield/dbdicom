@@ -55,16 +55,14 @@ Editing a record
    Record.copy
    
    
-Loading and saving
-------------------
+Save and restore
+----------------
 
 .. autosummary::
    :toctree: generated/
 
    Record.save
    Record.restore
-   Record.load
-   Record.clear
 
 
 Export to other formats

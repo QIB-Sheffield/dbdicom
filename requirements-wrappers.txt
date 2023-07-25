@@ -1,7 +1,5 @@
 scipy
-scikit-image
+scikit-image<=0.19.0
 SimpleITK-SimpleElastix
-#SimpleITK
-#itk-elastix
 dipy
 scikit-learn

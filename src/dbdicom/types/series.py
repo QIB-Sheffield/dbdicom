@@ -268,6 +268,10 @@ class Series(Record):
         except:
             msg = str(keyword) + ' is not a valid DICOM keyword'
             raise ValueError(msg)
+        if not isinstance(values, list):
+            msg = 'Cannot split by ' + str(keyword) + '\n' 
+            msg += 'All images have the same value'
+            raise ValueError(msg)   
         if len(values) == 1:
             msg = 'Cannot split by ' + str(keyword) + '\n' 
             msg += 'All images have the same value'
@@ -746,12 +750,14 @@ def set_ndarray(series, array, source=None, coords=None, affine=None, **kwargs):
     # If coordinates are given as 1D arrays, turn them into grids and flatten for iteration.
     if coords is not None:
         mesh_coords = {}
-        v0 = list(coords.values())[0]
-        if np.array(v0).ndim==1: # regular grid
-            pos = tuple([coords[c] for c in coords])
-            pos = np.meshgrid(*pos)
-            for i, c in enumerate(coords):
-                mesh_coords[c] = pos[i].ravel()
+        v = list(coords.values())
+        if v != []:
+            v0 = v[0]
+            if np.array(v0).ndim==1: # regular grid
+                pos = tuple([coords[c] for c in coords])
+                pos = np.meshgrid(*pos)
+                for i, c in enumerate(coords):
+                    mesh_coords[c] = pos[i].ravel()
 
     # Flatten array for iterating
     nr_of_slices = int(np.prod(array.shape[2:]))
@@ -815,31 +821,34 @@ def read_npy(record):
 
 
 
-def array(record, **kwargs):
+def array(record, sortby=None, pixels_first=False, first_volume=False):
     if isinstance(record, list): # array of instances
         arr = np.empty(len(record), dtype=object)
         for i, rec in enumerate(record):
             arr[i] = rec
-        return _get_pixel_array_from_instance_array(arr, **kwargs)
+        return _get_pixel_array_from_instance_array(arr, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     elif isinstance(record, np.ndarray): # array of instances
-        return _get_pixel_array_from_instance_array(record, **kwargs)
+        return _get_pixel_array_from_instance_array(record, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     else:
-        return get_pixel_array(record, **kwargs)
+        return get_pixel_array(record, sortby=sortby, pixels_first=pixels_first, first_volume=first_volume)
     
 
-def get_pixel_array(record, sortby=None, first_volume=False, **kwargs): 
-
+def get_pixel_array(record, sortby=None, first_volume=False, pixels_first=False):
     source = instance_array(record, sortby)
-    array, headers = _get_pixel_array_from_sorted_instance_array(source, **kwargs)
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, pixels_first=pixels_first)
     if first_volume:
         return array[...,0], headers[...,0]
     else:
         return array, headers
 
 
-def _get_pixel_array_from_instance_array(instance_array, sortby=None, **kwargs):
+def _get_pixel_array_from_instance_array(instance_array, sortby=None, pixels_first=False, first_volume=False):
     source = sort_instance_array(instance_array, sortby)
-    return _get_pixel_array_from_sorted_instance_array(source, **kwargs)   
+    array, headers = _get_pixel_array_from_sorted_instance_array(source, pixels_first=pixels_first) 
+    if first_volume:
+        return array[...,0], headers[...,0]
+    else:
+        return array, headers  
 
 
 def _get_pixel_array_from_sorted_instance_array(source, pixels_first=False):
