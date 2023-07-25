@@ -1259,8 +1259,6 @@ def test_as_series():
     series.AcquisitionTime = 12.0*60*60 + 1
     series.save(path)
 
-
-
     remove_tmp_database(path)
 
 

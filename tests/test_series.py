@@ -53,12 +53,12 @@ def test_ndarray():
     array = zeros.ndarray(coords=coords)
     assert array.shape == (128, 128, 8, 1, 2)
 
-    slice = {
+    inds = {
         'SliceLocation': np.arange(8),
         'FlipAngle': [1],
         'RepetitionTime': np.arange(2),
     }
-    array = zeros.ndarray(slice=slice)
+    array = zeros.ndarray(inds=inds)
     assert array.shape == (128, 128, 8, 1, 2)
 
 
@@ -108,13 +108,13 @@ def test_set_ndarray():
     # Set the FA=15 subarray to 1 by index:
 
     ones = np.ones((128,128,8,1,2))
-    slice = {
+    inds = {
         'SliceLocation': np.arange(8),
         'FlipAngle': [1],
         'RepetitionTime': np.arange(2),
     }
-    series.set_ndarray(ones, slice=slice)
-    array = series.ndarray(tuple(slice))
+    series.set_ndarray(ones, inds=inds)
+    array = series.ndarray(tuple(inds))
     assert np.mean(array[:,:,:,0,:]) == 1.0
     assert np.mean(array[:,:,:,1,:]) == 1.0
     assert np.mean(array[:,:,:,2,:]) == 1.0    
@@ -212,6 +212,42 @@ def test_slice_groups():
     assert sgroups[0]['ndarray'].shape == shape
     assert np.array_equal(sgroups[0]['affine'], np.eye(4))
 
+def test_slice():
+
+    # Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times.
+    coords = {
+        'SliceLocation': np.arange(8),
+        'FlipAngle': [2, 15, 30],
+        'RepetitionTime': [2.5, 5.0],
+    }
+    series = db.zeros((128,128,8,3,2), coords)
+
+    # Slice the series at flip angle 15:
+    coords['FlipAngle'] = [15]
+    fa15 = series.slice(coords=coords, SeriesDescription='FA15')
+
+    # Retrieve the array and check the dimensions & properties:
+    array = fa15.ndarray(dims=tuple(coords))
+    assert array.shape == (128, 128, 8, 1, 2)
+    assert fa15.SeriesDescription == 'FA15'
+    assert fa15.FlipAngle == 15
+    assert fa15.RepetitionTime == [2.5, 5.0]
+
+    # Get the same slice but this time use inds to slice:
+    inds = {
+        'SliceLocation': np.arange(8),
+        'FlipAngle': 1 + np.arange(1),
+        'RepetitionTime': np.arange(2),
+    }
+    fa15 = series.slice(inds=inds, SeriesDescription='FA15')
+
+    # Retrieve the array and check the dimensions & properties:
+    array = fa15.ndarray(dims=tuple(coords))
+    assert array.shape == (128, 128, 8, 1, 2)
+    assert fa15.SeriesDescription == 'FA15'
+    assert fa15.FlipAngle == 15
+    assert fa15.RepetitionTime == [2.5, 5.0]
+
 
 if __name__ == "__main__":
 
@@ -222,6 +258,7 @@ if __name__ == "__main__":
     test_subseries()
     test_split_by()
     test_slice_groups()
+    test_slice()
 
     print('------------------------')
     print('series passed all tests!')
