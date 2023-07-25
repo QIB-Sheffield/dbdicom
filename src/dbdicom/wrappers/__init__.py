@@ -1,7 +1,9 @@
-# from . import (
-#     numpy,
-#     dipy,
-#     scipy, 
-#     elastix,
-#     skimage,
-# )
+from . import (
+    dipy,
+    elastix,
+    numpy,
+    scipy, 
+    skimage,
+    sklearn,
+    vreg,
+)
