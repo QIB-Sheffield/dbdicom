@@ -31,5 +31,7 @@ Series editing
 .. autosummary::
    :toctree: generated/
 
+   Series.slice
    Series.split_by
    Series.subseries
+   
