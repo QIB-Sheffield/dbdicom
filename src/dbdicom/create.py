@@ -270,6 +270,7 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
     else:
         if in_database is None:
             _database = database()
+            _database.mute()
         else:
             _database = in_database
         patient = _database.new_patient()
@@ -278,66 +279,6 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
         if in_database is None:
             _database.save()
     return series
-
-
-
-def database_hollywood()->Database:
-    """Create an empty toy database for demonstration purposes.
-
-    Returns:
-        Database: Database with two patients, two studies per patient and two empty series per study.
-
-    See Also:
-        :func:`~database`
-
-    Example:
-        >>> database = db.database_hollywood()
-        >>> database.print()
-        ---------- DATABASE --------------
-        Location:  In memory
-            Patient James Bond
-                Study MRI [19821201]
-                    Series 001 [Localizer]
-                        Nr of instances: 0
-                    Series 002 [T2w]
-                        Nr of instances: 0
-                Study Xray [19821205]
-                    Series 001 [Chest]
-                        Nr of instances: 0
-                    Series 002 [Head]
-                        Nr of instances: 0
-            Patient Scarface
-                Study MRI [19850105]
-                    Series 001 [Localizer]
-                        Nr of instances: 0
-                    Series 002 [T2w]
-                        Nr of instances: 0
-                Study Xray [19850106]
-                    Series 001 [Chest]
-                        Nr of instances: 0
-                    Series 002 [Head]
-                        Nr of instances: 0
-        ---------------------------------
-    """
-    hollywood = database()
-
-    james_bond = hollywood.new_patient(PatientName='James Bond')
-    james_bond_mri = james_bond.new_study(StudyDescription='MRI', StudyDate='19821201')
-    james_bond_mri_localizer = james_bond_mri.new_series(SeriesDescription='Localizer')
-    james_bond_mri_T2w = james_bond_mri.new_series(SeriesDescription='T2w')
-    james_bond_xray = james_bond.new_study(StudyDescription='Xray', StudyDate='19821205')
-    james_bond_xray_chest = james_bond_xray.new_series(SeriesDescription='Chest')
-    james_bond_xray_head = james_bond_xray.new_series(SeriesDescription='Head')
-
-    scarface = hollywood.new_patient(PatientName='Scarface')
-    scarface_mri = scarface.new_study(StudyDescription='MRI', StudyDate='19850105')
-    scarface_mri_localizer = scarface_mri.new_series(SeriesDescription='Localizer')
-    scarface_mri_T2w = scarface_mri.new_series(SeriesDescription='T2w')
-    scarface_xray = scarface.new_study(StudyDescription='Xray', StudyDate='19850106')
-    scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
-    scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
-
-    return hollywood
 
 
 
@@ -414,9 +355,7 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
             if len(shape) > 3:
                 coords['AcquisitionTime'] = np.arange(array.shape[3])
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
-    sery.mute()
-    sery.set_ndarray(array, coords=coords)
-    sery.unmute()
+    sery.set_pixel_values(array, coords=coords)
     return sery
 
 

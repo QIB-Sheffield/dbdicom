@@ -1,6 +1,6 @@
 scipy
 =====
 
-.. automodule:: dbdicom.wrappers.scipy
+.. automodule:: dbdicom.extensions.scipy
    :members:
    :undoc-members:

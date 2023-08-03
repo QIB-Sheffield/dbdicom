@@ -1,6 +1,92 @@
+import math
 import numpy as np
 from scipy.interpolate import interpn
 from scipy.ndimage import affine_transform
+
+
+def as_mosaic(array, rows=None):
+    """Reformat a 3D array (x,y,z) into a 2D mosaic"""
+
+    nz = array.shape[2]
+    if rows is None:
+        rows = math.ceil(math.sqrt(nz))
+    cols = math.ceil(nz/rows)
+    mosaic = np.zeros((array.shape[0]*cols, array.shape[1]*rows))
+    for k in range(nz):
+        j = math.floor(k/cols)
+        i = k-j*cols
+        mosaic[
+            i*array.shape[0]:(i+1)*array.shape[0],
+            j*array.shape[1]:(j+1)*array.shape[1],
+        ] = array[:,:,k]
+    return mosaic
+
+
+
+
+def ellipsoid(a, b, c, spacing=(1., 1., 1.), levelset=False):
+    """
+    Generates ellipsoid with semimajor axes aligned with grid dimensions
+    on grid with specified `spacing`.
+
+    Parameters
+    ----------
+    a : float
+        Length of semimajor axis aligned with x-axis.
+    b : float
+        Length of semimajor axis aligned with y-axis.
+    c : float
+        Length of semimajor axis aligned with z-axis.
+    spacing : tuple of floats, length 3
+        Spacing in (x, y, z) spatial dimensions.
+    levelset : bool
+        If True, returns the level set for this ellipsoid (signed level
+        set about zero, with positive denoting interior) as np.float64.
+        False returns a binarized version of said level set.
+
+    Returns
+    -------
+    ellip : (N, M, P) array
+        Ellipsoid centered in a correctly sized array for given `spacing`.
+        Boolean dtype unless `levelset=True`, in which case a float array is
+        returned with the level set above 0.0 representing the ellipsoid.
+
+    Note
+    ----
+    This function is copy-pasted directly from skimage source code without modification - this to avoid bringing in skimage as an essential dependency. 
+
+    """
+    if (a <= 0) or (b <= 0) or (c <= 0):
+        raise ValueError('Parameters a, b, and c must all be > 0')
+
+    offset = np.r_[1, 1, 1] * np.r_[spacing]
+
+    # Calculate limits, and ensure output volume is odd & symmetric
+    low = np.ceil(- np.r_[a, b, c] - offset)
+    high = np.floor(np.r_[a, b, c] + offset + 1)
+
+    for dim in range(3):
+        if (high[dim] - low[dim]) % 2 == 0:
+            low[dim] -= 1
+        num = np.arange(low[dim], high[dim], spacing[dim])
+        if 0 not in num:
+            low[dim] -= np.max(num[num < 0])
+
+    # Generate (anisotropic) spatial grid
+    x, y, z = np.mgrid[low[0]:high[0]:spacing[0],
+                       low[1]:high[1]:spacing[1],
+                       low[2]:high[2]:spacing[2]]
+
+    if not levelset:
+        arr = ((x / float(a)) ** 2 +
+               (y / float(b)) ** 2 +
+               (z / float(c)) ** 2) <= 1
+    else:
+        arr = ((x / float(a)) ** 2 +
+               (y / float(b)) ** 2 +
+               (z / float(c)) ** 2) - 1
+
+    return arr
 
 
 def multislice_affine_transform(array_source, affine_source, output_affine, slice_thickness=None, **kwargs):
@@ -370,10 +456,10 @@ def affine_matrix(      # single slice function
     return affine 
 
 
-def slice_location(
-    image_orientation,  # ImageOrientationPatient
-    image_position,    # ImagePositionPatient
-    ):
+def slice_location( 
+    image_orientation:list,  # ImageOrientationPatient
+    image_position:list,    # ImagePositionPatient
+    ) -> float:
     """Calculate Slice Location"""
 
     row_cosine = np.array(image_orientation[:3])    
@@ -381,6 +467,27 @@ def slice_location(
     slice_cosine = np.cross(row_cosine, column_cosine)
 
     return np.dot(np.array(image_position), slice_cosine)
+
+
+def image_position_from_slice_location(slice_location:float, affine=np.eye(4))->list:
+    v = dismantle_affine_matrix(affine)
+    return list(affine[:3, 3] + slice_location * np.array(v['slice_cosine']))
+
+
+def image_position_patient(affine, number_of_slices):
+    slab = dismantle_affine_matrix(affine)
+    image_positions = []
+    image_locations = []
+    for s in range(number_of_slices):
+        pos = [
+            slab['ImagePositionPatient'][i] 
+            + s*slab['SpacingBetweenSlices']*slab['slice_cosine'][i]
+            for i in range(3)
+        ]
+        loc = np.dot(np.array(pos), np.array(slab['slice_cosine']))
+        image_positions.append(pos)
+        image_locations.append(loc)
+    return image_positions, image_locations
 
 
 def affine_matrix_multislice(
@@ -441,22 +548,6 @@ def affine_to_RAH(affine):
     rot_180[:2,:2] = [[-1,0],[0,-1]]
     return np.matmul(rot_180, affine)
     
-
-def image_position_patient(affine, number_of_slices):
-    slab = dismantle_affine_matrix(affine)
-    image_positions = []
-    image_locations = []
-    for s in range(number_of_slices):
-        pos = [
-            slab['ImagePositionPatient'][i] 
-            + s*slab['SpacingBetweenSlices']*slab['slice_cosine'][i]
-            for i in range(3)
-        ]
-        loc = np.dot(np.array(pos), np.array(slab['slice_cosine']))
-        image_positions.append(pos)
-        image_locations.append(loc)
-    return image_positions, image_locations
-
 
 def clip(array, value_range = None):
 

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import dbdicom as db
 from dbdicom.ds import MRImage
-from dbdicom.wrappers import scipy
+from dbdicom.extensions import scipy
 
 
 
@@ -1329,58 +1329,93 @@ def test_read_time():
     remove_tmp_database(tmp)
 
 
+def test_function_copy_to():
+    database = db.dro.database_hollywood()
+    studies = database.studies(StudyDescription='MRI')
+    tarantino = database.new_patient(PatientName='Tarantino')
+    assert len(studies) == 2
+    assert len(tarantino.studies()) == 0
+    db.copy_to(studies, tarantino)
+    tarantino_MRIs = tarantino.studies()
+    assert len(tarantino_MRIs) == 2
+    tarantino_MRIs = tarantino.studies()
+    assert tarantino_MRIs[0].PatientName == 'Tarantino'
+    MRIs = database.studies(StudyDescription='MRI')
+    assert len(MRIs) == 4
+
+def test_function_move_to():
+    database = db.dro.database_hollywood()
+    studies = database.studies(StudyDescription='MRI')
+    tarantino = database.new_patient(PatientName='Tarantino')
+    assert len(studies) == 2
+    assert len(tarantino.studies()) == 0
+    db.move_to(studies, tarantino)
+    tarantino_MRIs = tarantino.studies()
+    assert len(tarantino_MRIs) == 2
+    tarantino_MRIs = tarantino.studies()
+    assert tarantino_MRIs[0].PatientName == 'Tarantino'
+    MRIs = database.studies(StudyDescription='MRI')
+    assert len(MRIs) == 2
+    jb = database.patients(PatientName = 'James Bond')
+    MRIs = jb.studies(StudyDescription='MRI')
+    assert len(MRIs)==0
+
+
+
+
 if __name__ == "__main__":
 
-    test_tmp()
-    test_read()
-    test_database()
-    test_children()
-    test_read_dicom_data_elements()
-    test_read_dicom_data_elements_from_memory()
-    test_hierarchy()
-    test_hierarchy_in_memory_v1()
-    test_hierarchy_in_memory_v2()
-    test_find_by_value()
-    test_find_by_value_in_memory()
-    test_read_item_instance()
-    test_read_item()
-    test_set_attr_instance()
-    test_set_attr_instance_in_memory_v1()
-    test_set_attr_instance_in_memory_v2()
-    test_set_attr_empty_record()
-    test_set_item_instance()
-    test_set_item_instance_in_memory()
-    test_set_item()
-    test_set_item_in_memory()
-    test_create_records()
-    test_copy_remove_instance()
-    test_copy_remove()
-    test_inherit_attributes()
-    test_merge()
-    test_merge_empty()
-    test_save_restore()
-    test_read_write_dataset()
-    test_read_write_image()
-    test_read_write_series()
-    test_instance_map_to()
-    test_instance_map_mask_to()
-    test_series_map_mask_to()
-    test_set_colormap()
-    test_instance_export_as_csv()
-    test_instance_export_as_png()
-    test_instance_export_as_nifti()
-    test_series_export_as_csv()
-    test_series_export_as_png()
-    test_series_export_as_nifti()
-    test_series_export_as_npy()
-    test_subseries()
-    test_export_as_dicom()
-    test_import_dicom()
-    test_as_series()
-    test_custom_attributes()
-    test_affine_matrix()
-    test_read_time()
-
+    # test_tmp()
+    # test_read()
+    # test_database()
+    # test_children()
+    # test_read_dicom_data_elements()
+    # test_read_dicom_data_elements_from_memory()
+    # test_hierarchy()
+    # test_hierarchy_in_memory_v1()
+    # test_hierarchy_in_memory_v2()
+    # test_find_by_value()
+    # test_find_by_value_in_memory()
+    # test_read_item_instance()
+    # test_read_item()
+    # test_set_attr_instance()
+    # test_set_attr_instance_in_memory_v1()
+    # test_set_attr_instance_in_memory_v2()
+    # test_set_attr_empty_record()
+    # test_set_item_instance()
+    # test_set_item_instance_in_memory()
+    # test_set_item()
+    # test_set_item_in_memory()
+    # test_create_records()
+    # test_copy_remove_instance()
+    # test_copy_remove()
+    # test_inherit_attributes()
+    # test_merge()
+    # test_merge_empty()
+    # test_save_restore()
+    # test_read_write_dataset()
+    # test_read_write_image()
+    # test_read_write_series()
+    # test_instance_map_to()
+    # test_instance_map_mask_to()
+    # test_series_map_mask_to()
+    # test_set_colormap()
+    # test_instance_export_as_csv()
+    # test_instance_export_as_png()
+    # test_instance_export_as_nifti()
+    # test_series_export_as_csv()
+    # test_series_export_as_png()
+    # test_series_export_as_nifti()
+    # test_series_export_as_npy()
+    # test_subseries()
+    # test_export_as_dicom()
+    # test_import_dicom()
+    # test_as_series()
+    # test_custom_attributes()
+    # test_affine_matrix()
+    # test_read_time()
+    # test_function_copy_to()
+    test_function_move_to()
 
     print('------------------------')
     print('record passed all tests!')

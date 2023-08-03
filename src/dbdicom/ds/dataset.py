@@ -306,7 +306,19 @@ def set_values(ds, tags, values, VR=None):
                     ds[tag].value = format_value(values[i], tag=tag)
                 else:
                     _add_new(ds, tag, values[i], VR=VR[i])
+
+        #_set_derived_data_element(ds, tag, values[i])
+                
     return ds
+
+
+# def _set_derived_data_element(ds, tag, value):
+#     """Set any tags that are need to change as well"""
+
+#     if tag == 'SliceLocation' or tag == (0x0020, 0x1041):
+#         if value is not None: 
+#             loc = ds['ImageOrientationPatient'].value
+#             ds['ImagePositionPatient'].value = image.image_position_from_slice_location(value, loc)
 
 
 def _add_new(ds, tag, value, VR='OW'):
@@ -324,8 +336,13 @@ def _add_new(ds, tag, value, VR='OW'):
         ds.add_new(tag, value_repr, format_value(value, value_repr))
     else:
         if (tag.group, 0x0010) not in ds:
-            ds.private_block(tag.group, 'Wezel ' + str(tag.group), create=True)
+            ds.private_block(tag.group, 'dbdicom ' + str(tag.group), create=True)
         ds.add_new(tag, VR, format_value(value, VR))
+
+
+
+
+
 
 
 def get_values(ds, tags):
@@ -380,6 +397,7 @@ def derive_data_element(ds, tag):
                 ds['ImagePositionPatient'].value,
             )
     # To be extended ad hoc with other tags that can be derived
+
 
 
 def format_value(value, VR=None, tag=None):

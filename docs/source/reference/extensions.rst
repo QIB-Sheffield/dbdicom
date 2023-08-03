@@ -15,9 +15,11 @@ The extensions listed in this section are derived from use cases in ongoing stud
    :maxdepth: 2
 
    extensions.numpy
+   extensions.matplotlib
    extensions.scipy
    extensions.skimage
    extensions.sklearn
    extensions.dipy
    extensions.elastix
    extensions.vreg
+   

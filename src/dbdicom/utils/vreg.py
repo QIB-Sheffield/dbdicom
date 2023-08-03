@@ -766,7 +766,7 @@ def extract_slice(array, affine, z, slice_thickness=None):
 
 
 ####################################
-# wrappers for use in align function
+# extensions for use in align function
 ####################################
 
 

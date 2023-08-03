@@ -142,14 +142,14 @@ To extract the images in a series as a numpy array, use ``array()``:
 
 .. code-block:: python
 
-    array = series.ndarray()
+    array = series.pixel_values()
 
 
 This will return an array with dimensions ``(x,y,n)`` where ``n`` enumerates the images in the series. The array can also be returned with other dimensions:
 
 .. code-block:: python
 
-    array = series.ndarray(dims=('SliceLocation', 'FlipAngle'))
+    array = series.pixel_values(dims=('SliceLocation', 'FlipAngle'))
 
 
 This returns an array with dimensions ``(x,y,z,t)`` where ``z`` corresponds to slice locations and ``t`` to flip angles. Any number of dimensions can be added in this way. 
@@ -158,7 +158,7 @@ Replacing the images of a series with a given numpy array works the same way:
 
 .. code-block:: python
 
-    series.set_ndarray(array, dims=('SliceLocation', 'FlipAngle'))
+    series.set_pixel_values(array, dims=('SliceLocation', 'FlipAngle'))
 
 
 Another useful tool on series level is extracting a subseries. Let's say we have an MRI series with phase and magnitude data mixed, and we want to split it up into separate series:
@@ -179,7 +179,7 @@ As an example of additional functions that can be built on top of standard packa
 
 .. code-block:: python
 
-    from dbdicom.wrappers import scipy
+    from dbdicom.extensions import scipy
     overlay = scipy.map_to(series, target)
 
 If series is a binary mask (or can be interpreted as one), a similar function can be used to overlay the mask on another series:

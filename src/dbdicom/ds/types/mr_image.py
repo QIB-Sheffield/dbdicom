@@ -126,11 +126,11 @@ def rider(ds): # required only - check
     ds.SeriesNumber = '14'
     ds.AcquisitionNumber = '1'
     ds.InstanceNumber = '1'
-    ds.ImagePositionPatient = [75.561665058136, -163.6216506958, 118.50172901154]
-    ds.ImageOrientationPatient = [0, 1, 0, 0, 0, -1]
+    ds.ImagePositionPatient = [0, 0, 0]
+    ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
     ds.FrameOfReferenceUID = '1.3.6.1.4.1.9328.50.16.22344679587635360510174487884943834158'
     ds.PositionReferenceIndicator = ''
-    ds.SliceLocation = '75.561665058136'
+    ds.SliceLocation = '0.0'
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = 'MONOCHROME2'
     ds.Rows = 64

@@ -1069,6 +1069,7 @@ class Manager():
             key = self.new_row(data)  # Study with existing series
         return data[2], key
 
+
     
     def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
 
@@ -1132,12 +1133,12 @@ class Manager():
 
         data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
+        data[11:] = ds.get_values(self.columns[11:])
         key = self.update_row_data(key, data)
-        ds.set_values(self.columns, data)
+        ds.set_values(self.columns[:11], data[:11]) 
         self.dataset[key] = ds
         return key
 
-        
     def set_dataset(self, uid, dataset, keys=None):
 
         if keys is None:
@@ -1177,10 +1178,11 @@ class Manager():
                     data[10] = 1
                 else:
                     data[10] = 1 + max(nrs)
+                data[11:] = ds.get_values(self.columns[11:]) # added 27/07/23
                 
                 # Add to database in memory as a new row
                 key = self.new_row(data)
-                ds.set_values(self.columns, data)
+                ds.set_values(self.columns[:11], data[:11]) # modified 27/07/23
                 self.dataset[key] = ds
 
             else: # If the instance is already in the object
@@ -1188,7 +1190,9 @@ class Manager():
                 key = parent_keys[ind]
                 data = self.value(key, self.columns)
                 data[4] = ds.SOPClassUID
+                data[11:] = ds.get_values(self.columns[11:]) # added 27/07/23
                 key = self.update_row_data(key, data)
+                ds.set_values(self.columns[:11], data[:11]) # added 27/07/23
                 self.dataset[key] = ds
 
         # If the series is empty and new instances have been added then delete the row  

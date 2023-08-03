@@ -47,9 +47,9 @@ Project setup and installation
 
     pip install -e .
 
-#. Install ``dbdicom`` with optional dependencies specified in pyproject.toml file (e.g., wrappers):
+#. Install ``dbdicom`` with optional dependencies specified in pyproject.toml file (e.g., extensions):
 
 .. code-block:: console
 
-    pip install -e .[wrappers]
+    pip install -e .[extensions]
 

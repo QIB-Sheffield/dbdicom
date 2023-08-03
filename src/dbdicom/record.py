@@ -91,7 +91,32 @@ class Record():
     def dialog(self):
         return self.manager.dialog
     
-    def set_log(self, filepath=None):
+    def set_log(self, filepath:str=None):
+        """Set a new file for logging.
+
+        Args:
+            filepath: full path to a log file. If not provided the current log file is removed. Alternatively the value 'Default' can be assigned, in which case a standard file at the same location of the database is automatically opened. Defaults to None.
+
+        Raises:
+            FileNotFoundError: if the log file cannot be written to.
+
+        See also:
+            `log`
+
+        Examples:
+
+            Set a new log file:
+
+            >>> record.set_log('path/to/logfile')
+            
+            and start logging:
+
+            >>> record.log('Starting new calculation...)
+
+            Alternatively, start a new log at the default location:
+
+            >>> record.set_log('Default')
+        """
         if filepath is None:
             self._logfile = None
             return
@@ -108,13 +133,33 @@ class Record():
             msg = 'Cannot write to log ' + self._logfile
             raise FileNotFoundError(msg)
         
-    def log(self, msg):
-        self.message(msg)
+    def log(self, message:str):
+        """Write an entry in the log file.
+
+        If no logfile is set, this function only writes a message in the terminal.
+
+        Args:
+            message (str): text message to be written in the log file. The function automatically includes some timing information so this does not need to be included in the message. 
+
+        Raises:
+            FileNotFoundError: if the log file cannot be written to.
+
+        See also:
+            `set_log`
+
+        Examples:
+            Set a default file for logging and write a first message:
+
+            >>> record.set_log('Default')
+            >>> record.log('Starting new calculation...)
+        """
+        
+        self.message(message)
         if self._logfile is None:
             return
         try:
             file = open(self._logfile, 'a')
-            file.write("\n"+str(datetime.datetime.now())[0:19] + ": " + msg)
+            file.write("\n"+str(datetime.datetime.now())[0:19] + ": " + message)
             file.close()
         except:
             msg = 'Cannot write to log ' + self._logfile
@@ -133,7 +178,7 @@ class Record():
         Example:
             Print a summary of a database:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> database.print()
             ---------- DATABASE --------------
             Location:  In memory
@@ -245,7 +290,7 @@ class Record():
             Populate the series with a numpy array and verify that it is now no longer empty:
 
             >>> zeros = np.zeros((3, 2, 128, 128))
-            >>> series.set_ndarray(zeros)
+            >>> series.set_pixel_values(zeros)
             >>> print(series.empty())
             False
         """
@@ -360,7 +405,7 @@ class Record():
         Example:
             Find the patients of a given database:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> patients = database.children()
             >>> print([p.PatientName for p in patients])
             ['James Bond', 'Scarface']
@@ -401,7 +446,7 @@ class Record():
         Example:
             Retrieve a study from a database, and find all other studies performed on the same patient:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> study = database.studies()[0]
             >>> print([s.StudyDescription for s in study.siblings()])
             ['Xray']
@@ -435,7 +480,7 @@ class Record():
         Example:
             Find all series in a database, and print their labels:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> series_list = database.series()
             >>> print([s.label() for s in series_list])
             ['Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]', 'Series 001 [Localizer]', 'Series 002 [T2w]', 'Series 001 [Chest]', 'Series 002 [Head]']
@@ -480,7 +525,7 @@ class Record():
         Example:
             Find all studies in a database:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> studies_list = database.studies()
             >>> print([s.label() for s in studies_list])
             ['Study MRI [19821201]', 'Study Xray [19821205]', 'Study MRI [19850105]', 'Study Xray [19850106]']
@@ -519,7 +564,7 @@ class Record():
         Example:
             Find all patients in a database:
 
-            >>> database = db.database_hollywood()
+            >>> database = db.dro.database_hollywood()
             >>> patients_list = database.patients()
             >>> print([s.label() for s in patients_list])
             ['Patient James Bond', 'Patient Scarface']
@@ -937,8 +982,6 @@ class Record():
         """
         move_to(self, parent)
         return self
-
-
 
 
     def copy_to(self, parent, **kwargs):
@@ -1418,6 +1461,7 @@ class Record():
             My message:
         """
         self._mute = True
+        self.status.muted = True
         
     def unmute(self):
         """Allow the object from sending status updates to the user
@@ -1448,6 +1492,7 @@ class Record():
             Hello World
         """
         self._mute = False
+        self.status.muted = False
 
     def type(self):
         return self.__class__.__name__
@@ -1562,10 +1607,6 @@ class Record():
         self.manager._write_df()
 
 
-
-
-
-
     def new_instance(self, dataset=None, **kwargs):
         attr = {**kwargs, **self.attributes}
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
@@ -1584,8 +1625,6 @@ class Record():
 
     def set_dataset(self, dataset):
         self.manager.set_dataset(self.uid, dataset, self.keys())
-
-
 
     def read_dataframe(*args, **kwargs):
         return read_dataframe(*args, **kwargs)
@@ -1615,14 +1654,55 @@ class Record():
 #
 
 
-def copy_to(records, target):
+def copy_to(records:list, parent:Record):
+    """Copy a list of records to a new parent.
+
+    Args:
+        records (list): list of Records of the same type
+        parent (Record): location for the copies.
+
+    See also:
+        `copy`
+        `move_to`
+
+    Example:
+
+        Consider the hollywood demo database:
+
+        >>> database = db.dro.database_hollywood()
+
+        There are currently two MRI studies in the database:
+
+        >>> MRIs = database.studies(StudyDescription='MRI)
+        >>> len(MRIs)
+        2
+
+        Create a new patient and copy the MRI studies there:
+
+        >>> tarantino = database.new_patient(PatientName='Tarantino')
+        >>> db.copy_to(MRIs, tarantino)
+        >>> tarantino_MRIs = tarantino.studies()
+        >>> len(tarantino_MRIs)
+        2
+
+        Note that all header information is automatically updated:
+
+        >>> tarantino_MRIs[0].PatientName
+        Tarantino
+
+        Since the studies were copied, the originals remained and the total number of studies in the database has increased:
+
+        >>> MRIs = database.studies(StudyDescription='MRI)
+        >>> len(MRIs)
+        4
+    """
     if not isinstance(records, list):
-        return records.copy_to(target)
+        return records.copy_to(parent)
     copy = []
-    desc = target.label()
+    desc = parent.label()
     for r, record in enumerate(records):
-        record.status.progress(r+1, len(records), 'Copying ' + desc)
-        copy_record = record.copy_to(target)
+        record.progress(r+1, len(records), 'Copying ' + desc)
+        copy_record = record.copy_to(parent)
         if isinstance(copy_record, list):
             copy += copy_record
         else:
@@ -1630,9 +1710,55 @@ def copy_to(records, target):
     record.status.hide()
     return copy
 
-def move_to(records, target):
-    #if type(records) is np.ndarray:
-    #    records = records.tolist()
+def move_to(records:list, target:Record):
+    """Move a list of records to a new parent.
+
+    Args:
+        records (list): list of Records of the same type
+        parent (Record): location for the copies.
+
+    See also:
+        `copy`
+        `copy_to`
+
+    Example:
+
+        Consider the hollywood demo database:
+
+        >>> database = db.dro.database_hollywood()
+
+        There are currently two MRI studies in the database:
+
+        >>> MRIs = database.studies(StudyDescription='MRI)
+        >>> len(MRIs)
+        2
+
+        Create a new patient and move the MRI studies there:
+
+        >>> tarantino = database.new_patient(PatientName='Tarantino')
+        >>> db.copy_to(MRIs, tarantino)
+        >>> tarantino_MRIs = tarantino.studies()
+        >>> len(tarantino_MRIs)
+        2
+
+        Note that all header information is automatically updated:
+
+        >>> tarantino_MRIs[0].PatientName
+        Tarantino
+
+        Since the studies were moved, the originals have disappeared and the total number of studies in the database has stayed the same:
+
+        >>> MRIs = database.studies(StudyDescription='MRI)
+        >>> len(MRIs)
+        2
+
+        And the original patients do not have any MRI studies left:
+
+        >>> jb = database.patients(PatientName = 'James Bond')
+        >>> MRIs = jb.studies(StudyDescription='MRI')
+        >>> len(MRIs)
+        0
+    """
     if not isinstance(records, list):
         records = [records]
     mgr = records[0].manager
@@ -1640,7 +1766,7 @@ def move_to(records, target):
     mgr.move_to(uids, target.uid, **target.attributes)
     return records
 
-def group(records, into=None, inplace=False):
+def group(records:list, into:Record=None, inplace=False)->Record:
     if not isinstance(records, list):
         records = [records]
     if into is None:
@@ -1651,23 +1777,24 @@ def group(records, into=None, inplace=False):
         copy_to(records, into)
     return into
 
-def merge(records, into=None, inplace=False):
+def merge(records:list, into:Record=None, inplace=False)->Record:
     if not isinstance(records, list):
         records = [records]
     children = []
     for record in records:
         children += record.children()
-    new_series = group(children, into=into, inplace=inplace)
+    new_record = group(children, into=into, inplace=inplace)
     if inplace:
         for record in records:
             record.remove()
-    return new_series
+    return new_record
+
+
 
 
 # 
 # Read and write
 #
-
 
 
 
@@ -1696,8 +1823,3 @@ def _read_dataframe_from_instance_array_values(instances, tags):
         data.append(values)
         instance.progress(i+1, len(instances), 'Reading dataframe..')
     return pd.DataFrame(data, index=indices, columns=tags)
-
-
-
-
-

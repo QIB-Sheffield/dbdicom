@@ -68,8 +68,10 @@ docs = [
     "sphinxcontrib-jsmath",
     "sphinxcontrib-qthelp",
     "sphinxcontrib-serializinghtml",
+    #"nbsphinx",
+    "sphinx-gallery",
 ]
-wrappers = [
+extensions = [
     "scipy",
     # restricting to the latest stable release for now due to a bug
     # introduced in 0.20.0 that causes executables to crash. The bug is known

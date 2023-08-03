@@ -2,6 +2,6 @@ elastix
 =======
 
 
-.. automodule:: dbdicom.wrappers.elastix
+.. automodule:: dbdicom.extensions.elastix
    :members:
    :undoc-members:
