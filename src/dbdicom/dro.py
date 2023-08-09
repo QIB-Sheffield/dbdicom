@@ -143,6 +143,7 @@ def database_hollywood()->Database:
         ---------------------------------
     """
     hollywood = db.database()
+    hollywood.mute()
 
     james_bond = hollywood.new_patient(PatientName='James Bond')
     james_bond_mri = james_bond.new_study(StudyDescription='MRI', StudyDate='19821201')

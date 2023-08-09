@@ -6,7 +6,7 @@ from dbdicom.manager import Manager
 from dbdicom.types.database import Database
 from dbdicom.types.patient import Patient
 from dbdicom.types.study import Study
-from dbdicom.types.series import Series
+from dbdicom.types.series import Series, _coords_size, _grid_to_coords
 from dbdicom.types.instance import Instance
 
 
@@ -357,6 +357,24 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.set_pixel_values(array, coords=coords)
     return sery
+
+
+def empty_series(coords:dict=None, grid:dict=None,  dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+
+    if grid is not None:
+        coords = _grid_to_coords(grid)
+    sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
+    if coords is None:
+        return sery
+    n_images = _coords_size(coords)
+    for i in range(n_images):
+        ds = sery.init_dataset()
+        for c in coords:
+            co = coords[c].ravel()
+            ds.set_values(c, co[i])
+        sery.new_instance(ds)
+    return sery
+
 
 
 def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:

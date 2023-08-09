@@ -3,7 +3,7 @@ Lists of records
 
 Functions that operate on multiple records.
 
-.. currentmodule:: dbdicom.record
+.. currentmodule:: dbdicom
 
 .. autosummary::
     :toctree: ../generated/api/
@@ -12,7 +12,6 @@ Functions that operate on multiple records.
 
     copy_to
     move_to
-    group
     merge
     
 

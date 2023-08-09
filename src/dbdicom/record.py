@@ -8,6 +8,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import dbdicom.ds.dataset as dbdataset
+from dbdicom.ds import MRImage
 from dbdicom.utils.files import export_path
 
 
@@ -42,10 +43,10 @@ class Record():
         if attribute in ['_key','_mute', 'uid', 'manager', 'attributes', 'new', '_logfile']:
             self.__dict__[attribute] = value
         else:
-            self.set_values([attribute], [value])
+            self._set_values([attribute], [value])
            
     def __setitem__(self, attributes, values):
-        self.set_values(attributes, values)
+        self._set_values(attributes, values)
 
     def loc(self):
         return self.manager._loc(self.name, self.uid)
@@ -1514,8 +1515,8 @@ class Record():
         return self.manager._extract(self.keys())
         #return self.manager.register.loc[self.keys(),:]
     
-    def instances(self, sort=True, sortby=None, **kwargs): 
-        inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+    def instances(self, sort=True, sortby=None, select={}, **kwargs): 
+        inst = self.manager.instances(keys=self.keys(), sort=sort, sortby=sortby, select=select, **kwargs)
         return [self.record('Instance', uid, key) for key, uid in inst.items()]
 
     def images(self, sort=True, sortby=None, **kwargs): 
@@ -1612,12 +1613,21 @@ class Record():
         uid, key = self.manager.new_instance(parent=self.uid, dataset=dataset, **attr)
         return self.record('Instance', uid, key, **attr)
 
-    def set_values(self, attributes, values):
+    def _set_values(self, attributes, values):
         keys = self.keys()
         self._key = self.manager.set_values(attributes, values, keys)
 
     def get_values(self, attributes):
         return self.manager.get_values(attributes, self.keys())
+    
+    def init_dataset(self, dtype='mri'):
+        if dtype=='mri':
+            ds = MRImage()
+        else: # dummy option for now
+            ds = MRImage()
+        for a in self.attributes:
+            ds.set_values(a, self.attributes[a])
+        return ds
 
     def get_dataset(self):
         ds = self.manager.get_dataset(self.uid, self.keys())
@@ -1746,7 +1756,7 @@ def move_to(records:list, target:Record):
         >>> tarantino_MRIs[0].PatientName
         Tarantino
 
-        Since the studies were moved, the originals have disappeared and the total number of studies in the database has stayed the same:
+        Since the studies were moved, the total number of studies in the database has stayed the same:
 
         >>> MRIs = database.studies(StudyDescription='MRI)
         >>> len(MRIs)
@@ -1755,7 +1765,7 @@ def move_to(records:list, target:Record):
         And the original patients do not have any MRI studies left:
 
         >>> jb = database.patients(PatientName = 'James Bond')
-        >>> MRIs = jb.studies(StudyDescription='MRI')
+        >>> MRIs = jb[0].studies(StudyDescription='MRI')
         >>> len(MRIs)
         0
     """
@@ -1778,6 +1788,56 @@ def group(records:list, into:Record=None, inplace=False)->Record:
     return into
 
 def merge(records:list, into:Record=None, inplace=False)->Record:
+    """Merge a list of records into a single new record.
+
+    Args:
+        records (list): list of Records of the same type
+        into (Record, optional): location for the merged series. If None is provided, the merged series is created in the parent of the first record in the list. Defaults to None.
+        inplace (bool, optional): If set to True, the original series will be removed and only the merged series retain. If set to False the original series will contine to exist. Default is False.
+
+    Returns: 
+        new_record (Record): the merged record.
+
+    See also:
+        `copy`
+        `copy_to`
+
+    Example:
+
+        The first patient in the hollywood demo database currently has two studies
+
+        >>> database = db.dro.database_hollywood()
+        >>> jb = database.patients(PatientName = 'James Bond')[0]
+        >>> len(jb.studies())
+        2
+
+        If we merge them together, the patient now has three studies, the original MRI and Xray studies, and the new merged study:
+
+        >>> new_study = db.merge(jb.studies())
+        >>> len(jb.studies())
+        3
+        >>> jb.StudyDescription
+        ['MRI', 'New Study', 'Xray']
+
+        Since the original MRI and Xray studies had two series each, the new study now has 2+2=4 series:
+
+        >>> len(new_study.series())
+        4 
+
+        We have used here the default setting of ``inplace=False``, so the original series are preserved. To see what happens with ``inplace=True``, lets merge all 3 studies of the patient: 
+
+        >>> single_jb_study = db.merge(jb.studies(), inplace=True)
+
+        Since we have merged in place, the original 3 studies have been removed and there is now only one study left.
+        
+        >>> len(jb.studies())
+        1
+
+        The new study now groups the 8 series that were in the original 3 studies:
+
+        >>> len(single_jb_study.series())
+        8
+    """
     if not isinstance(records, list):
         records = [records]
     children = []
@@ -1798,10 +1858,18 @@ def merge(records:list, into:Record=None, inplace=False)->Record:
 
 
 
-def read_dataframe(record, tags):
+def read_dataframe(record, tags, select={}, **filters):
     if set(tags) <= set(record.manager.columns):
-        return record.register()[tags]  
-    instances = record.instances()
+        df = record.register()[tags] 
+        filters = {**select, **filters}
+        for f in filters:
+            if f in df:
+                if isinstance(filters[f], np.ndarray):
+                    df = df[df[f].isin(filters[f])]
+                else:
+                    df = df[df[f] == filters[f]] 
+        return df
+    instances = record.instances(select=select, **filters)
     return _read_dataframe_from_instance_array_values(instances, tags)
 
 

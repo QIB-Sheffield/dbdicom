@@ -29,6 +29,7 @@ Series from value
    as_series
    zeros
    ones
+   empty
 
 
 

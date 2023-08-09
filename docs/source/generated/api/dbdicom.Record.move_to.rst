@@ -1,18 +1,18 @@
-﻿dbdicom.record.move\_to
+﻿dbdicom.Record.move\_to
 =======================
 
 
-.. currentmodule:: dbdicom.record
+.. currentmodule:: dbdicom
 
 
 
-.. autofunction:: move_to
+.. automethod:: Record.move_to
 
 
 
 
 
-.. minigallery:: dbdicom.record.move_to
+.. minigallery:: dbdicom.Record.move_to
    :add-heading:
 
 

@@ -77,7 +77,7 @@ def mean_intensity_projection(series:dbd.Series, dims=('SliceLocation','Instance
     return result
 
 
-def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','InstanceNumber'), axis=-1) -> dbd.Series:
+def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','AcquisitionTime'), axis=-1) -> dbd.Series:
     """Create a maximum intensity projection along a specified dimension.
 
     Args:
@@ -131,6 +131,25 @@ def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','Insta
         >>> print(array.shape)
         (128, 128, 8, 3, 1)
     """
+
+    # Store the result in a slice to preserve header information
+    result = series.islice({dims[axis]: 0})
+    result.SeriesDescription = 'Maximum Intensity Projection'
+
+    # Project the coordinate array 
+    coords = series.coords(dims)
+    del coords[dims[axis]]
+
+    # Project the pixel array
+    if axis >= 0:
+        axis += 2
+    array = series.pixel_values(dims=dims)
+    array = np.amax(array, axis=axis)
+
+    # Save results
+    result.set_pixel_values(array, coords=coords)
+    return result
+
     array = series.pixel_values(dims=dims)
     inds = {}
     for id, d in enumerate(dims):

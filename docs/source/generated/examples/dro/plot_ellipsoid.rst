@@ -169,7 +169,7 @@ The triangulated surface of the ellipsoid can be visualised using the `.plot_sur
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  3.757 seconds)
+   **Total running time of the script:** ( 0 minutes  1.914 seconds)
 
 
 .. _sphx_glr_download_generated_examples_dro_plot_ellipsoid.py:

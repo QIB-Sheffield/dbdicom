@@ -155,9 +155,9 @@ def test_matplotlib_plot_surface():
 if __name__ == "__main__":
 
     test_numpy_maximum_intensity_projection()
-    test_numpy_mean_intensity_projection()
-    test_numpy_norm_projection()
-    test_matplotlib_plot_surface()
+    # test_numpy_mean_intensity_projection()
+    # test_numpy_norm_projection()
+    # test_matplotlib_plot_surface()
 
     print('--------------------------')
     print('extensions passed all tests!')

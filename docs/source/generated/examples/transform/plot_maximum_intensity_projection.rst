@@ -111,7 +111,7 @@ To see what happened we can retrieve the nympy array of the MIP
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  2.059 seconds)
+   **Total running time of the script:** ( 0 minutes  1.019 seconds)
 
 
 .. _sphx_glr_download_generated_examples_transform_plot_maximum_intensity_projection.py:

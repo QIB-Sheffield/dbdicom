@@ -173,7 +173,7 @@ We used `reshape=True` so the new volume would encompass the entire shape. Runni
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  21.462 seconds)
+   **Total running time of the script:** ( 0 minutes  9.888 seconds)
 
 
 .. _sphx_glr_download_generated_examples_transform_plot_rotate_and_translate.py:

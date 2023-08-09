@@ -79,7 +79,7 @@ Display the data at the smallest flip angle and repetition time
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  3.460 seconds)
+   **Total running time of the script:** ( 0 minutes  1.215 seconds)
 
 
 .. _sphx_glr_download_generated_examples_dro_plot_T1_mapping_vFATR.py:

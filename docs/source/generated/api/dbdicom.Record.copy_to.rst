@@ -1,18 +1,18 @@
-﻿dbdicom.record.copy\_to
+﻿dbdicom.Record.copy\_to
 =======================
 
 
-.. currentmodule:: dbdicom.record
+.. currentmodule:: dbdicom
 
 
 
-.. autofunction:: copy_to
+.. automethod:: Record.copy_to
 
 
 
 
 
-.. minigallery:: dbdicom.record.copy_to
+.. minigallery:: dbdicom.Record.copy_to
    :add-heading:
 
 
