@@ -14,14 +14,14 @@ Reading values
    :template: autosummary.rst
    :nosignatures:
 
+   Series.coords
+   Series.values
+   Series.frames
    Series.shape
    Series.spacing
    Series.unique
    Series.unique_affines
-   Series.coords
-   Series.meshcoords
    Series.gridcoords
-   Series.values
    Series.pixel_values
    Series.affine
 
@@ -35,7 +35,6 @@ Setting values
    :nosignatures:
 
    Series.set_coords
-   Series.set_meshcoords
    Series.set_gridcoords
    Series.set_values
    Series.set_pixel_values

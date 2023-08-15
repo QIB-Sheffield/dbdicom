@@ -283,12 +283,13 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
 
 
 
-def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+def as_series(array:np.ndarray, coords:dict=None, gridcoords:dict=None, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
     """Create a DICOM series from a numpy array.
 
     Args:
         array (np.ndarray): numpy.ndarray with image data
-        coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions this is required. The coordinate values can be one-dimensions for regularly gridded data, or n-dimensional for irregularly gridded data. 
+        coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions either *coords* or *gridcoords* are required. 
+        gridcoords (dict, optional): regularly gridded coordinates can also be provided as a coordinate grid.
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
         in_database (Database, optional): If provided, the series is created in this database. Defaults to None.
@@ -345,39 +346,34 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
     """
     shape = array.shape
     if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
+        if gridcoords is None:
+            if len(shape) > 4:
+                msg = 'With more than 4 dimensions, the coords argument is required.'
+                raise ValueError(msg)
+            gridcoords = {}
             if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(array.shape[2])
+                gridcoords['SliceLocation'] = np.arange(shape[2])
             if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(array.shape[3])
+                gridcoords['AcquisitionTime'] = np.arange(shape[3])
+    if gridcoords is not None:
+        coords = _grid_to_coords(gridcoords)
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     sery.set_pixel_values(array, coords=coords)
     return sery
 
 
-def empty_series(coords:dict=None, grid:dict=None,  dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+def empty_series(coords:dict=None, gridcoords:dict=None,  dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
 
-    if grid is not None:
-        coords = _grid_to_coords(grid)
+    if gridcoords is not None:
+        coords = _grid_to_coords(gridcoords)
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
     if coords is None:
         return sery
-    n_images = _coords_size(coords)
-    for i in range(n_images):
-        ds = sery.init_dataset()
-        for c in coords:
-            co = coords[c].ravel()
-            ds.set_values(c, co[i])
-        sery.new_instance(ds)
+    sery.expand(coords)
     return sery
 
 
-
-def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
+def zeros(shape:tuple, coords:dict=None, gridcoords:dict=None, **kwargs) -> Series:
     """Create a DICOM series populated with zeros.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -413,21 +409,12 @@ def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
         >>> array = np.zeros((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
-    if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
-            if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(shape[2])
-            if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(shape[3])
+
     array = np.zeros(shape, dtype=np.float32)
-    return as_series(array, coords=coords, **kwargs)
+    return as_series(array, coords=coords, gridcoords=gridcoords, **kwargs)
 
 
-def ones(shape:tuple, coords:dict=None, **kwargs) -> Series:
+def ones(shape:tuple, coords:dict=None, gridcoords:dict=None, **kwargs) -> Series:
     """Create a DICOM series populated with ones.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -463,15 +450,5 @@ def ones(shape:tuple, coords:dict=None, **kwargs) -> Series:
         >>> array = np.ones((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
-    if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
-            if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(shape[2])
-            if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(shape[3])
     array = np.ones(shape, dtype=np.float32)
-    return as_series(array, coords=coords, **kwargs)
+    return as_series(array, coords=coords, gridcoords=gridcoords, **kwargs)

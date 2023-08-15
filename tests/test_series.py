@@ -33,6 +33,8 @@ def remove_tmp_database(tmp):
 
 def test_check_if_coords():
 
+    print('Testing check_if_coords')
+
     # ValueError: These are not proper coordinates. Each coordinate must have the same number of values.
     coords = {
         'SliceLocation': np.array([0,0,0,0]),
@@ -99,6 +101,8 @@ def test_check_if_coords():
 
 
 def test_grid_to_meshcoords():
+
+    print('Testing grid_to_meshcoords')
     
     grid = {
         'SliceLocation': np.arange(4),
@@ -151,6 +155,8 @@ def test_grid_to_meshcoords():
 
 def test_as_meshcoords():
 
+    print('Testing as_meshcoords')
+
     # Proper coordinates that are mesh coordinates
     coords = {
         'SliceLocation': np.array([6,6,6,6,5,5,5,5]),
@@ -188,6 +194,8 @@ def test_as_meshcoords():
 
 
 def test_concatenate_coords():
+
+    print('Testing concatenate_coords')
 
     # Add new slice locations at the same FA and TR
     grid1 = {
@@ -248,30 +256,6 @@ def test_concatenate_coords():
     assert coords['SliceLocation'].size == coords_size
 
 
-def test_frames():
-    # Create an empty series with 3 slice dimensions 
-    grid = {
-        'SliceLocation': np.arange(4),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    coords = db.types.series._grid_to_meshcoords(grid)
-    series = db.empty_series(coords)
-    frames = series._frames(coords=coords)
-    assert frames[1,1,1].FlipAngle == 15
-    assert frames[1,1,1].RepetitionTime == 5.0
-
-    frames = series._frames(tuple(coords))
-    assert frames[1,1,1].FlipAngle == 15
-    assert frames[1,1,1].RepetitionTime == 5.0
-
-    frames, coords = series._frames(tuple(coords), return_coords=True)
-    assert frames[1,1,1].FlipAngle == 15
-    assert frames[1,1,1].RepetitionTime == 5.0
-    assert coords['FlipAngle'][1,1,1] == 15
-    assert coords['RepetitionTime'][1,1,1] == 5.0
-
-
 def test_coords():
 
     print('Testing coords')
@@ -294,7 +278,7 @@ def test_coords():
     assert 'InstanceNumber' in coords
     assert np.array_equal(coords['InstanceNumber'], 1 + np.arange(6))
 
-    # In this case the slice location and flip angle along are sufficient to identify the frames, so these are valid coordinates:
+    # In this case the slice location and flip angle alone are sufficient to identify the frames, so these are valid coordinates:
 
     coords = series.coords(('SliceLocation', 'FlipAngle'))
     assert np.array_equal(coords['SliceLocation'], [0,0,1,1,2,2])
@@ -316,6 +300,244 @@ def test_coords():
         assert False
     try:
         series.coords(('AcquisitionTime', ))
+    except:
+        assert True
+    else:
+        assert False
+
+    # Filter the return values:
+
+    coords = series.coords(('SliceLocation', 'FlipAngle'), RepetitionTime=np.array([1,15]))
+    assert np.array_equal(coords['FlipAngle'], [2,10,2,10])
+
+    coords = series.coords(('SliceLocation', 'FlipAngle'), AcquisitionTime=0)
+    assert np.array_equal(coords['FlipAngle'], [])
+
+    # Filtering with (gr, el) tag can be done using the loc keyword values:
+
+    loc = {(0x0018, 0x0080): np.array([1,15])}
+    coords = series.coords(('SliceLocation', 'FlipAngle'), loc=loc)
+    assert np.array_equal(coords['FlipAngle'], [2,10,2,10])
+
+
+    # To test return as mesh, create an empty series with 3 coordinates: 
+    coords = {
+        'SliceLocation': np.array([0,1,2,0,1,2]),
+        'FlipAngle': np.array([10,10,10,2,2,2]),
+        'RepetitionTime': np.array([1,5,15,1,5,15]),
+    }
+    series = db.empty_series(coords)
+    
+    # Extract as meshcoordinates
+    coords = series.coords(tuple(coords), mesh=True)
+    assert coords['SliceLocation'].shape == (3,2,1)
+    assert coords['SliceLocation'][1,1,0] == 1
+    assert coords['FlipAngle'][1,1,0] == 10
+    assert coords['RepetitionTime'][1,1,0] == 5
+
+    # Filter the meshed return values:
+    coords = series.coords(('SliceLocation', 'FlipAngle'), RepetitionTime=np.array([1,15]), mesh=True)
+    assert coords['SliceLocation'].shape == (2,2)
+    assert coords['SliceLocation'][1,1] == 2
+    assert coords['FlipAngle'][1,1] == 10
+
+    # Use a exclude filter instead:
+    coords = series.coords(('SliceLocation', 'FlipAngle'), RepetitionTime=np.array([1,15]), mesh=True, exclude=True)
+    assert coords['SliceLocation'].shape == (1,2)
+    assert coords['SliceLocation'][0,1] == 1
+    assert coords['FlipAngle'][0,0] == 2
+    assert coords['FlipAngle'][0,1] == 10
+
+    # If the coordinates are not mesh coordinates, meshcoords() will raise an error:
+    # ValueError: These are not mesh coordinates.
+    coords = {
+        'SliceLocation': np.array([0,1,2,1,1,2]),
+        'FlipAngle': np.array([10,10,10,2,2,2]),
+        'RepetitionTime': np.array([1,5,15,1,5,15]),
+    }
+    series = db.empty_series(coords)
+    try:
+        series.coords(tuple(coords), mesh=True)
+    except:
+        assert True
+    else:
+        assert False
+
+
+def test_values():
+
+    print('Testing values')
+
+    # Create a zero-filled array with 3 slice dimensions.
+    coords = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([30, 2, 15]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+    zeros = db.empty_series(gridcoords=coords)
+    dims = tuple(coords)
+
+    # If values() is called without dimensions, a flat array is returned with one value per frame, ordered by instance number:
+    in1 = zeros.values('InstanceNumber')
+    assert np.array_equal(in1, 1+np.arange(24))
+    fa1 = zeros.values('FlipAngle')
+    assert set(fa1[:6]) == set([2, 15, 30])
+
+    # Or read both in one go:
+    in2, fa2 = zeros.values('InstanceNumber', 'FlipAngle')
+    assert np.array_equal(in1, in2)
+    assert set(fa1) == set(fa2)
+
+    # Any proper dimensions can be used to sort the values  
+    fa = zeros.values('FlipAngle', dims=dims)
+    assert fa.shape == (24,)
+    assert fa[0] == 2
+    assert fa[2] == 15
+    assert fa[4] == 30
+
+    # return acquisition time ordered by the original dimensions, check that all values are the same.
+    tacq = zeros.values('AcquisitionTime', dims=dims)
+    assert tacq.shape == (24,)
+    assert tacq[0] == 28609.057496
+    assert np.array_equal(np.unique(tacq), [28609.057496])
+
+    # A value of None is returned in locations where the value is missing:
+    gbl = zeros.values('Gobbledigook')
+    assert np.array_equal(np.full((24,), None), gbl)
+
+    # To test return as mesh, create an empty series with 3 coordinates: 
+    coords = {
+        'SliceLocation': np.array([0,1,2,0,1,2]),
+        'FlipAngle': np.array([10,10,10,2,2,2]),
+        'RepetitionTime': np.array([1,5,15,1,5,15]),
+    }
+    series = db.empty_series(coords)
+    
+    # Extract as meshcoordinates
+    vals = series.values('SliceLocation', dims=tuple(coords), mesh=True)
+    assert vals.shape == (3,2,1)
+    assert vals[1,1,0] == 1
+    vals = series.values('FlipAngle', dims=tuple(coords), mesh=True)
+    assert vals[1,1,0] == 10
+    vals = series.values('RepetitionTime', dims=tuple(coords), mesh=True)
+    assert vals[1,1,0] == 5
+    fa, tr, co = series.values('FlipAngle', 'RepetitionTime', dims=tuple(coords), mesh=True, return_coords=True)
+    assert fa[1,1,0] == 10
+    assert tr[1,1,0] == 5
+    assert np.array_equal(co['RepetitionTime'], tr)
+
+    # Add a filter
+    fa, tr, co = series.values('FlipAngle', 'RepetitionTime', dims=('SliceLocation', 'FlipAngle'), RepetitionTime=np.array([1,15]), mesh=True, return_coords=True)
+    assert co['SliceLocation'].shape == (2,2)
+    assert co['SliceLocation'][1,1] == 2
+    assert co['FlipAngle'][1,1] == 10
+    assert np.array_equal(co['FlipAngle'], fa)
+
+
+def test_frames():
+
+    print('Testing frames')
+
+    # Create an empty series with 3 slice dimensions 
+    grid = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([30,2,15]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+    coords = db.types.series._grid_to_meshcoords(grid)
+    series = db.empty_series(coords)
+
+    frames = series.frames(tuple(coords))
+    assert frames[2].FlipAngle == 15
+    assert frames[2].RepetitionTime == 2.5
+
+    frames, coords = series.frames(tuple(coords), return_coords=True)
+    assert frames[2].FlipAngle == 15
+    assert frames[2].RepetitionTime == 2.5
+    assert coords['FlipAngle'][2] == 15
+    assert coords['RepetitionTime'][2] == 2.5
+
+    # Return values on the fly:
+    frames[2].AcquisitionTime = 0
+    frames, vals = series.frames(tuple(coords), return_vals=('AcquisitionTime', 'PatientName'))
+    assert vals.shape==(2,24)
+    assert len(np.unique(vals[0,:])) == 2
+    assert len(np.unique(vals[1,:])) == 1
+    assert frames[2].AcquisitionTime == 0
+
+    # Now extract as mesh coordinates and test again
+    frames = series.frames(tuple(coords), mesh=True)
+    assert frames[1,1,1].FlipAngle == 15
+    assert frames[1,1,1].RepetitionTime == 5.0
+
+    frames, coords = series.frames(tuple(coords), return_coords=True, mesh=True)
+    assert frames[1,1,1].FlipAngle == 15
+    assert frames[1,1,1].RepetitionTime == 5.0
+    assert coords['FlipAngle'][1,1,1] == 15
+    assert coords['RepetitionTime'][1,1,1] == 5.0
+
+    # Add a filter
+
+    frames, coords = series.frames(tuple(coords), return_coords=True, mesh=True, FlipAngle=np.array([15,30]))
+    assert frames[1,1,1].FlipAngle == 30
+    assert frames[1,1,1].RepetitionTime == 5.0
+    assert coords['FlipAngle'][1,1,1] == 30
+    assert coords['RepetitionTime'][1,1,1] == 5.0
+
+    # Check empty case
+
+    frames, coords = series.frames(tuple(coords), return_coords=True, mesh=True, FlipAngle=-1)
+    assert frames.size == 0
+    assert coords['FlipAngle'].size == 0
+
+
+def test_expand():
+
+    print('Testing expand')
+
+    # Generate grid coordinates
+    grid = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([2, 15, 30]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+
+    # create an empty series
+    series = db.series()
+
+    # Expand the series to the new coordinates
+    series.expand(gridcoords=grid)
+    coords = series.coords(tuple(grid), mesh=True)
+    assert coords['FlipAngle'].shape == (4,3,2)
+
+    # If the series already has data, the new coordinates must be distinct from the exisiting ones:
+    grid = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([45, 60]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+    series.expand(gridcoords=grid)
+    coords = series.coords(tuple(grid), mesh=True)
+    assert set(np.unique(coords['FlipAngle'])) == set([2, 15, 30, 45, 60])
+
+    # Expanding to the existing coordinates triggers an error
+    # ValueError: Cannot expand - the new coordinates overlap with existing coordinates.
+    coords = series.coords(tuple(grid), mesh=True)
+    try:
+        series.expand(coords)
+    except:
+        assert True
+    else:
+        assert False
+
+    # Expanding to partially overlapping coordinates triggers an error:
+    grid = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([60, 90]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+    try:
+        series.expand(gridcoords=grid)
     except:
         assert True
     else:
@@ -343,35 +565,53 @@ def test_set_coords():
         assert np.array_equal(coords[d], coords_rec[d])
 
     # Change the flip angle of 2 to 5:
+    coords = series.coords(dims)
     fa = coords['FlipAngle']
     fa[np.where(fa==2)] = 5
     series.set_coords(coords)
-
     # Check results
-    new_coords = series.coords(dims)
-    fa = new_coords['FlipAngle']
-    assert np.array_equal(fa, [5,10,5,10,5,10])
+    coords = series.coords(dims)
+    assert np.array_equal(coords['FlipAngle'], [5,10,5,10,5,10])
 
-    # Create a new set of coordinates along slice location and acquisition time:
-    new_coords = {
+    # Change FA 5 back to FA 2 again, using filtering this time (shorter)
+    coords = series.coords(dims, FlipAngle=5)
+    coords['FlipAngle'][:] = 2
+    series.set_coords(coords, FlipAngle=5)
+    # Check results
+    coords = series.coords(dims)
+    assert np.array_equal(coords['FlipAngle'], [2,10,2,10,2,10])
+
+    # When attempting to set an invalid set of coordinates, an error is raised:
+    # ValueError: Cannot set coordinates - this would produce invalid coordinates for the series
+    coords = series.coords(dims, FlipAngle=2)
+    coords['FlipAngle'][:] = 10
+    try:
+        series.set_coords(coords, FlipAngle=2)
+    except:
+        assert True
+    else:
+        assert False
+
+    # Create a new set of coordinates along different dimensions than the original:
+    coords = {
         'SliceLocation': np.array([0,0,1,1,2,2]),
         'AcquisitionTime': np.array([0,60,0,60,0,60]),
     }
-    series.set_coords(new_coords, ('SliceLocation', 'FlipAngle'))
+    series.set_coords(coords, ('SliceLocation', 'FlipAngle'))
 
     # Inspect the new coordinates - each slice now has two acquisition times corresponding to the flip angles:
     coords = series.coords(('SliceLocation', 'AcquisitionTime', 'FlipAngle'))
     assert np.array_equal(coords['SliceLocation'], [0,0,1,1,2,2])
     assert np.array_equal(coords['AcquisitionTime'], [0,60,0,60,0,60])
-    assert np.array_equal(coords['FlipAngle'], [5,10,5,10,5,10])
+    assert np.array_equal(coords['FlipAngle'], [2,10,2,10,2,10])
 
     # An error is raised if the new coordinates have different sizes:
-    new_coords = {
+    coords = {
         'SliceLocation':np.zeros(24),
         'AcquisitionTime':np.ones(25),
     }
     try:
-        series.set_coords(new_coords, dims)
+        series.set_coords(coords, dims)
     except:
         assert True
     else:
@@ -379,12 +619,12 @@ def test_set_coords():
 
     # An error is also raised if they have all the same size but the values are not unique:
 
-    new_coords = {
+    coords = {
         'SliceLocation':np.zeros(24),
         'AcquisitionTime':np.ones(25),
     }
     try:
-        series.set_coords(new_coords, dims)
+        series.set_coords(coords, dims)
     except:
         assert True
     else:
@@ -392,215 +632,148 @@ def test_set_coords():
 
     # .. or when the number does not match up with the size of the series:
 
-    new_coords = {
+    coords = {
         'SliceLocation':np.arange(25),
         'AcquisitionTime':np.arange(25),
     }
     try:
-        series.set_coords(new_coords, dims)
+        series.set_coords(coords, dims)
     except:
         assert True
     else:
         assert False
 
 
-def test_meshcoords():
+def test_set_values():
 
-    print('Testing meshcoords')
+    print('Testing set_values')
 
-    # Create an empty series with 3 slice dimensions 
-    grid = {
+    # Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times.
+    coords = {
         'SliceLocation': np.arange(4),
         'FlipAngle': np.array([2, 15, 30]),
         'RepetitionTime': np.array([2.5, 5.0]),
     }
-    coords = db.types.series._grid_to_meshcoords(grid)
-    series = db.empty_series(coords)
-    
-    # Extract coordinates and check
-    coords = series.coords(tuple(coords))
-    assert coords['FlipAngle'].shape == (4,3,2)
-    assert coords['SliceLocation'][1,1,1] == 1
-    assert coords['FlipAngle'][1,1,1] == 15
-    assert coords['RepetitionTime'][1,1,1] == 5
-
-    # Check the coordinates of the flat series
-    coords = series.coords()
-    assert 'InstanceNumber' in coords
-    assert np.array_equal(coords['InstanceNumber'], 1 + np.arange(24))
-
-    # Check that an error is thrown if the dimensions are invalid:
-    try:
-        series.coords(('SliceLocation', 'FlipAngle'))
-    except:
-        assert True
-    else:
-        assert False
-    try:
-        series.coords(('AcquisitionTime', ))
-    except:
-        assert True
-    else:
-        assert False
-
-
-def test_set_meshcoords():
-
-    print('Testing set_meshcoords')
-
-    # Create a zero-filled array:
-    grid = {
-        'SliceLocation': np.arange(4),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    coords = db.types.series._grid_to_meshcoords(grid)
-    series = db.empty_series(coords)
+    series = db.empty_series(gridcoords=coords)
     dims = tuple(coords)
 
-    # Get the coordinates and set them again
-    coords = series.coords(dims)
-    series.set_coords(coords)
-    coords_rec = series.coords(dims)
-    for d in dims:
-        assert np.array_equal(coords[d], coords_rec[d])
+    # Get a value and set it again
+    v = series.values('SliceLocation', dims=dims)
+    series.set_values(v, 'SliceLocation', dims=dims)
+    assert np.array_equal(v, series.values('SliceLocation', dims=dims))
 
-    # Change the flip angle of 15 to 12:
-    coords['FlipAngle'][:,1,:] = 12
-    series.set_coords(coords)
+    # Get multiple values and set them again
+    tags = ('SliceLocation', 'AcquisitionTime')
+    v = series.values(*tags, dims=dims)
+    series.set_values(v, tags, dims=dims)
+    assert np.array_equal(v, series.values(*tags, dims=dims))
 
-    # Check results
-    new_coords = series.coords(dims)
-    fa = new_coords['FlipAngle'][:,1,:]
-    assert np.array_equal(np.unique(fa), [12])
+    # Set the AcquisitionTime to zero for all slices
+    assert np.array_equal(np.unique(series.values('AcquisitionTime')), [28609.057496])
+    series.set_values(0,'AcquisitionTime')
+    assert np.array_equal(np.unique(series.values('AcquisitionTime')), [0])
 
-    # Set new coordinates from grid
-    grid = {
-        'SliceLocation':np.arange(4),
-        'AcquisitionTime':60*np.arange(6),
-    }
-    coords = db.types.series._grid_to_coords(grid)
-    series.set_coords(coords, dims)
+    # Set the AcquisitionTime to a different value for each flip angle
+    tacq = np.repeat([0, 60, 120], 8)
+    series.set_values(tacq, 'AcquisitionTime', dims=('FlipAngle','InstanceNumber'))
 
-    # Check results
-    c = series.coords(tuple(grid))
-    assert c['AcquisitionTime'][0,2] == 120
+    # Check in the original dimensions:
+    tacq = series.values('AcquisitionTime', dims=dims, mesh=True)
+    assert np.array_equal(np.unique(tacq[:,0,:]), [0])
+    assert np.array_equal(np.unique(tacq[:,1,:]), [60])
+    assert np.array_equal(np.unique(tacq[:,2,:]), [120])
 
-    # An error is raised if the new coordinates have different sizes:
-    new_coords = {
-        'SliceLocation':np.zeros(24),
-        'AcquisitionTime':np.ones(25),
-    }
+    # Do the same thing using filters (slower but more transparent):
+    series.set_values(30, 'AcquisitionTime', FlipAngle=2)
+    series.set_values(90, 'AcquisitionTime', FlipAngle=15)
+    series.set_values(150, 'AcquisitionTime', FlipAngle=30)
+
+    # Check in the original dimensions:
+    tacq = series.values('AcquisitionTime', dims=dims, mesh=True)
+    assert np.array_equal(np.unique(tacq[:,0,:]), [30])
+    assert np.array_equal(np.unique(tacq[:,1,:]), [90])
+    assert np.array_equal(np.unique(tacq[:,2,:]), [150])
+
+    # Set the acquistion time for each flip angle and TR
+    tacq = np.repeat(60*np.arange(6), 4)
+    series.set_values(tacq, 'AcquisitionTime', dims=('FlipAngle','RepetitionTime','SliceLocation'))
+
+    # Check in the original dimensions:
+    tacq = series.values('AcquisitionTime', dims=dims, mesh=True)
+    assert np.array_equal(np.unique(tacq[:,0,0]), [0])
+    assert np.array_equal(np.unique(tacq[:,0,1]), [60])
+    assert np.array_equal(np.unique(tacq[:,1,0]), [120])
+    assert np.array_equal(np.unique(tacq[:,1,1]), [180])
+
+    # Check that an error is raised if the sizes do not match up:
     try:
-        series.set_coords(new_coords, dims)
+        series.set_values(np.arange(25), 'AcquisitionTime', dims=tuple(coords))
     except:
-        assert True
+        pass
     else:
         assert False
-
-    # An error is also raised if they have all the same size but the values are not unique:
-
-    new_coords = {
-        'SliceLocation':np.zeros(24),
-        'AcquisitionTime':np.ones(25),
-    }
-    try:
-        series.set_coords(new_coords, dims)
-    except:
-        assert True
-    else:
-        assert False
-
-    # .. or when the number does not match up with the size of the series:
-
-    new_coords = {
-        'SliceLocation':np.arange(25),
-        'AcquisitionTime':np.arange(25),
-    }
-    try:
-        series.set_coords(new_coords, dims)
-    except:
-        assert True
-    else:
-        assert False
-
-
-def test_gridcoords():
-
-    print('Testing gridcoords')
-
-    # Create a zero-filled array
-    # .
-    coords = {
-        'SliceLocation': np.arange(8),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    series = db.zeros((128,128,8,3,2), coords)
-    coords_recovered = series.gridcoords(tuple(coords))
-    for d in coords:
-        assert np.array_equal(coords[d], coords_recovered[d])
 
 
 def test_set_gridcoords():
 
     print('Testing set_gridcoords')
 
-    # Create a zero-filled array:
+    # Create an empty series and set grid coords:
     gridcoords = {
-        'SliceLocation': np.arange(8),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    series = db.zeros((128,128,8,3,2), gridcoords)
-    dims = tuple(gridcoords)
-
-    # Get the coordinates and set them again
-    coords = series.gridcoords(dims)
-    series.set_gridcoords(coords)
-    coords_rec = series.gridcoords(dims)
-    for d in dims:
-        assert np.array_equal(coords[d], coords_rec[d])
-
-    # Change the flip angle of 15 to 12:
-    coords['FlipAngle'][1] = 12
-    series.set_gridcoords(coords)
-
-    # Check coordinates
-    new_coords = series.coords(dims)
-    fa = new_coords['FlipAngle'][:,1,:]
-    assert np.array_equal(np.unique(fa), [12])
-
-    # Check grid coordinates
-    new_coords = series.gridcoords(dims)
-    fa = new_coords['FlipAngle'][1]
-    assert fa == 12
-
-    # Set new coordinates and check
-    new_coords = {
-        'SliceLocation': np.arange(8),
-        'AcquisitionTime': 60*np.arange(6),
-    }
-    series.set_gridcoords(new_coords, dims)
-    c = series.gridcoords(tuple(new_coords))
-    assert np.array_equal(c['AcquisitionTime'], 60*np.arange(6))
-
-
-
-def test_expand():
-
-    # Generate mesh coordinates
-    grid = {
         'SliceLocation': np.arange(4),
         'FlipAngle': np.array([2, 15, 30]),
         'RepetitionTime': np.array([2.5, 5.0]),
     }
+    series = db.empty_series()
+    series.set_gridcoords(gridcoords)
 
-    # create an empty series
-    series = db.series()
+    # Get the coordinates as a mesh
+    coords = series.coords(tuple(gridcoords), mesh=True)
+    assert coords['SliceLocation'].shape == (4,3,2)
+    assert coords['FlipAngle'][1,1,1] == 15
 
-    # Expand the series to the new coordinates
-    series.expand(grid=grid)
+
+def test_gridcoords():
+
+    print('Testing gridcoords')
+
+    # Set grid coordinates and get them again:
+    gridcoords = {
+        'SliceLocation': np.arange(4),
+        'FlipAngle': np.array([2, 15, 30]),
+        'RepetitionTime': np.array([2.5, 5.0]),
+    }
+    series = db.empty_series(gridcoords=gridcoords)
+
+    gridcoords_rec = series.gridcoords(tuple(gridcoords))
+    for dim in gridcoords_rec:
+        assert np.array_equal(gridcoords_rec[dim], gridcoords[dim])
+
+    # Check that an error is raised if the coordinates are not grid coordinates:
+
+    # Create an empty series with 3 coordinates: 
+    coords = {
+        'SliceLocation': np.array([0,1,2,0,1,2]),
+        'FlipAngle': np.array([10,10,10,2,2,2]),
+        'RepetitionTime': np.array([1,5,15,1,5,15]),
+    }
+    series = db.empty_series(coords)
+
+    # This works:
+    try:
+        series.coords(tuple(coords), mesh=True)
+    except:
+        assert False
+    else:
+        assert True
+
+    # This does not work:
+    try:
+        series.gridcoords(tuple(coords))
+    except:
+        assert True
+    else:
+        assert False
 
 
 def test_shape():
@@ -619,14 +792,15 @@ def test_shape():
         'FlipAngle': fa,
         'RepetitionTime': tr,
     }
-    series = db.zeros((128,128,4,3,2), coords)
+    series = db.empty_series(gridcoords=coords)
     dims = tuple(coords)
 
     assert series.shape() == (len(loc)*len(fa)*len(tr), )
-    assert series.shape(dims) == (len(loc), len(fa), len(tr))
-    assert series.shape((dims[1], dims[0], dims[2])) == (len(fa), len(loc), len(tr))
-    assert series.shape(('FlipAngle', 'InstanceNumber')) == (len(fa), len(loc)*len(tr))
-    assert series.new_sibling().shape(dims) == (0,0,0) 
+    assert series.shape(dims, mesh=True) == (len(loc), len(fa), len(tr))
+    assert series.shape((dims[1], dims[0], dims[2]), mesh=True) == (len(fa), len(loc), len(tr))
+    assert series.shape(('FlipAngle', 'InstanceNumber'), mesh=True) == (len(fa), len(loc)*len(tr))
+    eshape = series.new_sibling().shape(dims, mesh=True)
+    assert eshape == (0,0,0) 
     try:
         series.shape(('FlipAngle', 'Gobbledigook'))
     except:
@@ -640,159 +814,6 @@ def test_shape():
     else:
         assert False  
 
-    # If one of the values is undefined, throw an error
-    series.instances()[0].FlipAngle = None
-    try:
-        series.shape(dims)
-    except:
-        assert True
-    else:
-        assert False
-
-    # If there are no frames at some of the locations, throw an error
-    series.instances()[0].FlipAngle = 45
-    try:
-        series.shape(dims)
-    except:
-        assert True
-    else:
-        assert False   
-
-
-
-
-
-def test_values():
-
-    print('Testing value')
-
-    # Create a zero-filled array with 3 slice dimensions.
-    coords = {
-        'SliceLocation': 10*np.arange(4),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    zeros = db.zeros((128,128,4,3,2), coords)
-    dims = tuple(coords)
-
-    # If values() is called without dimensions, a flat array is returned with one value per frame, ordered by instance number:
-    assert np.array_equal(zeros.values('InstanceNumber'), 1+np.arange(24))
-    assert np.array_equal(zeros.values('FlipAngle')[:6], [2,2,15,15,30,30])
-
-    # return acquisition time ordered by the original dimensions, check that all values are the same.
-    tacq = zeros.values('AcquisitionTime', dims)
-    assert tacq[0,0,0] == 28609.057496
-    assert np.array_equal(np.unique(tacq), [28609.057496])
-
-    # A value of None is returned in locations where the value is missing:
-    print(zeros.values('Gobbledigook')[:2])
-    assert np.array_equal(np.full((24,), None), zeros.values('Gobbledigook'))
-
-    zeros.instances()[0].AcquisitionTime = None
-    assert None is zeros.values('AcquisitionTime', dims)[0,0,0]
-    zeros.instances()[0].AcquisitionTime = 28609.057496
-
-    fa = zeros.values('FlipAngle', dims)
-    assert fa.shape == (4, 3, 2)
-    assert fa[1,0,1] == 2
-    assert fa[1,1,1] == 15
-
-    tacq = zeros.values('AcquisitionTime', dims, FlipAngle=15)
-    assert tacq.shape == (4, 1, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, FlipAngle=0)
-    assert tacq.size == 0
-
-    tacq = zeros.values('AcquisitionTime', dims, FlipAngle=np.array([15,30]))
-    assert tacq.shape == (4, 2, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, FlipAngle=np.array([15,30]), SliceLocation=np.array([10,20]))
-    assert tacq.shape == (2, 2, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, FlipAngle=np.array([15,30]), SliceLocation=np.array([1,2]))
-    assert tacq.size == 0
-
-    tacq = zeros.values('AcquisitionTime', dims, AcquisitionTime=28609.057496)
-    assert tacq.shape == (4, 3, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, AcquisitionTime=0)
-    assert tacq.size == 0
-
-    tacq = zeros.values('AcquisitionTime', dims, select={'FlipAngle': 15})
-    assert tacq.shape == (4, 1, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, select={(0x0018, 0x1314): 15})
-    assert tacq.shape == (4, 1, 2)
-
-    tacq = zeros.values('FlipAngle', dims, inds={'FlipAngle': 1})
-    assert tacq.shape == (4, 1, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, inds={'FlipAngle':np.arange(2)})
-    assert tacq.shape == (4, 2, 2)
-
-    tacq = zeros.values('AcquisitionTime', dims, inds={'SliceLocation':1})
-    assert tacq.shape == (1, 3, 2)
-
-    # ValueError: Indices must be in the dimensions provided.
-    try:
-        zeros.values('AcquisitionTime', dims, inds={'AcquisitionTime':np.arange(2)})
-    except:
-        assert True
-    else:
-        assert False
-
-
-def test_set_values():
-
-    print('Testing set_value')
-
-    # Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times.
-    coords = {
-        'SliceLocation': np.arange(4),
-        'FlipAngle': np.array([2, 15, 30]),
-        'RepetitionTime': np.array([2.5, 5.0]),
-    }
-    series = db.zeros((128,128,4,3,2), coords)
-
-    # Get a value and set it again
-    v = series.values('SliceLocation', dims=tuple(coords))
-    series.set_values('SliceLocation', v, dims=tuple(coords))
-    assert np.array_equal(v, series.values('SliceLocation', dims=tuple(coords)))
-
-    # Set the AcquisitionTime to zero for all slices
-    assert np.array_equal(np.unique(series.values('AcquisitionTime')), [28609.057496])
-    series.set_values('AcquisitionTime', 0)
-    assert np.array_equal(np.unique(series.values('AcquisitionTime')), [0])
-
-    # Set the AcquisitionTime to a different value for each flip angle
-    tacq = np.repeat([0, 60, 120], 8)
-    series.set_values('AcquisitionTime', tacq, dims=('FlipAngle','InstanceNumber'))
-
-    # Check in the original dimensions:
-    tacq = series.values('AcquisitionTime', dims=tuple(coords))
-    assert np.array_equal(np.unique(tacq[:,0,:]), [0])
-    assert np.array_equal(np.unique(tacq[:,1,:]), [60])
-    assert np.array_equal(np.unique(tacq[:,2,:]), [120])
-
-    # Set the acquistion time for each flip angle and TR
-    tacq = np.repeat(60*np.arange(6), 4)
-    series.set_values('AcquisitionTime', tacq, dims=('FlipAngle','RepetitionTime','SliceLocation'))
-
-    # Check in the original dimensions:
-    tacq = series.values('AcquisitionTime', dims=tuple(coords))
-    assert np.array_equal(np.unique(tacq[:,0,0]), [0])
-    assert np.array_equal(np.unique(tacq[:,0,1]), [60])
-    assert np.array_equal(np.unique(tacq[:,1,0]), [120])
-    assert np.array_equal(np.unique(tacq[:,1,1]), [180])
-
-    # Check that an error is raised if the sizes do not match up:
-    try:
-        series.set_values('AcquisitionTime', np.arange(25), dims=tuple(coords))
-    except:
-        pass
-    else:
-        assert False
-
 
 def test_unique():
 
@@ -800,49 +821,88 @@ def test_unique():
 
     # Create a zero-filled array with 3 slice dimensions.
     loc = np.arange(4)
-    fa = [2, 15, 30]
-    tr = [2.5, 5.0]
+    fa = np.array([2, 15, 30])
+    tr = np.array([2.5, 5.0])
     coords = {
         'SliceLocation': loc,
         'FlipAngle': fa,
         'RepetitionTime': tr,
     }
-    series = db.zeros((128,128,4,3,2), coords)
+    series = db.empty_series(gridcoords=coords)
 
     # Recover unique values of each coordinate
-    assert np.array_equal(series.unique('SliceLocation'), loc)
-    assert np.array_equal(series.unique('FlipAngle'), fa)
-    assert np.array_equal(series.unique('RepetitionTime'), tr)
+    uloc = series.unique('SliceLocation')
+    ufa = series.unique('FlipAngle')
+    utr = series.unique('RepetitionTime')
+    assert np.array_equal(uloc, loc)
+    assert np.array_equal(ufa, fa)
+    assert np.array_equal(utr, tr)
+
+    # Recover in one call to unique (faster):
+    uloc, ufa, utr = series.unique('SliceLocation', 'FlipAngle', 'RepetitionTime')
+    assert np.array_equal(uloc, loc)
+    assert np.array_equal(ufa, fa)
+    assert np.array_equal(utr, tr)
 
     # Get unique Flip Angles for each slice location
-    v = series.unique('FlipAngle', sortby=('SliceLocation', ))
-    assert len(v) == len(loc)
-    assert(np.array_equal(v[0], fa))
-    assert(np.array_equal(v[-1], fa))
+    ufa = series.unique('FlipAngle', sortby=('SliceLocation', ))
+    assert len(ufa) == len(loc)
+    for zfa in ufa:
+        assert np.array_equal(zfa, fa)
+
+    # Get unique repetition times for each slice location
+    utr = series.unique('RepetitionTime', sortby=('SliceLocation', ))
+    assert len(utr) == len(loc)
+    for ztr in utr:
+        assert np.array_equal(ztr, tr)
+
+    # Get both in the same call:
+    ufa, utr = series.unique('FlipAngle', 'RepetitionTime', sortby=('SliceLocation', ))
+    assert len(ufa) == len(loc)
+    assert len(utr) == len(loc)
+    for zfa in ufa:
+        assert np.array_equal(zfa, fa)
+    for ztr in utr:
+        assert np.array_equal(ztr, tr)
 
     # Get unique Flip Angles for each slice location and repetition time
-    v = series.unique('FlipAngle', sortby=('SliceLocation', 'RepetitionTime'))
-    assert v.size == len(loc)*len(tr)
-    assert(np.array_equal(v[0,0], fa))
-    assert(np.array_equal(v[-1,-1], fa))
+    ufa = series.unique('FlipAngle', sortby=('SliceLocation', 'RepetitionTime'))
+    assert ufa.size == len(loc)*len(tr)
+    assert ufa.shape == (len(loc), len(tr))
+    for z in range(len(loc)):
+        for t in range(len(tr)):
+            assert np.array_equal(ufa[z,t], fa)
 
-    # Get unique Flip Angles for each slice location, repetition time and flip angle.
-    v = series.unique('FlipAngle', sortby=('SliceLocation', 'RepetitionTime', 'FlipAngle'))
-    assert v.size == len(loc)*len(tr)*len(fa)
-    assert v[0,0,0] == fa[0]
-    assert v[0,0,1] == fa[1]
-    assert v[-1,-1,1] == fa[1]
+    # Extract locations as well
+    ufa, co = series.unique('FlipAngle', sortby=('SliceLocation', 'RepetitionTime'), return_locs=True)
+    assert ufa.size == len(loc)*len(tr)
+    assert ufa.shape == (len(loc), len(tr))
+    for z in range(len(loc)):
+        for t in range(len(tr)):
+            assert np.array_equal(ufa[z,t], fa)
+            assert co[0][z,t] == loc[z]
+            assert co[1][z,t] == tr[t]
+
+    # Get unique Flip Angles and repetition time for each slice location, repetition time and flip angle.
+    ufa, utr = series.unique('FlipAngle', 'RepetitionTime', sortby=('SliceLocation', 'RepetitionTime', 'FlipAngle'))
+    for z in range(len(loc)):
+        for t in range(len(tr)):
+            assert np.array_equal(ufa[z,t,:], fa)
+        for a in range(len(fa)):
+            assert np.array_equal(utr[z,:,a], tr)
 
     # Get values for a non-existing attribute.
-    v = series.unique('Gobbledigook')
-    assert v.shape == (0,)
-    assert v.size == 0
+    gbl = series.unique('Gobbledigook')
+    assert gbl.shape == (0,)
+    assert gbl.size == 0
 
     # Get values for a non-existing attribute by slice location.
-    v = series.unique('Gobbledigook', sortby=('SliceLocation',))
-    assert v.shape == (4,)
-    assert v.size == 4
-    assert v[-1].size == 0
+    gbl = series.unique('Gobbledigook', sortby=('SliceLocation',))
+    assert gbl.shape == (len(loc),)
+    assert gbl.size == len(loc)
+    for zgbl in gbl:
+        assert zgbl.shape == (0,)
+        assert zgbl.size == 0
 
 
 def test_pixel_values():
@@ -1203,31 +1263,32 @@ def test_spacing():
 
 if __name__ == "__main__":
 
-    # # Helper functions
+    
+    # Helper functions
 
-    # test_check_if_coords()
-    # test_grid_to_meshcoords()
-    # test_as_meshcoords()
-    # test_concatenate_coords()
-    # test_frames()
+    test_check_if_coords()
+    test_grid_to_meshcoords()
+    test_as_meshcoords()
+    test_concatenate_coords()
 
     # # API
-
+    
     test_coords()
+    test_values()
+    test_frames()
+    test_expand()
     test_set_coords()
-    # test_meshcoords()
-    # test_set_meshcoords()
-    # test_gridcoords()
-    # test_set_gridcoords()
-    # test_values()
-    # test_set_values()
-    # test_unique()
+    test_set_values()
+    test_set_gridcoords()
+    test_gridcoords()
+    test_shape()
+    test_unique()
     # test_pixel_values()
     # test_set_pixel_values()
-    # test_expand()
-    # test_shape()
+    
     # test_affine()
     # test_set_affine()
+
     # test_isnull()
     # test_unique_affines()
     # test_subseries()

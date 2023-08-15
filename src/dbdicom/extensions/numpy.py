@@ -136,14 +136,16 @@ def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','Acqui
     result = series.islice({dims[axis]: 0})
     result.SeriesDescription = 'Maximum Intensity Projection'
 
-    # Project the coordinate array 
+    # Get data
     coords = series.coords(dims)
-    del coords[dims[axis]]
+    array = series.pixel_values(dims=dims)
+
+    # Project the coordinate array
+    del coords[dims[axis]] # INCORRECT IF axis=0 or 1
 
     # Project the pixel array
     if axis >= 0:
         axis += 2
-    array = series.pixel_values(dims=dims)
     array = np.amax(array, axis=axis)
 
     # Save results

@@ -144,67 +144,7 @@ class Series(Record):
 
 
 
-    def _frames(self, dims:tuple=None, coords:dict=None, return_coords=False):
-        """Return the frames of given coordinates in the correct order"""
-        
-        if coords is None:
-            if dims is None:
-                dims = ('InstanceNumber', )
-
-            # Read and sort coordinates
-            frames_sel = self.instances()
-            fvalues = [f[list(dims)] for f in frames_sel]
-            values = _meshvals(np.array(fvalues).T)
-            shape = values.shape[1:]
-            values = values.reshape((values.shape[0],-1))
-             
-            # Look up coordinates of each frame.
-            values_ind = []
-            for fv in fvalues:
-                for iv in range(values.shape[1]):
-                    if np.array_equal(fv, values[:,iv]):
-                        values_ind.append(iv)
-                        break 
-
-            # If requested, build coordinates
-            if return_coords:
-                coords = {}
-                for i, c in enumerate(dims):
-                    coords[c] = values[i,:].reshape(shape)         
-
-        else:
-            # Check if the coordinates are well-defined and get the values.
-            coords = _check_if_coords(coords)
-            shape = _coords_shape(coords)
-            values = _coords_vals(coords)
-            dims = tuple(coords)
-
-            # Look up coordinates of each frame.
-            frames = self.instances()
-            values_ind = []
-            frames_sel = []
-            for f in frames:
-                fv = f[list(dims)]
-                for iv in range(values.shape[1]):
-                    if np.array_equal(fv, values[:,iv]):
-                        frames_sel.append(f)
-                        values_ind.append(iv)
-                        break
-
-        # Create object array of frames, sort and reshape
-        frames = np.empty(len(frames_sel), dtype=object)
-        for i, fi in enumerate(frames_sel):
-            frames[i] = fi
-        frames = frames[np.argsort(values_ind)]
-        frames = frames.reshape(shape)
-
-        if return_coords:
-            return frames, coords
-        else:
-            return frames
-
-
-    def coords(self, dims:tuple=None)->dict:
+    def coords(self, dims=('InstanceNumber', ), mesh=False, loc={}, exclude=False, **filters)->dict:
         """return a dictionary of coordinates.
 
         Args:
@@ -255,463 +195,47 @@ class Series(Record):
             >>> series.coords(('SliceLocation','RepetitionTime'))
             ValueError: These are not proper coordinates. Coordinate values must be unique.
         """
-        if dims is None:
-            dims = ('InstanceNumber', )
 
-        # Read coordinate values
-        values = [inst[list(dims)] for inst in self.instances()]
-
-        # Sort and create array
+        # Default empty coordinates
+        coords = {}
+        for i, tag in enumerate(dims):
+            coords[tag] = np.array([])
+        
+        # Get all frames and return if empty
+        frames = self.instances()
+        if frames == []:
+            return coords
+         
+        # Read values and sort
+        filters = {**loc, **filters}
+        values = [f[list(dims)+list(tuple(filters))] for f in frames]
         values.sort()
-        values = np.array(values).T
 
-        # Convert array to dictionary
-        coords = {}
-        for d, dim in enumerate(dims):
-            coords[dim] = values[d,:]
+        # Check dimensions
+        cvalues = [v[:len(dims)] for v in values]
+        cvalues = np.array(cvalues).T
+        _check_if_ivals(cvalues)
+
+        # Filter values
+        values = _filter_values(values, filters, exclude=exclude)
+
+        # If requested, mesh values
+        if mesh:
+            values = _meshvals(values)
+            mshape = values.shape[1:]
+
+        # Build coordinates
+        if values.size > 0:
+            for i, tag in enumerate(dims):
+                coords[tag] = values[i,...]
+                if mesh:
+                    coords[tag] = coords[tag].reshape(mshape)
 
-        # return if valid
-        return _check_if_coords(coords)
-
-
-    def set_coords(self, new_coords:dict, dims:tuple=None, coords:dict=None):
-        """Set a dictionary of coordinates.
-
-        Args:
-            new_coords (dict): Dictionary of coordinates.
-            dims (tuple, optional): Dimensions of at which the new coordinates are to be best. If *dims* is not set, the dimensions are assumed to be the same as those of *coords* or *grid*. Defaults to None.
-            coords (tuple, optional): Locations at which the new coordinates are to be set. If not provided, all frames recieve a new value for the coordinates
-
-        Raises:
-            ValueError: if the coordinates provided are not properly formatted or have the wrong shape.
-
-        See also:
-            `coords`
-            `set_gridcoords`
-
-        Example:
-
-            Create an empty series:
-
-            >>> coords = {
-            ...     'SliceLocation': np.array([0,1,2,0,1,2]),
-            ...     'FlipAngle': np.array([2,2,2,10,10,10]),
-            ...     'RepetitionTime': np.array([1,5,15,1,5,15]),
-            ... }
-            >>> series = db.empty_series(coords)
-            
-            Change the flip angle of 15 to 12:
-
-            >>> coords = series.coords(tuple(coords))
-            >>> fa = coords['FlipAngle']
-            >>> fa[np.where(fa==2)] = 5
-            >>> series.set_coords(coords)
-
-            Check the new coordinates:
-
-            >>> new_coords = series.coords(dims)
-            >>> new_coords['FlipAngle']
-            [5,10,5,10,5,10]
-
-            Create a new set of coordinates along slice location and acquisition time:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.array([0,0,1,1,2,2]),
-            ...     'AcquisitionTime': np.array([0,60,0,60,0,60]),
-            ... }
-            >>> series.set_coords(new_coords, ('SliceLocation', 'FlipAngle'))
-
-            # Inspect the new coordinates - each slice now has two acquisition times corresponding to the flip angles:
-
-            >>> coords['SliceLocation']
-            [0,0,1,1,2,2]
-            >>> coords['AcquisitionTime']
-            [0,60,0,60,0,60]
-            >>> coords['FlipAngle']
-            [5,10,5,10,5,10]
-
-            # Check that an error is raised if coordinate values have different sizes:
-            >>> new_coords = {
-            ...     'SliceLocation': np.zeros(24),
-            ...     'AcquisitionTime': np.ones(25),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Coordinate values must all have the same size
-
-            # An error is also raised if they have all the same size but the values are not unique:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.zeros(24),
-            ...     'AcquisitionTime': np.ones(24),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Coordinate values must all have the same size
-
-            # .. or when the number does not match up with the size of the series:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.arange(25),
-            ...     'AcquisitionTime': np.arange(25),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Shape of coordinates does not match up with the size of the series.
-
-        """
-        if coords is None:
-            if dims is None:
-                dims = tuple(new_coords)
-        new_coords = _check_if_coords(new_coords)
-        frames, coords = self._frames(dims=dims, coords=coords, return_coords=True)
-        if _coords_size(new_coords) != _coords_size(coords):
-            msg = 'Cannot set coordinates - new coordinates have a different size.'
-            raise ValueError(msg)
-        frames = frames.flatten()
-        values = _coords_vals(new_coords)
-        for f, frame in enumerate(frames):
-            frame[list(new_coords)] = list(values[:,f])
-
-
-    def meshcoords(self, dims:tuple=None)->dict:
-        """return a dictionary of coordinates.
-
-        Args:
-            dims (tuple, optional): Dimensions along which the shape is to be determined. If dims is not provided, they default to InstanceNumber. 
-
-        Raises:
-            ValueError: If the dimensions do not produce suitable coordinates.
-
-        Returns:
-            dict: dictionary of coordinates, one entry for each dimension. The values for each coordinate are returned as an darray with one dimensions (mesh=False) or the same number of dimensions as *dims* (mesh=True).
-
-        See also:
-            `set_coords`
-
-        Example:
-
-            Create a zero-filled array with 3 slice dimensions:
-
-            >>> coords = {
-            ...     'SliceLocation': np.arange(4),
-            ...     'FlipAngle': [2, 15, 30],
-            ...     'RepetitionTime': [2.5, 5.0] }
-            >>> series = db.zeros((128,128,4,3,2), coords)
-            
-            Retrieve the meshed coordinates:
-
-            >>> coords = series.coords(tuple(coords), mesh=True)
-            >>> coords['FlipAngle'].shape
-            (4, 3, 2)
-            >>> coords['SliceLocation'][1,1,1]
-            1
-            >>> coords['FlipAngle'][1,1,1]
-            15
-            >>> coords['RepetitionTime'][1,1,1]
-            5
-
-            Note that an error is thrown if invalid dimensions are provided:
-
-            >>> coords = series.coords(('SliceLocation', 'FlipAngle'))
-            ValueError: series shape is ambiguous in dimensions (SliceLocation, FlipAngle, )
-            --> Multiple frames exist at some or all locations.
-            --> Hint: use Series.unique() to list the values at all locations.
-
-            The coordinates of the flat series are the instance numbers:
-            >>> series.coords()
-            {'InstanceNumber': array([ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24])}
-        """
-        coords = self.coords(dims)
-        return _as_meshcoords(coords)
-
-
-    def set_meshcoords(self, new_coords:dict, dims:tuple=None, coords:dict=None):
-        """Set a dictionary of coordinates.
-
-        Args:
-            new_coords (dict): Dictionary of coordinates.
-            dims (tuple, optional): Dimensions of at which the new coordinates are to be best. If *dims* is not set, the dimensions are assumed to be the same as those of *coords* or *grid*. Defaults to None.
-            coords (tuple, optional): Locations at which the new coordinates are to be set. If not provided, all frames recieve a new value for the coordinates
-
-        Raises:
-            ValueError: if the coordinates provided are not properly formatted or have the wrong shape.
-
-        See also:
-            `coords`
-            `set_gridcoords`
-
-        Example:
-
-            Create a zero-filled array:
-
-            >>> grid = {
-            ...     'SliceLocation': np.arange(4),
-            ...     'FlipAngle': np.array([2, 15, 30]),
-            ...     'RepetitionTime': np.array([2.5, 5.0]) }
-            >>> series = db.zeros((128,128,4,3,2), grid=grid)
-            
-            Change the flip angle of 15 to 12:
-
-            >>> coords = series.coords(tuple(coords))
-            >>> coords['FlipAngle'][:,1,:] = 12
-            >>> series.set_coords(coords)
-
-            Check the new coordinates:
-
-            >>> new_coords = series.coords(tuple(coords))
-            >>> fa = new_coords['FlipAngle'][:,1,:]
-            >>> np.unique(fa)
-            [12.]
-
-            Create a new set of coordinates along slice location and acquisition time:
-
-            >>> loc = np.arange(4)
-            >>> tacq = 60*np.arange(6)
-            >>> loc, tacq = np.meshgrid((loc, tacq), indexing='ij)
-            >>> grid = {
-            ...     'SliceLocation': ,
-            ...     'AcquisitionTime': ,
-            ... }
-            
-            Set the new coordinates and check the result:
-
-            >>> series.set_coords(coords, dims)
-            >>> c = series.coords(tuple(coords))
-            >>> np.unique(c['AcquisitionTime'])
-            [  0.  60. 120. 180. 240. 300.]
-
-            # Check that an error is raised if coordinate values have different sizes:
-            >>> new_coords = {
-            ...     'SliceLocation': np.zeros(24),
-            ...     'AcquisitionTime': np.ones(25),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Coordinate values must all have the same size
-
-            # An error is also raised if they have all the same size but the values are not unique:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.zeros(24),
-            ...     'AcquisitionTime': np.ones(24),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Coordinate values must all have the same size
-
-            # .. or when the number does not match up with the size of the series:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.arange(25),
-            ...     'AcquisitionTime': np.arange(25),
-            ... }
-            >>> series.set_coords(new_coords, dims)
-            ValueError: Shape of coordinates does not match up with the size of the series.
-
-        """
-        new_coords = _mesh_to_coords(new_coords)
-        self.set_coords(new_coords, dims=dims, coords=coords)
-
-
-
-    def gridcoords(self, dims)->dict:
-        """return a dictionary of grid coordinates.
-
-        Args:
-            dims (tuple): Attributes to be used as coordinates.
-
-        Returns:
-            dict: dictionary of coordinates, one entry for each dimension.
-
-        See also:
-            `coords`
-            `set_gridcoords`
-
-        Examples:
-
-            Create a zero-filled array with 3 slice dimensions:
-
-            >>> coords = {
-            ...     'SliceLocation': np.arange(4),
-            ...     'FlipAngle': [2, 15, 30],
-            ...     'RepetitionTime': [2.5, 5.0] }
-            >>> series = db.zeros((128,128,8,3,2), coords)
-
-            Recover the grid coordinates:
-
-            >>> coords_rec = series.gridcoords(tuple(coords))
-            >>> coords_rec['SliceLocation']
-            [0. 1. 2. 3. 4. 5. 6. 7.]
-            >>> coords_rec['FlipAngle']
-            [ 2. 15. 30.]
-            >>> coords_rec['RepetitionTime']
-            [2.5 5. ]
-        """
-        coords = {}
-        for attribute in dims:
-            coords[attribute] = self.unique(attribute)
         return coords
-
-
-    def set_gridcoords(self, gridcoords:dict, dims:tuple=None, coords:dict=None):
-        """ Set a dictionary of grid coordinates.
-
-        Args:
-            coords (dict): dictionary of grid coordinates
-            dims (tuple, optional): provide the current dimensions of the series. If not provided, they are assumed to be the same as the dimensions of the new coordinates. Defaults to None.
-
-        See also:
-            `gridcoords`
-            `set_coords`
-
-        Examples:
-
-            Create a zero-filled array with 3 slice dimensions:
-
-            >>> coords = {
-            ...     'SliceLocation': np.arange(4),
-            ...     'FlipAngle': [2, 15, 30],
-            ...     'RepetitionTime': [2.5, 5.0] }
-            >>> series = db.zeros((128,128,8,3,2), coords)
-            >>> dims = tuple(gridcoords)
-
-            Change the flip angle of 15 to 12:
-
-            >>> coords = series.gridcoords(dims)
-            >>> coords['FlipAngle'][1] = 12
-            >>> series.set_gridcoords(coords)
-
-            Check coordinates:
-
-            >>> new_coords = series.coords(dims)
-            >>> fa = new_coords['FlipAngle'][:,1,:]
-            >>> np.unique(fa)
-            [12]
-
-            Or, alternatively, check in the grid coordinates:
-
-            >>> new_coords = series.gridcoords(dims)
-            >>> new_coords['FlipAngle'][1]
-            12
-
-            Create a new set of coordinates along slice location and acquisition time:
-
-            >>> new_coords = {
-            ...     'SliceLocation': np.arange(8),
-            ...     'AcquisitionTime': 60*np.arange(6),
-            ... }
-            
-            Set the new coordinates and check the result:
-
-            >>> series.set_gridcoords(new_coords, dims)
-            >>> c = series.gridcoords(tuple(new_coords))
-            >>> c['AcquisitionTime']
-            [  0.  60. 120. 180. 240. 300.]
-        """
-
-        c = _grid_to_coords(gridcoords)
-        self.set_coords(c, dims=dims, coords=coords)
-
-
-
-    def expand(self, coords:dict=None, grid:dict=None):
-
-        if coords is not None:
-            new_coords = coords
-        elif grid is not None:
-            new_coords = _grid_to_coords(grid)
-
-        new_size = _coords_size(new_coords)
-
-        # If the series is not empty, first check that the new coordinates are valid.
-        if not self.empty():
-            current_coords = self.coords(tuple(new_coords))
-            total_coords = _concatenate_coords((current_coords, new_coords))
-            if _coords_size(total_coords) != _coords_size(current_coords) + new_size:
-                msg = 'Cannot expand - the new coordinates overlap with existing coordinates.'
-                raise ValueError(msg)
-        
-        # Expand the series to the new coordinates
-        for i in range(new_size):
-            ds = self.init_dataset()
-            for c in new_coords:
-                ds.set_values(c, new_coords[c][i])
-            self.new_instance(ds)
-
-
-    def shape(self, dims:tuple=None)->tuple:
-        """Return the shape of the series along given dimensions.
-
-        Args:
-            dims (tuple, optional): Dimensions along which the shape is to be determined. If dims is not provided, the shape of the flattened series is returned. Defaults to None.
-        
-        Returns:
-            tuple: one value for each element of dims.
-        
-        Raises:
-            ValueError: if the shape in the specified dimensions is ambiguous (because the number of slices is not unique at each location) 
-            ValueError: if the shape in the specified dimensions is not well defined (because there is no slice at one or more locations).
-
-        See also:
-            `coords`
-            `gridcoords`
-            `spacing`
-
-        Example:
-
-            Create a zero-filled series with 3 dimensions.
-
-            >>> coords = {
-            >>>     'SliceLocation': np.arange(4),
-            >>>     'FlipAngle': [2, 15, 30],
-            >>>     'RepetitionTime': [2.5, 5.0] }
-            >>> series = db.zeros((128,128,4,3,2), coords)
-
-            Check the shape of a flattened series:
-            >>> series.shape()
-            (24,)
-
-            Check the shape along all 3 dimensions:
-
-            >>> dims = tuple(coords)
-            >>> series.shape(dims)
-            (4, 3, 2)
-
-            Swap the first two dimensions:
-
-            >>> series.shape((dims[1], dims[0], dims[2]))
-            (3, 4, 2)
-
-            Determine the shape along another DICOM attribute:
-
-            >>> series.shape(('FlipAngle', 'InstanceNumber'))
-            (3, 8)
-
-            The shape of an empty series is zero along any dimension:
-
-            >>> series.new_sibling().shape(dims)
-            (0, 0, 0)
-
-            If one or more of the dimensions is not defined in the header, this raises an error:
-
-            >>> series.shape(('FlipAngle', 'Gobbledigook'))
-            ValueError: series shape is not well defined in dimensions (FlipAngle, Gobbledigook, )
-            --> Some of the dimensions are not defined in the header.
-            --> Hint: use Series.value() to find the undefined values.
-
-            An error is also raised if the values are defined, but are not unique. In this case, all acquisition times are the same so this raises an error:
-
-            >>> series.shape(('FlipAngle', 'AcquisitionTime'))
-            ValueError: series shape is ambiguous in dimensions (FlipAngle, AcquisitionTime, )
-            --> Multiple slices exist at some or all locations.
-            --> Hint: use Series.unique() to list the values at all locations.
-
-        """
-        array = _instances(self, dims)
-        return array.shape
-
-
-
     
 
-    def values(self, tag:str|tuple, dims:tuple=None, inds:dict=None, select={}, **filters)->np.ndarray:
-        """Return the values of an attribute along a given dimension.
+    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=False, loc={}, exclude=False, **filters)->np.ndarray:
+        """Return the values of one or more attributes for each frame in the series.
 
         Args:
             tag (str or tuple): either a keyword string or a (group, element) tag of a DICOM data element.
@@ -812,68 +336,293 @@ class Series(Record):
             >>> tacq.shape
             (4, 2, 2)
         """
-        if dims is None:
-            dims = ('InstanceNumber', )
-        array = _instances(self, dims=dims, inds=inds, select=select, **filters)
-        shape = array.shape
-        array = array.ravel()
-        value = [frame[tag] for frame in array]
-        return np.array(value).reshape(shape)
 
-        # # If no dimensions are provided, return the single unique value.
-        # # Raise an error if multiple are detected.
-        # if dims is None:
-        #     v = self.unique(attribute)
-        #     v = np.array([x for x in v if x is not None])
-        #     if len(v)==0:
-        #         return None
-        #     elif len(v)==1:
-        #         return v[0]
-        #     else: 
-        #         msg = 'Multiple unique values detected for ' + str(attribute) + '.'
-        #         msg += '\n--> Use Series.unique() to list the unique values.'
-        #         raise ValueError(msg)
-
-        # # If dims is provided, create an array of values
-        # source = instance_array(self, sortby=list(dims))
-        # if source.size == 0:
-        #     return None
-        # shape = source.shape
-        # source = source.ravel()
-        # value = np.array([s[attribute] for s in source])
-        # value = np.reshape(value, shape)
-
-        # # If there is only one instance at each location, return the array of values.
-        # d = shape[-1]
-        # if d == 1:
-        #     return value[...,0]
+        # Default return values
+        values = np.array([]).reshape((0,0))
+        coords = {}
+        for i, tag in enumerate(dims):
+            coords[tag] = np.array([])
         
-        # # If there are multiple instances at some locations, find the unique value at each location. Raise an error if multiple unique values are found.
-        # n = np.prod(shape[:-1])
-        # value = value.reshape((n, d))
-        # v = np.empty((n,))
-        # for i in range(n):
-        #     vi = np.unique(value[i,:])
-        #     vi = np.array([x for x in vi if x is not None])
-        #     if len(vi)==0:
-        #         v[i] = None
-        #     elif len(vi)==1:
-        #         v[i] = vi[0]
-        #     else:
-        #         r = np.unravel_index(i, shape[:-1])
-        #         loc = '('
-        #         for x in range(len(r)):
-        #             loc += str(dims[x]) + ' = ' + str(r[x])
-        #             if x != len(r)-1:
-        #                 loc += ', '
-        #         loc += ')'
-        #         msg = 'Multiple unique values detected for ' + str(attribute) + ' at ' + loc + '.'
-        #         msg += '\n--> Use Series.unique() to list the unique values at each location.'
-        #         raise ValueError(msg) 
-        # return np.reshape(v, shape[:-1])
+        # Get all frames and return if empty
+        frames = self.instances()
+        if frames == []:
+            if return_coords:
+                return values, coords
+            return values
+              
+        # Read values
+        filters = {**loc, **filters}
+        values = [f[list(dims)+list(tags)+list(tuple(filters))] for f in frames]
+        values.sort()
+        
+        # Check dimensions
+        cvalues = [v[:len(dims)] for v in values]
+        cvalues = np.array(cvalues).T
+        _check_if_ivals(cvalues)
+
+        # Filter values
+        values = _filter_values(values, filters, exclude=exclude)
+        if values.size == 0:
+            if return_coords:
+                if len(tags) == 1: 
+                    return values, coords
+                else:
+                    values = [np.array([]) for _ in range(len(tags))]
+                    return tuple(values) + (coords,)
+            return values
+        cvalues = values[:len(dims),:]
+        values = values[len(dims):,:]
+
+        # If requested, mesh values
+        if mesh:
+            cvalues = _meshvals(cvalues)
+            mshape = cvalues.shape[1:]
+            values = values.reshape((values.shape[0],) + mshape)
+            
+        # Create return values
+        if len(tags) == 1:
+            values = values[0,...]
+        else:
+            values = [values[i,...] for i in range(values.shape[0])]
+            values = tuple(values)
+
+        if return_coords:
+            for i, tag in enumerate(dims):
+                coords[tag] = cvalues[i,...] 
+            if len(tags) == 1: 
+                return values, coords
+            else:
+                return values + (coords,)
+        else:
+            return values
 
 
-    def set_values(self, tag:str|tuple, value, dims:tuple=None, inds:dict=None, select={}, **filters):
+    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=False, loc={}, exclude=False, **filters):
+        """Return the frames of given coordinates in the correct order"""
+
+        # Default return values
+        values = np.array([]).reshape((0,0))
+        coords = {}
+        for i, tag in enumerate(dims):
+            coords[tag] = np.array([])
+        if mesh:
+            fshape = tuple([0]*len(dims))
+        else:
+            fshape = (0,)
+            
+        # Get all frames and return if empty
+        frames_sel = self.instances()
+        if frames_sel == []:
+
+            # Empty return values
+            frames = np.array([]).reshape(fshape)
+            rval = (frames,)
+            if return_coords:
+                rval += (coords, )
+            if return_vals != ():
+                rval += (values, )
+            if len(rval)==1:
+                return rval[0]
+            else:
+                return rval
+              
+        # Read values and sort
+        filters = {**loc, **filters}
+        values = [f[list(dims)+list(return_vals)+list(tuple(filters))] for f in frames_sel]
+        fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
+        values = [values[i] for i in fsort]
+
+        # Check dimensions
+        cvalues = [v[:len(dims)] for v in values]
+        cvalues = np.array(cvalues).T
+        _check_if_ivals(cvalues)
+
+        # Create array of frames.
+        frames = np.empty(len(frames_sel), dtype=object)
+        for i in range(len(fsort)):
+            frames[i] = frames_sel[fsort[i]]
+
+        # Filter values
+        finds = _filter_values_ind(values, filters, exclude=exclude)
+        if finds.size==0:
+
+            # Empty return values
+            frames = np.array([]).reshape(fshape)
+            rval = (frames,)
+            if return_coords:
+                rval += (coords, )
+            if return_vals != ():
+                rval += (np.array([]), )
+            if len(rval)==1:
+                return rval[0]
+            else:
+                return rval  
+                      
+        frames = frames[finds]
+        values = _filter_values(values, filters, exclude=exclude)
+        cvalues = values[:len(dims),:]
+        values = values[len(dims):,:]
+
+        # If requested, mesh values
+        if mesh:
+            cvalues = _meshvals(cvalues)
+            fshape = cvalues.shape[1:]
+            frames = frames.reshape(fshape)
+            values = values.reshape((values.shape[0],) + fshape)
+            
+        # Create return values
+        rval = (frames,)
+        if return_coords:
+            for i, tag in enumerate(dims):
+                coords[tag] = cvalues[i,...] 
+            rval += (coords, )
+        if return_vals != ():
+            rval += (values, )
+        if len(rval)==1:
+            return rval[0]
+        else:
+            return rval
+        
+
+    def expand(self, coords={}, gridcoords={}):
+
+        if coords != {}:
+            pass
+        elif gridcoords != {}:
+            coords = _grid_to_coords(gridcoords)
+        else:
+            msg = 'Cannot expand without new coordinates'
+            raise ValueError(msg)
+
+        # If the series is not empty, first check that the new coordinates are valid.
+        if not self.empty():
+            current_coords = self.coords(tuple(coords))
+            try:
+                _concatenate_coords((current_coords, coords))
+            except:
+                msg = 'Cannot expand - the new coordinates overlap with existing coordinates.'
+                raise ValueError(msg)
+        
+        # Expand the series to the new coordinates
+        size = _coords_size(coords)
+        for i in range(size):
+            ds = self.init_dataset()
+            for c in coords:
+                ds.set_values(c, coords[c].ravel()[i])
+            self.new_instance(ds)
+
+
+    def set_coords(self, coords:dict, dims=(), loc={}, **filters):
+        """Set a dictionary of coordinates.
+
+        Args:
+            coords (dict): Dictionary of coordinates.
+            dims (tuple, optional): Dimensions of at which the new coordinates are to be best. If *dims* is not set, the dimensions are assumed to be the same as those of *coords* or *grid*. Defaults to None.
+
+        Raises:
+            ValueError: if the coordinates provided are not properly formatted or have the wrong shape.
+
+        See also:
+            `coords`
+            `set_gridcoords`
+
+        Example:
+
+            Create an empty series:
+
+            >>> coords = {
+            ...     'SliceLocation': np.array([0,1,2,0,1,2]),
+            ...     'FlipAngle': np.array([2,2,2,10,10,10]),
+            ...     'RepetitionTime': np.array([1,5,15,1,5,15]),
+            ... }
+            >>> series = db.empty_series(coords)
+            
+            Change the flip angle of 15 to 12:
+
+            >>> coords = series.coords(tuple(coords))
+            >>> fa = coords['FlipAngle']
+            >>> fa[np.where(fa==2)] = 5
+            >>> series.set_coords(coords)
+
+            Check the new coordinates:
+
+            >>> new_coords = series.coords(dims)
+            >>> new_coords['FlipAngle']
+            [5,10,5,10,5,10]
+
+            Create a new set of coordinates along slice location and acquisition time:
+
+            >>> new_coords = {
+            ...     'SliceLocation': np.array([0,0,1,1,2,2]),
+            ...     'AcquisitionTime': np.array([0,60,0,60,0,60]),
+            ... }
+            >>> series.set_coords(new_coords, ('SliceLocation', 'FlipAngle'))
+
+            # Inspect the new coordinates - each slice now has two acquisition times corresponding to the flip angles:
+
+            >>> coords['SliceLocation']
+            [0,0,1,1,2,2]
+            >>> coords['AcquisitionTime']
+            [0,60,0,60,0,60]
+            >>> coords['FlipAngle']
+            [5,10,5,10,5,10]
+
+            # Check that an error is raised if coordinate values have different sizes:
+            >>> new_coords = {
+            ...     'SliceLocation': np.zeros(24),
+            ...     'AcquisitionTime': np.ones(25),
+            ... }
+            >>> series.set_coords(new_coords, dims)
+            ValueError: Coordinate values must all have the same size
+
+            # An error is also raised if they have all the same size but the values are not unique:
+
+            >>> new_coords = {
+            ...     'SliceLocation': np.zeros(24),
+            ...     'AcquisitionTime': np.ones(24),
+            ... }
+            >>> series.set_coords(new_coords, dims)
+            ValueError: Coordinate values must all have the same size
+
+            # .. or when the number does not match up with the size of the series:
+
+            >>> new_coords = {
+            ...     'SliceLocation': np.arange(25),
+            ...     'AcquisitionTime': np.arange(25),
+            ... }
+            >>> series.set_coords(new_coords, dims)
+            ValueError: Shape of coordinates does not match up with the size of the series.
+
+        """
+        if dims == ():
+            dims = tuple(coords)
+        coords = _check_if_coords(coords)
+        frames = self.frames(dims, loc=loc, **filters)
+        if frames.size == 0:
+            # If the series is empty, assignment of coords is unambiguous
+            self.expand(coords)
+        else:
+            size = _coords_size(coords)
+            if size != frames.size:
+                msg = 'Cannot set ' + str(size) + ' coordinates in ' + str(frames.size) + ' frames.'
+                msg += '\nThe number of new coordinates must equal the number of frames.'
+                raise ValueError(msg)
+            # If setting a subset, check if the new set of coordinates is valid
+            if len({**loc, **filters}) > 0:
+                complement = self.coords(dims, loc=loc, exclude=True, **filters)
+                if _coords_size(complement) > 0:
+                    try:
+                        _concatenate_coords((coords, complement))
+                    except:
+                        msg = 'Cannot set coordinates - this would produce invalid coordinates for the series'
+                        raise ValueError(msg)
+            frames = frames.flatten()
+            values = _coords_vals(coords)
+            for f, frame in enumerate(frames):
+                frame[list(coords)] = list(values[:,f])
+
+
+    def set_values(self, values, tags, dims=('InstanceNumber', ), loc={}, **filters):
         """Set the values of an attribute.
 
         Args:
@@ -925,28 +674,197 @@ class Series(Record):
             The value array has shape (25,), but the series has shape (4, 3).
 
         """  
-        # if the value is not an array, set as a constant
-        if not isinstance(value, np.ndarray):
-            for s in self.instances():
-                s[tag] = value
+
+        if not isinstance(values, tuple):
+            self.set_values((values,), (tags,), dims=dims, loc=loc, **filters)
             return
         
-        if dims is None:
-            dims = ('InstanceNumber', )
-
-        array = _instances(self, dims=dims, inds=inds, select=select, **filters)
-        if value.size != array.size:
-            msg = 'The size of the value array is different from the size of the series.'
-            msg += '\nThe value array has shape ' + str(value.shape) + ', '
-            msg += 'but the series has shape ' + str(array.shape) + '.'
+        # Get frames to set:
+        frames = self.frames(dims, loc=loc, **filters)
+        if frames.size == 0:
+            msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first.'
             raise ValueError(msg)
-        array = array.ravel()
-        value = value.ravel()
-        for f, frame in enumerate(array):
-            frame[tag] = value[f]
+        
+        # Check that values all have the proper format:
+        values = list(values)
+        for i, v in enumerate(values):
+            if not isinstance(v, np.ndarray):
+                values[i] = np.full(frames.shape, v) 
+            if values[i].size != frames.size:
+                msg = 'Cannot set values: number of values does not match number of frames.'
+                raise ValueError(msg)
+            values[i] = values[i].ravel()
+    
+        # Set values
+        for f, frame in enumerate(frames):
+            frame[list(tags)] = [v[f] for v in values]
 
 
-    def unique(self, tag:str|tuple, sortby:tuple=None) -> np.ndarray:
+    def set_gridcoords(self, gridcoords:dict, dims=(), loc={}, **filters):
+        """ Set a dictionary of grid coordinates.
+
+        Args:
+            coords (dict): dictionary of grid coordinates
+            dims (tuple, optional): Dimensions of at which the new coordinates are to be best. If *dims* is not set, the dimensions are assumed to be the same as those of *coords* or *grid*. Defaults to None.
+
+        See also:
+            `gridcoords`
+            `set_coords`
+
+        Examples:
+
+            Create an empty series with 3 slice dimensions:
+
+            >>> gridcoords = {
+            ...     'SliceLocation': np.arange(4),
+            ...     'FlipAngle': np.array([2, 15, 30]),
+            ...     'RepetitionTime': np.array([2.5, 5.0]),
+            ... }
+            >>> series = db.empty_series()
+            >>> series.set_gridcoords(gridcoords)
+
+            Get the coordinates as a mesh
+
+            >>> dims = tuple(gridcoords)
+            >>> coords = series.meshcoords(dims)
+            >>> coords['SliceLocation'].shape
+            (4, 3, 2)
+            >>> coords['FlipAngle'][1,1,1]
+            15
+        """
+        coords = _grid_to_coords(gridcoords)
+        self.set_coords(coords, dims=dims, loc=loc, **filters)
+
+
+    def gridcoords(self, dims=('InstanceNumber', ), loc={}, exclude=False, **filters)->dict:
+        """return a dictionary of grid coordinates.
+
+        Args:
+            dims (tuple): Attributes to be used as coordinates.
+
+        Returns:
+            dict: dictionary of coordinates, one entry for each dimension.
+
+        See also:
+            `coords`
+            `set_gridcoords`
+
+        Examples:
+
+            Create an empty series with 3 slice dimensions:
+
+            >>> gridcoords = {
+            ...     'SliceLocation': np.arange(4),
+            ...     'FlipAngle': np.array([2, 15, 30]),
+            ...     'RepetitionTime': np.array([2.5, 5.0]),
+            ... }
+            >>> series = db.empty_series(gridcoords=gridcoords)
+
+            Recover the grid coordinates:
+
+            >>> gridcoords_rec = series.gridcoords(tuple(gridcoords))
+            >>> coords_rec['SliceLocation']
+            [0. 1. 2. 3.]
+            >>> coords_rec['FlipAngle']
+            [ 2. 15. 30.]
+            >>> coords_rec['RepetitionTime']
+            [2.5 5. ]
+
+            Note an error is raised if the coordinates are not grid coordinates:
+
+            >>> coords = {
+            ...     'SliceLocation': np.array([0,1,2,0,1,2]),
+            ...     'FlipAngle': np.array([10,10,10,2,2,2]),
+            ...     'RepetitionTime': np.array([1,5,15,1,5,15]),
+            ... }
+            >>> series = db.empty_series(coords)
+
+            The coordinates form a proper mesh, so this works fine:
+
+            >>> coords = series.meshcoords(tuple(coords))
+
+            But this raises an error:
+
+            >>> series.gridcoords(tuple(coords))
+            ValueError: These are not grid coordinates.
+        """
+        coords = self.coords(dims=dims, mesh=True, loc=loc, exclude=exclude, **filters)
+        return _meshcoords_to_grid(coords)
+    
+
+    def shape(self, dims=('InstanceNumber', ), mesh=False, loc={}, exclude=False, **filters)->tuple:
+        """Return the shape of the series along given dimensions.
+
+        Args:
+            dims (tuple, optional): Dimensions along which the shape is to be determined. If dims is not provided, the shape of the flattened series is returned. Defaults to None.
+        
+        Returns:
+            tuple: one value for each element of dims.
+        
+        Raises:
+            ValueError: if the shape in the specified dimensions is ambiguous (because the number of slices is not unique at each location) 
+            ValueError: if the shape in the specified dimensions is not well defined (because there is no slice at one or more locations).
+
+        See also:
+            `coords`
+            `gridcoords`
+            `spacing`
+
+        Example:
+
+            Create a zero-filled series with 3 dimensions.
+
+            >>> coords = {
+            >>>     'SliceLocation': np.arange(4),
+            >>>     'FlipAngle': [2, 15, 30],
+            >>>     'RepetitionTime': [2.5, 5.0] }
+            >>> series = db.zeros((128,128,4,3,2), coords)
+
+            Check the shape of a flattened series:
+            >>> series.shape()
+            (24,)
+
+            Check the shape along all 3 dimensions:
+
+            >>> dims = tuple(coords)
+            >>> series.shape(dims)
+            (4, 3, 2)
+
+            Swap the first two dimensions:
+
+            >>> series.shape((dims[1], dims[0], dims[2]))
+            (3, 4, 2)
+
+            Determine the shape along another DICOM attribute:
+
+            >>> series.shape(('FlipAngle', 'InstanceNumber'))
+            (3, 8)
+
+            The shape of an empty series is zero along any dimension:
+
+            >>> series.new_sibling().shape(dims)
+            (0, 0, 0)
+
+            If one or more of the dimensions is not defined in the header, this raises an error:
+
+            >>> series.shape(('FlipAngle', 'Gobbledigook'))
+            ValueError: series shape is not well defined in dimensions (FlipAngle, Gobbledigook, )
+            --> Some of the dimensions are not defined in the header.
+            --> Hint: use Series.value() to find the undefined values.
+
+            An error is also raised if the values are defined, but are not unique. In this case, all acquisition times are the same so this raises an error:
+
+            >>> series.shape(('FlipAngle', 'AcquisitionTime'))
+            ValueError: series shape is ambiguous in dimensions (FlipAngle, AcquisitionTime, )
+            --> Multiple slices exist at some or all locations.
+            --> Hint: use Series.unique() to list the values at all locations.
+
+        """
+        frames = self.frames(dims=dims, mesh=mesh, loc=loc, exclude=exclude, **filters)
+        return frames.shape
+
+
+    def unique(self, *tags, sortby=(), loc={}, exclude=False, return_locs=False, **filters) -> np.ndarray:
         """Return the unique values of an attribute, sorted by any number of variables.
 
         Args:
@@ -1014,36 +932,53 @@ class Series(Record):
             0
         """
         # If no sorting is required, return an array of unique values
-        if sortby is None:
-            source = self.instances()
-            value = [s[tag] for s in source]
-            value = [x for x in value if x is not None]
-            if value == []:
-                return np.array([])
-            else:
-                return np.unique(value)
+
+        vals = self.values(*(tags+sortby), loc=loc, exclude=exclude, **filters)
+
+        if sortby == ():
+            if len(tags) == 1:
+                uv = [x for x in vals if x is not None]
+                return np.unique(uv)
+            uvals = []
+            for v in vals:
+                uv = [x for x in v if x is not None]
+                uvals.append(np.unique(uv))
+            return tuple(uvals)
         
-        # If sorting is required, return an array with arrays of unique values.
-        source = instance_array(self, sortby=list(sortby))
-        if source.size == 0:
-            shape = tuple([0]*len(sortby))
-            return np.array([]).reshape(shape)
-        shape = source.shape
-        source = source.ravel()
-        value = np.array([s[tag] for s in source])
-        
-        # Return an array of unique values at each location.
-        n = np.prod(shape[:-1])
-        d = shape[-1]
-        value = value.reshape((n, d))
-        v = np.empty(n, dtype=np.ndarray)
-        for i in range(n):
-            vi = [x for x in value[i,:] if x is not None]
-            if vi == []:
-                v[i] = np.array([])
-            else:
-                v[i] = np.unique(vi)
-        return np.reshape(v, shape[:-1])
+        # Create a flat location array
+        loc = []
+        for k in range(len(sortby)):
+            v = vals[len(tags)+k]
+            v = [x for x in v if x is not None]
+            loc.append(np.unique(v))
+        loc = np.meshgrid(*tuple(loc), indexing='ij')
+        shape = loc[0].shape
+        loc = [l.ravel() for l in loc]
+
+        # Build an array of unique values at each location and each tag
+        uvals = np.empty((len(tags), loc[0].size), dtype=np.ndarray)
+        for i in range(loc[0].size):
+            k = 0
+            ind = vals[len(tags)+k] == loc[k][i]
+            for k in range(1, len(sortby)):
+                ind = ind & (vals[len(tags)+k] == loc[k][i])
+            for t in range(len(tags)):
+                vti = vals[t][ind]
+                vti = [x for x in vti if x is not None]
+                uvals[t,i] = np.unique(vti)
+
+        # Refactor to return values
+        if len(tags) == 1:
+            uvals = uvals[0,:].reshape(shape)
+        else:
+            uvals = [uvals[t,:].reshape(shape) for t in range(len(tags))]
+            uvals = tuple(uvals)
+        if return_locs:
+            loc = [l.reshape(shape) for l in loc]
+            loc = tuple(loc)  
+            return uvals, loc
+        else:
+            return uvals
     
 
     def pixel_values(self, dims:tuple=None, inds:dict=None, select={}, **filters) -> np.ndarray:
@@ -1489,8 +1424,6 @@ class Series(Record):
             return np.array([affine])
         
 
-
-
     def slice(self, coordinates={}, **coords) -> Series:
         """Get a slice of the series by dimension values
 
@@ -1911,6 +1844,49 @@ class Series(Record):
         self.set_pixel_values(*args, **kwargs)
 
 
+
+def _filter_values(values, filters, exclude=False):
+    if filters == {}:
+        return np.array(values).T
+    fvalues = []
+    fn = len(filters)
+    for v in values:
+        append = True
+        for f, fltr in enumerate(filters):
+            if isinstance(filters[fltr], np.ndarray):
+                append = v[f-fn] in filters[fltr]
+            else:
+                append = v[f-fn] == filters[fltr]
+            if exclude:
+                append = not append
+            if not append:
+                break
+        if append:
+            fvalues.append(v[:-fn])
+    return np.array(fvalues).T
+
+
+def _filter_values_ind(values, filters, exclude=False):
+    if filters == {}:
+        return np.arange(len(values), dtype=int)
+    fi = []
+    fn = len(filters)
+    for i, v in enumerate(values):
+        append = True
+        for f, fltr in enumerate(filters):
+            if isinstance(filters[fltr], np.ndarray):
+                append = v[f-fn] in filters[fltr]
+            else:
+                append = v[f-fn] == filters[fltr]
+            if exclude:
+                append = not append
+            if not append:
+                break
+        if append:
+            fi.append(i)
+    return np.array(fi, dtype=int)
+
+
 def _coords_shape(coords):
     if coords == {}:
         return (0,)
@@ -1918,7 +1894,7 @@ def _coords_shape(coords):
     shape = shapes[0]
     for s in shapes[1:]:
         if s != shape:
-            msg = 'Coordinate shape is ambiguous - not all coordinates have the same shape.'
+            msg = 'Dimensions are ambiguous - not all coordinates have the same shape.'
             raise ValueError(msg)
     return shapes[0]  
 
@@ -1930,7 +1906,7 @@ def _coords_size(coords):
     # Coordinate values must a have the same size.
     sizes = np.unique([coords[tag].size for tag in coords])
     if len(sizes) > 1:
-        msg = 'These are not proper coordinates. Each coordinate must have the same number of values.'
+        msg = 'These are not proper dimensions. Each coordinate must have the same number of values.'
         raise ValueError(msg)
     return sizes[0]  
 
@@ -1939,15 +1915,19 @@ def _coords_vals(coords):
     values = np.stack(values)
     return values
  
+def _check_if_ivals(values):
+    if None in values:
+        msg = 'These are not proper dimensions. Coordinate values must be defined everywhere.'
+        raise ValueError(msg)
+    if values.shape[1] != np.unique(values, axis=1).shape[1]:
+        msg = 'These are not proper dimensions. Coordinate values must be unique.'
+        raise ValueError(msg)
 
 def _check_if_coords(coords):
 
-    # Check if coordinates are unique.
-    size = _coords_size(coords)
+    # Check if coordinates are unique
     values = _coords_vals(coords)
-    if size != np.unique(values, axis=1).shape[1]:
-        msg = 'These are not proper coordinates. Coordinate values must be unique.'
-        raise ValueError(msg)
+    _check_if_ivals(values)
     return coords
 
 def _mesh_to_coords(coords):
@@ -1979,33 +1959,45 @@ def _grid_to_meshcoords(gridcoords):
     return meshcoords
 
 
+def _meshcoords_to_grid(coords):
+    dims = tuple(coords)
+    gridcoords = {}
+    for d, dim in enumerate(dims):
+        gridcoords[dim] = []
+        dvals = coords[dim]
+        for i in range(dvals.shape[d]):
+            dvals_i = dvals.take(i, axis=d)
+            dvals_i = np.unique(dvals_i)
+            if len(dvals_i) > 1:
+                msg = 'These are not proper grid coordinates.'
+                raise ValueError(msg)
+            gridcoords[dim].append(dvals_i[0])
+        gridcoords[dim] = np.array(gridcoords[dim])
+    return gridcoords  
+
+
 def _grid_to_coords(grid):
     coords = _grid_to_meshcoords(grid)
     for c in coords:
         coords[c] = coords[c].flatten()
     return coords
 
-
 def _as_meshcoords(coords):
 
     # First check that they are proper coordinates
-    size = _coords_size(coords) 
-    values = [coords[tag].ravel() for tag in coords]
-    values = np.stack(values)
-    if size != np.unique(values, axis=1).shape[1]:
-        msg = 'These are not proper coordinates. Coordinate values must be unique.'
-        raise ValueError(msg)
-    
+    values = _coords_vals(coords)
+    _check_if_ivals(values)
     values = _meshvals(values)
     meshcoords = {}
     for i, c in enumerate(coords):
         meshcoords[c] = values[i,...]
     return meshcoords
         
-
 def _meshvals(values):
     # Input array shape: (d, f) with d = nr of dims and f = nr of frames
     # Output array shape: (d, f1,..., fd)
+    if values.size == 0:
+        return np.array([])
     vals, cnts = np.unique(values[0,:], return_counts=True)
     if len(np.unique(cnts)) > 1:
         msg = 'These are not mesh coordinates.'
@@ -2024,7 +2016,6 @@ def _meshvals(values):
     mesh = np.concatenate((a, mesh))
     return mesh
 
-
 def _concatenate_coords(coords:tuple, mesh=False):
     concat = {}
     for c in coords[0]:
@@ -2042,7 +2033,7 @@ def _concatenate_coords(coords:tuple, mesh=False):
         return concat
 
 
-
+### OBSOLETE BELOW HERE
 
 
 def set_pixel_values(series, array, source=None, coords=None, **kwargs): 
