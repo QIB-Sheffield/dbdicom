@@ -358,7 +358,8 @@ def as_series(array:np.ndarray, coords:dict=None, gridcoords:dict=None, dtype='m
     if gridcoords is not None:
         coords = _grid_to_coords(gridcoords)
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
-    sery.set_pixel_values(array, coords=coords)
+    sery.expand(coords)
+    sery.set_pixel_values(array, dims=tuple(coords))
     return sery
 
 

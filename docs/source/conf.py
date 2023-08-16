@@ -34,8 +34,6 @@ extensions = [
     'sphinx_copybutton', # copy button for code blocks
     'sphinx_design', # sphinx web design components
     'sphinx_remove_toctrees', # selectively remove toctree objects from pages
-    #'nbsphinx', #support for jupyter notebooks
-    #"sphinx_gallery.load_style", # support for creating thumbnail galleries out of notebooks.
     'sphinx_gallery.gen_gallery',
 ]
 
@@ -75,8 +73,8 @@ sphinx_gallery_conf = {
     },
 
 }
-# This way a link to other methods, classes, or modules can be made with back ticks
-# so that you don't have to use qualifiers like :class:, :func:, :meth: and the likes
+
+# This way a link to other methods, classes, or modules can be made with back ticks so that you don't have to use qualifiers like :class:, :func:, :meth: and the likes
 default_role = 'obj'
 
 # Add any paths that contain templates here, relative to this directory
@@ -102,8 +100,7 @@ intersphinx_mapping = {
 # generate autosummary even if no references
 autosummary_generate = True 
 
-# Tell sphinx-autodoc-typehints to generate stub parameter annotations including
-# types, even if the parameters aren't explicitly documented.
+# Tell sphinx-autodoc-typehints to generate stub parameter annotations including types, even if the parameters aren't explicitly documented.
 always_document_param_types = True
 
 # Remove auto-generated API docs from sidebars.
@@ -120,9 +117,7 @@ html_theme_options = {
     "collapse_navigation": True,
     }
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css"
+# Add any paths that contain custom static files (such as style sheets) here, relative to this directory. They are copied after the builtin static files, so a file named "default.css" will overwrite the builtin "default.css"
 html_static_path = ['_static']
 
 # The suffix(es) of source filenames.

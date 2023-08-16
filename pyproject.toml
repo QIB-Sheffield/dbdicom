@@ -68,7 +68,6 @@ docs = [
     "sphinxcontrib-jsmath",
     "sphinxcontrib-qthelp",
     "sphinxcontrib-serializinghtml",
-    #"nbsphinx",
     "sphinx-gallery",
 ]
 extensions = [

@@ -52,6 +52,8 @@ class Series(Record):
 
     # replace by clone(). Adopt implies move rather than copy
     def adopt(self, instances): 
+        if len(instances)==0:
+            return []
         uids = [i.uid for i in instances]
         uids = self.manager.copy_to_series(uids, self.uid, **self.attributes)
         if isinstance(uids, list):
@@ -697,6 +699,7 @@ class Series(Record):
     
         # Set values
         for f, frame in enumerate(frames):
+            self.progress(f+1, frames.size, 'Writing values..')
             frame[list(tags)] = [v[f] for v in values]
 
 
@@ -981,7 +984,7 @@ class Series(Record):
             return uvals
     
 
-    def pixel_values(self, dims:tuple=None, inds:dict=None, select={}, **filters) -> np.ndarray:
+    def pixel_values(self, dims=('InstanceNumber', ), mesh=False, loc={}, **filters) -> np.ndarray:
         """Return a numpy.ndarray with pixel data.
 
         Args:
@@ -1072,27 +1075,33 @@ class Series(Record):
             >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
             ValueError: Indices must be in the dimensions provided.
         """
-        frames = _instances(self, dims=dims, inds=inds, select=select, **filters)
+        frames = self.frames(dims, mesh=mesh, loc=loc, **filters)
         if frames.size == 0:
             shape = (0,0) + frames.shape
             return np.array([]).reshape(shape)
+        
+        # Read values
         fshape = frames.shape
         frames = frames.ravel()
-        array = []
-        for i, im in enumerate(frames):
-            self.progress(i+1, len(frames), 'Reading pixel values..')
-            array.append(im.get_pixel_array())
-        ashape = np.array([a.shape for a in array])
-        ashape = ashape.reshape((2, len(array)))
-        ashape = np.unique(ashape, axis=0)
-        if len(ashape) > 1:
-            msg = 'Cannot extract an array of pixel values - not all frames have the same size.'
+        values = []
+        for f, frame in enumerate(frames):
+            self.progress(f+1, len(frames), 'Reading pixel values..')
+            values.append(frame.get_pixel_array())
+
+        # Check that all matrix sizes are the same
+        vshape = np.array([v.shape for v in values])
+        vshape = vshape.reshape((2, len(values)))
+        vshape = np.unique(vshape, axis=0)
+        if len(vshape) > 1:
+            msg = 'Cannot extract an array of pixel values - not all frames have the same matrix size.'
             raise ValueError(msg)
-        array = np.stack(array, axis=-1)
-        return array.reshape(array.shape[:2] + fshape)
+        
+        # Create the array
+        values = np.stack(values, axis=-1)
+        return values.reshape(values.shape[:2] + fshape)
     
 
-    def set_pixel_values(self, value:np.ndarray, dims:tuple=None, inds:dict=None, select={}, **filters):
+    def set_pixel_values(self, values:np.ndarray, dims=('InstanceNumber', ), loc={}, **filters):
         """Set a numpy.ndarray with pixel data.
 
         Args:
@@ -1117,22 +1126,25 @@ class Series(Record):
             ... }
             >>> zeros = db.zeros((128,64,4,3,2), coords)
         """
-        if dims is None:
-            dims = ('InstanceNumber', )
-        frames = _instances(self, dims=dims, inds=inds, select=select, **filters)
-        if np.prod(value.shape[2:]) != frames.size:
+        # Get frames to set:
+        frames = self.frames(dims, loc=loc, **filters)
+        if frames.size == 0:
+            msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first.'
+            raise ValueError(msg)
+        
+        if np.prod(values.shape[2:]) != frames.size:
             msg = 'The size of the pixel value array is different from the size of the series.'
-            msg += '\nThe pixel array has shape ' + str(value.shape[2:]) + ', '
+            msg += '\nThe pixel array has shape ' + str(values.shape[2:]) + ', '
             msg += 'but the series has shape ' + str(frames.shape) + '.'
             raise ValueError(msg)
         frames = frames.ravel()
-        value = value.reshape(value.shape[:2] + (-1))
+        values = values.reshape(values.shape[:2] + (-1,))
         for f, frame in enumerate(frames):
-            self.progress(i+1, frames.size, 'Writing pixel values..')
-            frame.set_pixel_array(value[:,:,f])
+            self.progress(f+1, frames.size, 'Writing pixel values..')
+            frame.set_pixel_array(values[:,:,f])
     
 
-    def affine(self)->np.ndarray:
+    def affine(self, loc={}, **filters) -> np.ndarray:
         """Return the affine of the Series.
 
         Raises:
@@ -1156,25 +1168,46 @@ class Series(Record):
              [0., 0., 1., 0.],
              [0., 0., 0., 1.]]
         """
-        image_orientation = self.ImageOrientationPatient
-        if image_orientation is None:
-            msg = 'ImageOrientationPatient not defined in the DICOM header \n'
-            msg += 'This is a required DICOM field \n'
-            msg += 'The data may be corrupted - please check'
-            raise ValueError(msg)
+
+        # Read values
+        tags = ('ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', )
+        orientation, pos, spacing, thick = self.values(*tags, loc=loc, **filters)
+
+        # Single slice
+        if len(pos) == 1:
+            return image_utils.affine_matrix(orientation[0], pos[0], spacing[0], thick[0])
         
-        # Multiple slice groups in series - raise Exception
-        if isinstance(image_orientation[0], list):
+        # Multiple orientations - raise error
+        orientation = np.unique(orientation)
+        if len(orientation) > 1:
             msg = 'The series has multiple affines. '
             msg += '\nUse Series.unique_affines() to return an array of unique affines.'
             raise ValueError(msg)
+        orientation = orientation[0]
+
+        # Multiple pixel spacings - raise error
+        spacing = np.unique(spacing)
+        if len(spacing) > 1:
+            msg = 'The series has multiple pixel spacings. '
+            msg += '\nAffine array of the series is not well defined.'
+            raise ValueError(msg)     
+        spacing = spacing[0]
+    
+        # All the same slice locations
+        upos = np.unique(pos)
+        if len(upos) == 1:
+            return image_utils.affine_matrix(orientation, pos[0], spacing, thick[0])
         
-        # Single slice group in series - return a single affine matrix
-        slice_group = self.instances()
-        return _slice_group_affine_matrix(slice_group, image_orientation)
+        # Different slice locations but not all different - raise error
+        if len(upos) != len(pos): 
+            msg = 'Some frames have the same ImagePositionPatient. '
+            msg += '\nAffine matrix of the series is not well defined.'
+            raise ValueError(msg)  
+        
+        return image_utils.affine_matrix_multislice(orientation, pos, spacing)   
 
 
-    def set_affine(self, affine:np.eye()):
+    def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), loc={}, **filters):
         """Set the affine matrix of a series.
 
         The affine is defined as a 4x4 numpy array with bottom row [0,0,0,1]. The final column represents the position of the top right hand corner of the first slice. The first three columns represent rotation and scaling with respect to the axes of the reference frame.
@@ -1237,10 +1270,10 @@ class Series(Record):
             In this case, since the slices are stacked in parallel to the z-axis, the slice location starts at the lower z-coordinate of 120mm and then increments slice-by-slice with the slice thickness of 1.5mm.
         
         """
-        images = instance_array(self, sortby='SliceLocation')
-        if images.size == 0:
-            msg = 'Cannot set affine matrix in an empty series \n'
-            msg += 'Set some data with series.pixel_values() and then try again.'
+
+        frames = self.frames(dims=dims, loc=loc, **filters)
+        if frames.size == 0:
+            msg = 'Cannot set affine matrix in an empty series. Use Series.expand() to create empty frames first.'
             raise ValueError(msg)
     
         # For each slice location, the slice position needs to be updated too
@@ -1249,26 +1282,69 @@ class Series(Record):
         ez = a['SpacingBetweenSlices']*np.array(a['slice_cosine'])
 
         # Set the affine slice-by-slice
-        nz = images.shape[0]
-        for d in range(images.shape[1]):
-            affine_z = affine.copy()
-            for z in range(nz):
-                self.progress(z+1, nz, 'Writing affine..')
-                affine_z[:3, 3] = affine[:3, 3] + z*ez
-                images[z,d].read()
-                images[z,d].affine_matrix = affine_z
-                images[z,d].clear()
+        affine_z = affine.copy()
+        for z, frame in enumerate(frames):
+            self.progress(z+1, frames.size, 'Writing affine..')
+            affine_z[:3, 3] = affine[:3, 3] + z*ez
+            frame.affine_matrix = affine_z
 
+
+    # consider renaming copy() - but breaks backward compatibility
+    def slice(self, loc={}, **filters) -> Series:
+        """Get a slice of the series by dimension values
+
+        Args:
+            coordinates (dict, optional): dictionary of tag:value pairs where the value is either a single value or an array of values.
+            coords (dict): Provide coordinates for the slice, either as dimension=value pairs, or as a dictionary where the keys list the dimensions, and the values are provided as scalars, 1D or meshgrid arrays of coordinates. 
+
+        See also:
+            `islice`
+            `split_by`
+
+        Example:
+            Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times:
+
+            >>> coords = {
+            ...    'SliceLocation': np.arange(8),
+            ...    'FlipAngle': [2, 15, 30],
+            ...    'RepetitionTime': [2.5, 5.0],
+            ... }
+            >>> series = db.zeros((128,128,8,3,2), coords)
+
+            Slice the series at flip angle 15:
+
+            >>> fa15 = series.slice(FlipAngle=15)
+
+            Retrieve the array and check the dimensions:
+
+            >>> array = fa15.pixel_values(dims=tuple(coords))
+            >>> print(array.shape)
+            (128, 128, 8, 1, 2)
+
+            Multiple possible values can be specified as a list or np.ndarray:
+
+            >>> fa15 = series.slice(SliceLocation=[0,5], FlipAngle=15)
+            >>> array = fa15.pixel_values(dims=tuple(coords))
+            >>> print(array.shape)
+            (128, 128, 2, 1, 2)
+
+            Values can also be provided as a dictionary, which is useful for instance for private tags that do not have a keyword string. So the following are equivalent:
+
+            >>> fa15 = series.slice(SliceLocation=[0,5], FlipAngle=15)
+            >>> fa15 = series.slice({SliceLocation:[0,5], FlipAngle:15})
+            >>> fa15 = series.slice({(0x0020, 0x1041):[0,5], (0x0018, 0x1314):15})
+        """
+
+        frames = self.frames(loc=loc, **filters)
+        result = self.new_sibling()
+        # result.adopt(frames) # faster but no progress bar
+        for f, frame in enumerate(frames):
+            self.progress(f+1, len(frames), 'Creating slice..')
+            frame.copy_to(result)
+        return result
+        
     
-    def isnull(self, tag, dims:tuple) -> np.ndarray:
-        array = _instances(self, dims)
-        shape = array.shape
-        array = array.ravel()
-        null = [a[tag] is None for a in array]
-        return np.array(null, dtype=bool).reshape(shape) 
-      
-    
-    def split_by(self, keyword: str | tuple) -> list:
+    def split_by(self, tag: str | tuple) -> list:
         """Split the series into multiple subseries based on keyword value.
 
         Args:
@@ -1330,33 +1406,22 @@ class Series(Record):
             30.0
         """
         
-        self.message('Reading values..')
-        try:
-            values = self[keyword]
-        except:
-            msg = str(keyword) + ' is not a valid DICOM keyword'
-            raise ValueError(msg)
-        if not isinstance(values, list):
-            msg = 'Cannot split by ' + str(keyword) + '\n' 
-            msg += 'All images have the same value'
-            raise ValueError(msg)   
-        if len(values) == 1:
-            msg = 'Cannot split by ' + str(keyword) + '\n' 
-            msg += 'All images have the same value'
+        vals = self.unique(tag)
+        if len(vals)==1:
+            msg = 'Cannot split by ' + str(tag) + '\n' 
+            msg += 'All frames have the same value.'
             raise ValueError(msg)
         
-        self.message('Splitting series..')
+        desc = self.instance().SeriesDescription + '[' + str(tag) + ' = '
         split_series = []
-        desc = self.instance().SeriesDescription + '[' + keyword + ' = '
-        for v in values:
-            kwargs = {keyword: v}
-            new = self.subseries(**kwargs)
+        for v in vals:
+            new = self.slice(loc={tag: v})
             new.SeriesDescription = desc + str(v) + ']'
             split_series.append(new)
         return split_series
+        
 
-
-    def spacing(self)->tuple:
+    def spacing(self, **kwargs)->tuple:
         """3D pixel spacing in mm
 
         Returns:
@@ -1372,12 +1437,14 @@ class Series(Record):
             >>> series.spacing()
             (15, 15, 20)
         """
-        affine = self.affine()
+        affine = self.affine(**kwargs)
         column_spacing = np.linalg.norm(affine[:3, 0])
         row_spacing = np.linalg.norm(affine[:3, 1])
         slice_spacing = np.linalg.norm(affine[:3, 2])
         return column_spacing, row_spacing, slice_spacing
-        
+
+
+   
 
     def unique_affines(self)->np.ndarray:
         """Return the array of unique affine matrices.
@@ -1423,86 +1490,6 @@ class Series(Record):
             affine = _slice_group_affine_matrix(slice_group, image_orientation)
             return np.array([affine])
         
-
-    def slice(self, coordinates={}, **coords) -> Series:
-        """Get a slice of the series by dimension values
-
-        Args:
-            coordinates (dict, optional): dictionary of tag:value pairs where the value is either a single value or an array of values.
-            coords (dict): Provide coordinates for the slice, either as dimension=value pairs, or as a dictionary where the keys list the dimensions, and the values are provided as scalars, 1D or meshgrid arrays of coordinates. 
-
-        See also:
-            `islice`
-            `split_by`
-
-        Example:
-            Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times:
-
-            >>> coords = {
-            ...    'SliceLocation': np.arange(8),
-            ...    'FlipAngle': [2, 15, 30],
-            ...    'RepetitionTime': [2.5, 5.0],
-            ... }
-            >>> series = db.zeros((128,128,8,3,2), coords)
-
-            Slice the series at flip angle 15:
-
-            >>> fa15 = series.slice(FlipAngle=15)
-
-            Retrieve the array and check the dimensions:
-
-            >>> array = fa15.pixel_values(dims=tuple(coords))
-            >>> print(array.shape)
-            (128, 128, 8, 1, 2)
-
-            Multiple possible values can be specified as a list or np.ndarray:
-
-            >>> fa15 = series.slice(SliceLocation=[0,5], FlipAngle=15)
-            >>> array = fa15.pixel_values(dims=tuple(coords))
-            >>> print(array.shape)
-            (128, 128, 2, 1, 2)
-
-            Values can also be provided as a dictionary, which is useful for instance for private tags that do not have a keyword string. So the following are equivalent:
-
-            >>> fa15 = series.slice(SliceLocation=[0,5], FlipAngle=15)
-            >>> fa15 = series.slice({SliceLocation:[0,5], FlipAngle:15})
-            >>> fa15 = series.slice({(0x0020, 0x1041):[0,5], (0x0018, 0x1314):15})
-        """
-
-        coords = {**coordinates, **coords}
-
-        # Check whether the arguments are valid, and initialize dims.
-        if coords == {}:
-            return self.new_sibling()
-        dims = list(coords.keys())
-        source = instance_array(self, sortby=dims)
-        
-        # Retrieve the instances corresponding to the coordinates.
-        if source.size != 0:
-            for d, dim in enumerate(coords):
-                ind = []
-                for i in range(source.shape[d]):
-                    si = source.take(i,axis=d).ravel()
-                    try:
-                        if si[0][dim] in coords[dim]:
-                            ind.append(i)
-                    except:
-                        try:
-                            if si[0][dim] == coords[dim]:
-                                ind.append(i)
-                        except:
-                            pass    
-                source = source.take(ind, axis=d)
-                # Insert dimensions of 1 back in
-                if len(ind)==1:
-                    source = np.expand_dims(source, axis=d)
-
-        result = self.new_sibling()
-        source = source.ravel()
-        for i in range(source.size):
-            source[i].copy_to(result)
-        return result
-    
 
     def islice(self, indices={}, **inds) -> Series:
         """Get a slice of the series by dimension indics
@@ -1712,6 +1699,7 @@ class Series(Record):
                 series.remove()
             source = [source[0]] + [source[0].copy_to(self) for _ in range(nr_of_slices-1)]
             set_pixel_values(self, array, source=source, coords=coords)
+
     
     def subseries(self, **kwargs)->Series:
         """Extract a subseries based on values of header elements.
@@ -1847,23 +1835,37 @@ class Series(Record):
 
 def _filter_values(values, filters, exclude=False):
     if filters == {}:
-        return np.array(values).T
-    fvalues = []
-    fn = len(filters)
-    for v in values:
-        append = True
-        for f, fltr in enumerate(filters):
-            if isinstance(filters[fltr], np.ndarray):
-                append = v[f-fn] in filters[fltr]
-            else:
-                append = v[f-fn] == filters[fltr]
-            if exclude:
-                append = not append
-            if not append:
-                break
-        if append:
-            fvalues.append(v[:-fn])
-    return np.array(fvalues).T
+        fvalues = values
+    else:
+        fvalues = []
+        fn = len(filters)
+        for v in values:
+            append = True
+            for f, fltr in enumerate(filters):
+                if isinstance(filters[fltr], np.ndarray):
+                    append = v[f-fn] in filters[fltr]
+                else:
+                    append = v[f-fn] == filters[fltr]
+                if exclude:
+                    append = not append
+                if not append:
+                    break
+            if append:
+                fvalues.append(v[:-fn])
+    #return np.array(fvalues).T
+
+    if len(fvalues) == 0:
+        return np.array([]).reshape((0,0))
+    
+    # Create array of return values. Values can be of different types including lists so this must be an object array.
+    nd, nf = len(fvalues[0]), len(fvalues)
+    rvalues = np.empty((nd,nf), dtype=object)
+    for d in range(nd):
+        for f in range(nf):
+            rvalues[d,f] = fvalues[f][d]
+
+    return rvalues
+    
 
 
 def _filter_values_ind(values, filters, exclude=False):
@@ -1919,9 +1921,21 @@ def _check_if_ivals(values):
     if None in values:
         msg = 'These are not proper dimensions. Coordinate values must be defined everywhere.'
         raise ValueError(msg)
-    if values.shape[1] != np.unique(values, axis=1).shape[1]:
-        msg = 'These are not proper dimensions. Coordinate values must be unique.'
-        raise ValueError(msg)
+    
+    # Check if the values are unique
+    for f in range(values.shape[1]-1):
+        for g in range(f+1, values.shape[1]):
+            equal = True
+            for d in range(values.shape[0]):
+                if values[d,f] != values[d,g]:
+                    equal = False
+                    break
+            if equal:
+                msg = 'These are not proper dimensions. Coordinate values must be unique.'
+                raise ValueError(msg)
+    # if values.shape[1] != np.unique(values, axis=1).shape[1]:
+    #     msg = 'These are not proper dimensions. Coordinate values must be unique.'
+    #     raise ValueError(msg)
 
 def _check_if_coords(coords):
 

@@ -156,7 +156,8 @@ def rider(ds): # required only - check
     ds.RequestAttributesSequence = Sequence()
     ds.RequestedProcedureID = '5133240'
     ds.StorageMediaFileSetUID = '1.3.6.1.4.1.9328.50.16.162890465625511526068665093825399871205'
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    pixel_values = np.arange(ds.Rows*ds.Columns)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    ds.PixelData = pixel_values.astype(np.uint16).tobytes()
 
     return ds
 
