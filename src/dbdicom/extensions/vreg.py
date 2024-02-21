@@ -40,7 +40,6 @@ def _get_input(moving, static, region=None, margin=0):
 
 
 
-
 def find_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0)->np.ndarray:
     """Find the translation that maps a moving volume onto a static volume.
 
@@ -240,8 +239,35 @@ def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  tar
     return series_moved
 
 
+def apply_passive_rigid_transformation(series_moving:Series, parameters:np.ndarray)->Series:
+    """Apply passive rigid transformation of an image volume.
 
+    Args:
+        series_moving (dbdicom.Series): Series containing the volune to be moved.
+        parameters (np.ndarray): 6-element numpy array with values of the translation (first 3 elements) and rotation vector (last 3 elements) that map the moving volume on to the static volume. The vectors are defined in an absolute reference frame in units of mm.
 
+    Raises:
+        ValueError: If the moving series contains multiple slice groups with different orentations. 
+        ValueError: If the array to be moved is empty.
+
+    Returns:
+        dbdicom.Series: Sibling dbdicom series in the same study, containing the transformed volume.
+    """
+    desc_moving = series_moving.instance().SeriesDescription
+    affine_moving = series_moving.unique_affines()
+    if len(affine_moving) > 1:
+        msg = 'Multiple slice groups detected in ' + desc_moving + '\n'
+        msg += 'This function only works for series with a single slice group. \n'
+        msg += 'Please split the series first.'
+        raise ValueError(msg)
+    else:
+        affine_moving = affine_moving[0]
+
+    series_moving.message('Applying passive rigid transformation..')
+    output_affine = vreg.passive_rigid_transform(affine_moving, parameters)
+    series_moved = series_moving.new_sibling(SeriesDescription = desc_moving + ' [passive rigid]')
+    series_moved.set_affine(output_affine)
+    return series_moved
 
 
 def find_sbs_translation(moving:Series, static:Series, tolerance=0.1, metric='mutual information', region:Series=None, margin:float=0)->np.ndarray:
@@ -583,7 +609,6 @@ def sbs_rigid_around_com_sos(moving, static, tolerance=0.1):
     coreg.set_array(coregistered, headers, pixels_first=True)
 
     return coreg
-
 
 
 def rotate(series:Series, parameters:np.ndarray, reshape=False, output_shape:tuple=None, output_affine:np.ndarray=None, mode='constant', **kwargs)->Series:

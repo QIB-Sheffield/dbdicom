@@ -116,7 +116,6 @@ def interpolator_displacement(displacement, shape, interpolator):
     return displacement_interp
 
 
-
 def surface_coordinates(shape):
 
     # data are defined at the edge of volume - extend shape with 1.
@@ -839,11 +838,9 @@ def freeform(input_data, input_affine, output_shape, output_affine, parameters, 
     output_to_input = np.linalg.inv(input_affine).dot(output_affine)
     return freeform_deformation(input_data, parameters, output_shape, output_to_input, **kwargs)
 
-
 def freeform_align(input_data, input_affine, output_shape, output_affine, parameters, **kwargs):
     output_to_input = np.linalg.inv(input_affine).dot(output_affine)
     return freeform_deformation_align(input_data, parameters, output_shape, output_to_input, **kwargs)
-
 
 def transform_slice_by_slice(input_data, input_affine, output_shape, output_affine, parameters, transformation=translate, slice_thickness=None):
     
@@ -868,7 +865,6 @@ def transform_slice_by_slice(input_data, input_affine, output_shape, output_affi
     coregistered[nozero] = coregistered[nozero]/weight[nozero]
     return coregistered
 
-
 def passive_rigid_transform_slice_by_slice(input_affine, parameters):
     output_affine = []
     for z, pz in enumerate(parameters):
@@ -877,6 +873,11 @@ def passive_rigid_transform_slice_by_slice(input_affine, parameters):
         #rigid_transform = affine_matrix(rotation=z*(np.pi/180)*np.array([1,0,0])) # for debugging
         transformed_input_affine = rigid_transform.dot(input_affine_z)
         output_affine.append(transformed_input_affine)
+    return output_affine
+
+def passive_rigid_transform(input_affine, parameters):
+    rigid_transform = affine_matrix(rotation=parameters[:3], translation=parameters[3:])
+    output_affine = rigid_transform.dot(input_affine)
     return output_affine
 
 
@@ -915,6 +916,7 @@ def mutual_information(static, transformed, nan=None):
 def print_current(xk):
     print('Current parameter estimates: ' , xk)
     return False
+
 
 def print_current_norm(xk):
     print('Norm of current parameter estimates: ' , np.linalg.norm(xk))
@@ -963,7 +965,6 @@ def minimize_gd(cost_function, parameters, args=None, callback=None, options={},
             return parameters
         if n_iter == max_iter:
             return parameters
-
 
 
 def gradient(cost_function, parameters, f0, step, bounds, *args):
@@ -2640,7 +2641,6 @@ def test_align_freeform(n=1):
     pl.show()
 
 
-
 def test_align_freeform_pyramid(n=1):
 
     if n==1:
@@ -2692,7 +2692,6 @@ def test_align_freeform_pyramid(n=1):
         
 
 
-
 if __name__ == "__main__":
 
     dataset=2
@@ -2732,7 +2731,7 @@ if __name__ == "__main__":
     # test_align_translation(dataset)
     # test_align_rotation()
     # test_align_stretch(n=2)
-    test_align_rigid(n=1)
+    # test_align_rigid(n=1)
     # test_align_affine(n=1)
     # test_align_freeform(n=3)
 
