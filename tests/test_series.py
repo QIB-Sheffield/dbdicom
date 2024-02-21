@@ -35,6 +35,20 @@ def test_check_if_coords():
 
     print('Testing check_if_coords')
 
+    # ValueError: Coordinate values must be provided as numpy arrays.
+    # But the value of SliceLocation is a <class 'list'>
+    coords = {
+        'SliceLocation': [0,0,0,0],
+        'FlipAngle': np.array([0,0,0]),
+        'RepetitionTime': np.array([0,0,0]),
+    }
+    try:
+        db.types.series._check_if_coords(coords) 
+    except:
+        assert True
+    else:
+        assert False
+
     # ValueError: These are not proper coordinates. Each coordinate must have the same number of values.
     coords = {
         'SliceLocation': np.array([0,0,0,0]),
@@ -313,12 +327,25 @@ def test_coords():
     coords = series.coords(('SliceLocation', 'FlipAngle'), AcquisitionTime=0)
     assert np.array_equal(coords['FlipAngle'], [])
 
-    # Filtering with (gr, el) tag can be done using the loc keyword values:
+    # Filtering with (gr, el) tag can be done using the slice keyword values:
 
-    loc = {(0x0018, 0x0080): np.array([1,15])}
-    coords = series.coords(('SliceLocation', 'FlipAngle'), loc=loc)
+    slice = {(0x0018, 0x0080): np.array([1,15])}
+    coords = series.coords(('SliceLocation', 'FlipAngle'), slice=slice)
     assert np.array_equal(coords['FlipAngle'], [2,10,2,10])
 
+    # Filter on specific locations:
+    locs = {
+        'SliceLocation': np.array([0,2]),
+        'FlipAngle': np.array([10,2]),
+        'RepetitionTime': np.array([1,15]),
+    }   
+    coords = series.coords(('SliceLocation', 'FlipAngle'), coords=locs)
+    assert np.array_equal(coords['FlipAngle'], [10,2])
+
+    # Fliter by slice and location:
+    slice = {(0x0018, 0x0080): np.array([10,15])}
+    coords = series.coords(('SliceLocation', 'FlipAngle'), coords=locs, slice=slice)
+    assert np.array_equal(coords['FlipAngle'], [2])
 
     # To test return as mesh, create an empty series with 3 coordinates: 
     coords = {
@@ -484,8 +511,17 @@ def test_frames():
     assert coords['FlipAngle'][1,1,1] == 30
     assert coords['RepetitionTime'][1,1,1] == 5.0
 
-    # Check empty case
+    # Filter by location
+    locs = {
+        'SliceLocation': np.array([0,3]),
+        'FlipAngle': np.array([2,15]),
+        'RepetitionTime': np.array([2.5,2.5]),
+    }
+    frames, coords = series.frames(tuple(coords), return_coords=True, coords=locs)
+    assert np.array_equal(coords['FlipAngle'], [2.0, 15.0])
+    assert frames[1].FlipAngle == 15
 
+    # Check empty case
     frames, coords = series.frames(tuple(coords), return_coords=True, mesh=True, FlipAngle=-1)
     assert frames.size == 0
     assert coords['FlipAngle'].size == 0
@@ -941,10 +977,10 @@ def test_pixel_values():
     array = series.pixel_values(dims, AcquisitionTime=0, mesh=True)
     assert array.size == 0
 
-    array = series.pixel_values(dims, loc={'FlipAngle': 15}, mesh=True)
+    array = series.pixel_values(dims, slice={'FlipAngle': 15}, mesh=True)
     assert array.shape == (64, 64, 4, 1, 2)
 
-    array = series.pixel_values(dims, loc={(0x0018, 0x1314): 15}, mesh=True)
+    array = series.pixel_values(dims, slice={(0x0018, 0x1314): 15}, mesh=True)
     assert array.shape == (64, 64, 4, 1, 2)
     
 
@@ -1046,7 +1082,7 @@ def test_set_affine():
     assert np.array_equal(zeros.unique('SliceLocation'), [120.0, 121.5, 123.0, 124.5, 126.0, 127.5, 129.0, 130.5, 132.0, 133.5])
  
 
-def test_slice():
+def test_extract():
 
     print('Testing slice..')
 
@@ -1060,7 +1096,7 @@ def test_slice():
     dims = tuple(coords)
 
     # Slice the series at flip angle 15:
-    fa15 = series.slice(FlipAngle=15)
+    fa15 = series.extract(FlipAngle=15)
     fa15.SeriesDescription = 'FA15'
 
     # Retrieve the array and check the dimensions & properties:
@@ -1071,16 +1107,16 @@ def test_slice():
     assert np.array_equal(fa15.unique('RepetitionTime'), [2.5, 5.0])
 
     # Slice with a list instead:
-    fa15 = series.slice(FlipAngle=np.array([15]))
+    fa15 = series.extract(FlipAngle=np.array([15]))
     array = fa15.pixel_values(dims=tuple(coords), mesh=True)
     assert array.shape == (128, 128, 8, 1, 2)
 
     # Slice using keyword=value notation, providing multiple possible values
-    fa15 = series.slice(SliceLocation=np.array([0,5]), FlipAngle=15) 
+    fa15 = series.extract(SliceLocation=np.array([0,5]), FlipAngle=15) 
     assert fa15.pixel_values(dims, mesh=True).shape == (128, 128, 2, 1, 2)
 
     # or specifying all (superfluous but should work):
-    fa15 = series.slice(SliceLocation=np.arange(8), FlipAngle=15, RepetitionTime=np.array([2.5, 5.0])) 
+    fa15 = series.extract(SliceLocation=np.arange(8), FlipAngle=15, RepetitionTime=np.array([2.5, 5.0])) 
     assert fa15.pixel_values(dims, mesh=True).shape == (128, 128, 8, 1, 2)
 
 
@@ -1200,7 +1236,7 @@ if __name__ == "__main__":
     test_as_meshcoords()
     test_concatenate_coords()
 
-    # # API
+    ## API
     
     test_coords()
     test_values()
@@ -1216,14 +1252,14 @@ if __name__ == "__main__":
     test_set_pixel_values()
     test_affine()
     test_set_affine()
-    test_slice()
+    test_extract()
     test_split_by()
     test_spacing()
 
     # This needs an iloc keyword in frames to filter by indices without having to read the data again. For now the lazy approach is to first read the keywords and then use slice() to split by value.
     # test_islice()
 
-    # This needs a split_values() function which splits the frames into multiple groups based on a given tag. For now the lazy solution is to use split_by to split the series based on imahe orientation, then read affines for each, and remove the split series again.
+    # This needs a split_values() function which splits the frames into multiple groups based on a given tag. For now the lazy solution is to use split_by to split the series based on image orientation, then read affines for each, and remove the split series again.
     # test_unique_affines() 
     
 

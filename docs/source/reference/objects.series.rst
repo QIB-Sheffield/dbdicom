@@ -20,7 +20,6 @@ Reading values
    Series.shape
    Series.spacing
    Series.unique
-   Series.unique_affines
    Series.gridcoords
    Series.pixel_values
    Series.affine
@@ -41,15 +40,15 @@ Setting values
    Series.set_affine
 
 
-Slicing
--------
+Reshaping
+---------
 
 .. autosummary::
    :toctree: ../generated/api/
    :template: autosummary.rst
    :nosignatures:
 
-   Series.slice
-   Series.islice
+   Series.expand
+   Series.extract
    Series.split_by
    

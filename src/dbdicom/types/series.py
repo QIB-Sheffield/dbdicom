@@ -145,8 +145,7 @@ class Series(Record):
 
 
 
-
-    def coords(self, dims=('InstanceNumber', ), mesh=False, loc={}, exclude=False, **filters)->dict:
+    def coords(self, dims=('InstanceNumber', ), mesh=False, slice={}, coords={}, exclude=False, **filters)->dict:
         """return a dictionary of coordinates.
 
         Args:
@@ -199,18 +198,18 @@ class Series(Record):
         """
 
         # Default empty coordinates
-        coords = {}
+        vcoords = {}
         for i, tag in enumerate(dims):
-            coords[tag] = np.array([])
+            vcoords[tag] = np.array([])
         
         # Get all frames and return if empty
         frames = self.instances()
         if frames == []:
-            return coords
+            return vcoords
          
         # Read values and sort
-        filters = {**loc, **filters}
-        values = [f[list(dims)+list(tuple(filters))] for f in frames]
+        fltr = {**slice, **filters}
+        values = [f[list(dims)+list(fltr)+list(tuple(coords))] for f in frames]
         values.sort()
 
         # Check dimensions
@@ -219,7 +218,7 @@ class Series(Record):
         _check_if_ivals(cvalues)
 
         # Filter values
-        values = _filter_values(values, filters, exclude=exclude)
+        values = _filter_values(values, fltr, coords, exclude=exclude)
 
         # If requested, mesh values
         if mesh:
@@ -229,14 +228,14 @@ class Series(Record):
         # Build coordinates
         if values.size > 0:
             for i, tag in enumerate(dims):
-                coords[tag] = values[i,...]
+                vcoords[tag] = values[i,...]
                 if mesh:
-                    coords[tag] = coords[tag].reshape(mshape)
+                    vcoords[tag] = vcoords[tag].reshape(mshape)
 
-        return coords
+        return vcoords
     
 
-    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=False, loc={}, exclude=False, **filters)->np.ndarray:
+    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=False, slice={}, coords={}, exclude=False, **filters)->np.ndarray:
         """Return the values of one or more attributes for each frame in the series.
 
         Args:
@@ -341,36 +340,36 @@ class Series(Record):
 
         # Default return values
         values = np.array([]).reshape((0,0))
-        coords = {}
+        vcoords = {}
         for i, tag in enumerate(dims):
-            coords[tag] = np.array([])
+            vcoords[tag] = np.array([])
         
         # Get all frames and return if empty
         frames = self.instances()
         if frames == []:
             if return_coords:
-                return values, coords
+                return values, vcoords
             return values
               
         # Read values
-        filters = {**loc, **filters}
-        values = [f[list(dims)+list(tags)+list(tuple(filters))] for f in frames]
+        filters = {**slice, **filters}
+        values = [f[list(dims)+list(tags)+list(tuple(filters))+list(tuple(coords))] for f in frames]
         values.sort()
         
-        # Check dimensions
+        # Check if dimensions are proper
         cvalues = [v[:len(dims)] for v in values]
         cvalues = np.array(cvalues).T
         _check_if_ivals(cvalues)
 
         # Filter values
-        values = _filter_values(values, filters, exclude=exclude)
+        values = _filter_values(values, filters, coords, exclude=exclude)
         if values.size == 0:
             if return_coords:
                 if len(tags) == 1: 
-                    return values, coords
+                    return values, vcoords
                 else:
                     values = [np.array([]) for _ in range(len(tags))]
-                    return tuple(values) + (coords,)
+                    return tuple(values) + (vcoords,)
             return values
         cvalues = values[:len(dims),:]
         values = values[len(dims):,:]
@@ -390,23 +389,23 @@ class Series(Record):
 
         if return_coords:
             for i, tag in enumerate(dims):
-                coords[tag] = cvalues[i,...] 
+                vcoords[tag] = cvalues[i,...] 
             if len(tags) == 1: 
-                return values, coords
+                return values, vcoords
             else:
-                return values + (coords,)
+                return values + (vcoords,)
         else:
             return values
 
 
-    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=False, loc={}, exclude=False, **filters):
+    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=False, slice={}, coords={}, exclude=False, **filters):
         """Return the frames of given coordinates in the correct order"""
 
         # Default return values
         values = np.array([]).reshape((0,0))
-        coords = {}
+        vcoords = {}
         for i, tag in enumerate(dims):
-            coords[tag] = np.array([])
+            vcoords[tag] = np.array([])
         if mesh:
             fshape = tuple([0]*len(dims))
         else:
@@ -420,7 +419,7 @@ class Series(Record):
             frames = np.array([]).reshape(fshape)
             rval = (frames,)
             if return_coords:
-                rval += (coords, )
+                rval += (vcoords, )
             if return_vals != ():
                 rval += (values, )
             if len(rval)==1:
@@ -429,8 +428,8 @@ class Series(Record):
                 return rval
               
         # Read values and sort
-        filters = {**loc, **filters}
-        values = [f[list(dims)+list(return_vals)+list(tuple(filters))] for f in frames_sel]
+        filters = {**slice, **filters}
+        values = [f[list(dims)+list(return_vals)+list(tuple(filters))+list(tuple(coords))] for f in frames_sel]
         fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
         values = [values[i] for i in fsort]
 
@@ -445,14 +444,14 @@ class Series(Record):
             frames[i] = frames_sel[fsort[i]]
 
         # Filter values
-        finds = _filter_values_ind(values, filters, exclude=exclude)
+        finds = _filter_values_ind(values, filters, coords, exclude=exclude)
         if finds.size==0:
 
             # Empty return values
             frames = np.array([]).reshape(fshape)
             rval = (frames,)
             if return_coords:
-                rval += (coords, )
+                rval += (vcoords, )
             if return_vals != ():
                 rval += (np.array([]), )
             if len(rval)==1:
@@ -461,7 +460,7 @@ class Series(Record):
                 return rval  
                       
         frames = frames[finds]
-        values = _filter_values(values, filters, exclude=exclude)
+        values = _filter_values(values, filters, coords, exclude=exclude)
         cvalues = values[:len(dims),:]
         values = values[len(dims):,:]
 
@@ -476,8 +475,8 @@ class Series(Record):
         rval = (frames,)
         if return_coords:
             for i, tag in enumerate(dims):
-                coords[tag] = cvalues[i,...] 
-            rval += (coords, )
+                vcoords[tag] = cvalues[i,...] 
+            rval += (vcoords, )
         if return_vals != ():
             rval += (values, )
         if len(rval)==1:
@@ -486,7 +485,7 @@ class Series(Record):
             return rval
         
 
-    def expand(self, coords={}, gridcoords={}):
+    def expand(self, coords={}, gridcoords={}): # gridcoords -> slice
 
         if coords != {}:
             pass
@@ -514,7 +513,7 @@ class Series(Record):
             self.new_instance(ds)
 
 
-    def set_coords(self, coords:dict, dims=(), loc={}, **filters):
+    def set_coords(self, new_coords:dict, dims=(), slice={}, coords={}, **filters):
         """Set a dictionary of coordinates.
 
         Args:
@@ -597,34 +596,34 @@ class Series(Record):
 
         """
         if dims == ():
-            dims = tuple(coords)
-        coords = _check_if_coords(coords)
-        frames = self.frames(dims, loc=loc, **filters)
+            dims = tuple(new_coords)
+        new_coords = _check_if_coords(new_coords)
+        frames = self.frames(dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
             # If the series is empty, assignment of coords is unambiguous
-            self.expand(coords)
+            self.expand(new_coords)
         else:
-            size = _coords_size(coords)
+            size = _coords_size(new_coords)
             if size != frames.size:
                 msg = 'Cannot set ' + str(size) + ' coordinates in ' + str(frames.size) + ' frames.'
                 msg += '\nThe number of new coordinates must equal the number of frames.'
                 raise ValueError(msg)
             # If setting a subset, check if the new set of coordinates is valid
-            if len({**loc, **filters}) > 0:
-                complement = self.coords(dims, loc=loc, exclude=True, **filters)
+            if len({**slice, **coords, **filters}) > 0:
+                complement = self.coords(dims, slice=slice, coords=coords, exclude=True, **filters)
                 if _coords_size(complement) > 0:
                     try:
-                        _concatenate_coords((coords, complement))
+                        _concatenate_coords((new_coords, complement))
                     except:
                         msg = 'Cannot set coordinates - this would produce invalid coordinates for the series'
                         raise ValueError(msg)
             frames = frames.flatten()
-            values = _coords_vals(coords)
+            values = _coords_vals(new_coords)
             for f, frame in enumerate(frames):
-                frame[list(coords)] = list(values[:,f])
+                frame[list(new_coords)] = list(values[:,f])
 
 
-    def set_values(self, values, tags, dims=('InstanceNumber', ), loc={}, **filters):
+    def set_values(self, values, tags, dims=('InstanceNumber', ), slice={}, coords={}, **filters):
         """Set the values of an attribute.
 
         Args:
@@ -678,11 +677,11 @@ class Series(Record):
         """  
 
         if not isinstance(values, tuple):
-            self.set_values((values,), (tags,), dims=dims, loc=loc, **filters)
+            self.set_values((values,), (tags,), dims=dims, slice=slice, coords=coords, **filters)
             return
         
         # Get frames to set:
-        frames = self.frames(dims, loc=loc, **filters)
+        frames = self.frames(dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
             msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first.'
             raise ValueError(msg)
@@ -703,7 +702,7 @@ class Series(Record):
             frame[list(tags)] = [v[f] for v in values]
 
 
-    def set_gridcoords(self, gridcoords:dict, dims=(), loc={}, **filters):
+    def set_gridcoords(self, gridcoords:dict, dims=(), slice={}, coords={}, **filters):
         """ Set a dictionary of grid coordinates.
 
         Args:
@@ -735,11 +734,11 @@ class Series(Record):
             >>> coords['FlipAngle'][1,1,1]
             15
         """
-        coords = _grid_to_coords(gridcoords)
-        self.set_coords(coords, dims=dims, loc=loc, **filters)
+        setcoords = _grid_to_coords(gridcoords)
+        self.set_coords(setcoords, dims=dims, slice=slice, coords=coords, **filters)
 
 
-    def gridcoords(self, dims=('InstanceNumber', ), loc={}, exclude=False, **filters)->dict:
+    def gridcoords(self, dims=('InstanceNumber', ), slice={}, coords={}, exclude=False, **filters)->dict:
         """return a dictionary of grid coordinates.
 
         Args:
@@ -791,11 +790,11 @@ class Series(Record):
             >>> series.gridcoords(tuple(coords))
             ValueError: These are not grid coordinates.
         """
-        coords = self.coords(dims=dims, mesh=True, loc=loc, exclude=exclude, **filters)
-        return _meshcoords_to_grid(coords)
+        meshcoords = self.coords(dims=dims, mesh=True, slice=slice, coords=coords, exclude=exclude, **filters)
+        return _meshcoords_to_grid(meshcoords)
     
 
-    def shape(self, dims=('InstanceNumber', ), mesh=False, loc={}, exclude=False, **filters)->tuple:
+    def shape(self, dims=('InstanceNumber', ), mesh=False, slice={}, coords={}, exclude=False, **filters)->tuple:
         """Return the shape of the series along given dimensions.
 
         Args:
@@ -863,11 +862,11 @@ class Series(Record):
             --> Hint: use Series.unique() to list the values at all locations.
 
         """
-        frames = self.frames(dims=dims, mesh=mesh, loc=loc, exclude=exclude, **filters)
+        frames = self.frames(dims=dims, mesh=mesh, slice=slice, coords=coords, exclude=exclude, **filters)
         return frames.shape
 
 
-    def unique(self, *tags, sortby=(), loc={}, exclude=False, return_locs=False, **filters) -> np.ndarray:
+    def unique(self, *tags, sortby=(), slice={}, coords={}, exclude=False, return_locs=False, **filters) -> np.ndarray:
         """Return the unique values of an attribute, sorted by any number of variables.
 
         Args:
@@ -936,7 +935,7 @@ class Series(Record):
         """
         # If no sorting is required, return an array of unique values
 
-        vals = self.values(*(tags+sortby), loc=loc, exclude=exclude, **filters)
+        vals = self.values(*(tags+sortby), slice=slice, coords=coords, exclude=exclude, **filters)
 
         if sortby == ():
             if len(tags) == 1:
@@ -984,7 +983,7 @@ class Series(Record):
             return uvals
     
 
-    def pixel_values(self, dims=('InstanceNumber', ), mesh=False, loc={}, **filters) -> np.ndarray:
+    def pixel_values(self, dims=('InstanceNumber', ), mesh=False, return_coords=False, slice={}, coords={}, **filters) -> np.ndarray:
         """Return a numpy.ndarray with pixel data.
 
         Args:
@@ -1075,10 +1074,16 @@ class Series(Record):
             >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
             ValueError: Indices must be in the dimensions provided.
         """
-        frames = self.frames(dims, mesh=mesh, loc=loc, **filters)
+        frames = self.frames(dims, mesh=mesh, return_coords=return_coords, slice=slice, coords=coords, **filters)
+        if return_coords:
+            frames, fcoords = frames
         if frames.size == 0:
             shape = (0,0) + frames.shape
-            return np.array([]).reshape(shape)
+            values = np.array([]).reshape(shape)
+            if return_coords:
+                return values, fcoords
+            else:
+                return values
         
         # Read values
         fshape = frames.shape
@@ -1090,18 +1095,21 @@ class Series(Record):
 
         # Check that all matrix sizes are the same
         vshape = np.array([v.shape for v in values])
-        vshape = vshape.reshape((2, len(values)))
-        vshape = np.unique(vshape, axis=0)
-        if len(vshape) > 1:
+        vshape = np.unique(vshape.T, axis=1)
+        if vshape.shape[1] > 1:
             msg = 'Cannot extract an array of pixel values - not all frames have the same matrix size.'
             raise ValueError(msg)
         
         # Create the array
         values = np.stack(values, axis=-1)
-        return values.reshape(values.shape[:2] + fshape)
+        values = values.reshape(values.shape[:2] + fshape)
+        if return_coords:
+            return values, fcoords
+        else:
+            return values
     
 
-    def set_pixel_values(self, values:np.ndarray, dims=('InstanceNumber', ), loc={}, **filters):
+    def set_pixel_values(self, values:np.ndarray, dims:tuple=None, slice={}, coords={}, **filters):
         """Set a numpy.ndarray with pixel data.
 
         Args:
@@ -1126,11 +1134,20 @@ class Series(Record):
             ... }
             >>> zeros = db.zeros((128,64,4,3,2), coords)
         """
+        if dims is None:
+            if slice != {}:
+                dims = tuple(slice)
+            else:
+                dims = ('InstanceNumber', )
         # Get frames to set:
-        frames = self.frames(dims, loc=loc, **filters)
+        frames = self.frames(dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
-            msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first.'
-            raise ValueError(msg)
+            if slice != {}:
+                self.expand(slice)
+                frames = self.frames(dims)
+            else:
+                msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first, or set the loc keyword to define coordinates for the new frames.'
+                raise ValueError(msg)
         
         if np.prod(values.shape[2:]) != frames.size:
             msg = 'The size of the pixel value array is different from the size of the series.'
@@ -1144,7 +1161,7 @@ class Series(Record):
             frame.set_pixel_array(values[:,:,f])
     
 
-    def affine(self, loc={}, **filters) -> np.ndarray:
+    def affine(self, slice={}, coords={}, **filters) -> np.ndarray:
         """Return the affine of the Series.
 
         Raises:
@@ -1171,7 +1188,7 @@ class Series(Record):
 
         # Read values
         tags = ('ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', )
-        orientation, pos, spacing, thick = self.values(*tags, loc=loc, **filters)
+        orientation, pos, spacing, thick = self.values(*tags, slice=slice, coords=coords, **filters)
 
         # Single slice
         if len(pos) == 1:
@@ -1207,7 +1224,7 @@ class Series(Record):
         return image_utils.affine_matrix_multislice(orientation, pos, spacing)   
 
 
-    def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), loc={}, **filters):
+    def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), slice={}, coords={}, **filters):
         """Set the affine matrix of a series.
 
         The affine is defined as a 4x4 numpy array with bottom row [0,0,0,1]. The final column represents the position of the top right hand corner of the first slice. The first three columns represent rotation and scaling with respect to the axes of the reference frame.
@@ -1271,7 +1288,7 @@ class Series(Record):
         
         """
 
-        frames = self.frames(dims=dims, loc=loc, **filters)
+        frames = self.frames(dims=dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
             msg = 'Cannot set affine matrix in an empty series. Use Series.expand() to create empty frames first.'
             raise ValueError(msg)
@@ -1289,8 +1306,8 @@ class Series(Record):
             frame.affine_matrix = affine_z
 
 
-    # consider renaming copy() - but breaks backward compatibility
-    def slice(self, loc={}, **filters) -> Series:
+    # consider renaming copy() - but breaks backward compatibility - this is not a slice really
+    def extract(self, slice={}, coords={}, **filters) -> Series:
         """Get a slice of the series by dimension values
 
         Args:
@@ -1335,7 +1352,7 @@ class Series(Record):
             >>> fa15 = series.slice({(0x0020, 0x1041):[0,5], (0x0018, 0x1314):15})
         """
 
-        frames = self.frames(loc=loc, **filters)
+        frames = self.frames(slice=slice, coords=coords, **filters)
         result = self.new_sibling()
         # result.adopt(frames) # faster but no progress bar
         for f, frame in enumerate(frames):
@@ -1415,7 +1432,7 @@ class Series(Record):
         desc = self.instance().SeriesDescription + '[' + str(tag) + ' = '
         split_series = []
         for v in vals:
-            new = self.slice(loc={tag: v})
+            new = self.extract(slice={tag: v})
             new.SeriesDescription = desc + str(v) + ']'
             split_series.append(new)
         return split_series
@@ -1699,7 +1716,6 @@ class Series(Record):
                 series.remove()
             source = [source[0]] + [source[0].copy_to(self) for _ in range(nr_of_slices-1)]
             set_pixel_values(self, array, source=source, coords=coords)
-
     
     def subseries(self, **kwargs)->Series:
         """Extract a subseries based on values of header elements.
@@ -1833,26 +1849,42 @@ class Series(Record):
 
 
 
-def _filter_values(values, filters, exclude=False):
-    if filters == {}:
-        fvalues = values
+def _filter_values(vframes, slice, coords, exclude=False):
+    # vframes: list with one item per frame, each item being a list of values.
+    # filters: dictionary of tag: value pairs.
+    if slice=={} and coords=={}:
+        fvalues = vframes
     else:
         fvalues = []
-        fn = len(filters)
-        for v in values:
-            append = True
-            for f, fltr in enumerate(filters):
-                if isinstance(filters[fltr], np.ndarray):
-                    append = v[f-fn] in filters[fltr]
+        nf = len(slice)
+        nl = _coords_size(coords)
+        nc = len(coords)
+        for vframe in vframes:
+            in_slice = True
+            for i, s in enumerate(slice):
+                if isinstance(slice[s], np.ndarray):
+                    in_slice = vframe[i-nf-nc] in slice[s]
                 else:
-                    append = v[f-fn] == filters[fltr]
+                    in_slice = vframe[i-nf-nc] == slice[s]
                 if exclude:
-                    append = not append
-                if not append:
+                    in_slice = not in_slice
+                if not in_slice:
                     break
-            if append:
-                fvalues.append(v[:-fn])
-    #return np.array(fvalues).T
+            if nl==0:
+                in_coords = True
+            else:
+                in_coords = False
+                for l in range(nl):
+                    at_l = True
+                    for i, loc in enumerate(coords):
+                        at_l = at_l and (vframe[i-nc] == coords[loc][l])
+                    in_coords = in_coords or at_l
+                    if at_l:
+                        break
+                if exclude:
+                    in_coords = not in_coords
+            if in_slice and in_coords:
+                fvalues.append(vframe[:-nf-nc])
 
     if len(fvalues) == 0:
         return np.array([]).reshape((0,0))
@@ -1868,30 +1900,53 @@ def _filter_values(values, filters, exclude=False):
     
 
 
-def _filter_values_ind(values, filters, exclude=False):
-    if filters == {}:
-        return np.arange(len(values), dtype=int)
-    fi = []
-    fn = len(filters)
-    for i, v in enumerate(values):
-        append = True
-        for f, fltr in enumerate(filters):
-            if isinstance(filters[fltr], np.ndarray):
-                append = v[f-fn] in filters[fltr]
+def _filter_values_ind(vframes, slice, coords, exclude=False):
+    if slice=={} and coords=={}:
+        return np.arange(len(vframes), dtype=int)
+    finds = []
+    nf = len(slice)
+    nl = _coords_size(coords)
+    nc = len(coords)
+    for iv, vframe in enumerate(vframes):
+        in_slice = True
+        for i, s in enumerate(slice):
+            if isinstance(slice[s], np.ndarray):
+                in_slice = vframe[i-nf-nc] in slice[s]
             else:
-                append = v[f-fn] == filters[fltr]
+                in_slice = vframe[i-nf-nc] == slice[s]
             if exclude:
-                append = not append
-            if not append:
+                in_slice = not in_slice
+            if not in_slice:
                 break
-        if append:
-            fi.append(i)
-    return np.array(fi, dtype=int)
+        if nl==0:
+            in_coords = True
+        else:
+            in_coords = False
+            for l in range(nl):
+                at_l = True
+                for i, loc in enumerate(coords):
+                    at_l = at_l and (vframe[i-nc] == coords[loc][l])
+                in_coords = in_coords or at_l
+                if at_l:
+                    break
+            if exclude:
+                in_coords = not in_coords
+        if in_slice and in_coords:
+            finds.append(iv)
+    return np.array(finds, dtype=int)
 
 
 def _coords_shape(coords):
     if coords == {}:
         return (0,)
+    
+    # Check that all values are arrays.
+    for c in coords:
+        if not isinstance(coords[c], np.ndarray):
+            msg = 'Coordinate values must be provided as numpy arrays.'
+            msg += '\nBut the value of ' + str(c) + ' is a ' + str(type(c))
+            raise ValueError(msg)
+        
     shapes = [coords[tag].shape for tag in coords]
     shape = shapes[0]
     for s in shapes[1:]:
@@ -1900,11 +1955,18 @@ def _coords_shape(coords):
             raise ValueError(msg)
     return shapes[0]  
 
+
 def _coords_size(coords):
 
     if coords == {}:
         return 0 
-
+    
+    for c in coords:
+        if not isinstance(coords[c], np.ndarray):
+            msg = 'Coordinate values must be provided as numpy arrays.'
+            msg += '\nBut the value of ' + str(c) + ' is a ' + str(type(c))
+            raise ValueError(msg)
+    
     # Coordinate values must a have the same size.
     sizes = np.unique([coords[tag].size for tag in coords])
     if len(sizes) > 1:
@@ -1938,6 +2000,13 @@ def _check_if_ivals(values):
     #     raise ValueError(msg)
 
 def _check_if_coords(coords):
+
+    # Check that all values are arrays.
+    for c in coords:
+        if not isinstance(coords[c], np.ndarray):
+            msg = 'Coordinate values must be provided as numpy arrays.'
+            msg += '\nBut the value of ' + str(c) + ' is a ' + str(type(coords[c]))
+            raise ValueError(msg)
 
     # Check if coordinates are unique
     values = _coords_vals(coords)
@@ -1991,6 +2060,8 @@ def _meshcoords_to_grid(coords):
 
 
 def _grid_to_coords(grid):
+    if grid == {}:
+        return {}
     coords = _grid_to_meshcoords(grid)
     for c in coords:
         coords[c] = coords[c].flatten()

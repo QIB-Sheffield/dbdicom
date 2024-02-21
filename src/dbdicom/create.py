@@ -351,6 +351,8 @@ def as_series(array:np.ndarray, coords:dict=None, gridcoords:dict=None, dtype='m
                 msg = 'With more than 4 dimensions, the coords argument is required.'
                 raise ValueError(msg)
             gridcoords = {}
+            if len(shape) == 2:
+                gridcoords['InstanceNumber'] = np.array([1])
             if len(shape) > 2:
                 gridcoords['SliceLocation'] = np.arange(shape[2])
             if len(shape) > 3:

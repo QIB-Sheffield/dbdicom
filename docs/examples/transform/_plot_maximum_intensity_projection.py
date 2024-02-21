@@ -15,15 +15,15 @@ from dbdicom.extensions.numpy import maximum_intensity_projection
 
 coords = {
     'SliceLocation': np.arange(8),
-    'FlipAngle': [2, 15, 30],
-    'RepetitionTime': [2.5, 5.0],
+    'FlipAngle': np.array([2, 15, 30]),
+    'RepetitionTime': np.array([2.5, 5.0]),
 }
-series = db.zeros((128,128,8,3,2), coords)
+series = db.zeros((128,128,8,3,2), gridcoords=coords)
 
 # %%
 # Create a maximum intensity projection
 
-mip = maximum_intensity_projection(series)
+mip = maximum_intensity_projection(series, dims=tuple(coords), axis=0)
 
 # %%
 # To see what happened we can retrieve the nympy array of the MIP

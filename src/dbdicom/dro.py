@@ -34,12 +34,12 @@ def T1_mapping_vFATR(spacing = (15, 15, 20), fov = (300, 250, 120), T1min = 600,
             array[:,:,:,i,j] = S0 * (1-Ej) / (1-ci*Ej)
     
     coords = {
-        'SliceLocation': list(spacing[2]*np.arange(array.shape[2])),
-        'FlipAngle': vFA,
-        'RepetitionTime': vTR,
+        'SliceLocation': spacing[2]*np.arange(array.shape[2]),
+        'FlipAngle': np.array(vFA),
+        'RepetitionTime': np.array(vTR),
     }
     v0, v1 = np.amin(array), np.amax(array)
-    series = db.as_series(array, coords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
+    series = db.as_series(array, gridcoords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
     series.patient().PatientName = 'Ellipsoid'
     series.study().StudyDescription = 'Synthetic'
     series.SeriesDescription = 'T1 mapping variable TR and FA'
@@ -66,9 +66,16 @@ def ellipsoid(a, b, c, spacing=(1., 1., 1.), levelset=False)->Series:
         The interface and the array generation is taken directly from skimage but the core function is copied into dbdicom utilities to avoid bringing in skimage as an essential dependency.
     """
     arr = image.ellipsoid(a, b, c, spacing=spacing, levelset=levelset)
-    coords = {'SliceLocation': list(spacing[2]*np.arange(arr.shape[2]))}
+    coords = {'SliceLocation': spacing[2]*np.arange(arr.shape[2])}
     v0, v1 = np.amin(arr), np.amax(arr)
-    series = db.as_series(arr, coords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
+    series = db.as_series(arr, gridcoords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
+    affine = np.array(
+        [[spacing[1], 0., 0., 0.],
+         [0., spacing[0], 0., 0.],
+         [0., 0., spacing[2], 0.],
+         [0., 0., 0., 1.]]
+    )
+    series.set_affine(affine)
     series.patient().PatientName = 'Ellipsoid'
     series.study().StudyDescription = 'Synthetic'
     series.SeriesDescription = 'Levelset ellipsoid'
@@ -94,10 +101,10 @@ def double_ellipsoid(a, b, c, spacing=(1., 1., 1.), levelset=False)->Series:
         The interface and the array generation is taken directly from skimage, but the core function is copied into dbdicom utilities to avoid bringing in skimage as an essential dependency.
     """
     arr = image.ellipsoid(a, b, c, spacing=spacing, levelset=levelset)
-    coords = {'SliceLocation': list(spacing[2]*np.arange(arr.shape[2]))}
+    coords = {'SliceLocation': spacing[2]*np.arange(arr.shape[2])}
     arr = np.concatenate((arr[:-1, ...], arr[2:, ...]), axis=0)
     v0, v1 = np.amin(arr), np.amax(arr)
-    series = db.as_series(arr, coords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
+    series = db.as_series(arr, gridcoords=coords, PixelSpacing=[spacing[1],spacing[0]], WindowWidth=v1-v0, WindowCenter=(v0+v1)/2)
     series.patient().PatientName = 'Ellipsoid'
     series.study().StudyDescription = 'Synthetic'
     series.SeriesDescription = 'Levelset ellipsoid'
