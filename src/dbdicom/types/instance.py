@@ -190,7 +190,7 @@ def map_to(source, target):
 
     return result
 
-
+# Obsolete
 def map_mask_to(record, target):
     """Map non-zero image pixels onto a target image.
     Overwrite pixel values in the target"""

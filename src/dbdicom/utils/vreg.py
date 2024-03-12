@@ -1,11 +1,10 @@
 import time
 import numpy as np
-import scipy.stats as stats
+import scipy
 import scipy.optimize as opt
 import scipy.ndimage as ndi
 from scipy.interpolate import interpn
 from scipy.spatial.transform import Rotation
-import sklearn
 
 import pyvista as pv
 
@@ -157,7 +156,7 @@ def pv_contour(values, data, affine, surface=False):
     surf_data = np.reshape(surf_data, surf_shape)
 
     rotation, translation, pixel_spacing = affine_components(affine)
-    grid = pv.UniformGrid(dimensions=surf_shape, spacing=pixel_spacing)
+    grid = pv.ImageData(dimensions=surf_shape, spacing=pixel_spacing)
     surf = grid.contour(values, surf_data.flatten(order="F"), method='marching_cubes')
     surf = surf.rotate_vector(rotation, np.linalg.norm(rotation)*180/np.pi, inplace=False)
     surf = surf.translate(translation, inplace=False)
@@ -502,6 +501,7 @@ def affine_output_geometry(input_shape, input_affine, transformation):
     return output_shape, output_affine
 
 
+
 ####################################
 ## Affine transformation and reslice
 ####################################
@@ -527,7 +527,38 @@ def affine_transform(input_data, input_affine, transformation, reshape=False, **
     return output_data, output_affine
 
 
-# TODO This needs to become a private helper function
+def affine_reslice_slice_by_slice(input_data, input_affine, output_affine, output_shape=None, slice_thickness=None, mask=False, label=False, **kwargs):
+    # generalizes affine_reslice - also works with multislice volumes where slice thickness is less than slice gap
+
+    # If 3D volume - do normal affine_reslice
+    if slice_thickness is None:
+        output_data, output_affine = affine_reslice(input_data, input_affine, output_affine, output_shape=output_shape, **kwargs)
+    # If slice thickness equals slice spacing:
+    # then its a 3D volume - do normal affine_reslice 
+    elif slice_thickness == np.linalg.norm(input_affine[:3,2]):
+        output_data, output_affine = affine_reslice(input_data, input_affine, output_affine, output_shape=output_shape, **kwargs)
+    # If multislice - perform affine slice by slice
+    else:
+        output_data = None
+        for z in range(input_data.shape[2]):
+            input_data_z, input_affine_z = extract_slice(input_data, input_affine, z, slice_thickness=slice_thickness)
+            output_data_z, output_affine = affine_reslice(input_data_z, input_affine_z, output_affine, output_shape=output_shape, **kwargs)
+            if output_data is None:
+                output_data = output_data_z
+            else:
+                output_data += output_data_z
+    # If source is a mask array, convert to binary:
+    if mask:
+        output_data[output_data > 0.5] = 1
+        output_data[output_data <= 0.5] = 0
+    # If source is a label array, convert to integers:
+    elif label:
+        output_data = np.around(output_data)
+
+    return output_data, output_affine
+    
+    
+
 def affine_reslice(input_data, input_affine, output_affine, output_shape=None, **kwargs):
 
     # If 2d array, add a 3d dimension of size 1
@@ -711,56 +742,22 @@ def affine_slice(affine, z, slice_thickness=None):
     # Note: both are equal for 3D array but different for 2D multislice
     if slice_thickness is not None:
         slice_spacing = np.linalg.norm(affine[:3,2])
-        affine_z[:3,2] *= slice_thickness[z]/slice_spacing
+        if np.isscalar(slice_thickness):
+            affine_z[:3,2] *= slice_thickness/slice_spacing
+        else:
+            affine_z[:3,2] *= slice_thickness[z]/slice_spacing
     return affine_z
 
 
 def extract_slice(array, affine, z, slice_thickness=None):
-
-    # Get the slice and its affine
     array_z = array[:,:,z]
     affine_z = affine_slice(affine, z, slice_thickness=slice_thickness)
-    # affine_z = affine.copy()
-    # affine_z[:3,3] += z*affine[:3,2]
-    # # Set the slice spacing to equal the slice thickness.
-    # # Note: both are equal for 3D array but different for 2D multislice
-    # if slice_thickness is not None:
-    #     slice_spacing = np.linalg.norm(affine[:3,2])
-    #     affine_z[:3,2] *= slice_thickness[z]/slice_spacing
     return array_z, affine_z
 
-    
-# def _transform_slice_by_slice(
-#         moving = None, 
-#         moving_affine = None, 
-#         static_shape = None, 
-#         static_affine = None, 
-#         parameters = None, 
-#         transformation = translate, 
-#         slice_thickness = None):
-    
-#     # Note this does not work for center of mass rotation because weight array has different center of mass.
-            
-#     nz = moving.shape[2]
-#     if slice_thickness is not None:
-#         if not isinstance(slice_thickness, list):
-#             slice_thickness = [slice_thickness]*nz
-
-#     weight = np.zeros(static_shape + (nz,))
-#     coregistered = np.zeros(static_shape + (nz,))
-
-#     for z in range(nz):
-#         moving_z, moving_affine_z = extract_slice(moving, moving_affine, z, slice_thickness)
-#         weight[...,z] = transformation(np.ones(moving.shape[:2]), moving_affine_z, static_shape, static_affine, parameters[z])
-#         coregistered[...,z] = transformation(moving_z, moving_affine_z, static_shape, static_affine, parameters[z])
-
-#     # Average each pixel value over all slices that have sampled it
-#     coregistered = np.sum(weight*coregistered, axis=-1)
-#     weight = np.sum(weight, axis=-1)
-#     nozero = np.where(weight > 0)
-#     coregistered[nozero] = coregistered[nozero]/weight[nozero]
-
-#     return coregistered
+def inslice_translation(affine, translation):
+    row_cosine = affine[:3,0]/np.linalg.norm(affine[:3,0])
+    column_cosine = affine[:3,1]/np.linalg.norm(affine[:3,1])
+    return translation[0]*row_cosine + translation[1]*column_cosine
 
 
 
@@ -768,7 +765,9 @@ def extract_slice(array, affine, z, slice_thickness=None):
 # extensions for use in align function
 ####################################
 
-
+def translate_inslice(input_data, input_affine, output_shape, output_affine, translation, **kwargs):
+    transformation = affine_matrix(translation=inslice_translation(input_affine, translation))
+    return affine_transform_and_reslice(input_data, input_affine, output_shape, output_affine, transformation, **kwargs)
 
 def translate(input_data, input_affine, output_shape, output_affine, translation, **kwargs):
     transformation = affine_matrix(translation=translation)
@@ -865,6 +864,15 @@ def transform_slice_by_slice(input_data, input_affine, output_shape, output_affi
     coregistered[nozero] = coregistered[nozero]/weight[nozero]
     return coregistered
 
+def passive_translation_slice_by_slice(input_affine, parameters):
+    output_affine = []
+    for z, pz in enumerate(parameters):
+        input_affine_z = affine_slice(input_affine, z)
+        rigid_transform = affine_matrix(translation=pz)
+        transformed_input_affine = rigid_transform.dot(input_affine_z)
+        output_affine.append(transformed_input_affine)
+    return output_affine
+
 def passive_rigid_transform_slice_by_slice(input_affine, parameters):
     output_affine = []
     for z, pz in enumerate(parameters):
@@ -875,22 +883,49 @@ def passive_rigid_transform_slice_by_slice(input_affine, parameters):
         output_affine.append(transformed_input_affine)
     return output_affine
 
+def passive_translation(input_affine, parameters):
+    rigid_transform = affine_matrix(translation=parameters)
+    output_affine = rigid_transform.dot(input_affine)
+    return output_affine
+
 def passive_rigid_transform(input_affine, parameters):
     rigid_transform = affine_matrix(rotation=parameters[:3], translation=parameters[3:])
     output_affine = rigid_transform.dot(input_affine)
     return output_affine
+
+def multislice_to_singleslice_affine(affine_ms, slice_thickness):
+    # In a multi-slice affine, the z-spacing is the slice spacing (distance between slice centers)
+    # In a single-slice affine, the z-spacing is the slice thickness
+    affine_ss = affine_ms.copy()
+    affine_ss[:3,2] *= slice_thickness/np.linalg.norm(affine_ss[:3,2])
+    return affine_ss
 
 
 
 # default metrics
 # ---------------
 
+def interaction(static, transformed, nan=None):
+    # static is here a mask image.
+    if nan is not None:
+        i = np.where(transformed != nan)
+        msk, img = static[i], transformed[i]
+    else:
+        msk, img = static, transformed
+    return np.std(img[np.where(msk>0.5)])
+    return 1/np.mean(np.abs(msk*img))
+    return np.exp(-np.mean(np.abs(msk*img)))
+    i = img[np.where(msk>0.5)]
+    return np.exp(-np.mean(i**2))
+
+
 def sum_of_squares(static, transformed, nan=None):
     if nan is not None:
         i = np.where(transformed != nan)
-        return np.sum(np.square(static[i]-transformed[i]))
+        st, tr = static[i], transformed[i]
     else:
-        return np.sum(np.square(static-transformed))
+        st, tr = static, transformed
+    return np.sum(np.square(st-tr))
     
 
 def mutual_information(static, transformed, nan=None):
@@ -928,10 +963,28 @@ def minimize(*args, method='GD', **kwargs):
 
     if method == 'GD':
         return minimize_gd(*args, **kwargs)
+    elif method=='brute':
+        return minimize_brute(*args, **kwargs)
     else:
         res = opt.minimize(*args, method=method, **kwargs)
         return res.x
-    
+
+
+def minimize_brute(cost_function, parameters, args=None, callback=None, options={}):
+    #options = {'grid':[[start, stop, num], [start, stop, num], ...]}
+    x = [np.linspace(p[0], p[1], p[2]) for p in options['grid']]
+    x = np.meshgrid(*tuple(x), indexing='ij')
+    for i in range(x[0].size):
+        parameters = np.array([xp.ravel()[i] for xp in x])
+        cost = cost_function(parameters, *args)
+        if i==0:
+            minimum = cost
+            par_opt = parameters
+        elif cost<minimum:
+            minimum = cost
+            par_opt = parameters
+    return par_opt
+
 
 def minimize_gd(cost_function, parameters, args=None, callback=None, options={}, bounds=None):
 
@@ -987,8 +1040,7 @@ def gradient(cost_function, parameters, f0, step, bounds, *args):
     # Normalize the gradient
     grad_norm = np.linalg.norm(grad)
     if grad_norm == 0:
-        msg = 'Gradient has length zero - cannot perform gradient descent'
-        raise ValueError(msg) 
+        return grad 
     grad /= grad_norm
     grad = np.multiply(step, grad)
 
@@ -1126,9 +1178,6 @@ def align(
     if static is None:
         msg = 'The static volume is a required argument for alignment'
         raise ValueError(msg)
-    if parameters is None:
-        msg = 'Initial values for alignment must be provided'
-        raise ValueError(msg)
     if moving.ndim == 2: # If 2d array, add a 3d dimension of size 1
         moving = np.expand_dims(moving, axis=-1)
     if static.ndim == 2: # If 2d array, add a 3d dimension of size 1
@@ -1206,9 +1255,13 @@ def align_slice_by_slice(
     if slice_thickness is not None:
         if not isinstance(slice_thickness, list):
             slice_thickness = [slice_thickness]*nz
+    if not isinstance(parameters, list):
+        parameters = [parameters]*nz
 
     estimate = []
     for z in range(nz):
+
+        print('SLICE: ', z)
 
         if progress is not None:
             progress(z, nz)
@@ -1227,7 +1280,7 @@ def align_slice_by_slice(
                 moving_affine = moving_affine_z, 
                 static = static, 
                 static_affine = static_affine, 
-                parameters = parameters, 
+                parameters = parameters[z], 
                 resolutions = resolutions, 
                 transformation = transformation,
                 metric = metric,
@@ -1238,7 +1291,7 @@ def align_slice_by_slice(
                 moving_mask_affine = moving_mask_affine_z,
             )
         except:
-            estimate_z = parameters
+            estimate_z = parameters[z]
 
         estimate.append(estimate_z)
 
@@ -2693,8 +2746,7 @@ def test_align_freeform_pyramid(n=1):
 
 
 if __name__ == "__main__":
-
-    dataset=2
+    pass
 
     # Test plotting
     # -------------

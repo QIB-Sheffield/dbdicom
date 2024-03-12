@@ -2,9 +2,9 @@ import numpy as np
 from dipy.align.imwarp import SymmetricDiffeomorphicRegistration
 from dipy.align.metrics import CCMetric, EMMetric, SSDMetric
 from dipy.align.imaffine import MutualInformationMetric, AffineRegistration
-from dipy.align.transforms import (TranslationTransform3D,
-                                   RigidTransform3D,
-                                   AffineTransform3D)
+from dipy.align.transforms import (
+    TranslationTransform2D, RigidTransform2D, AffineTransform2D,
+    TranslationTransform3D, RigidTransform3D, AffineTransform3D)
 from dipy.align import center_of_mass
 from dipy.align.vector_fields import (
     warp_3d_nn, 
@@ -16,11 +16,7 @@ from dipy.align.vector_fields import (
 )
 
 from dipy.segment.mask import median_otsu as median_otsu_np
-import dbdicom.extensions.scipy as scipy
-from dbdicom.utils.image import slice_to_volume
-
-
-
+import dbdicom.extensions.vreg as vreg
 
 
 def median_otsu(series, **kwargs):
@@ -52,7 +48,7 @@ def align_center_of_mass_3d(moving, fixed):
 
     # Get arrays for fixed and moving series
     array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_fixed = scipy.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
     # Coregister fixed and moving slice-by-slice
     identity = np.eye(4)
@@ -69,119 +65,39 @@ def coregister_translation_3d(moving, fixed):
 
     # Get arrays for fixed and moving series
     array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_fixed = scipy.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
-    # Align images
+    # Set up coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None,)
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = TranslationTransform3D()
+    params0 = None
+
+    # Perform coregistration
     moving.message('Performing coregistration..')
-    coregistered = _coregister_translation_3d_arrays(array_fixed, array_moving)
+    mapping = affreg.optimize(array_fixed, array_moving, transform, params0)
+    coregistered = mapping.transform(array_moving, 'linear')
 
-    # Return as new series
+    # Save as DICOM
     coreg = moving.new_sibling(suffix='translated')
     coreg.set_array(coregistered, headers_moving, pixels_first=True)
 
     return coreg
 
 
-def coregister_rigid_3d(moving, static, ignore_empty_slices=False):
+def coregister_rigid_3d(moving, fixed):
 
     # Get arrays for fixed and moving series
-    #array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    #array_static = scipy.array(static, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
-
-    array_static, headers_static = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_moving = scipy.array(moving, on=static, sortby='SliceLocation', pixels_first=True, first_volume=True)
-
-    # Get masks if required - this feature not tested
-    if ignore_empty_slices:
-        moving_mask = _coregistration_mask_3d(array_moving)
-        static_mask = _coregistration_mask_3d(array_static)
-    else:
-        moving_mask = None
-        static_mask = None
-
-    # Align images
-    moving.message('Performing coregistration..')
-    coregistered = _coregister_rigid_3d_arrays(
-        array_static, 
-        array_moving, 
-        static_mask = static_mask,
-        moving_mask = moving_mask,
-    )
-
-    # Return as new series
-    # coreg = moving.new_sibling(suffix='rigid')
-    # coreg.set_array(coregistered, headers_moving, pixels_first=True)
-    coreg = static.new_sibling(suffix='rigid')
-    coreg.set_array(coregistered, headers_static, pixels_first=True)
-    return coreg
-
-
-# Works but slices come out too thick
-def WIP_coregister_rigid_3d(moving, static, ignore_empty_slices=False):
-
-    # Get affines for fixed and moving series
-    affine_moving = moving.affine_matrix()
-    affine_static = static.affine_matrix()
-    
-    # If there are multiple slice groups - raise error
-    if isinstance(affine_moving, list):
-        msg = 'Moving series consists of multiple slice groups.\n'
-        msg += 'Can only align series consisting of a single slice group.'
-        raise ValueError(msg)
-    if isinstance(affine_static, list):
-        msg = 'Static series consists of multiple slice groups.\n'
-        msg += 'Can only align series consisting of a single slice group.'
-        raise ValueError(msg)
-    
-    # Get affine matrices
-    affine_static = affine_static[0].astype(np.double)
-    affine_moving = affine_moving[0].astype(np.double)
-    
-    # Get arrays for fixed and moving series
-    # array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    # array_static, _ = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_static, headers_static = static.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
     array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
-    # If images are single-slice, expand into volumes
-    if array_moving.shape[2] == 1:
-        array_moving, affine_moving = slice_to_volume(array_moving, affine_moving)
-    if array_static.shape[2] == 1:
-        array_static, affine_static = slice_to_volume(array_static, affine_static)
-
-    # Get masks if required - this feature not tested
-    if ignore_empty_slices:
-        moving_mask = _coregistration_mask_3d(array_moving)
-        static_mask = _coregistration_mask_3d(array_static)
-    else:
-        moving_mask = None
-        static_mask = None
-
-    # Align images
-    moving.message('Performing coregistration..')
-    coregistered = _coregister_rigid_3d_arrays(
-        array_static, 
-        array_moving, 
-        static_grid2world = affine_static, 
-        moving_grid2world = affine_moving, 
-        static_mask = static_mask,
-        moving_mask = moving_mask,
-    )
-
-    # Return as new series
-    # coreg = moving.new_sibling(suffix='rigid')
-    # coreg.set_array(coregistered, headers_moving, pixels_first=True)
-    coreg = static.new_sibling(suffix='rigid')
-    coreg.set_array(coregistered, headers_static, pixels_first=True)
-    return coreg
-
-
-def _coregister_rigid_3d_arrays(static, moving, **kwargs):
-    
-    metric = MutualInformationMetric(
-        nbins=32, 
-        sampling_proportion=None,
-    )
+    # Setup coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
     affreg = AffineRegistration(
         metric = metric,
         level_iters = [10000, 1000, 100],
@@ -190,43 +106,177 @@ def _coregister_rigid_3d_arrays(static, moving, **kwargs):
     )
     transform = RigidTransform3D()
     params0 = None
-    mapping = affreg.optimize(static, moving, transform, params0, **kwargs)
 
-    # Warp the moving image
-    coregistered = mapping.transform(moving, 'linear')
+    # Perform coregistration
+    moving.message('Performing coregistration..')
+    mapping = affreg.optimize(array_fixed, array_moving, transform, params0)
+    coregistered = mapping.transform(array_moving, 'linear')
 
-    return coregistered
+    # Save as DICOM
+    coreg = moving.new_sibling(suffix='rigid transform')
+    coreg.set_array(coregistered, headers_moving, pixels_first=True)
+    return coreg
+
 
 
 def coregister_affine_3d(moving, fixed):
 
     # Get arrays for fixed and moving series
     array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
-    array_fixed = scipy.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
-    # Align images
+    # Setup coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = AffineTransform3D()
+    params0 = None
+
+    # Perform coregistration
     moving.message('Performing coregistration..')
-    coregistered = _coregister_affine_3d_arrays(array_fixed, array_moving)
+    mapping = affreg.optimize(array_fixed, array_moving, transform, params0)
+    coregistered = mapping.transform(array_moving, 'linear')
 
-    # Return as new series
-    coreg = moving.new_sibling(suffix='affine')
+    # Save as DICOM
+    coreg = moving.new_sibling(suffix='rigid transform')
     coreg.set_array(coregistered, headers_moving, pixels_first=True)
-
     return coreg
 
 
-def coregister_2d_to_2d(moving, fixed, **kwargs):
-
-    # Overlay fixed on moving image
-    fixed_map = scipy.map_to(fixed, moving)
+def coregister_deformable_3d(moving, fixed, **kwargs):
 
     # Get arrays for fixed and moving series
-    array_fixed, _ = fixed_map.array('SliceLocation', pixels_first=True, first_volume=True)
-    array_moving, headers_moving = moving.array('SliceLocation', pixels_first=True, first_volume=True)
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
-    # Remove overlay from database
-    if fixed_map != fixed:
-        fixed_map.remove()
+    # Perform coregistration
+    moving.status.message('Performing coregistration..')
+    array_moving, deformation = _coregister_arrays(array_fixed, array_moving, **kwargs)
+
+    # Create new series
+    coreg = moving.new_sibling(suffix='registered')
+    deform = moving.new_sibling(suffix='deformation field')
+
+    # Set arrays
+    coreg.set_array(array_moving, headers_moving, pixels_first=True)
+    for dim in range(deformation.shape[-1]):
+        deform.set_array(deformation[...,dim], headers_moving, pixels_first=True)
+
+    # Return coregistered images and deformation field
+    return coreg, deform
+
+
+
+def coregister_translation_2d(moving, fixed):
+
+    # # Get arrays for fixed and moving series (old API)
+    # array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    # array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # Get arrays for fixed and moving series (new API)
+    #zaxis = ('SliceLocation',)
+    zaxis = 'SliceLocation'
+    array_moving = moving.pixel_values(zaxis)
+    array_fixed = vreg.pixel_values(fixed, zaxis, on=moving)
+
+    # Set up coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = TranslationTransform2D()
+
+    # Coregister fixed and moving slice-by-slice
+    for z in range(array_moving.shape[2]):
+        moving.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
+        # Coregister slice
+        params0 = None
+        mapping = affreg.optimize(array_fixed[:,:,z], array_moving[:,:,z], transform, params0)
+        array_moving[:,:,z] = mapping.transform(array_moving[:,:,z], 'linear')
+
+    # # Save as DICOM (old API)
+    # coreg = moving.new_sibling(suffix= 'registered')
+    # coreg.set_array(array_moving, headers_moving, pixels_first=True)
+
+    # Save as DICOM (new API)
+    coreg = moving.copy(SeriesDescription=moving.SeriesDescription + ' [coreg]')
+    coreg.set_pixel_values(array_moving, coords=moving.coords(zaxis))
+    return coreg
+
+
+def coregister_rigid_2d(moving, fixed):
+
+    # Get arrays for fixed and moving series
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # Set up coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = RigidTransform2D()
+
+    # Coregister fixed and moving slice-by-slice
+    for z in range(array_moving.shape[2]):
+        moving.status.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
+        # Coregister slice
+        params0 = None
+        mapping = affreg.optimize(array_fixed[:,:,z], array_moving[:,:,z], transform, params0)
+        array_moving[:,:,z] = mapping.transform(array_moving[:,:,z], 'linear')
+
+    # Save as DICOM
+    coreg = moving.new_sibling(suffix= 'registered')
+    coreg.set_array(array_moving, headers_moving, pixels_first=True)
+    return coreg
+
+
+def coregister_affine_2d(moving, fixed):
+
+    # Get arrays for fixed and moving series
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
+
+    # Set up coregistration
+    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
+    affreg = AffineRegistration(
+        metric = metric,
+        level_iters = [10000, 1000, 100],
+        sigmas = [3.0, 1.0, 0.0],
+        factors = [4, 2, 1],
+    )
+    transform = AffineTransform2D()
+
+    # Coregister fixed and moving slice-by-slice
+    for z in range(array_moving.shape[2]):
+        moving.status.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
+        # Coregister slice
+        params0 = None
+        mapping = affreg.optimize(array_fixed[:,:,z], array_moving[:,:,z], transform, params0)
+        array_moving[:,:,z] =mapping.transform(array_moving[:,:,z], 'linear')
+
+    # Save as DICOM
+    coreg = moving.new_sibling(suffix= 'registered')
+    coreg.set_array(array_moving, headers_moving, pixels_first=True)
+    return coreg
+
+
+
+def coregister_deformable_2d(moving, fixed, **kwargs):
+
+    # Get arrays for fixed and moving series
+    array_moving, headers_moving = moving.array(sortby='SliceLocation', pixels_first=True, first_volume=True)
+    array_fixed = vreg.array(fixed, on=moving, sortby='SliceLocation', pixels_first=True, first_volume=True)
 
     # Coregister fixed and moving slice-by-slice
     deformation = np.empty(array_moving.shape + (2,))
@@ -247,34 +297,7 @@ def coregister_2d_to_2d(moving, fixed, **kwargs):
     return coreg, deform
 
 
-def coregister_3d_to_3d(moving, fixed, **kwargs):
 
-    # Overlay fixed on moving image
-    fixed_map = scipy.map_to(fixed, moving)
-
-    # Get arrays for fixed and moving series
-    array_fixed, _ = fixed_map.array('SliceLocation', pixels_first=True, first_volume=True)
-    array_moving, headers_moving = moving.array('SliceLocation', pixels_first=True, first_volume=True)
-    
-    # Remove overlay from database
-    if fixed_map != fixed:
-        fixed_map.remove()
-
-    # Perform coregistration
-    moving.status.message('Performing coregistration..')
-    array_moving, deformation = _coregister_arrays(array_fixed, array_moving, **kwargs)
-
-    # Create new series
-    coreg = moving.new_sibling(suffix='registered')
-    deform = moving.new_sibling(suffix='deformation field')
-
-    # Set arrays
-    coreg.set_array(array_moving, headers_moving, pixels_first=True)
-    for dim in range(deformation.shape[-1]):
-        deform.set_array(deformation[...,dim], headers_moving, pixels_first=True)
-
-    # Return coregistered images and deformation field
-    return coreg, deform
 
 
 
@@ -295,16 +318,9 @@ def invert_deformation_field(deformation_field, **kwargs):
 
 def warp(image, deformation_field, **kwargs):
 
-    # Overlay deformation field on image
-    deform = scipy.map_to(deformation_field, image)
-
     # Get arrays
     array, headers = image.array('SliceLocation', pixels_first=True, first_volume=True)
-    array_deform, _ = deform.array('SliceLocation', pixels_first=True)
-
-    # Remove temporary variables
-    if deform != deformation_field:
-        deform.remove()
+    array_deform = vreg.array(deformation_field, on=image, sortby='SliceLocation', pixels_first=True)
 
     # Perform warping
     array = _warp_array(array, array_deform, image.status, **kwargs)
@@ -316,12 +332,10 @@ def warp(image, deformation_field, **kwargs):
     return warped
 
 
-def _coregistration_mask_3d(array):
-    mask = np.zeros(array.shape)
-    for z in range(array.shape[2]):
-        if np.count_nonzero(array[:,:,z]) > 0:
-            mask[:,:,z] = 1
-    return mask
+
+### ARRAY functions
+
+
 
 
 def _invert_deformation_field_array(array, status, max_iter=10, tolerance=0.1):
@@ -366,59 +380,11 @@ def _warp_array(array, deform, status, interpolate=True):
         raise ValueError(msg)
 
       
-def _coregister_translation_3d_arrays(fixed, moving):
-    
-    metric = MutualInformationMetric(
-        nbins=32, 
-        sampling_proportion=None,
-    )
-    affreg = AffineRegistration(
-        metric = metric,
-        level_iters = [10000, 1000, 100],
-        sigmas = [3.0, 1.0, 0.0],
-        factors = [4, 2, 1],
-    )
-    transform = TranslationTransform3D()
-    params0 = None
-    mapping = affreg.optimize(fixed, moving, transform, params0)
-
-    # Warp the moving image
-    coregistered = mapping.transform(moving, 'linear')
-
-    return coregistered
-
-
-
-
-
-def _coregister_affine_3d_arrays(fixed, moving):
-    
-    metric = MutualInformationMetric(
-        nbins=32, 
-        sampling_proportion=None,
-    )
-    affreg = AffineRegistration(
-        metric = metric,
-        level_iters = [10000, 1000, 100],
-        sigmas = [3.0, 1.0, 0.0],
-        factors = [4, 2, 1],
-    )
-    transform = AffineTransform3D()
-    params0 = None
-    mapping = affreg.optimize(fixed, moving, transform, params0)
-
-    # Warp the moving image
-    coregistered = mapping.transform(moving, 'linear')
-
-    return coregistered
-
-
 def _coregister_arrays(fixed, moving, transformation='Symmetric Diffeomorphic', metric="Cross-Correlation"):
     """
     Coregister two arrays and return coregistered + deformation field 
     """
 
-    # Define the metric
     dim = fixed.ndim
 
     # 3D registration does not seem to work with smaller slabs

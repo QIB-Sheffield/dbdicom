@@ -197,6 +197,9 @@ class Series(Record):
             ValueError: These are not proper coordinates. Coordinate values must be unique.
         """
 
+        if np.isscalar(dims):
+            dims = (dims,)
+
         # Default empty coordinates
         vcoords = {}
         for i, tag in enumerate(dims):
@@ -229,13 +232,13 @@ class Series(Record):
         if values.size > 0:
             for i, tag in enumerate(dims):
                 vcoords[tag] = values[i,...]
-                if mesh:
+                if mesh: # Is this necessary? Is already in the right shape
                     vcoords[tag] = vcoords[tag].reshape(mshape)
 
         return vcoords
     
 
-    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=False, slice={}, coords={}, exclude=False, **filters)->np.ndarray:
+    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=True, slice={}, coords={}, exclude=False, **filters)->np.ndarray:
         """Return the values of one or more attributes for each frame in the series.
 
         Args:
@@ -338,6 +341,9 @@ class Series(Record):
             (4, 2, 2)
         """
 
+        if np.isscalar(dims):
+            dims = (dims,)
+
         # Default return values
         values = np.array([]).reshape((0,0))
         vcoords = {}
@@ -353,12 +359,19 @@ class Series(Record):
               
         # Read values
         filters = {**slice, **filters}
-        values = [f[list(dims)+list(tags)+list(tuple(filters))+list(tuple(coords))] for f in frames]
-        values.sort()
+        values = []
+        for i, f in enumerate(frames):
+            self.progress(i+1,len(frames), 'Reading values..')
+            v = f[list(dims)+list(tags)+list(tuple(filters))+list(tuple(coords))]
+            values.append(v)
+
+        # Taken out while testing in iBEAT. Is this necessary? Creates error with None values
+        # values.sort() 
         
         # Check if dimensions are proper
+        # Need object array here because the values can be different type including lists.
         cvalues = [v[:len(dims)] for v in values]
-        cvalues = np.array(cvalues).T
+        cvalues = np.array(cvalues, dtype=object).T
         _check_if_ivals(cvalues)
 
         # Filter values
@@ -376,9 +389,9 @@ class Series(Record):
 
         # If requested, mesh values
         if mesh:
-            cvalues = _meshvals(cvalues)
-            mshape = cvalues.shape[1:]
-            values = values.reshape((values.shape[0],) + mshape)
+            cmesh = _meshvals(cvalues)
+            values = _meshdata(values, cvalues, cmesh)
+            cvalues = cmesh
             
         # Create return values
         if len(tags) == 1:
@@ -398,8 +411,11 @@ class Series(Record):
             return values
 
 
-    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=False, slice={}, coords={}, exclude=False, **filters):
+    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=True, slice={}, coords={}, exclude=False, **filters):
         """Return the frames of given coordinates in the correct order"""
+
+        if np.isscalar(dims):
+            dims = (dims,)
 
         # Default return values
         values = np.array([]).reshape((0,0))
@@ -446,7 +462,6 @@ class Series(Record):
         # Filter values
         finds = _filter_values_ind(values, filters, coords, exclude=exclude)
         if finds.size==0:
-
             # Empty return values
             frames = np.array([]).reshape(fshape)
             rval = (frames,)
@@ -457,8 +472,7 @@ class Series(Record):
             if len(rval)==1:
                 return rval[0]
             else:
-                return rval  
-                      
+                return rval           
         frames = frames[finds]
         values = _filter_values(values, filters, coords, exclude=exclude)
         cvalues = values[:len(dims),:]
@@ -466,10 +480,11 @@ class Series(Record):
 
         # If requested, mesh values
         if mesh:
-            cvalues = _meshvals(cvalues)
-            fshape = cvalues.shape[1:]
-            frames = frames.reshape(fshape)
-            values = values.reshape((values.shape[0],) + fshape)
+            cmesh = _meshvals(cvalues)
+            values = _meshdata(values, cvalues, cmesh)
+            frames = _meshdata(frames.reshape((1,frames.size)), cvalues, cmesh)
+            frames = frames[0,...]
+            cvalues = cmesh
             
         # Create return values
         rval = (frames,)
@@ -597,6 +612,8 @@ class Series(Record):
         """
         if dims == ():
             dims = tuple(new_coords)
+        elif np.isscalar(dims):
+            dims = (dims,)
         new_coords = _check_if_coords(new_coords)
         frames = self.frames(dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
@@ -675,6 +692,9 @@ class Series(Record):
             The value array has shape (25,), but the series has shape (4, 3).
 
         """  
+
+        if np.isscalar(dims):
+            dims = (dims,)
 
         if not isinstance(values, tuple):
             self.set_values((values,), (tags,), dims=dims, slice=slice, coords=coords, **filters)
@@ -794,7 +814,7 @@ class Series(Record):
         return _meshcoords_to_grid(meshcoords)
     
 
-    def shape(self, dims=('InstanceNumber', ), mesh=False, slice={}, coords={}, exclude=False, **filters)->tuple:
+    def shape(self, dims=('InstanceNumber', ), mesh=True, slice={}, coords={}, exclude=False, **filters)->tuple:
         """Return the shape of the series along given dimensions.
 
         Args:
@@ -939,11 +959,11 @@ class Series(Record):
 
         if sortby == ():
             if len(tags) == 1:
-                uv = [x for x in vals if x is not None]
+                uv = vals[vals != np.array(None)]
                 return np.unique(uv)
             uvals = []
             for v in vals:
-                uv = [x for x in v if x is not None]
+                uv = v[v != np.array(None)]
                 uvals.append(np.unique(uv))
             return tuple(uvals)
         
@@ -951,7 +971,7 @@ class Series(Record):
         loc = []
         for k in range(len(sortby)):
             v = vals[len(tags)+k]
-            v = [x for x in v if x is not None]
+            v = v[v != np.array(None)]
             loc.append(np.unique(v))
         loc = np.meshgrid(*tuple(loc), indexing='ij')
         shape = loc[0].shape
@@ -966,7 +986,7 @@ class Series(Record):
                 ind = ind & (vals[len(tags)+k] == loc[k][i])
             for t in range(len(tags)):
                 vti = vals[t][ind]
-                vti = [x for x in vti if x is not None]
+                vti = vti[vti != np.array(None)]
                 uvals[t,i] = np.unique(vti)
 
         # Refactor to return values
@@ -983,7 +1003,7 @@ class Series(Record):
             return uvals
     
 
-    def pixel_values(self, dims=('InstanceNumber', ), mesh=False, return_coords=False, slice={}, coords={}, **filters) -> np.ndarray:
+    def pixel_values(self, dims=('InstanceNumber', ), return_coords=False, slice={}, coords={}, **filters) -> np.ndarray:
         """Return a numpy.ndarray with pixel data.
 
         Args:
@@ -1074,7 +1094,9 @@ class Series(Record):
             >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
             ValueError: Indices must be in the dimensions provided.
         """
-        frames = self.frames(dims, mesh=mesh, return_coords=return_coords, slice=slice, coords=coords, **filters)
+        if np.isscalar(dims):
+            dims = (dims,)
+        frames = self.frames(dims, mesh=False, return_coords=return_coords, slice=slice, coords=coords, **filters)
         if return_coords:
             frames, fcoords = frames
         if frames.size == 0:
@@ -1137,13 +1159,17 @@ class Series(Record):
         if dims is None:
             if slice != {}:
                 dims = tuple(slice)
+            elif coords != {}:
+                dims = tuple(coords)
             else:
                 dims = ('InstanceNumber', )
+        elif np.isscalar(dims):
+            dims = (dims,)
         # Get frames to set:
         frames = self.frames(dims, slice=slice, coords=coords, **filters)
         if frames.size == 0:
             if slice != {}:
-                self.expand(slice)
+                self.expand(gridcoords=slice)
                 frames = self.frames(dims)
             else:
                 msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first, or set the loc keyword to define coordinates for the new frames.'
@@ -1224,7 +1250,7 @@ class Series(Record):
         return image_utils.affine_matrix_multislice(orientation, pos, spacing)   
 
 
-    def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), slice={}, coords={}, **filters):
+    def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), slice={}, coords={}, multislice=False, **filters):
         """Set the affine matrix of a series.
 
         The affine is defined as a 4x4 numpy array with bottom row [0,0,0,1]. The final column represents the position of the top right hand corner of the first slice. The first three columns represent rotation and scaling with respect to the axes of the reference frame.
@@ -1298,12 +1324,22 @@ class Series(Record):
         a = image_utils.dismantle_affine_matrix(affine)
         ez = a['SpacingBetweenSlices']*np.array(a['slice_cosine'])
 
+        # if multislice:
+        #     slice_thickness = self.unique('SliceThickness')[0]
+
         # Set the affine slice-by-slice
         affine_z = affine.copy()
         for z, frame in enumerate(frames):
             self.progress(z+1, frames.size, 'Writing affine..')
             affine_z[:3, 3] = affine[:3, 3] + z*ez
+            if multislice:
+                thickness = frame.SliceThickness
             frame.affine_matrix = affine_z
+            if multislice:
+                frame.SliceThickness = thickness
+
+        # if multislice:
+        #     self.set_values(slice_thickness,'SliceThickness')
 
 
     # consider renaming copy() - but breaks backward compatibility - this is not a slice really
@@ -2083,10 +2119,13 @@ def _meshvals(values):
     # Output array shape: (d, f1,..., fd)
     if values.size == 0:
         return np.array([])
+    # List the unique values of the first coordinate
     vals, cnts = np.unique(values[0,:], return_counts=True)
+    # Check that there is an equal number of each value
     if len(np.unique(cnts)) > 1:
         msg = 'These are not mesh coordinates.'
         raise ValueError(msg) 
+    # If there is only one dimension, we are done
     if values.shape[0] == 1:
         return values
     mesh = []
@@ -2100,6 +2139,22 @@ def _meshvals(values):
     a = np.expand_dims(a,0)
     mesh = np.concatenate((a, mesh))
     return mesh
+
+def _meshdata(vals, crds, cmesh):
+    mshape = (vals.shape[0],) + cmesh.shape[1:]
+    if mshape[0]==0:
+        return vals.reshape(mshape)
+    vmesh = np.zeros(mshape, dtype=object)
+    cmesh = cmesh.reshape((cmesh.shape[0],-1))
+    vmesh = vmesh.reshape((vmesh.shape[0],-1))
+    for i in range(vals.shape[1]):
+        # find location of coordinate i in cmesh
+        for j in range(cmesh.shape[1]):
+            if np.array_equal(cmesh[:,j], crds[:,i]):
+                break
+        # Write value i at the same location in vmesh
+        vmesh[:,j] = vals[:,i]
+    return vmesh.reshape(mshape)
 
 def _concatenate_coords(coords:tuple, mesh=False):
     concat = {}

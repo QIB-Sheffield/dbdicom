@@ -7,6 +7,7 @@ from dbdicom.utils.image import multislice_affine_transform
 
 
 
+# OBSOLETE - replaced by vreg._equal_geometry
 def _equal_geometry(affine1, affine2):
     # Check if both are the same, 
     # ignoring the order in the list
@@ -34,6 +35,7 @@ def _equal_geometry(affine1, affine2):
 
 
 # Better use set(tuple())
+# OBSOLETE - unused
 def _lists_have_equal_items(list1, list2):
     # Convert the lists to sets
     set1 = set([tuple(x) for x in list1])
@@ -120,7 +122,7 @@ def _mask_curve_3d_data(msk_arr, img_hdrs, ids, dim):
         data.append(ids + vals)
     return data
 
-
+# OBSOLETE to vreg
 def mask_statistics(masks, images):
     if not isinstance(masks, list):
         masks = [masks]
@@ -141,7 +143,7 @@ def mask_statistics(masks, images):
             df_all_masks = pd.concat([df_all_masks, df_mask], ignore_index=True)
     return df_all_masks
 
-
+# OBSOLETE to vreg
 def _mask_statistics(mask, image):
 
     # Get mask array
@@ -157,7 +159,7 @@ def _mask_statistics(mask, image):
         data.append(row)
     return pd.DataFrame(data, columns=columns)
 
-
+# OBSOLETE to vreg
 def _mask_data_slice_groups(msk_arr, img_hdrs):
     if isinstance(msk_arr, list): 
         # Loop over slice groups
@@ -172,7 +174,7 @@ def _mask_data_slice_groups(msk_arr, img_hdrs):
         data = _mask_data(msk_arr, img_hdrs)
     return data
 
-
+# OBSOLETE to vreg
 def _mask_data(msk_arr, imgs):
     data = []
     for i, image in np.ndenumerate(imgs):
@@ -190,7 +192,7 @@ def _mask_data(msk_arr, imgs):
     else:
         return np.concatenate(data)
     
-
+# OBSOLETE to vreg
 def _summary_stats(data):
     if data is None:
         return {}
@@ -217,7 +219,7 @@ def _summary_stats(data):
         'Skewness': scipy.stats.skew(data),
     }
         
-
+# Obsolete - moved to vreg
 def array(series, on=None, **kwargs):
     """Return the array overlaid on another series"""
 
@@ -242,7 +244,7 @@ def overlay(features):
         mapped_features.append(mapped)
     return mapped_features
     
-
+# OBSOLETE - see vreg
 def map_to(source, target, **kwargs):
     """Map non-zero pixels onto another series"""
 
@@ -269,21 +271,6 @@ def map_to(source, target, **kwargs):
         mapped_series = _map_series_to_slice_group(source, target, affine_source, affine_target[0], **kwargs)
     return mapped_series
 
-
-# def _map_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
-
-#     if isinstance(affine_source, list):
-#         mapped_series = []
-#         for affine_slice_group in affine_source:
-#             slice_group_source = source.new_sibling()
-#             slice_group_source.adopt(affine_slice_group[1])
-#             mapped = _map_slice_group_to_slice_group(slice_group_source, affine_slice_group[0], target, affine_target, **kwargs)
-#             mapped_series.append(mapped)
-#             slice_group_source.remove()
-#         return dbdicom.merge(mapped_series, inplace=True)
-#     else:
-#         return _map_slice_group_to_slice_group(source, affine_source[0], target, affine_target, **kwargs)
-    
 
 def _map_series_to_slice_group(source, target, affine_source, affine_target, **kwargs):
 
@@ -391,7 +378,7 @@ def _map_slice_group_to_slice_group(source, affine_source, target, output_affine
     return mapped_series
 
 
-
+# OBSOLETE - see vreg
 def mask_array(mask, on=None, dim='InstanceNumber'):
     """Map non-zero pixels onto another series"""
 

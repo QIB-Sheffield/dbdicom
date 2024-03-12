@@ -166,6 +166,28 @@ def test_grid_to_meshcoords():
     else:
         assert False
 
+def test_meshdata():
+
+    print('Testing meshdata')
+
+    crds = np.array([
+        [6,6,6,6,5,5,5,5],
+        [6,6,5,5,3,3,4,4],
+        [1,2,4,3,5,6,8,7],
+    ])
+    vals = np.array([
+        [1,2,3,4,5,6,7,8],
+        [8,7,6,5,4,3,2,1],
+        [0,1,2,3,4,5,6,7],
+        [7,6,5,4,3,2,1,0],
+    ])
+    cmesh = db.types.series._meshvals(crds)
+    vmesh = db.types.series._meshdata(vals, crds, cmesh)
+    assert np.array_equal(cmesh[:,1,0,1], [6,5,3])
+    assert np.array_equal(vmesh[:,1,0,1], [4,5,3,4])
+    assert np.array_equal(cmesh[:,0,1,0], [5,4,8])
+    assert np.array_equal(vmesh[:,0,1,0], [7,2,6,1])
+
 
 def test_as_meshcoords():
 
@@ -269,6 +291,10 @@ def test_concatenate_coords():
     coords_size = coords1['SliceLocation'].size + coords2['SliceLocation'].size
     assert coords['SliceLocation'].size == coords_size
 
+
+
+# TEST Series FUNCTIONS
+    
 
 def test_coords():
 
@@ -1233,28 +1259,29 @@ if __name__ == "__main__":
 
     test_check_if_coords()
     test_grid_to_meshcoords()
+    test_meshdata()
     test_as_meshcoords()
     test_concatenate_coords()
 
     ## API
     
-    test_coords()
-    test_values()
-    test_frames()
-    test_expand()
-    test_set_coords()
-    test_set_values()
-    test_set_gridcoords()
-    test_gridcoords()
-    test_shape()
-    test_unique()
-    test_pixel_values()
-    test_set_pixel_values()
-    test_affine()
-    test_set_affine()
-    test_extract()
-    test_split_by()
-    test_spacing()
+    # test_coords()
+    # test_values()
+    # test_frames()
+    # test_expand()
+    # test_set_coords()
+    # test_set_values()
+    # test_set_gridcoords()
+    # test_gridcoords()
+    # test_shape()
+    # test_unique()
+    # test_pixel_values()
+    # test_set_pixel_values()
+    # test_affine()
+    # test_set_affine()
+    # test_extract()
+    # test_split_by()
+    # test_spacing()
 
     # This needs an iloc keyword in frames to filter by indices without having to read the data again. For now the lazy approach is to first read the keywords and then use slice() to split by value.
     # test_islice()

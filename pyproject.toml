@@ -1,6 +1,10 @@
 # https://python-poetry.org/docs/pyproject
 # minimal required information
 
+[build-system]
+build-backend = 'setuptools.build_meta'
+requires = ['setuptools>=61.2']
+
 [project]
 name = "dbdicom"
 version = "0.2.2"
@@ -23,7 +27,7 @@ authors = [
   { name = "Steven Sourbron", email = "s.sourbron@sheffield.ac.uk" },
   { name = "Ebony Gunwhy", email = "e.gunwhy@sheffield.ac.uk" }, 
   ]
-license = "Apache-2.0"
+#license = "Apache-2.0"
 classifiers = [
   # How mature is this project? Common values are
   #   3 - Alpha
