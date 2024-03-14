@@ -357,16 +357,15 @@ class Series(Record):
                 return values, vcoords
             return values
               
-        # Read values
+        # Read values and sort
         filters = {**slice, **filters}
         values = []
         for i, f in enumerate(frames):
             self.progress(i+1,len(frames), 'Reading values..')
             v = f[list(dims)+list(tags)+list(tuple(filters))+list(tuple(coords))]
             values.append(v)
-
-        # Taken out while testing in iBEAT. Is this necessary? Creates error with None values
-        # values.sort() 
+        fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
+        values = [values[i] for i in fsort]
         
         # Check if dimensions are proper
         # Need object array here because the values can be different type including lists.
@@ -701,7 +700,7 @@ class Series(Record):
             return
         
         # Get frames to set:
-        frames = self.frames(dims, slice=slice, coords=coords, **filters)
+        frames = self.frames(dims, mesh=False, slice=slice, coords=coords, **filters)
         if frames.size == 0:
             msg = 'Cannot set values to an empty series. Use Series.expand() to create empty frames first.'
             raise ValueError(msg)
@@ -1096,7 +1095,7 @@ class Series(Record):
         """
         if np.isscalar(dims):
             dims = (dims,)
-        frames = self.frames(dims, mesh=False, return_coords=return_coords, slice=slice, coords=coords, **filters)
+        frames = self.frames(dims, return_coords=return_coords, slice=slice, coords=coords, **filters)
         if return_coords:
             frames, fcoords = frames
         if frames.size == 0:

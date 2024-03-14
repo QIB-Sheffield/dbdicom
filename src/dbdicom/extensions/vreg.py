@@ -360,6 +360,8 @@ def _summary_stats(data):
         'Skewness': scipy.stats.skew(data),
     }
 
+# no longer public - replace by vreg.pixel_values()
+# Needs an approach that does no create a DICOM series first
 def array(series, on=None, **kwargs):
     """Return the array overlaid on another series"""
 
@@ -711,23 +713,6 @@ def find_sbs_inslice_translation(moving:Series, static:Series, tolerance=0.1, me
         'mutual information': vreg.mutual_information,
         'interaction': vreg.interaction,
     }
-
-    # Find an initial value with a brute force
-    optimization = {
-        'method': 'brute', 
-        'options': {'grid':[[-5,5,10], [-5,5,10]]}, 
-    }
-    translation_estimate = vreg.align_slice_by_slice(
-        moving = array_moving, 
-        moving_affine = affine_moving, 
-        static = array_static, 
-        static_affine = affine_static, 
-        transformation = vreg.translate_inslice,
-        metric = func[metric],
-        optimization = optimization,
-        slice_thickness = list(moving.values('SliceThickness', dims=('SliceLocation',))),
-        progress = lambda z, nz: moving.progress(z+1, nz, 'Performing brute force pre-search'),
-    )
     
      # Perform coregistration
     translation_estimate = np.zeros(2, dtype=np.float32)

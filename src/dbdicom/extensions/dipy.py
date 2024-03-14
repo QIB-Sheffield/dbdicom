@@ -1,7 +1,7 @@
 import numpy as np
 from dipy.align.imwarp import SymmetricDiffeomorphicRegistration
 from dipy.align.metrics import CCMetric, EMMetric, SSDMetric
-from dipy.align.imaffine import MutualInformationMetric, AffineRegistration
+from dipy.align.imaffine import MutualInformationMetric, AffineRegistration, transform_centers_of_mass
 from dipy.align.transforms import (
     TranslationTransform2D, RigidTransform2D, AffineTransform2D,
     TranslationTransform3D, RigidTransform3D, AffineTransform3D)
@@ -168,6 +168,26 @@ def coregister_deformable_3d(moving, fixed, **kwargs):
 
     # Return coregistered images and deformation field
     return coreg, deform
+
+
+def align_center_of_mass_2d(moving, fixed):
+
+    # Get arrays for fixed and moving series
+    zaxis = 'SliceLocation'
+    array_moving = moving.pixel_values(zaxis)
+    array_fixed = vreg.pixel_values(fixed, zaxis, on=moving)
+
+    # Coregister fixed and moving slice-by-slice
+    id = np.eye(3)
+    for z in range(array_moving.shape[2]):
+        moving.progress(z+1, array_moving.shape[2], 'Performing coregistration..')
+        c_of_mass = transform_centers_of_mass(array_fixed[:,:,z], id, array_moving[:,:,z], id)
+        array_moving[:,:,z] = c_of_mass.transform(array_moving[:,:,z])
+
+    # Save as DICOM (new API)
+    coreg = moving.copy(SeriesDescription=moving.SeriesDescription + ' [coreg]')
+    coreg.set_pixel_values(array_moving, coords=moving.coords(zaxis))
+    return coreg
 
 
 
