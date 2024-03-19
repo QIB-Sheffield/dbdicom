@@ -1,6 +1,6 @@
 skimage
 =======
 
-.. automodule:: dbdicom.wrappers.skimage
+.. automodule:: dbdicom.extensions.skimage
    :members:
    :undoc-members:

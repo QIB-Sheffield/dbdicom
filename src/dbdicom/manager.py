@@ -423,17 +423,33 @@ class Manager():
         #return [id for id in uids if function(self.get_values(attr, uid=id), vals)]
 
 
-    def filter_instances(self, df, **kwargs):
+    def filter_instances(self, df, select={}, **filters):
         df.dropna(inplace=True)
-        if not kwargs:
+        filters = {**select, **filters}
+        if filters == {}:
             return df
-        vals = list(kwargs.values())
-        attr = list(kwargs.keys())
-        keys = [key for key in df.index if self.get_values(attr, [key]) == vals]
+        vals = list(filters.values())
+        attr = list(filters.keys())
+        # keys = [key for key in df.index if self.get_values(attr, [key]) == vals]
+        keys = []
+        for key in df.index:
+            v = self.get_values(attr, [key])
+            append = True
+            for i, vi in enumerate(v):
+                if isinstance(vals[i], np.ndarray):
+                    if vi not in vals[i]:
+                        append = False
+                        break
+                else:
+                    if vi != vals[i]:
+                        append = False
+                        break
+            if append:
+                keys.append(key)
         return df[keys]
 
 
-    def instances(self, uid=None, keys=None, sort=True, sortby=None, images=False, **kwargs):
+    def instances(self, uid=None, keys=None, sort=True, sortby=None, images=False, select={}, **filters):
         if keys is None:
             keys = self.keys(uid)
         if sort:
@@ -444,7 +460,7 @@ class Manager():
             df = df.SOPInstanceUID
         else:
             df = self.register.loc[keys,'SOPInstanceUID']
-        df = self.filter_instances(df, **kwargs)
+        df = self.filter_instances(df, select=select, **filters)
         if images == True:
             keys = [key for key in df.index if self.get_values('Rows', [key]) is not None]
             df = df[keys]
@@ -978,6 +994,16 @@ class Manager():
             empty = df[df.values == None].index
             if len(empty) == 1:
                 self.delete_row(empty[0])
+                # Return new parent key
+                if missing == 'SOPInstanceUID':
+                    return self.keys(series=parent_uid)[0]
+                if missing == 'SeriesInstanceUID':
+                    return self.keys(study=parent_uid)[0]
+                if missing == 'StudyInstanceUID':
+                    return self.keys(patient=parent_uid)[0]
+                if missing == 'PatientID':
+                    return self.register.index[0]
+        return parent_key
 
     
     def update_row_data(self, key, data):
@@ -1069,6 +1095,7 @@ class Manager():
             key = self.new_row(data)  # Study with existing series
         return data[2], key
 
+
     
     def new_instance(self, parent=None, dataset=None, key=None, **kwargs):
 
@@ -1132,12 +1159,12 @@ class Manager():
 
         data = self.register.loc[key, self.columns]
         data[4] = ds.SOPClassUID
+        data[11:] = ds.get_values(self.columns[11:])
         key = self.update_row_data(key, data)
-        ds.set_values(self.columns, data)
+        ds.set_values(self.columns[:11], data[:11]) 
         self.dataset[key] = ds
         return key
 
-        
     def set_dataset(self, uid, dataset, keys=None):
 
         if keys is None:
@@ -1145,10 +1172,9 @@ class Manager():
         else:
             parent_keys = keys
 
-        # LOOKUP!!!
-        # ELIMINATE
-        if self.type(uid, parent_keys[0]) == 'Instance': 
-            self.set_instance_dataset(uid, dataset, parent_keys[0])
+        parent_key = parent_keys[0]
+        if self.type(uid, parent_key) == 'Instance': 
+            self.set_instance_dataset(uid, dataset, parent_key)
             return
 
         if not isinstance(dataset, list):
@@ -1177,10 +1203,11 @@ class Manager():
                     data[10] = 1
                 else:
                     data[10] = 1 + max(nrs)
+                data[11:] = ds.get_values(self.columns[11:]) # added 27/07/23
                 
                 # Add to database in memory as a new row
                 key = self.new_row(data)
-                ds.set_values(self.columns, data)
+                ds.set_values(self.columns[:11], data[:11]) # modified 27/07/23
                 self.dataset[key] = ds
 
             else: # If the instance is already in the object
@@ -1188,11 +1215,13 @@ class Manager():
                 key = parent_keys[ind]
                 data = self.value(key, self.columns)
                 data[4] = ds.SOPClassUID
+                data[11:] = ds.get_values(self.columns[11:]) # added 27/07/23
                 key = self.update_row_data(key, data)
+                ds.set_values(self.columns[:11], data[:11]) # added 27/07/23
                 self.dataset[key] = ds
 
         # If the series is empty and new instances have been added then delete the row  
-        self.drop_placeholder_row(parent_keys[0], missing='SOPInstanceUID')
+        parent_key = self.drop_placeholder_row(parent_key, missing='SOPInstanceUID')
 
 
 
@@ -1245,7 +1274,8 @@ class Manager():
     def copy_instance_to_series(self, instance_key, target_keys, tmp, **kwargs):
         """Copy instances to another series"""
 
-        attributes, values = self.series_header(target_keys[0])
+        new_parent_key = target_keys[0]
+        attributes, values = self.series_header(new_parent_key)
         self.append_kwargs(kwargs, attributes, values)
 
         n = self.register.loc[target_keys,'InstanceNumber'].values
@@ -1258,7 +1288,7 @@ class Manager():
 
         if ds is None:
             row = self.value(instance_key, self.columns).tolist()
-            row = self.copy_series_data(target_keys[0], row)
+            row = self.copy_series_data(new_parent_key, row)
             row[3] = new_instance
             row[10] = 1 + max_number
             for val in kwargs:
@@ -1275,7 +1305,7 @@ class Manager():
                 ds.write(self.filepath(new_key), self.status)
             row = ds.get_values(self.columns)
 
-        self.drop_placeholder_row(target_keys[0], missing='SOPInstanceUID')
+        new_parent_key = self.drop_placeholder_row(new_parent_key, missing='SOPInstanceUID')
         self.new_row(row, new_key)
         
         return new_instance
@@ -1291,8 +1321,8 @@ class Manager():
         """Copy instances to another series"""
 
         target_keys = self.keys(series=target)
-
-        attributes, values = self.series_header(target_keys[0])
+        new_parent_key = target_keys[0]
+        attributes, values = self.series_header(new_parent_key)
         self.append_kwargs(kwargs, attributes, values)
 
         max_number = self.new_instance_number(target)
@@ -1309,7 +1339,7 @@ class Manager():
             ds = self.get_dataset(instance_uid, [key])
             if ds is None:
                 row = self.value(key, self.columns).tolist()
-                row = self.copy_series_data(target_keys[0], row)
+                row = self.copy_series_data(new_parent_key, row)
                 row[3] = new_instances[i]
                 row[10] = i + max_number
                 for val in kwargs:
@@ -1330,7 +1360,7 @@ class Manager():
             self.new_row(row, new_key)
 
         # If the series is empty and new instances have been added, then delete the row 
-        self.drop_placeholder_row(target_keys[0], missing='SOPInstanceUID')
+        new_parent_key = self.drop_placeholder_row(new_parent_key, missing='SOPInstanceUID')
 
         if len(keys) > 1:
             self.status.hide()
@@ -1413,7 +1443,7 @@ class Manager():
 
         # If the study is empty and new series have been added
         # then delete the row 
-        self.drop_placeholder_row(target_key, missing='SeriesInstanceUID')
+        target_key = self.drop_placeholder_row(target_key, missing='SeriesInstanceUID')
         self.status.hide()
 
         if len(new_series) == 1:
@@ -1479,7 +1509,7 @@ class Manager():
                     self.new_row(row, new_key)
 
         # If the patient is empty and new studies have been added, then delete the row 
-        self.drop_placeholder_row(target_key, missing='StudyInstanceUID')
+        target_key = self.drop_placeholder_row(target_key, missing='StudyInstanceUID')
 
         if len(new_studies) == 1:
             return new_studies[0]
@@ -1580,8 +1610,8 @@ class Manager():
         if target_keys == []:
             msg = 'Moving data to a series that does not exist in the database'
             raise ValueError(msg)
-
-        attributes, values = self.series_header(target_keys[0])
+        new_parent_key = target_keys[0]
+        attributes, values = self.series_header(new_parent_key)
         self.append_kwargs(kwargs, attributes, values)
 
         n = self.value(target_keys, 'InstanceNumber')
@@ -1599,7 +1629,7 @@ class Manager():
 
             if ds is None:
                 row = self.value(key, self.columns).tolist()
-                row = self.copy_series_data(target_keys[0], row)
+                row = self.copy_series_data(new_parent_key, row)
                 row[10] = i + 1 + max_number
                 for val in kwargs:
                     if val in self._descriptives:
@@ -1609,7 +1639,7 @@ class Manager():
                 self.set_dataset_values(ds, key, attributes+['InstanceNumber'], values+[i+1+max_number])
 
         # If the series is empty and new instances have been added, then delete the row 
-        self.drop_placeholder_row(target_keys[0], 'SOPInstanceUID')
+        new_parent_key = self.drop_placeholder_row(new_parent_key, 'SOPInstanceUID')
 
         if len(keys) == 1:
             return self.value(keys, 'SOPInstanceUID')
@@ -1642,8 +1672,8 @@ class Manager():
         """Copy series to another study"""
 
         target_keys = self.keys(study=target)
-
-        attributes, values = self.study_header(target_keys[0])
+        new_parent_key = target_keys[0]
+        attributes, values = self.study_header(new_parent_key)
         self.append_kwargs(kwargs, attributes, values)
 
         n = self.value(target_keys, 'SeriesNumber')
@@ -1667,7 +1697,7 @@ class Manager():
                 # If the instance is empty, just replace study data in the register.
                 if ds is None:
                     row = self.value(key, self.columns).tolist()
-                    row = self.copy_study_data(target_keys[0], row)
+                    row = self.copy_study_data(new_parent_key, row)
                     row[9] = new_number
                     for val in kwargs:
                         if val in self._descriptives:
@@ -1678,7 +1708,7 @@ class Manager():
                 else:
                     self.set_dataset_values(ds, key, attributes+['SeriesNumber'], values+[new_number])
 
-        self.drop_placeholder_row(target_keys[0], 'SeriesInstanceUID')
+        new_parent_key = self.drop_placeholder_row(new_parent_key, 'SeriesInstanceUID')
 
         if len(all_series) == 1:
             return all_series[0]
@@ -1708,7 +1738,8 @@ class Manager():
         """Copy series to another study"""
 
         target_keys = self.keys(patient=target)
-        attributes, values = self.patient_header(target_keys[0])
+        new_parent_key = target_keys[0]
+        attributes, values = self.patient_header(new_parent_key)
         self.append_kwargs(kwargs, attributes, values)
         all_studies = self.studies(uid)
 
@@ -1729,7 +1760,7 @@ class Manager():
                     # If the instance is empty, just update the register.
                     if ds is None:
                         row = self.value(key, self.columns).tolist()
-                        row = self.copy_patient_data(target_keys[0], row)
+                        row = self.copy_patient_data(new_parent_key, row)
                         for val in kwargs:
                             if val in self._descriptives:
                                 row[self._descriptives[val]] = kwargs[val]
@@ -1739,7 +1770,7 @@ class Manager():
                     else:
                         self.set_dataset_values(ds, key, attributes, values)
 
-            self.drop_placeholder_row(target_keys[0], 'StudyInstanceUID')
+            new_parent_key = self.drop_placeholder_row(new_parent_key, 'StudyInstanceUID')
 
         if len(all_studies) == 1:
             return all_studies[0]

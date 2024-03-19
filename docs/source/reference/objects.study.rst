@@ -10,4 +10,7 @@ Study
 =====
 
 .. autosummary::
-   :toctree: generated/
+   :toctree: ../generated/api/
+   :template: autosummary.rst
+   :nosignatures:
+

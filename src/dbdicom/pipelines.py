@@ -19,8 +19,6 @@ def input_series(database, series_desc, study_desc):
         database.message('Finding input series ' + desc)
         series = database.series(SeriesDescription=desc)
         if series == []:
-            msg = "Cannot find series " + desc
-            database.dialog.information(msg)
             return None, None
         elif len(series) > 1:
             msg = 'Multiple series found with the description: ' + desc + '\n'

@@ -126,11 +126,11 @@ def rider(ds): # required only - check
     ds.SeriesNumber = '14'
     ds.AcquisitionNumber = '1'
     ds.InstanceNumber = '1'
-    ds.ImagePositionPatient = [75.561665058136, -163.6216506958, 118.50172901154]
-    ds.ImageOrientationPatient = [0, 1, 0, 0, 0, -1]
+    ds.ImagePositionPatient = [0, 0, 0]
+    ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
     ds.FrameOfReferenceUID = '1.3.6.1.4.1.9328.50.16.22344679587635360510174487884943834158'
     ds.PositionReferenceIndicator = ''
-    ds.SliceLocation = '75.561665058136'
+    ds.SliceLocation = '0.0'
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = 'MONOCHROME2'
     ds.Rows = 64
@@ -156,7 +156,8 @@ def rider(ds): # required only - check
     ds.RequestAttributesSequence = Sequence()
     ds.RequestedProcedureID = '5133240'
     ds.StorageMediaFileSetUID = '1.3.6.1.4.1.9328.50.16.162890465625511526068665093825399871205'
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    pixel_values = np.arange(ds.Rows*ds.Columns)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    ds.PixelData = pixel_values.astype(np.uint16).tobytes()
 
     return ds
 

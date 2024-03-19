@@ -1,0 +1,15 @@
+
+:orphan:
+
+.. _sphx_glr_generated_examples_transform_sg_execution_times:
+
+
+Computation times
+=================
+**00:03.280** total execution time for **generated_examples_transform** files:
+
++--------------------------------------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py` (``plot_rotate_and_translate.py``)                   | 00:03.280 | 0.0 MB |
++--------------------------------------------------------------------------------------------------------------------------------+-----------+--------+
+| :ref:`sphx_glr_generated_examples_transform__plot_maximum_intensity_projection.py` (``_plot_maximum_intensity_projection.py``) | 00:00.000 | 0.0 MB |
++--------------------------------------------------------------------------------------------------------------------------------+-----------+--------+
