@@ -1172,7 +1172,7 @@ def fourier_shift(input, shift, **kwargs):
 
 
 
-def series_calculator(series, operation='1 - series'):
+def series_calculator(series, operation='1 - series', param=None):
 
     desc = series.instance().SeriesDescription
     result = series.copy(SeriesDescription = desc + ' [' + operation + ']')
@@ -1193,6 +1193,10 @@ def series_calculator(series, operation='1 - series'):
             array = np.exp(array)
         elif operation == 'integer(series)':
             array = np.around(array)
+        elif operation == 'abs(series)':
+            array = np.abs(array)
+        elif operation == 'a * series':
+            array = array*param
         array[~np.isfinite(array)] = 0
         img.set_array(array)
         _reset_window(img, array)

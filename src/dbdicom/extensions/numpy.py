@@ -61,23 +61,23 @@ def mean_intensity_projection(series:dbd.Series, dims=('SliceLocation','Instance
         (128, 128, 8, 3, 1)
     """
     array = series.pixel_values(dims=dims)
-    inds = {}
-    for id, d in enumerate(dims):
-        if d == dims[axis]:
-            inds[d] = np.arange(1)
-        else:
-            inds[d] = np.arange(array.shape[2+id])
-    if axis >= 0:
-        axis += 2
     array = np.mean(array, axis=axis)
-    array = np.expand_dims(array, axis=axis)
-    result = series.islice(**inds)
-    result.SeriesDescription='Mean Intensity Projection'
-    result.set_pixel_values(array, inds=inds)
-    return result
+
+    # Save as DICOM
+    proj = series.new_sibling(SeriesDescription = series.SeriesDescription + '[mean axis ' + str(axis) + ']')
+    frames = series.frames(dims)
+    frames = np.take(frames, 0, axis=axis)
+    frames = frames.ravel()
+    array = array.reshape((array.shape[0], array.shape[1], -1))
+    for z in range(frames.size):
+        series.progress(z+1, frames.size, 'Saving results.. ')
+        frames_z = frames[z].copy_to(proj)
+        frames_z.set_pixel_values(array[:,:,z])
+
+    return proj
 
 
-def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','AcquisitionTime'), axis=-1) -> dbd.Series:
+def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','InstanceNumber'), axis=-1) -> dbd.Series:
     """Create a maximum intensity projection along a specified dimension.
 
     Args:
@@ -132,42 +132,21 @@ def maximum_intensity_projection(series:dbd.Series, dims=('SliceLocation','Acqui
         (128, 128, 8, 3, 1)
     """
 
-    # Get data
-    # TODO get this in one function call - include return_coords in pixel_values
-    
-    array, coords = series.pixel_values(dims, return_coords=True)
-    projdim = dims[axis]
-
-    # Save results in a new series
-    result = series.slice({projdim: coords[projdim][0]}) 
-    result.SeriesDescription = 'Maximum Intensity Projection' # needs to be done in one go - include setvalues option in set_pixel_values
-
-    # Project the coordinate array
-    del coords[projdim] # INCORRECT IF axis=0 or 1
-
-    # Project the pixel array
-    if axis >= 0:
-        axis += 2
-    array = np.amax(array, axis=axis)
-
-    result.set_pixel_values(array, coords=coords)
-    return result
-
     array = series.pixel_values(dims=dims)
-    inds = {}
-    for id, d in enumerate(dims):
-        if d == dims[axis]:
-            inds[d] = np.arange(1)
-        else:
-            inds[d] = np.arange(array.shape[2+id])
-    if axis >= 0:
-        axis += 2
     array = np.amax(array, axis=axis)
-    array = np.expand_dims(array, axis=axis)
-    result = series.islice(**inds)
-    result.SeriesDescription='Maximum Intensity Projection'
-    result.set_pixel_values(array, inds=inds)
-    return result
+
+    # Save as DICOM
+    proj = series.new_sibling(SeriesDescription = series.SeriesDescription + '[max axis ' + str(axis) + ']')
+    frames = series.frames(dims)
+    frames = np.take(frames, 0, axis=axis)
+    frames = frames.ravel()
+    array = array.reshape((array.shape[0], array.shape[1], -1))
+    for z in range(frames.size):
+        series.progress(z+1, frames.size, 'Saving results.. ')
+        frames_z = frames[z].copy_to(proj)
+        frames_z.set_pixel_values(array[:,:,z])
+
+    return proj
 
 
 def norm_projection(series:dbd.Series, dims=('SliceLocation','InstanceNumber'), axis=-1, ord=None) -> dbd.Series:
@@ -228,20 +207,20 @@ def norm_projection(series:dbd.Series, dims=('SliceLocation','InstanceNumber'), 
         (128, 128, 8, 3, 1)
     """
     array = series.pixel_values(dims=dims)
-    inds = {}
-    for id, d in enumerate(dims):
-        if d == dims[axis]:
-            inds[d] = np.arange(1)
-        else:
-            inds[d] = np.arange(array.shape[2+id])
-    if axis >= 0:
-        axis += 2
     array = np.linalg.norm(array, ord=ord, axis=axis)
-    array = np.expand_dims(array, axis=axis)
-    result = series.islice(**inds)
-    result.SeriesDescription='Norm Projection'
-    result.set_pixel_values(array, inds=inds)
-    return result
+
+    # Save as DICOM
+    proj = series.new_sibling(SeriesDescription = series.SeriesDescription + '[norm axis ' + str(axis) + ']')
+    frames = series.frames(dims)
+    frames = np.take(frames, 0, axis=axis)
+    frames = frames.ravel()
+    array = array.reshape((array.shape[0], array.shape[1], -1))
+    for z in range(frames.size):
+        series.progress(z+1, frames.size, 'Saving results.. ')
+        frames_z = frames[z].copy_to(proj)
+        frames_z.set_pixel_values(array[:,:,z])
+
+    return proj
     
 
 
