@@ -6,6 +6,26 @@ from dbdicom.utils import vreg
 from dbdicom import Series
 
 
+def fill_slice_gaps(series, ref, slice_thickness=None, mask=None):
+    # slice_thickness - make thin slices for smoother interpolation
+    z,t = 'SliceLocation','AcquisitionTime'
+    if slice_thickness is not None:
+        thick = series.values('SliceThickness')
+        series.set_values(slice_thickness, 'SliceThickness') 
+    input_array = pixel_values(series, dims=(z,t), on=ref)
+    input_geom, _ = mask_array(series, on=ref, dim=t, geom=True)
+    if slice_thickness is not None:
+        series.set_values(thick, 'SliceThickness')
+    if mask is not None:
+        mask, _ = mask_array(mask, on=ref, dim=t)
+        mask = mask[...,0]
+    series.message('Interpolating slice gaps..')
+    output_array = vreg.fill_gaps(input_array[...,0], input_geom[...,0], mask=mask)
+    output_series = ref.copy(SeriesDescription = series.instance().SeriesDescription + '_fill')
+    output_series.set_pixel_values(output_array, dims=z)
+    return output_series
+
+
 def _equal_geometry(affine1, affine2):
     # Check if both are the same, 
     # ignoring the order in the list
@@ -166,14 +186,14 @@ def _map_slice_group_to_slice_group(source, affine_source, target, output_affine
     return mapped_series
 
 
-def mask_array(mask, on=None, dim='InstanceNumber'):
-    """Map non-zero pixels onto another series"""
+def mask_array(mask, on=None, dim='InstanceNumber', geom=False):
 
     if on is None:
+        # geom keyword not yet implemented
         return dbdicom.array(mask, sortby=['SliceLocation', dim], mask=True, pixels_first=True, first_volume=True)
 
     # Get transformation matrix
-    mask.status.message('Loading transformation matrices..')
+    mask.message('Loading transformation matrices..')
     affine_source = mask.affine_matrix()
     affine_target = on.affine_matrix() 
 
@@ -186,13 +206,13 @@ def mask_array(mask, on=None, dim='InstanceNumber'):
                 affine_slice_group_target[1], 
                 affine_source, 
                 affine_slice_group_target[0],
-                dim=dim,
+                dim=dim, geom=geom,
             )
             mapped_arrays.append(mapped)
             mapped_headers.append(headers)
     else:
         mapped_arrays, mapped_headers = _map_mask_series_to_slice_group(
-            mask, on, affine_source, affine_target[0], dim=dim)
+            mask, on, affine_source, affine_target[0], dim=dim, geom=geom)
     return mapped_arrays, mapped_headers
 
 
@@ -217,7 +237,7 @@ def _map_mask_series_to_slice_group(source, target, affine_source, affine_target
         return _map_mask_slice_group_to_slice_group(source, target, affine_source[0], affine_target, **kwargs)
 
 
-def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target, dim='InstanceNumber'):
+def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_target, dim='InstanceNumber', geom=False):
 
     if isinstance(source, list):
         status = source[0].status
@@ -228,6 +248,10 @@ def _map_mask_slice_group_to_slice_group(source, target, affine_source, affine_t
     array_source, headers_source = dbdicom.array(source, sortby=['SliceLocation',dim], pixels_first=True, first_volume=True)
     array_target, headers_target = dbdicom.array(target, sortby=['SliceLocation',dim], pixels_first=True, first_volume=True)
 
+    if geom:
+        # mask shows geometry of source
+        array_source = np.full(array_source.shape, 1)
+        
     # For mapping mask onto series, the time dimensions must be the same.
     # If they are not, the mask is extruded on to the series time dimensions.
     nk = array_target.shape[3]

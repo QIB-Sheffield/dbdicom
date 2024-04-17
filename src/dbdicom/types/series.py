@@ -640,6 +640,7 @@ class Series(Record):
 
 
     def set_values(self, values, tags, dims=('InstanceNumber', ), slice={}, coords={}, **filters):
+        # Note tags, values is a more logical order considering we have self.values(tags)
         """Set the values of an attribute.
 
         Args:
@@ -708,17 +709,19 @@ class Series(Record):
         # Check that values all have the proper format:
         values = list(values)
         for i, v in enumerate(values):
-            if not isinstance(v, np.ndarray):
-                values[i] = np.full(frames.shape, v) 
-            if values[i].size != frames.size:
-                msg = 'Cannot set values: number of values does not match number of frames.'
-                raise ValueError(msg)
-            values[i] = values[i].ravel()
+            #if not isinstance(v, np.ndarray):
+            #    values[i] = np.full(frames.shape, v) 
+            if isinstance(v, np.ndarray):
+                if values[i].size != frames.size:
+                    msg = 'Cannot set values: number of values does not match number of frames.'
+                    raise ValueError(msg)
+                values[i] = values[i].ravel()
     
         # Set values
         for f, frame in enumerate(frames):
             self.progress(f+1, frames.size, 'Writing values..')
-            frame[list(tags)] = [v[f] for v in values]
+            frame[list(tags)] = [v if np.isscalar(v) else v[f] for v in values]
+            #frame[list(tags)] = [v[f] for v in values]
 
 
     def set_gridcoords(self, gridcoords:dict, dims=(), slice={}, coords={}, **filters):
