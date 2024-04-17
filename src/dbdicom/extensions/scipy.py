@@ -103,7 +103,7 @@ def _mask_curve_3d_data(msk_arr, img_hdrs, ids, dim):
     data = []
     nt = msk_arr[0].shape[-1]
     for t in range(nt):
-        img_hdrs[0][0,0].status.progress(t+1, nt, 'Extracting mask time curves..')
+        img_hdrs[0][0,0].progress(t+1, nt, 'Extracting mask time curves..')
         # Concatenate data at time t for each slice group
         arr = [_mask_data(arr_i[...,t], img_hdrs[i][...,t]) for i, arr_i in enumerate(msk_arr)]
         arr = [d for d in arr if d is not None]
@@ -1178,7 +1178,7 @@ def series_calculator(series, operation='1 - series', param=None):
     result = series.copy(SeriesDescription = desc + ' [' + operation + ']')
     images = result.images()
     for i, img in enumerate(images):
-        series.status.progress(i+1, len(images), 'Calculating..')
+        series.progress(i+1, len(images), 'Calculating..')
         img.read()
         array = img.array()
         if operation == '1 - series':
@@ -1220,22 +1220,22 @@ def image_calculator(series1, series2, operation='series 1 - series 2', integer=
         img2.read()
         array1 = img1.array()
         array2 = img2.array()
-        if operation == 'series 1 + series 2':
+        if operation in ['series 1 + series 2', '+', 'sum']:
             array = array1 + array2
             desc = ' [add]'
-        elif operation == 'series 1 - series 2':
+        elif operation in ['series 1 - series 2', '-', 'diff']:
             array = array1 - array2
             desc = ' [difference]'
-        elif operation == 'series 1 / series 2':
+        elif operation in ['series 1 / series 2', '/', 'div']:
             array = array1 / array2
             desc = ' [divide]'
-        elif operation == 'series 1 * series 2':
+        elif operation in ['series 1 * series 2', '*', 'mult']:
             array = array1 * array2
             desc = ' [multiply]'
-        elif operation == '(series 1 - series 2)/series 2':
+        elif operation in ['(series 1 - series 2)/series 2', 'rdiff']:
             array = (array1 - array2)/array2
             desc = ' [relative difference]'
-        elif operation == 'average(series 1, series 2)':
+        elif operation in ['average(series 1, series 2)', 'avr', 'mean']:
             array = (array1 + array2)/2
             desc = ' [average]'
         array[~np.isfinite(array)] = 0

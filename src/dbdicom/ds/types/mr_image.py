@@ -191,15 +191,24 @@ def set_pixel_array(ds, array):
         del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
     if (0x2005, 0x100D) in ds: 
         del ds[0x2005, 0x100D]
-    
+
     # clipping may slow down a lot
     array = image.clip(array.astype(np.float32))
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
     ds.PixelRepresentation = 0
-    ds.set_values('SmallestImagePixelValue', int(0))
-    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+
+    # Does this need setting? Optional and should not be used like this anyway.
+    # Prob
+    vr = ds.data_element('SmallestImagePixelValue').VR 
+    if vr =='US':
+        ds.set_values('SmallestImagePixelValue', int(0))
+        ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+    else:
+        ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
+        ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
+
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

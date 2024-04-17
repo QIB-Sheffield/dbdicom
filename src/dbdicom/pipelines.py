@@ -4,7 +4,7 @@ Some utilities for writing automated pipelines.
 
 
 
-def input_series(database, series_desc, study_desc):
+def input_series(database, series_desc, study_desc=None):
     """Select a list of series for processing, and a study for saving the results"""
 
     # Make sure the input is a list for convenience
@@ -28,8 +28,14 @@ def input_series(database, series_desc, study_desc):
         else:
             series = series[0]
         input_series.append(series)
-        
 
+    if study_desc is None:
+        # If the input was a list, return a list - else return a scalar.
+        if lst:
+            return input_series
+        else:
+            return input_series[0]
+        
     # Find study and check if valid.
     database.message('Finding export study ' + study_desc)
     studies = database.studies(StudyDescription=study_desc)

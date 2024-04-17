@@ -3,7 +3,7 @@ import numpy as np
 import scipy
 import scipy.optimize as opt
 import scipy.ndimage as ndi
-from scipy.interpolate import interpn
+from scipy.interpolate import interpn, griddata
 from scipy.spatial.transform import Rotation
 
 import pyvista as pv
@@ -14,6 +14,34 @@ from skimage.draw import ellipsoid
 ##########################
 # Helper functions
 ##########################
+
+
+def fill_gaps(data, loc, mask=None):
+    # Fill gaps in data by interpolation
+    # data is an array with values
+    # loc is a mask array defining where to interpolate (0=interpolate, 1=value)
+    # mask is a mask array to restrict the interpolation to certain regions.
+
+    x, y, z = np.indices(data.shape)
+
+    # Get locations and values of non-zero pixels
+    i = loc>0.5
+    if mask is not None:
+        i = i & (mask==1)
+    points = np.column_stack([x[i], y[i], z[i]])
+    values = data[i]
+
+    # Interpolate using griddata
+    k = loc<0.5
+    if mask is not None:
+        k = k & (mask==1)
+    filled = data.copy()
+    filled[k] = griddata(points, values, (x[k], y[k], z[k]), method='linear', fill_value=0)
+
+    if mask is not None:
+        filled *= mask
+
+    return filled
 
 
 def volume_coordinates(shape, position=[0,0,0]):
