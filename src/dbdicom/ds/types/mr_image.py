@@ -201,13 +201,14 @@ def set_pixel_array(ds, array):
 
     # Does this need setting? Optional and should not be used like this anyway.
     # Prob
-    vr = ds.data_element('SmallestImagePixelValue').VR 
-    if vr =='US':
-        ds.set_values('SmallestImagePixelValue', int(0))
-        ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
-    else:
-        ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
-        ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
+    # 11 june 2016: commented this out it produced busg in some cases due to US vs SS confusion
+    # vr = ds.data_element('SmallestImagePixelValue').VR 
+    # if vr =='US':
+    #     ds.set_values('SmallestImagePixelValue', int(0))
+    #     ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+    # else:
+    #     ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
+    #     ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
 
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
