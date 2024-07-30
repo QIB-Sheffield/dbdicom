@@ -1205,7 +1205,7 @@ def series_calculator(series, operation='1 - series', param=None):
     return result
 
 
-def image_calculator(series1, series2, operation='series 1 - series 2', integer=False):
+def image_calculator(series1, series2, operation='series 1 - series 2', integer=False, series_desc=None):
 
     result = map_to(series2, series1)
     if result == series2: # same geometry
@@ -1244,7 +1244,10 @@ def image_calculator(series1, series2, operation='series 1 - series 2', integer=
         img2.set_array(array)
         _reset_window(img2, array.astype(np.ubyte))
         img2.clear()
-    result.SeriesDescription = result.instance().SeriesDescription + desc
+    if series_desc is None:
+        result.SeriesDescription = result.instance().SeriesDescription + desc
+    else:
+        result.SeriesDescription = desc
     return result
 
 
