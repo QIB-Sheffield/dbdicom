@@ -4,7 +4,7 @@ Some utilities for writing automated pipelines.
 
 
 
-def input_series(database, series_desc, study_desc=None):
+def input_series(database, series_desc, study_desc=None, handle_duplicate=False):
     """Select a list of series for processing, and a study for saving the results"""
 
     # Make sure the input is a list for convenience
@@ -22,9 +22,13 @@ def input_series(database, series_desc, study_desc=None):
             return None, None
         elif len(series) > 1:
             msg = 'Multiple series found with the description: ' + desc + '\n'
-            msg += 'Please rename the others so there is only one.'
+            #msg += 'Please rename the others so there is only one.'
+            msg += 'Last one was selected'
             database.dialog.information(msg)
-            return None, None
+            if handle_duplicate:
+                series = series[-1]
+            else:
+                return None,None
         else:
             series = series[0]
         input_series.append(series)
@@ -43,9 +47,15 @@ def input_series(database, series_desc, study_desc=None):
         study = input_series[0].new_pibling(StudyDescription=study_desc)
     elif len(studies) > 1:
         msg = 'Multiple studies found with the same description: ' + study_desc + '\n'
-        msg += 'Please rename the others so there is only one, or choose another study for the output.'
+        #msg += 'Please rename the others so there is only one, or choose another study for the output.'
+        msg += 'Last one was selected'
         database.dialog.information(msg)
-        return None, None
+        #return None, None
+        if handle_duplicate:
+            study = studies[-1]
+        else:
+            return None,None
+        
     else:
         study = studies[0]
 
