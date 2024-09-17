@@ -1247,7 +1247,7 @@ def image_calculator(series1, series2, operation='series 1 - series 2', integer=
     if series_desc is None:
         result.SeriesDescription = result.instance().SeriesDescription + desc
     else:
-        result.SeriesDescription = desc
+        result.SeriesDescription = series_desc
     return result
 
 
