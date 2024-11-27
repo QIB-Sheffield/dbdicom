@@ -686,7 +686,7 @@ def apply_rigid_transformation(series_moving:Series, parameters:np.ndarray,  tar
     return series_moved
 
 
-def apply_passive_rigid_transformation(series_moving:Series, parameters:np.ndarray)->Series:
+def apply_passive_rigid_transformation(series_moving:Series, parameters:np.ndarray,description:str=None)->Series:
     """Apply passive rigid transformation of an image volume.
 
     Args:
@@ -712,7 +712,9 @@ def apply_passive_rigid_transformation(series_moving:Series, parameters:np.ndarr
 
     series_moving.message('Applying passive rigid transformation..')
     output_affine = vreg.passive_rigid_transform(affine_moving, parameters)
-    series_moved = series_moving.copy(SeriesDescription = desc_moving + ' [passive rigid]')
+    if description is None:
+        description = desc_moving + ' [passive rigid]'
+    series_moved = series_moving.copy(SeriesDescription = description)
     series_moved.set_affine(output_affine, dims=('SliceLocation',), multislice=True)
     return series_moved
 
