@@ -11,7 +11,7 @@
         :class: sphx-glr-download-link-note
 
         :ref:`Go to the end <sphx_glr_download_generated_examples_transform_plot_rotate_and_translate.py>`
-        to download the full example code or to run this example in your browser via Binder
+        to download the full example code. or to run this example in your browser via Binder
 
 .. rst-class:: sphx-glr-example-title
 
@@ -28,7 +28,7 @@ This example illustrates the use of the function `.rotate()` from the dbdicom ex
 
 .. GENERATED FROM PYTHON SOURCE LINES 10-19
 
-.. code-block:: default
+.. code-block:: Python
 
     import numpy as np
 
@@ -52,7 +52,7 @@ Generate and display an ellipsoid test object
 
 .. GENERATED FROM PYTHON SOURCE LINES 21-25
 
-.. code-block:: default
+.. code-block:: Python
 
 
     ellipsoid_orig = double_ellipsoid(12, 40, 32, spacing=(2,3,1), levelset=True)
@@ -76,7 +76,7 @@ Define a rotation vector, apply it and display the result again.
 
 .. GENERATED FROM PYTHON SOURCE LINES 27-37
 
-.. code-block:: default
+.. code-block:: Python
 
 
     # Define an anticlockwise rotation of 30 degrees around the y-axis
@@ -90,18 +90,12 @@ Define a rotation vector, apply it and display the result again.
 
 
 
-.. rst-class:: sphx-glr-script-out
 
-.. code-block:: pytb
+.. image-sg:: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_002.png
+   :alt: plot rotate and translate
+   :srcset: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_002.png
+   :class: sphx-glr-single-img
 
-    Traceback (most recent call last):
-      File "C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\docs\examples\transform\plot_rotate_and_translate.py", line 32, in <module>
-        ellipsoid_rot = rotate(ellipsoid_orig, rotation, reshape=True, mode='nearest')
-      File "C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\src\dbdicom\extensions\vreg.py", line 656, in rotate
-        output_series.set_pixel_values(output_array, coords={'SliceLocation': np.arange(output_array.shape[-1])})
-      File "C:\Users\steve\Dropbox\Software\QIB-Sheffield\dbdicom\src\dbdicom\types\series.py", line 1150, in set_pixel_values
-        raise ValueError(msg)
-    ValueError: Cannot set values to an empty series. Use Series.expand() to create empty frames first, or set the loc keyword to define coordinates for the new frames.
 
 
 
@@ -112,10 +106,21 @@ Display the rotated shape as a mosaic
 
 .. GENERATED FROM PYTHON SOURCE LINES 39-42
 
-.. code-block:: default
+.. code-block:: Python
 
 
     plot_mosaic(ellipsoid_rot) 
+
+
+
+
+.. image-sg:: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_003.png
+   :alt: plot rotate and translate
+   :srcset: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_003.png
+   :class: sphx-glr-single-img
+
+
+
 
 
 .. GENERATED FROM PYTHON SOURCE LINES 43-44
@@ -124,11 +129,22 @@ When applying the rotation we used the `mode='nearest'` so that the values outsi
 
 .. GENERATED FROM PYTHON SOURCE LINES 44-49
 
-.. code-block:: default
+.. code-block:: Python
 
 
     ellipsoid_rot = rotate(ellipsoid_orig, rotation, reshape=True)
     plot_surface(ellipsoid_rot)
+
+
+
+
+
+.. image-sg:: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_004.png
+   :alt: plot rotate and translate
+   :srcset: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_004.png
+   :class: sphx-glr-single-img
+
+
 
 
 
@@ -138,15 +154,26 @@ We used `reshape=True` so the new volume would encompass the entire shape. Runni
 
 .. GENERATED FROM PYTHON SOURCE LINES 51-53
 
-.. code-block:: default
+.. code-block:: Python
 
 
     ellipsoid_rot = rotate(ellipsoid_orig, rotation, reshape=False, mode='nearest')
     plot_surface(ellipsoid_rot)
 
+
+.. image-sg:: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_005.png
+   :alt: plot rotate and translate
+   :srcset: /generated/examples/transform/images/sphx_glr_plot_rotate_and_translate_005.png
+   :class: sphx-glr-single-img
+
+
+
+
+
+
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  3.280 seconds)
+   **Total running time of the script:** (0 minutes 24.695 seconds)
 
 
 .. _sphx_glr_download_generated_examples_transform_plot_rotate_and_translate.py:
@@ -155,7 +182,6 @@ We used `reshape=True` so the new volume would encompass the entire shape. Runni
 
   .. container:: sphx-glr-footer sphx-glr-footer-example
 
-
     .. container:: binder-badge
 
       .. image:: images/binder_badge_logo.svg
@@ -163,15 +189,17 @@ We used `reshape=True` so the new volume would encompass the entire shape. Runni
         :alt: Launch binder
         :width: 150 px
 
+    .. container:: sphx-glr-download sphx-glr-download-jupyter
 
+      :download:`Download Jupyter notebook: plot_rotate_and_translate.ipynb <plot_rotate_and_translate.ipynb>`
 
     .. container:: sphx-glr-download sphx-glr-download-python
 
       :download:`Download Python source code: plot_rotate_and_translate.py <plot_rotate_and_translate.py>`
 
-    .. container:: sphx-glr-download sphx-glr-download-jupyter
+    .. container:: sphx-glr-download sphx-glr-download-zip
 
-      :download:`Download Jupyter notebook: plot_rotate_and_translate.ipynb <plot_rotate_and_translate.ipynb>`
+      :download:`Download zipped: plot_rotate_and_translate.zip <plot_rotate_and_translate.zip>`
 
 
 .. only:: html

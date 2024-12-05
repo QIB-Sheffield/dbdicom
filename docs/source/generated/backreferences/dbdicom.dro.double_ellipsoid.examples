@@ -11,6 +11,7 @@ Examples using ``dbdicom.dro.double_ellipsoid``
 
     <div class="sphx-glr-thumbnails">
 
+.. thumbnail-parent-div-open
 
 .. raw:: html
 
@@ -32,6 +33,8 @@ Examples using ``dbdicom.dro.double_ellipsoid``
 .. only:: not html
 
  * :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py`
+
+.. thumbnail-parent-div-close
 
 .. raw:: html
 

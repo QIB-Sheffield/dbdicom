@@ -14,6 +14,7 @@ Volume transforms
 
     <div class="sphx-glr-thumbnails">
 
+.. thumbnail-parent-div-open
 
 .. raw:: html
 
@@ -48,6 +49,8 @@ Volume transforms
       <div class="sphx-glr-thumbnail-title">Rotate and translate</div>
     </div>
 
+
+.. thumbnail-parent-div-close
 
 .. raw:: html
 

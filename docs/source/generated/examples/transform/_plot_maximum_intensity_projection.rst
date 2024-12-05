@@ -11,7 +11,7 @@
         :class: sphx-glr-download-link-note
 
         :ref:`Go to the end <sphx_glr_download_generated_examples_transform__plot_maximum_intensity_projection.py>`
-        to download the full example code or to run this example in your browser via Binder
+        to download the full example code. or to run this example in your browser via Binder
 
 .. rst-class:: sphx-glr-example-title
 
@@ -26,7 +26,7 @@ Creating a maximum intensity projection of an image volume.
 
 .. GENERATED FROM PYTHON SOURCE LINES 8-13
 
-.. code-block:: default
+.. code-block:: Python
 
 
     import numpy as np
@@ -40,7 +40,7 @@ Create some test data, in this case a zero-filled array, describing 8 MRI images
 
 .. GENERATED FROM PYTHON SOURCE LINES 15-23
 
-.. code-block:: default
+.. code-block:: Python
 
 
     coords = {
@@ -57,7 +57,7 @@ Create a maximum intensity projection
 
 .. GENERATED FROM PYTHON SOURCE LINES 25-28
 
-.. code-block:: default
+.. code-block:: Python
 
 
     mip = maximum_intensity_projection(series, dims=tuple(coords), axis=0)
@@ -69,7 +69,7 @@ To see what happened we can retrieve the nympy array of the MIP
 
 .. GENERATED FROM PYTHON SOURCE LINES 30-36
 
-.. code-block:: default
+.. code-block:: Python
 
 
     array = mip.pixel_values(dims=('SliceLocation', 'ImageNumber'))
@@ -79,17 +79,11 @@ To see what happened we can retrieve the nympy array of the MIP
     # sphinx_gallery_thumbnail_path = '_static/dbd.png'
 
 
-.. rst-class:: sphx-glr-timing
-
-   **Total running time of the script:** ( 0 minutes  0.000 seconds)
-
-
 .. _sphx_glr_download_generated_examples_transform__plot_maximum_intensity_projection.py:
 
 .. only:: html
 
   .. container:: sphx-glr-footer sphx-glr-footer-example
-
 
     .. container:: binder-badge
 
@@ -98,15 +92,17 @@ To see what happened we can retrieve the nympy array of the MIP
         :alt: Launch binder
         :width: 150 px
 
+    .. container:: sphx-glr-download sphx-glr-download-jupyter
 
+      :download:`Download Jupyter notebook: _plot_maximum_intensity_projection.ipynb <_plot_maximum_intensity_projection.ipynb>`
 
     .. container:: sphx-glr-download sphx-glr-download-python
 
       :download:`Download Python source code: _plot_maximum_intensity_projection.py <_plot_maximum_intensity_projection.py>`
 
-    .. container:: sphx-glr-download sphx-glr-download-jupyter
+    .. container:: sphx-glr-download sphx-glr-download-zip
 
-      :download:`Download Jupyter notebook: _plot_maximum_intensity_projection.ipynb <_plot_maximum_intensity_projection.ipynb>`
+      :download:`Download zipped: _plot_maximum_intensity_projection.zip <_plot_maximum_intensity_projection.zip>`
 
 
 .. only:: html

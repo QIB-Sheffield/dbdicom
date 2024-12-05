@@ -11,27 +11,7 @@ Examples using ``dbdicom.types.series.Series``
 
     <div class="sphx-glr-thumbnails">
 
-
-.. raw:: html
-
-    <div class="sphx-glr-thumbcontainer" tooltip="5-dimensions dataset simulating MRI data collected fro T1-mapping using the technical of variab...">
-
-.. only:: html
-
-  .. image:: /generated/examples/dro/images/thumb/sphx_glr_plot_T1_mapping_vFATR_thumb.png
-    :alt:
-
-  :ref:`sphx_glr_generated_examples_dro_plot_T1_mapping_vFATR.py`
-
-.. raw:: html
-
-      <div class="sphx-glr-thumbnail-title">T1-mapping with variable TR and FA</div>
-    </div>
-
-
-.. only:: not html
-
- * :ref:`sphx_glr_generated_examples_dro_plot_T1_mapping_vFATR.py`
+.. thumbnail-parent-div-open
 
 .. raw:: html
 
@@ -53,6 +33,8 @@ Examples using ``dbdicom.types.series.Series``
 .. only:: not html
 
  * :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py`
+
+.. thumbnail-parent-div-close
 
 .. raw:: html
 

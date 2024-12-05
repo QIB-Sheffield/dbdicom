@@ -1,12 +1,12 @@
 
 :orphan:
 
-.. _sphx_glr_generated_examples_transform_sg_execution_times:
+.. _sphx_glr_generated_examples_sg_execution_times:
 
 
 Computation times
 =================
-**00:24.695** total execution time for 2 files **from generated\examples\transform**:
+**00:00.000** total execution time for 0 files **from generated\examples**:
 
 .. container::
 
@@ -32,9 +32,6 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py` (``plot_rotate_and_translate.py``)
-     - 00:24.695
-     - 0.0
-   * - :ref:`sphx_glr_generated_examples_transform__plot_maximum_intensity_projection.py` (``_plot_maximum_intensity_projection.py``)
-     - 00:00.000
-     - 0.0
+   * - N/A
+     - N/A
+     - N/A

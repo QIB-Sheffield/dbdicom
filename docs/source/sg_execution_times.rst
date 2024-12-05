@@ -1,12 +1,12 @@
 
 :orphan:
 
-.. _sphx_glr_generated_examples_transform_sg_execution_times:
+.. _sphx_glr_sg_execution_times:
 
 
 Computation times
 =================
-**00:24.695** total execution time for 2 files **from generated\examples\transform**:
+**00:24.695** total execution time for 4 files **from all galleries**:
 
 .. container::
 
@@ -32,9 +32,15 @@ Computation times
    * - Example
      - Time
      - Mem (MB)
-   * - :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py` (``plot_rotate_and_translate.py``)
+   * - :ref:`sphx_glr_generated_examples_transform_plot_rotate_and_translate.py` (``..\examples\transform\plot_rotate_and_translate.py``)
      - 00:24.695
      - 0.0
-   * - :ref:`sphx_glr_generated_examples_transform__plot_maximum_intensity_projection.py` (``_plot_maximum_intensity_projection.py``)
+   * - :ref:`sphx_glr_generated_examples_dro_plot_T1_mapping_vFATR.py` (``..\examples\dro\plot_T1_mapping_vFATR.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_generated_examples_dro_plot_ellipsoid.py` (``..\examples\dro\plot_ellipsoid.py``)
+     - 00:00.000
+     - 0.0
+   * - :ref:`sphx_glr_generated_examples_transform__plot_maximum_intensity_projection.py` (``..\examples\transform\_plot_maximum_intensity_projection.py``)
      - 00:00.000
      - 0.0

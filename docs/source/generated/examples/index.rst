@@ -14,6 +14,9 @@ Illustrating common use cases of dbdicom.
 
     <div class="sphx-glr-thumbnails">
 
+.. thumbnail-parent-div-open
+
+.. thumbnail-parent-div-close
 
 .. raw:: html
 
@@ -31,10 +34,11 @@ Digital reference objects
 
     <div class="sphx-glr-thumbnails">
 
+.. thumbnail-parent-div-open
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="5-dimensions dataset simulating MRI data collected fro T1-mapping using the technical of variab...">
+    <div class="sphx-glr-thumbcontainer" tooltip="5-dimensions dataset simulating MRI data collected fro T1-mapping using the technical of variable flip angles and repetition times. ">
 
 .. only:: html
 
@@ -66,6 +70,8 @@ Digital reference objects
     </div>
 
 
+.. thumbnail-parent-div-close
+
 .. raw:: html
 
     </div>
@@ -82,6 +88,7 @@ Volume transforms
 
     <div class="sphx-glr-thumbnails">
 
+.. thumbnail-parent-div-open
 
 .. raw:: html
 
@@ -116,6 +123,8 @@ Volume transforms
       <div class="sphx-glr-thumbnail-title">Rotate and translate</div>
     </div>
 
+
+.. thumbnail-parent-div-close
 
 .. raw:: html
 
