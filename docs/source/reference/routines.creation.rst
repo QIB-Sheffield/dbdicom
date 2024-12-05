@@ -8,7 +8,9 @@ Empty records
 -------------
 
 .. autosummary::
-   :toctree: generated/
+   :toctree: ../generated/api/
+   :template: autosummary.rst
+   :nosignatures:
 
    database
    patient
@@ -20,19 +22,14 @@ Series from value
 -----------------
 
 .. autosummary::
-   :toctree: generated/
+   :toctree: ../generated/api/
+   :template: autosummary.rst
+   :nosignatures:
 
    as_series
    zeros
    ones
+   empty_series
 
-
-Reference objects
------------------
-
-.. autosummary::
-   :toctree: generated/
-
-   database_hollywood
 
 

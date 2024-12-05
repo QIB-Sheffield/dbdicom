@@ -1,8 +1,12 @@
 matplotlib
 nibabel
-numpy
+numpy<=1.26.4
+scipy
+imageio
 pandas
 pydicom
 python-gdcm
 pylibjpeg-libjpeg
 importlib-resources
+scipy
+imageio

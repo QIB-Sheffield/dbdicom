@@ -2,6 +2,6 @@ dipy
 ====
 
 
-.. automodule:: dbdicom.wrappers.dipy
+.. automodule:: dbdicom.extensions.dipy
    :members:
    :undoc-members:

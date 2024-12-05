@@ -46,10 +46,13 @@ class Instance(Record):
         ds = self.get_dataset()
         return ds.get_pixel_array()
 
-    def set_array(self, array):
+    def set_array(self, array): # obsolete
+        self.set_pixel_array(array)
+
+    def set_pixel_values(self, array):
         self.set_pixel_array(array)
         
-    def set_pixel_array(self, array):
+    def set_pixel_array(self, array): # make private
         ds = self.get_dataset()
         if ds is None:
             ds = new_dataset('MRImage')
@@ -190,7 +193,7 @@ def map_to(source, target):
 
     return result
 
-
+# Obsolete
 def map_mask_to(record, target):
     """Map non-zero image pixels onto a target image.
     Overwrite pixel values in the target"""

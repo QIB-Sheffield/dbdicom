@@ -6,7 +6,7 @@ from dbdicom.manager import Manager
 from dbdicom.types.database import Database
 from dbdicom.types.patient import Patient
 from dbdicom.types.study import Study
-from dbdicom.types.series import Series
+from dbdicom.types.series import Series, _coords_size, _grid_to_coords
 from dbdicom.types.instance import Instance
 
 
@@ -270,6 +270,7 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
     else:
         if in_database is None:
             _database = database()
+            _database.mute()
         else:
             _database = in_database
         patient = _database.new_patient()
@@ -281,73 +282,14 @@ def series(dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs
 
 
 
-def database_hollywood()->Database:
-    """Create an empty toy database for demonstration purposes.
 
-    Returns:
-        Database: Database with two patients, two studies per patient and two empty series per study.
-
-    See Also:
-        :func:`~database`
-
-    Example:
-        >>> database = db.database_hollywood()
-        >>> database.print()
-        ---------- DATABASE --------------
-        Location:  In memory
-            Patient James Bond
-                Study MRI [19821201]
-                    Series 001 [Localizer]
-                        Nr of instances: 0
-                    Series 002 [T2w]
-                        Nr of instances: 0
-                Study Xray [19821205]
-                    Series 001 [Chest]
-                        Nr of instances: 0
-                    Series 002 [Head]
-                        Nr of instances: 0
-            Patient Scarface
-                Study MRI [19850105]
-                    Series 001 [Localizer]
-                        Nr of instances: 0
-                    Series 002 [T2w]
-                        Nr of instances: 0
-                Study Xray [19850106]
-                    Series 001 [Chest]
-                        Nr of instances: 0
-                    Series 002 [Head]
-                        Nr of instances: 0
-        ---------------------------------
-    """
-    hollywood = database()
-
-    james_bond = hollywood.new_patient(PatientName='James Bond')
-    james_bond_mri = james_bond.new_study(StudyDescription='MRI', StudyDate='19821201')
-    james_bond_mri_localizer = james_bond_mri.new_series(SeriesDescription='Localizer')
-    james_bond_mri_T2w = james_bond_mri.new_series(SeriesDescription='T2w')
-    james_bond_xray = james_bond.new_study(StudyDescription='Xray', StudyDate='19821205')
-    james_bond_xray_chest = james_bond_xray.new_series(SeriesDescription='Chest')
-    james_bond_xray_head = james_bond_xray.new_series(SeriesDescription='Head')
-
-    scarface = hollywood.new_patient(PatientName='Scarface')
-    scarface_mri = scarface.new_study(StudyDescription='MRI', StudyDate='19850105')
-    scarface_mri_localizer = scarface_mri.new_series(SeriesDescription='Localizer')
-    scarface_mri_T2w = scarface_mri.new_series(SeriesDescription='T2w')
-    scarface_xray = scarface.new_study(StudyDescription='Xray', StudyDate='19850106')
-    scarface_xray_chest = scarface_xray.new_series(SeriesDescription='Chest')
-    scarface_xray_head = scarface_xray.new_series(SeriesDescription='Head')
-
-    return hollywood
-
-
-
-
-def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+def as_series(array:np.ndarray, coords:dict=None, gridcoords:dict=None, dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
     """Create a DICOM series from a numpy array.
 
     Args:
         array (np.ndarray): numpy.ndarray with image data
-        coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions this is required. The coordinate values can be one-dimensions for regularly gridded data, or n-dimensional for irregularly gridded data. 
+        coords (dict, optional): Dictionary with coordinate labels and values. For 3- or 4-dimensional arrays this is optional but for arrays with more than 4 dimensions either *coords* or *gridcoords* are required. 
+        gridcoords (dict, optional): regularly gridded coordinates can also be provided as a coordinate grid.
         dtype (str, optional): The type of the series to create. Defaults to 'mri'.
         in_study (Study, optional): If provided, the series is created in this study. Defaults to None.
         in_database (Database, optional): If provided, the series is created in this database. Defaults to None.
@@ -404,23 +346,37 @@ def as_series(array:np.ndarray, coords:dict=None, dtype='mri', in_study:Study=No
     """
     shape = array.shape
     if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
+        if gridcoords is None:
+            if len(shape) > 4:
+                msg = 'With more than 4 dimensions, the coords argument is required.'
+                raise ValueError(msg)
+            gridcoords = {}
+            if len(shape) == 2:
+                gridcoords['InstanceNumber'] = np.array([1])
             if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(array.shape[2])
+                gridcoords['SliceLocation'] = np.arange(shape[2])
             if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(array.shape[3])
+                gridcoords['AcquisitionTime'] = np.arange(shape[3])
+    if gridcoords is not None:
+        coords = _grid_to_coords(gridcoords)
     sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
-    sery.mute()
-    sery.set_ndarray(array, coords=coords)
-    sery.unmute()
+    sery.expand(coords)
+    sery.set_pixel_values(array, dims=tuple(coords))
     return sery
 
 
-def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
+def empty_series(coords:dict=None, gridcoords:dict=None,  dtype='mri', in_study:Study=None, in_database:Database=None, **kwargs)->Series:
+
+    if gridcoords is not None:
+        coords = _grid_to_coords(gridcoords)
+    sery = series(dtype=dtype, in_study=in_study, in_database=in_database, **kwargs)
+    if coords is None:
+        return sery
+    sery.expand(coords)
+    return sery
+
+
+def zeros(shape:tuple, coords:dict=None, gridcoords:dict=None, **kwargs) -> Series:
     """Create a DICOM series populated with zeros.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -456,21 +412,12 @@ def zeros(shape:tuple, coords:dict=None, **kwargs) -> Series:
         >>> array = np.zeros((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
-    if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
-            if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(shape[2])
-            if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(shape[3])
+
     array = np.zeros(shape, dtype=np.float32)
-    return as_series(array, coords=coords, **kwargs)
+    return as_series(array, coords=coords, gridcoords=gridcoords, **kwargs)
 
 
-def ones(shape:tuple, coords:dict=None, **kwargs) -> Series:
+def ones(shape:tuple, coords:dict=None, gridcoords:dict=None, **kwargs) -> Series:
     """Create a DICOM series populated with ones.
 
     This is a convenience wrapper providing a numpy-like interface for :func:`~as_series`.
@@ -506,15 +453,5 @@ def ones(shape:tuple, coords:dict=None, **kwargs) -> Series:
         >>> array = np.ones((128, 128, 2, 3))
         >>> zeros = db.as_series(array)
     """
-    if coords is None:
-        if len(shape) > 4:
-            msg = 'With more than 4 dimensions, the coordinates argument is required'
-            raise ValueError(msg)
-        else:
-            coords = {}
-            if len(shape) > 2:
-                coords['SliceLocation'] = np.arange(shape[2])
-            if len(shape) > 3:
-                coords['AcquisitionTime'] = np.arange(shape[3])
     array = np.ones(shape, dtype=np.float32)
-    return as_series(array, coords=coords, **kwargs)
+    return as_series(array, coords=coords, gridcoords=gridcoords, **kwargs)

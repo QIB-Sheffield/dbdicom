@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import dbdicom as db
 from dbdicom.ds import MRImage
-from dbdicom.wrappers import scipy
+from dbdicom.extensions import scipy
 
 
 
@@ -1259,8 +1259,6 @@ def test_as_series():
     series.AcquisitionTime = 12.0*60*60 + 1
     series.save(path)
 
-
-
     remove_tmp_database(path)
 
 
@@ -1331,6 +1329,51 @@ def test_read_time():
     remove_tmp_database(tmp)
 
 
+def test_function_copy_to():
+    database = db.dro.database_hollywood()
+    studies = database.studies(StudyDescription='MRI')
+    tarantino = database.new_patient(PatientName='Tarantino')
+    assert len(studies) == 2
+    assert len(tarantino.studies()) == 0
+    db.copy_to(studies, tarantino)
+    tarantino_MRIs = tarantino.studies()
+    assert len(tarantino_MRIs) == 2
+    tarantino_MRIs = tarantino.studies()
+    assert tarantino_MRIs[0].PatientName == 'Tarantino'
+    MRIs = database.studies(StudyDescription='MRI')
+    assert len(MRIs) == 4
+
+def test_function_move_to():
+    database = db.dro.database_hollywood()
+    studies = database.studies(StudyDescription='MRI')
+    tarantino = database.new_patient(PatientName='Tarantino')
+    assert len(studies) == 2
+    assert len(tarantino.studies()) == 0
+    db.move_to(studies, tarantino)
+    tarantino_MRIs = tarantino.studies()
+    assert len(tarantino_MRIs) == 2
+    tarantino_MRIs = tarantino.studies()
+    assert tarantino_MRIs[0].PatientName == 'Tarantino'
+    MRIs = database.studies(StudyDescription='MRI')
+    assert len(MRIs) == 2
+    jb = database.patients(PatientName = 'James Bond')
+    MRIs = jb[0].studies(StudyDescription='MRI')
+    assert len(MRIs)==0
+
+def test_function_merge():
+    database = db.dro.database_hollywood()
+    jb = database.patients(PatientName = 'James Bond')[0]
+    assert len(jb.studies()) == 2
+    new_study = db.merge(jb.studies())
+    assert len(jb.studies()) == 3
+    assert jb.StudyDescription == ['MRI', 'New Study', 'Xray']
+    assert len(new_study.series()) == 4
+    single_jb_study = db.merge(jb.studies(), inplace=True)
+    assert len(jb.studies()) == 1
+    assert len(single_jb_study.series()) == 8
+    
+
+
 if __name__ == "__main__":
 
     test_tmp()
@@ -1382,7 +1425,9 @@ if __name__ == "__main__":
     test_custom_attributes()
     test_affine_matrix()
     test_read_time()
-
+    test_function_copy_to()
+    test_function_move_to()
+    test_function_merge()
 
     print('------------------------')
     print('record passed all tests!')

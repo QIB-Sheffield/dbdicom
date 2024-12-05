@@ -126,11 +126,11 @@ def rider(ds): # required only - check
     ds.SeriesNumber = '14'
     ds.AcquisitionNumber = '1'
     ds.InstanceNumber = '1'
-    ds.ImagePositionPatient = [75.561665058136, -163.6216506958, 118.50172901154]
-    ds.ImageOrientationPatient = [0, 1, 0, 0, 0, -1]
+    ds.ImagePositionPatient = [0, 0, 0]
+    ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
     ds.FrameOfReferenceUID = '1.3.6.1.4.1.9328.50.16.22344679587635360510174487884943834158'
     ds.PositionReferenceIndicator = ''
-    ds.SliceLocation = '75.561665058136'
+    ds.SliceLocation = '0.0'
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = 'MONOCHROME2'
     ds.Rows = 64
@@ -156,7 +156,8 @@ def rider(ds): # required only - check
     ds.RequestAttributesSequence = Sequence()
     ds.RequestedProcedureID = '5133240'
     ds.StorageMediaFileSetUID = '1.3.6.1.4.1.9328.50.16.162890465625511526068665093825399871205'
-    ds.PixelData = np.arange(ds.Rows*ds.Columns, dtype=np.uint16)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    pixel_values = np.arange(ds.Rows*ds.Columns)*ds.LargestImagePixelValue/(ds.Rows*ds.Columns)
+    ds.PixelData = pixel_values.astype(np.uint16).tobytes()
 
     return ds
 
@@ -190,15 +191,25 @@ def set_pixel_array(ds, array):
         del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
     if (0x2005, 0x100D) in ds: 
         del ds[0x2005, 0x100D]
-    
+
     # clipping may slow down a lot
     array = image.clip(array.astype(np.float32))
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
     ds.PixelRepresentation = 0
-    ds.set_values('SmallestImagePixelValue', int(0))
-    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+
+    # Does this need setting? Optional and should not be used like this anyway.
+    # Prob
+    # 11 june 2016: commented this out it produced busg in some cases due to US vs SS confusion
+    # vr = ds.data_element('SmallestImagePixelValue').VR 
+    # if vr =='US':
+    #     ds.set_values('SmallestImagePixelValue', int(0))
+    #     ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+    # else:
+    #     ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
+    #     ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
+
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2

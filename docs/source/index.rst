@@ -27,6 +27,6 @@ The DICOM format is the universally recognised standard for medical imaging, but
    
    user_guide/index
    reference/index
-   tutorials/index
+   generated/examples/index
    developers_guide/index
    about/index

@@ -31,7 +31,7 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Install dbdicom
         run: |
-          python -m pip install -e .[wrappers]
+          python -m pip install -e .[extensions]
       - name: Test with pytest
         run: |
           python -m pip install pytest pytest-cov
