@@ -19,6 +19,7 @@ dependencies = [
     "importlib-resources", #necessary?
     'scipy',
     'imageio',
+    'vreg',
 ]
 
 # optional information

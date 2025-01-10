@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import dbdicom
-from dbdicom.utils import vreg
+import vreg
 from dbdicom import Series
 
 

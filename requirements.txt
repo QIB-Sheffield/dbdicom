@@ -8,5 +8,4 @@ pydicom
 python-gdcm
 pylibjpeg-libjpeg
 importlib-resources
-scipy
-imageio
+vreg

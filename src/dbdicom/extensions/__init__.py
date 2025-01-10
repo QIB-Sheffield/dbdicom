@@ -5,6 +5,5 @@ from . import (
     scipy, 
     skimage,
     sklearn,
-    vreg,
     matplotlib,
 )

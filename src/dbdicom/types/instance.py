@@ -7,6 +7,7 @@ import numpy as np
 import nibabel as nib
 import pandas as pd
 import matplotlib.pyplot as plt
+import vreg
 
 
 from dbdicom.record import Record
@@ -39,31 +40,12 @@ class Instance(Record):
         uid = self.manager.copy_instance_to_series(self.key(), series.keys(), series)
         return self.record('Instance', uid)
 
-    def array(self):
+    def pixel_values(self):
         return self.get_pixel_array()
-
-    def get_pixel_array(self):
-        ds = self.get_dataset()
-        return ds.get_pixel_array()
-
-    def set_array(self, array): # obsolete
-        self.set_pixel_array(array)
 
     def set_pixel_values(self, array):
         self.set_pixel_array(array)
         
-    def set_pixel_array(self, array): # make private
-        ds = self.get_dataset()
-        if ds is None:
-            ds = new_dataset('MRImage')
-        ds.set_pixel_array(array)
-        in_memory = self.key() in self.manager.dataset
-        self.set_dataset(ds) 
-        # This bit added ad-hoc because set_dataset() places the datset in memory
-        # So if the instance is not in memory, it needs to be written and removed again
-        if not in_memory:
-            self.clear()      
-
     def set_dataset(self, dataset):
         self._key = self.manager.set_instance_dataset(self.uid, dataset, self.key())
 
@@ -141,16 +123,55 @@ class Instance(Record):
             center = self.WindowCenter,
         )
     
+    def volume(self):
+        return vreg.volume(self.pixel_values(), 
+                           self.affine())
+    
+    def set_volume(self, volume:vreg.Volume3D):
+        self.set_pixel_values(np.squeeze(volume.values))
+        self.set_affine(volume.affine)
+    
+    def affine(self):
+        return image.affine_matrix(self.ImageOrientationPatient, 
+                                   self.ImagePositionPatient, 
+                                   self.PixelSpacing, 
+                                   self.SliceThickness)
+    
     def set_affine(self, affine):
         p = image.dismantle_affine_matrix(affine)
         self.read()
-        self.SpacingBetweenSlices = p['SpacingBetweenSlices']
-        self.SliceThickness = p['SpacingBetweenSlices']
+        #self.SpacingBetweenSlices = p['SpacingBetweenSlices']
+        self.SliceThickness = p['SliceThickness']
         self.PixelSpacing = p['PixelSpacing']
         self.ImageOrientationPatient = p['ImageOrientationPatient']
         self.ImagePositionPatient = p['ImagePositionPatient']
         self.SliceLocation = np.dot(p['ImagePositionPatient'], p['slice_cosine'])
         self.clear()
+
+
+    # OBSOLETE API
+
+    def array(self):  # obsolete replace by pixel_values
+        return self.get_pixel_array()
+
+    def get_pixel_array(self):  # obsolete replace by pixel_values
+        ds = self.get_dataset()
+        return ds.get_pixel_array()
+
+    def set_array(self, array): # obsolete replace by set_pixel_values
+        self.set_pixel_array(array)
+
+    def set_pixel_array(self, array): # obsolete replace by set_pixel_values
+        ds = self.get_dataset()
+        if ds is None:
+            ds = new_dataset('MRImage')
+        ds.set_pixel_array(array)
+        in_memory = self.key() in self.manager.dataset
+        self.set_dataset(ds) 
+        # This bit added ad-hoc because set_dataset() places the datset in memory
+        # So if the instance is not in memory, it needs to be written and removed again
+        if not in_memory:
+            self.clear()      
 
 
 def map_to(source, target):

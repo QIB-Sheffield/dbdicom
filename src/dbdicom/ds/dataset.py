@@ -463,6 +463,7 @@ def new_uid(n=None):
         return [pydicom.uid.generate_uid() for _ in range(n)]
 
 
+# Obsolete - replaced by instance.affine()
 def get_affine_matrix(ds):
     """Affine transformation matrix for a DICOM image"""
 
@@ -470,7 +471,6 @@ def get_affine_matrix(ds):
     # if slice_spacing is None:
     #     slice_spacing = get_values(ds, 'SliceThickness')
     slice_spacing = get_values(ds, 'SliceThickness')
-
     return image.affine_matrix(
         get_values(ds, 'ImageOrientationPatient'), 
         get_values(ds, 'ImagePositionPatient'), 
@@ -478,6 +478,7 @@ def get_affine_matrix(ds):
         slice_spacing)
 
 
+# Obsolete - replaced by instance.set_affine()
 def set_affine_matrix(ds, affine):
     v = image.dismantle_affine_matrix(affine)
     set_values(ds, 'PixelSpacing', v['PixelSpacing'])
