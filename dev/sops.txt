@@ -137,7 +137,7 @@ Creating a new release (from a fork)
 Creating a PyPi release
 -----------------------
 
-In the terminal, cd to the /mdreg directory, and:
+In the terminal, cd to the /dbdicom directory, and:
 
 >>> python -m build
 >>> twine upload dist/*
@@ -145,6 +145,6 @@ In the terminal, cd to the /mdreg directory, and:
 When prompted for user name, enter __token__
 
 As password paste the API token generated in PyPi mdreg repository 
-settings (https://pypi.org/manage/project/mdreg/settings/). 
+settings (https://pypi.org/manage/project/dbdicom/settings/). 
 Note: Paste with Ctrl-V does not work in Windows. Use Edit > Paste via the menu.
 

@@ -416,29 +416,7 @@ def affine_matrix(      # single slice function
     image_orientation,  # ImageOrientationPatient
     image_position,     # ImagePositionPatient
     pixel_spacing,      # PixelSpacing
-    slice_spacing):     # SpacingBetweenSlices
-    """
-    Calculate an affine transformation matrix for a single slice of an image in the DICOM file format.
-    The affine transformation matrix can be used to transform the image from its original coordinates
-    to a new set of coordinates.
-
-    Parameters:
-        image_orientation (list): a list of 6 elements representing the ImageOrientationPatient
-                                  DICOM tag for the image. This specifies the orientation of the
-                                  image slices in 3D space.
-        image_position (list): a list of 3 elements representing the ImagePositionPatient DICOM
-                               tag for the slice. This specifies the position of the slice in 3D space.
-        pixel_spacing (list): a list of 2 elements representing the PixelSpacing DICOM tag for the
-                              image. This specifies the spacing between pixels in the rows and columns
-                              of each slice.
-        slice_spacing (float): a float representing the SpacingBetweenSlices DICOM tag for the image. This
-                               specifies the spacing between slices in the image.
-
-    Returns:
-        np.ndarray: an affine transformation matrix represented as a 4x4 NumPy array with dtype `float32`.
-                    The matrix can be used to transform the image from its original coordinates to a new set
-                    of coordinates.
-    """
+    slice_thickness):     # SliceThickness
 
     row_spacing = pixel_spacing[0]
     column_spacing = pixel_spacing[1]
@@ -450,15 +428,15 @@ def affine_matrix(      # single slice function
     affine = np.identity(4, dtype=np.float32)
     affine[:3, 0] = row_cosine * column_spacing
     affine[:3, 1] = column_cosine * row_spacing
-    affine[:3, 2] = slice_cosine * slice_spacing
+    affine[:3, 2] = slice_cosine * slice_thickness
     affine[:3, 3] = image_position
     
     return affine 
 
 
 def slice_location( 
-    image_orientation:list,  # ImageOrientationPatient
-    image_position:list,    # ImagePositionPatient
+        image_orientation:list,  # ImageOrientationPatient
+        image_position:list,    # ImagePositionPatient
     ) -> float:
     """Calculate Slice Location"""
 
@@ -530,16 +508,115 @@ def dismantle_affine_matrix(affine):
     # ImagePositionPatient_i = ImagePositionPatient + i * SpacingBetweenSlices * slice_cosine
     column_spacing = np.linalg.norm(affine[:3, 0])
     row_spacing = np.linalg.norm(affine[:3, 1])
-    slice_spacing = np.linalg.norm(affine[:3, 2])
+    slice_thickness = np.linalg.norm(affine[:3, 2])
     row_cosine = affine[:3, 0] / column_spacing
     column_cosine = affine[:3, 1] / row_spacing
-    slice_cosine = affine[:3, 2] / slice_spacing
+    slice_cosine = affine[:3, 2] / slice_thickness
     return {
         'PixelSpacing': [row_spacing, column_spacing], 
-        'SpacingBetweenSlices': slice_spacing,  # This is really spacing between slices
+        'SpacingBetweenSlices': slice_thickness,  # Obsolete
+        'SliceThickness': slice_thickness, 
         'ImageOrientationPatient': row_cosine.tolist() + column_cosine.tolist(), 
         'ImagePositionPatient': affine[:3, 3].tolist(), # first slice for a volume
         'slice_cosine': slice_cosine.tolist()} 
+
+
+def unstack_affine(affine, nz):
+
+    pos0 = affine[:3, 3]
+    slice_vec = affine[:3, 2] 
+
+    affines = []
+    for z in range(nz):
+        affine_z = affine.copy()
+        affine_z[:3, 3] = pos0 + z*slice_vec
+        affines.append(affine_z)
+
+    return affines
+
+
+def stack_affines(affines):
+
+    aff = [dismantle_affine_matrix(a) for a in affines]
+
+    # Check that all affines have the same orientation
+    orient = [a['ImageOrientationPatient'] for a in aff]
+    orient = [x for i, x in enumerate(orient) if i==orient.index(x)]
+    if len(orient) > 1:
+        raise ValueError(
+            "Slices have different orientations and cannot be stacked")
+    orient = orient[0]
+
+    # Check that all affines have the same slice_cosine
+    slice_cosine = [a['slice_cosine'] for a in aff]
+    slice_cosine = [x for i, x in enumerate(slice_cosine) if i==slice_cosine.index(x)]
+    if len(slice_cosine) > 1:
+        raise ValueError(
+            "Slices have different slice cosines and cannot be stacked")
+    slice_cosine = slice_cosine[0]
+
+    # Check all slices have the same thickness
+    thick = [a['SpacingBetweenSlices'] for a in aff] # note incorrectly named
+    thick = np.unique(thick)
+    if len(thick)>1:
+        raise ValueError(
+            "Slices have different slice thickness and cannot be stacked")
+    thick = thick[0]
+
+    # Check all slices have the same pixel spacing
+    pix_space = [a['PixelSpacing'] for a in aff] 
+    pix_space = [x for i, x in enumerate(pix_space) if i==pix_space.index(x)]
+    if len(pix_space)>1:
+        raise ValueError(
+            "Slices have different pixel sizes and cannot be stacked. ")
+    pix_space = pix_space[0]
+
+    # Get orientations (orthogonal assumed here)
+    row_vec = np.array(orient[:3])   
+    column_vec = np.array(orient[3:]) 
+    slice_vec = np.array(slice_cosine)
+
+    # Check that all slice spacings are equal
+    pos = [a['ImagePositionPatient'] for a in aff]
+    loc = np.array([np.dot(p, slice_vec) for p in pos])
+    # Get unique slice spacing (to micrometer precision)
+    slice_spacing = np.unique(np.around(loc[1:]-loc[:-1], 3))
+    # If there is more than 1 slice spacing, the series is multislice
+    if slice_spacing.size != 1:
+        raise ValueError(
+            "There are different spacings between consecutive slices. "
+            "The slices cannot be stacked.")
+    slice_spacing = slice_spacing[0]
+    
+    # Check the slice spacing is equal to the slice thickness
+    if np.around(thick-slice_spacing, 3) != 0:
+        raise ValueError(
+            "This is a multi-slice sequence, i.e. the slice spacing is "
+            "different from the slice thickness. If you want to stack the "
+            "slices, set the slice thickness equal to the slice spacing "
+            "first (" + str(slice_spacing) + " mm).")
+    
+    # Check that all positions are on the slice vector
+    for p in pos[1:]:
+        # Position relative to first slice position
+        prel = np.array(p)-np.array(pos[0])
+        # Parallel means cross product has length zero
+        norm = np.linalg.norm(np.cross(slice_vec, prel))
+        # Round to micrometers to avoid numerical error
+        if np.round(norm, 3) != 0:
+            raise ValueError(
+                "Slices are not aligned and cannot be stacked")
+
+    # Build affine for the stack
+    affine = np.identity(4, dtype=np.float32)
+    affine[:3, 0] = row_vec * pix_space[1] 
+    affine[:3, 1] = column_vec * pix_space[0]
+    affine[:3, 2] = slice_vec * slice_spacing
+    affine[:3, 3] = pos[0]  
+
+    return affine
+
+
 
 def affine_to_RAH(affine):
     """Convert to the coordinate system used in NifTi"""

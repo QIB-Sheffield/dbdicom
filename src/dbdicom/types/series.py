@@ -6,8 +6,9 @@ import math
 from numbers import Number
 
 import numpy as np
-import pandas as pd
 import nibabel as nib
+import vreg
+
 
 from dbdicom.record import Record, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
@@ -410,7 +411,13 @@ class Series(Record):
             return values
 
 
-    def frames(self, dims=('InstanceNumber', ), return_coords=False, return_vals=(), mesh=True, slice={}, coords={}, exclude=False, **filters):
+
+
+
+    def frames(
+            self, dims=('InstanceNumber', ), return_coords=False, 
+            return_vals=(), mesh=True, slice={}, coords={}, exclude=False, 
+            **filters):
         """Return the frames of given coordinates in the correct order"""
 
         if np.isscalar(dims):
@@ -1187,8 +1194,207 @@ class Series(Record):
         for f, frame in enumerate(frames):
             self.progress(f+1, frames.size, 'Writing pixel values..')
             frame.set_pixel_array(values[:,:,f])
+
+    def volume(self):
+        return self.volumes(stack=True)
+
+    def volumes(self,  dims='SliceLocation', mesh=True, stack=False):
+        """Return vreg volumes for each frame, or stacked"""
+
+        frames = self.frames(dims, mesh=mesh)
+        vols = [f.volume() for f in frames.reshape(-1)]
+        vols = np.asarray(vols).reshape(frames.shape)
+        if not stack:
+            return vols
+        shape = vols.shape
+        vols = vols.reshape((shape[0],-1))
+        vols_stack = []
+        for k in range(vols.shape[1]):
+            vstack = vreg.concatenate(vols[:,k], prec=3)
+            vols_stack.append(vstack)
+        if len(shape) == 1:
+            return vols_stack[0]
+        else:
+            return np.asarray(vols_stack).reshape(shape[1:])
+
+
+    def set_volumes(self, volumes, dims='SliceLocation', mesh=True):
+
+        # Convert affines to arrays if needed
+        if isinstance(volumes, list):
+            volumes = np.array(volumes)
+        
+        # Get frames
+        frames = self.frames(dims, mesh=mesh)
+
+        # One affine for each frame
+        if volumes.shape == frames.shape:
+            volumes = volumes.reshape(-1)
+            for i, f in enumerate(frames.reshape(-1)):
+                self.progress(i, frames.size, 'Setting affines.. ')
+                f.set_volume(volumes[i])
+
+        # Different number of affines and frames
+        else:
+            # A volumetric series
+            if frames.ndim==1:
+                volumes = volumes.reshape(-1)
+                if volumes.size > 1:
+                    raise ValueError(
+                        "Cannot set volumes. A volume can only "
+                        "have one element.")
+                volumes = volumes[0].split(frames.size)
+                for z, f in enumerate(frames):
+                    self.progress(z+1, frames.size, 'Setting volumes.. ')
+                    f.set_volume(volumes[z])
+
+            # Multislice affine replicated across all times
+            elif volumes.size == frames.shape[0]:
+                frames = frames.reshape((frames.shape[0],-1))
+                volumes = volumes.reshape(-1)
+                nz, nt = frames.shape
+                cnt=0
+                for z in range(nz):
+                    for t in range(nt):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting volumes.. ')
+                        frames[z,t].set_volume(volumes[z])
+
+            # One volume replicated across all times
+            elif volumes.size==1:
+                frames = frames.reshape((frames.shape[0],-1))
+                nz, nt = frames.shape
+                volumes = volumes[0].split(nz)
+                cnt=0
+                for z in range(nz):
+                    for t in range(nt):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting volumes.. ')
+                        frames[z,t].set_volume(volumes[z])
+
+            # Volume for each time point
+            elif volumes.shape == frames.shape[1:]:
+                frames = frames.reshape((frames.shape[0],-1))
+                volumes = volumes.reshape(-1)
+                nz, nt = frames.shape
+                cnt=0
+                for t in range(nt):
+                    volumes_t = volumes[t].split(nz)
+                    for z, f in enumerate(frames[:,t]):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting volumes.. ')
+                        f.set_volume(volumes_t[z])
+
+            # Incompatible shapes
+            else:
+                raise ValueError(
+                    "Cannot set volumes. The volume array has an incompatible "
+                    "shape or size.")
+        return self
     
 
+    def affines(self,  dims='SliceLocation', mesh=True, stack=False):
+        """Return affines for each frame"""
+
+        frames = self.frames(dims, mesh=mesh)
+        affines = [f.affine() for f in frames.reshape(-1)]
+        affines = np.asarray(affines).reshape(frames.shape)
+        if not stack:
+            return affines
+        shape = affines.shape
+        affines = affines.reshape((shape[0],-1))
+        nt = affines.shape[1]
+        affines_stack = np.empty(nt, dtype=np.ndarray)
+        for t in range(nt):
+            affines_stack[t] = image_utils.stack_affines(affines[:,t])
+        if len(shape)==1:
+            return affines_stack[0]
+        else:
+            return affines_stack.reshape(shape[1:])
+
+    def set_affines(self, affines, dims='SliceLocation', mesh=True):
+
+        # Convert affines to arrays if needed
+        if isinstance(affines, np.ndarray):
+            aff = np.empty(1, dtype=np.ndarray)
+            aff[0] = affines
+            affines = aff
+        elif isinstance(affines, list):
+            aff = np.empty(len(affines), dtype=np.ndarray)
+            for i, a in enumerate(affines):
+                aff[i] = a
+            affines = aff
+        
+        # Get frames
+        frames = self.frames(dims, mesh=mesh)
+
+        # One affine for each frame
+        if affines.shape == frames.shape:
+            affines = affines.reshape(-1)
+            for i, f in enumerate(frames.reshape(-1)):
+                self.progress(i, frames.size, 'Setting affines.. ')
+                f.set_affine(affines[i])
+
+        # Different number of affines and frames
+        else:
+            # A volumetric series
+            if frames.ndim==1:
+                affines = affines.reshape(-1)
+                if affines.size > 1:
+                    raise ValueError(
+                        "Cannot set affines. A volumetric affine can only "
+                        "have one element.")
+                affines = image_utils.unstack_affine(affines[0], frames.shape[0])
+                for z, f in enumerate(frames):
+                    self.progress(z+1, frames.size, 'Setting affines.. ')
+                    f.set_affine(affines[z])
+
+            # Multislice affine replicated across all times
+            elif affines.size == frames.shape[0]:
+                frames = frames.reshape((frames.shape[0],-1))
+                affines = affines.reshape(-1)
+                nz, nt = frames.shape
+                cnt=0
+                for z in range(nz):
+                    for t in range(nt):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting affines.. ')
+                        frames[z,t].set_affine(affines[z])
+
+            # One volume affine replicated across all times
+            elif affines.size==1:
+                frames = frames.reshape((frames.shape[0],-1))
+                nz, nt = frames.shape
+                affines = image_utils.unstack_affine(affines[0], nz)
+                cnt=0
+                for z in range(nz):
+                    for t in range(nt):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting affines.. ')
+                        frames[z,t].set_affine(affines[z])
+
+            # Volume affine for each time point
+            elif affines.shape == frames.shape[1:]:
+                frames = frames.reshape((frames.shape[0],-1))
+                affines = affines.reshape(-1)
+                nz, nt = frames.shape
+                cnt=0
+                for t in range(nt):
+                    affines_t = image_utils.unstack_affine(affines[t], nz)
+                    for z, f in enumerate(frames[:,t]):
+                        cnt+=1
+                        self.progress(cnt, nt*nz, 'Setting affines.. ')
+                        f.set_affine(affines_t[z])
+
+            # Incompatible shapes
+            else:
+                raise ValueError(
+                    "Cannot set affines. The affine array has an incompatible "
+                    "shape or size.")
+        return self
+
+
+    # TODO: make obsolete (ignores dimensions or multi-volume series)
     def affine(self, slice={}, coords={}, **filters) -> np.ndarray:
         """Return the affine of the Series.
 
@@ -1251,7 +1457,7 @@ class Series(Record):
         
         return image_utils.affine_matrix_multislice(orientation, pos, spacing)   
 
-
+    # TODO: amke obsolete - does not handle dimensions or multislice vs volume
     def set_affine(self, affine:np.ndarray, dims=('InstanceNumber',), slice={}, coords={}, multislice=False, **filters):
         """Set the affine matrix of a series.
 
@@ -1532,7 +1738,7 @@ class Series(Record):
             msg += 'The data may be corrupted - please check'
             raise ValueError(msg)
         # Multiple slice groups in series - return list of affine matrices
-        if isinstance(image_orientation[0], list):
+        if self.is_multislice():
             affine_matrices = []
             for dir in image_orientation:
                 slice_group = self.instances(ImageOrientationPatient=dir)
@@ -1544,6 +1750,14 @@ class Series(Record):
             slice_group = self.instances()
             affine = _slice_group_affine_matrix(slice_group, image_orientation)
             return np.array([affine])
+
+    def is_multislice(self)->bool:
+        """Check if the series is multislice
+
+        Returns:
+            bool: True if the series is multislice.
+        """
+        return is_multislice(self)
         
 
     def islice(self, indices={}, **inds) -> Series:
@@ -2372,7 +2586,52 @@ def set_pixel_array(series, array, source=None, pixels_first=False, **kwargs):
         image.set_pixel_array(array[i,...])
         image.clear()
 
+# TODO: make this obsolete - only used ion affine_matrix
+def is_multislice(series):
+    orientation = series.ImageOrientationPatient
+    # Series is multislice if there are multiple unique orientations
+    if isinstance(orientation[0], list):
+        return True
+    #
+    # NOTE: 08/01/25: Added below conditions to correctly deal with situations
+    # where individual slices have been shifted but not rotated.
+    # From here: a series is multislice as soon as slices are not part of a 
+    # uniformly spaced 3D volume.
+    # 
+    pos = series.ImagePositionPatient
+    # If there is only one slice location, the series is not multislice
+    if not isinstance(pos[0], list):
+        return False
+    #
+    # If there are multiple positions, check that they are all on the slice 
+    # vector. If at least one if them is not, the series is multislice.
+    #
+    # Get slice vector
+    row_vec = np.array(orientation[:3])    
+    column_vec = np.array(orientation[3:]) 
+    slice_vec = np.cross(row_vec, column_vec)
+    for p in pos[1:]:
+        # Position relative to first slice position
+        prel = np.array(p)-np.array(pos[0])
+        # Parallel means cross product has length zero
+        norm = np.linalg.norm(np.cross(slice_vec, prel))
+        # Round to micrometers to avoid numerical error
+        if np.round(norm, 3) != 0:
+            return True
+    #
+    # If they are all on the slice vector, check that they have the same 
+    # spacing. If more than one spacing is found, the series is multislice.
+    #
+    # Get slice locations
+    loc = [np.dot(p, slice_vec) for p in pos]
+    # Sort slice locations
+    loc = np.sort(loc)
+    # Get unique slice spacing (to micrometer precision)
+    spacing = np.unique(np.around(loc[1:]-loc[:-1], 3))
+    # If there is more than 1 slice spacing, the series is multislice
+    return spacing.size != 1
 
+# TODO: make this obsolete   -replace by affines
 def affine_matrix(series):
     """Returns the affine matrix of a series.
     
@@ -2386,14 +2645,30 @@ def affine_matrix(series):
         msg = 'This is a required DICOM field \n'
         msg += 'The data may be corrupted - please check'
         raise ValueError(msg)
+    
     # Multiple slice groups in series - return list of affine matrices
-    if isinstance(image_orientation[0], list):
+    if is_multislice(series):
+        #
+        # NOTE: 08/01/2025: Changed definition of slice groups from "frames with 
+        # the same orientation" to "frames with the same orientation and position"
+        #
+        # Get unique image positions
+        image_position = series.ImagePositionPatient
+        # Make sure orientations and positions are losts
+        if not isinstance(image_orientation[0], list):
+            image_orientation = [image_orientation]
+        if not isinstance(image_position[0], list):
+            image_position = [image_position]
+        # Return one affine per slice group
         affine_matrices = []
         for dir in image_orientation:
-            slice_group = series.instances(ImageOrientationPatient=dir)
-            affine = _slice_group_affine_matrix(slice_group, dir)
-            affine_matrices.append((affine, slice_group))
+            for pos in image_position:
+                slice_group = series.instances(ImageOrientationPatient=dir, ImagePositionPatient=pos)
+                if len(slice_group) > 0:
+                    affine = _slice_group_affine_matrix(slice_group, dir)
+                    affine_matrices.append((affine, slice_group))
         return affine_matrices
+    
     # Single slice group in series - return a single affine matrix
     else:
         slice_group = series.instances()
