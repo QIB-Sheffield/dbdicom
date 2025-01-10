@@ -6,9 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 project = 'dbdicom'
-copyright = '2022, QIB-Sheffield'
+copyright = '2022-2025, QIB-Sheffield'
 author = 'QIB-Sheffield'
-release = '0.2.3'
+release = '0.2.4'
 
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
