@@ -1,0 +1,646 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Extensions &#8212; dbdicom 0.2.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=6ffd866b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/extensions';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="numpy" href="extensions.numpy.html" />
+    <link rel="prev" title="dbdicom.dro.database_hollywood" href="../generated/api/dbdicom.dro.database_hollywood.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dbd.png" class="logo__image only-light" alt="dbdicom 0.2.4 documentation - Home"/>
+    <img src="../_static/dbd.png" class="logo__image only-dark pst-js-only" alt="dbdicom 0.2.4 documentation - Home"/>
+  
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="objects.html">Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="routines.html">Routines</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Extensions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.numpy.html">numpy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.matplotlib.html">matplotlib</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html">scipy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html">skimage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html">sklearn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html">dipy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.elastix.html">elastix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.vreg.html">vreg</a></li>
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">Reference</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Extensions</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="extensions">
+<h1>Extensions<a class="headerlink" href="#extensions" title="Link to this heading">#</a></h1>
+<p>Extensions are functions of <code class="docutils literal notranslate"><span class="pre">dbdicom</span></code> records that require additional packages to be installed. Often these are DICOM to DICOM functions that take well-known functions which operate on numpy arrays, and lift them to functions that operate on <code class="docutils literal notranslate"><span class="pre">dbdicom</span></code> series. Where appropriate these will produce <code class="docutils literal notranslate"><span class="pre">dbdicom</span></code> objects in the same database as output, propagating both data and header information correctly.</p>
+<p>The extensions listed in this section are derived from use cases in ongoing studies. The list will grow over time, providing a library of components that can be assembled to build more complex DICOM to DICOM pipelines. The extensions are generally structured along the libraries that they depend on. For instance, the <code class="docutils literal notranslate"><span class="pre">skimage</span></code> section lists a number of routines that wrap around common <code class="docutils literal notranslate"><span class="pre">skimage</span></code> functions. The idea is to allow an intuitive translation of <code class="docutils literal notranslate"><span class="pre">numpy</span></code>-type pipelines to <code class="docutils literal notranslate"><span class="pre">dbdicom</span></code> type pipelines.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Documentation for extensions is work in progress. At this stage, these pages show <em>all</em> functions that are currently in use, whether they are documented or not.</p>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="extensions.numpy.html">numpy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.numpy.maximum_intensity_projection.html">dbdicom.extensions.numpy.maximum_intensity_projection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.numpy.mean_intensity_projection.html">dbdicom.extensions.numpy.mean_intensity_projection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.numpy.norm_projection.html">dbdicom.extensions.numpy.norm_projection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.numpy.threshold.html">dbdicom.extensions.numpy.threshold</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.matplotlib.html">matplotlib</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.matplotlib.plot_surface.html">dbdicom.extensions.matplotlib.plot_surface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/api/dbdicom.extensions.matplotlib.plot_mosaic.html">dbdicom.extensions.matplotlib.plot_mosaic</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.scipy.html">scipy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.array"><code class="docutils literal notranslate"><span class="pre">array()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.binary_fill_holes"><code class="docutils literal notranslate"><span class="pre">binary_fill_holes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.distance_transform_edt_3d"><code class="docutils literal notranslate"><span class="pre">distance_transform_edt_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.extract_largest_cluster_3d"><code class="docutils literal notranslate"><span class="pre">extract_largest_cluster_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.fourier_ellipsoid"><code class="docutils literal notranslate"><span class="pre">fourier_ellipsoid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.fourier_gaussian"><code class="docutils literal notranslate"><span class="pre">fourier_gaussian()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.fourier_shift"><code class="docutils literal notranslate"><span class="pre">fourier_shift()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.fourier_uniform"><code class="docutils literal notranslate"><span class="pre">fourier_uniform()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.gaussian_filter"><code class="docutils literal notranslate"><span class="pre">gaussian_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.gaussian_filter_3d"><code class="docutils literal notranslate"><span class="pre">gaussian_filter_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.gaussian_gradient_magnitude"><code class="docutils literal notranslate"><span class="pre">gaussian_gradient_magnitude()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.gaussian_laplace"><code class="docutils literal notranslate"><span class="pre">gaussian_laplace()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.image_calculator"><code class="docutils literal notranslate"><span class="pre">image_calculator()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.label_2d"><code class="docutils literal notranslate"><span class="pre">label_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.label_3d"><code class="docutils literal notranslate"><span class="pre">label_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.laplace"><code class="docutils literal notranslate"><span class="pre">laplace()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.map_to"><code class="docutils literal notranslate"><span class="pre">map_to()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.mask_array"><code class="docutils literal notranslate"><span class="pre">mask_array()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.mask_curve_3d"><code class="docutils literal notranslate"><span class="pre">mask_curve_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.mask_statistics"><code class="docutils literal notranslate"><span class="pre">mask_statistics()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.maximum_filter"><code class="docutils literal notranslate"><span class="pre">maximum_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.median_filter"><code class="docutils literal notranslate"><span class="pre">median_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.minimum_filter"><code class="docutils literal notranslate"><span class="pre">minimum_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.n_images_calculator"><code class="docutils literal notranslate"><span class="pre">n_images_calculator()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.overlay"><code class="docutils literal notranslate"><span class="pre">overlay()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.percentile_filter"><code class="docutils literal notranslate"><span class="pre">percentile_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.prewitt_filter"><code class="docutils literal notranslate"><span class="pre">prewitt_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.rank_filter"><code class="docutils literal notranslate"><span class="pre">rank_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.resample"><code class="docutils literal notranslate"><span class="pre">resample()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.reslice"><code class="docutils literal notranslate"><span class="pre">reslice()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.series_calculator"><code class="docutils literal notranslate"><span class="pre">series_calculator()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.sobel_filter"><code class="docutils literal notranslate"><span class="pre">sobel_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.uniform_filter"><code class="docutils literal notranslate"><span class="pre">uniform_filter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.uniform_filter_3d"><code class="docutils literal notranslate"><span class="pre">uniform_filter_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.scipy.html#dbdicom.extensions.scipy.zoom"><code class="docutils literal notranslate"><span class="pre">zoom()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.skimage.html">skimage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.area_closing_2d"><code class="docutils literal notranslate"><span class="pre">area_closing_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.area_closing_3d"><code class="docutils literal notranslate"><span class="pre">area_closing_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.area_opening_2d"><code class="docutils literal notranslate"><span class="pre">area_opening_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.area_opening_3d"><code class="docutils literal notranslate"><span class="pre">area_opening_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.canny"><code class="docutils literal notranslate"><span class="pre">canny()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.closing_2d"><code class="docutils literal notranslate"><span class="pre">closing_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.closing_3d"><code class="docutils literal notranslate"><span class="pre">closing_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.convex_hull_image"><code class="docutils literal notranslate"><span class="pre">convex_hull_image()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.convex_hull_image_3d"><code class="docutils literal notranslate"><span class="pre">convex_hull_image_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.coregister_2d_to_2d"><code class="docutils literal notranslate"><span class="pre">coregister_2d_to_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.coregister_3d_to_3d"><code class="docutils literal notranslate"><span class="pre">coregister_3d_to_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.coregister_series_2d_to_2d"><code class="docutils literal notranslate"><span class="pre">coregister_series_2d_to_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.mdreg_constant_2d"><code class="docutils literal notranslate"><span class="pre">mdreg_constant_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.mdreg_constant_3d"><code class="docutils literal notranslate"><span class="pre">mdreg_constant_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.opening_2d"><code class="docutils literal notranslate"><span class="pre">opening_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.opening_3d"><code class="docutils literal notranslate"><span class="pre">opening_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.peak_local_max_3d"><code class="docutils literal notranslate"><span class="pre">peak_local_max_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.remove_small_holes_2d"><code class="docutils literal notranslate"><span class="pre">remove_small_holes_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.remove_small_holes_3d"><code class="docutils literal notranslate"><span class="pre">remove_small_holes_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.skeletonize"><code class="docutils literal notranslate"><span class="pre">skeletonize()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.skeletonize_3d"><code class="docutils literal notranslate"><span class="pre">skeletonize_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.volume_features"><code class="docutils literal notranslate"><span class="pre">volume_features()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.warp"><code class="docutils literal notranslate"><span class="pre">warp()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.watershed_2d"><code class="docutils literal notranslate"><span class="pre">watershed_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html#dbdicom.extensions.skimage.watershed_3d"><code class="docutils literal notranslate"><span class="pre">watershed_3d()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.sklearn.html">sklearn</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html#dbdicom.extensions.sklearn.kmeans"><code class="docutils literal notranslate"><span class="pre">kmeans()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html#dbdicom.extensions.sklearn.kmeans_4d"><code class="docutils literal notranslate"><span class="pre">kmeans_4d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html#dbdicom.extensions.sklearn.masks_to_label"><code class="docutils literal notranslate"><span class="pre">masks_to_label()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html#dbdicom.extensions.sklearn.sequential_kmeans"><code class="docutils literal notranslate"><span class="pre">sequential_kmeans()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.dipy.html">dipy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.align_center_of_mass_2d"><code class="docutils literal notranslate"><span class="pre">align_center_of_mass_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.align_center_of_mass_3d"><code class="docutils literal notranslate"><span class="pre">align_center_of_mass_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_affine_2d"><code class="docutils literal notranslate"><span class="pre">coregister_affine_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_affine_3d"><code class="docutils literal notranslate"><span class="pre">coregister_affine_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_deformable_2d"><code class="docutils literal notranslate"><span class="pre">coregister_deformable_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_deformable_3d"><code class="docutils literal notranslate"><span class="pre">coregister_deformable_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_rigid_2d"><code class="docutils literal notranslate"><span class="pre">coregister_rigid_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_rigid_3d"><code class="docutils literal notranslate"><span class="pre">coregister_rigid_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_translation_2d"><code class="docutils literal notranslate"><span class="pre">coregister_translation_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.coregister_translation_3d"><code class="docutils literal notranslate"><span class="pre">coregister_translation_3d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.invert_deformation_field"><code class="docutils literal notranslate"><span class="pre">invert_deformation_field()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.median_otsu"><code class="docutils literal notranslate"><span class="pre">median_otsu()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html#dbdicom.extensions.dipy.warp"><code class="docutils literal notranslate"><span class="pre">warp()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.elastix.html">elastix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.elastix.html#dbdicom.extensions.elastix.coregister_2d_to_2d"><code class="docutils literal notranslate"><span class="pre">coregister_2d_to_2d()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.elastix.html#dbdicom.extensions.elastix.coregister_3d_to_3d"><code class="docutils literal notranslate"><span class="pre">coregister_3d_to_3d()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="extensions.vreg.html">vreg</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="extensions.vreg.html#apply-coordinate-transformation">Apply coordinate transformation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.vreg.html#find-coordinate-transformation">Find coordinate transformation</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../generated/api/dbdicom.dro.database_hollywood.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">dbdicom.dro.database_hollywood</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="extensions.numpy.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">numpy</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/reference/extensions.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2022-2025, QIB-Sheffield.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

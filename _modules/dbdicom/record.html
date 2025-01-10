@@ -1,0 +1,2468 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dbdicom.record &#8212; dbdicom 0.2.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=6ffd866b"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/dbdicom/record';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/dbd.png" class="logo__image only-light" alt="dbdicom 0.2.4 documentation - Home"/>
+    <img src="../../_static/dbd.png" class="logo__image only-dark pst-js-only" alt="dbdicom 0.2.4 documentation - Home"/>
+  
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">dbdicom.record</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for dbdicom.record</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Importing annotations to handle or sign in import type hints</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+
+<span class="c1"># Import packages</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">dbdicom.ds.dataset</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dbdataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dbdicom.ds</span><span class="w"> </span><span class="kn">import</span> <span class="n">MRImage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dbdicom.utils.files</span><span class="w"> </span><span class="kn">import</span> <span class="n">export_path</span>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Record</span><span class="p">():</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Record&#39;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">create</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="s1">&#39;Database&#39;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>   
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mute</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uid</span> <span class="o">=</span> <span class="n">uid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new</span> <span class="o">=</span> <span class="n">create</span>
+        
+    
+    <span class="k">def</span><span class="w"> </span><span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">other</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">uid</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">uid</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="n">attribute</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attributes</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="n">attributes</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;_key&#39;</span><span class="p">,</span><span class="s1">&#39;_mute&#39;</span><span class="p">,</span> <span class="s1">&#39;uid&#39;</span><span class="p">,</span> <span class="s1">&#39;manager&#39;</span><span class="p">,</span> <span class="s1">&#39;attributes&#39;</span><span class="p">,</span> <span class="s1">&#39;new&#39;</span><span class="p">,</span> <span class="s1">&#39;_logfile&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_values</span><span class="p">([</span><span class="n">attribute</span><span class="p">],</span> <span class="p">[</span><span class="n">value</span><span class="p">])</span>
+           
+    <span class="k">def</span><span class="w"> </span><span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attributes</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_values</span><span class="p">(</span><span class="n">attributes</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">loc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_loc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">)</span>
+        <span class="c1"># df = self.manager.register</span>
+        <span class="c1"># return (df.removed==False) &amp; (df[self.name]==self.uid)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loc</span><span class="p">()</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_keys</span><span class="p">(</span><span class="n">loc</span><span class="p">)</span>
+<span class="c1">#        keys = self.manager.register.index[self.loc()]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">keys</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;This record has no data&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_key</span> <span class="o">=</span> <span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">keys</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loc</span><span class="p">()</span>
+        <span class="n">all_keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_keys</span><span class="p">(</span><span class="n">loc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_keys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;This record has been removed from the database and can no longer be accessed.&#39;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key</span> <span class="o">=</span> <span class="n">all_keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">key_removed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_key</span><span class="p">,</span> <span class="s1">&#39;removed&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_key</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key_removed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set_key</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">status</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dialog</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">dialog</span>
+    
+<div class="viewcode-block" id="Record.set_log">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.set_log.html#dbdicom.Record.set_log">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filepath</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set a new file for logging.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: full path to a log file. If not provided the current log file is removed. Alternatively the value &#39;Default&#39; can be assigned, in which case a standard file at the same location of the database is automatically opened. Defaults to None.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: if the log file cannot be written to.</span>
+
+<span class="sd">        See also:</span>
+<span class="sd">            `log`</span>
+
+<span class="sd">        Examples:</span>
+
+<span class="sd">            Set a new log file:</span>
+
+<span class="sd">            &gt;&gt;&gt; record.set_log(&#39;path/to/logfile&#39;)</span>
+<span class="sd">            </span>
+<span class="sd">            and start logging:</span>
+
+<span class="sd">            &gt;&gt;&gt; record.log(&#39;Starting new calculation...)</span>
+
+<span class="sd">            Alternatively, start a new log at the default location:</span>
+
+<span class="sd">            &gt;&gt;&gt; record.set_log(&#39;Default&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">filepath</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">filepath</span> <span class="o">==</span> <span class="s1">&#39;Default&#39;</span><span class="p">:</span>
+            <span class="c1"># Use default log name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;activity_log.txt&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span> <span class="o">=</span> <span class="n">filepath</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())[</span><span class="mi">0</span><span class="p">:</span><span class="mi">19</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;Starting a new log..&quot;</span><span class="p">)</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Cannot write to log &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+        
+<div class="viewcode-block" id="Record.log">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.log.html#dbdicom.Record.log">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write an entry in the log file.</span>
+
+<span class="sd">        If no logfile is set, this function only writes a message in the terminal.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message (str): text message to be written in the log file. The function automatically includes some timing information so this does not need to be included in the message. </span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FileNotFoundError: if the log file cannot be written to.</span>
+
+<span class="sd">        See also:</span>
+<span class="sd">            `set_log`</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            Set a default file for logging and write a first message:</span>
+
+<span class="sd">            &gt;&gt;&gt; record.set_log(&#39;Default&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; record.log(&#39;Starting new calculation...)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">)</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())[</span><span class="mi">0</span><span class="p">:</span><span class="mi">19</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;: &quot;</span> <span class="o">+</span> <span class="n">message</span><span class="p">)</span>
+            <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Cannot write to log &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_logfile</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+        
+    
+<span class="c1"># Properties</span>
+
+
+<div class="viewcode-block" id="Record.print">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.print.html#dbdicom.Record.print">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print a summary of the record and its contents.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~path`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Print a summary of a database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient James Bond</span>
+<span class="sd">                    Study MRI [19821201]</span>
+<span class="sd">                        Series 001 [Localizer]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                        Series 002 [T2w]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                    Study Xray [19821205]</span>
+<span class="sd">                        Series 001 [Chest]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                        Series 002 [Head]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                Patient Scarface</span>
+<span class="sd">                    Study MRI [19850105]</span>
+<span class="sd">                        Series 001 [Localizer]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                        Series 002 [T2w]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                    Study Xray [19850106]</span>
+<span class="sd">                        Series 001 [Chest]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">                        Series 002 [Head]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">            ----------------------------------  </span>
+
+<span class="sd">            Or print a summary of any record in the hierarchy:</span>
+
+<span class="sd">            &gt;&gt;&gt; patients = database.patients(PatientName=&#39;Scarface&#39;)  </span>
+<span class="sd">            &gt;&gt;&gt; patients[0].print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient Scarface</span>
+<span class="sd">                Study MRI [19850105]</span>
+<span class="sd">                    Series 001 [Localizer]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">                    Series 002 [T2w]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">                Study Xray [19850106]</span>
+<span class="sd">                    Series 001 [Chest]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">                    Series 002 [Head]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> </div>
+
+
+    
+<div class="viewcode-block" id="Record.path">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.path.html#dbdicom.Record.path">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Directory of the DICOM database</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: full path to the directory</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~print`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new database in memory:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; print(database.path())</span>
+<span class="sd">            None</span>
+
+<span class="sd">            Open an existing DICOM database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database(&#39;path\\to\\DICOM\\database&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print(database.path())</span>
+<span class="sd">            path\to\DICOM\database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">path</span></div>
+
+    
+
+<div class="viewcode-block" id="Record.empty">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.empty.html#dbdicom.Record.empty">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the record has data.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: False if the record has data, True if not</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~print`</span>
+<span class="sd">            :func:`~path`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Check if a database on disk is empty:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database(&#39;path\\to\\database&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print(database.empty)</span>
+<span class="sd">            False</span>
+
+<span class="sd">            Create a new database from scratch and verify that it is empty:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; print(database.empty())</span>
+<span class="sd">            True</span>
+
+<span class="sd">            Creating a new series in the database, and verify that it is no longer empty:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = database.new_series()</span>
+<span class="sd">            &gt;&gt;&gt; print(database.empty())</span>
+<span class="sd">            False   </span>
+
+<span class="sd">            Verify that the new series is empty:</span>
+
+<span class="sd">            &gt;&gt;&gt; print(series.empty())</span>
+<span class="sd">            True</span>
+
+<span class="sd">            Populate the series with a numpy array and verify that it is now no longer empty:</span>
+
+<span class="sd">            &gt;&gt;&gt; zeros = np.zeros((3, 2, 128, 128))</span>
+<span class="sd">            &gt;&gt;&gt; series.set_pixel_values(zeros)</span>
+<span class="sd">            &gt;&gt;&gt; print(series.empty())</span>
+<span class="sd">            False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">register</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">()</span> <span class="o">==</span> <span class="p">[]</span></div>
+
+    
+
+<div class="viewcode-block" id="Record.files">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.files.html#dbdicom.Record.files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of all DICOM files saved in the database</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of absolute filepaths to valid DICOM files</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~print`</span>
+<span class="sd">            :func:`~path`</span>
+<span class="sd">            :func:`~empty`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            A new database in memory has no files on disk:</span>
+<span class="sd">    </span>
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; print(database.files())</span>
+<span class="sd">            []</span>
+
+<span class="sd">            If a series is created in memory, there are no files on disk:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((3,128,128))</span>
+<span class="sd">            &gt;&gt;&gt; print(series.files())</span>
+<span class="sd">            []</span>
+
+<span class="sd">            If a series is created in memory, then written to disk, there are files associated. Since the default format is single-frame MRImage, there are 3 files in this case:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.write(&#39;path\\to\\DICOM\\database&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print(series.files())</span>
+<span class="sd">            [&#39;path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.10200622747714198480020099226433338888.dcm&#39;, &#39;path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.95074529334441498207488699470663781148.dcm&#39;, &#39;path\\to\\DICOM\\database\\dbdicom\\1.2.826.0.1.3680043.8.498.30452523525370800574103459899629273584.dcm&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">filepath</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span> <span class="k">if</span> <span class="n">f</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span> <span class="c1"># Added 29/05/23 - check if this creates issues</span>
+        <span class="k">return</span> <span class="n">files</span></div>
+
+    
+    
+<div class="viewcode-block" id="Record.label">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.label.html#dbdicom.Record.label">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a human-readable label describing the record.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: label with descriptive information.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~print`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Print the label of a default series:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((3,128,128), SeriesDescription=&#39;Empty demo&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print(series.label())</span>
+<span class="sd">            Series 001 [Empty demo]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(),</span> <span class="nb">type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span></div>
+
+    
+
+
+<span class="c1"># Navigating the tree</span>
+
+
+<div class="viewcode-block" id="Record.parent">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.parent.html#dbdicom.Record.parent">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the parent of the record.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Record: The parent object.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~studies`</span>
+<span class="sd">            :func:`~patients`</span>
+<span class="sd">            :func:`~database`</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            Find the parent of a study:</span>
+
+<span class="sd">            &gt;&gt;&gt; study = db.study()</span>
+<span class="sd">            &gt;&gt;&gt; patient = study.parent()</span>
+<span class="sd">            &gt;&gt;&gt; print(patient.PatientName)</span>
+<span class="sd">            New Patient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note this function is reimplemented in all subclasses. </span>
+        <span class="c1"># It is included in the Record class only for documentation purposes.</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.children">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.children.html#dbdicom.Record.children">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">children</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return all children of the record.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of all children.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~studies`</span>
+<span class="sd">            :func:`~patients`</span>
+<span class="sd">            :func:`~database`</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            Find the patients of a given database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; patients = database.children()</span>
+<span class="sd">            &gt;&gt;&gt; print([p.PatientName for p in patients])</span>
+<span class="sd">            [&#39;James Bond&#39;, &#39;Scarface&#39;]</span>
+
+<span class="sd">            Find all patients with a given name:</span>
+
+<span class="sd">            &gt;&gt;&gt; patients = database.children(PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print([p.PatientName for p in patients])</span>
+<span class="sd">            [&#39;James Bond&#39;]</span>
+
+<span class="sd">            Find the studies that have been performed on a given patient:</span>
+<span class="sd">            &gt;&gt;&gt; studies = patients[0].children()</span>
+<span class="sd">            &gt;&gt;&gt; print([s.StudyDescription for s in studies])</span>
+<span class="sd">            [&#39;MRI&#39;, &#39;Xray&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note this function is reimplemented in all subclasses. </span>
+        <span class="c1"># It is included in the Record class for documentation purposes.</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+    
+    
+<div class="viewcode-block" id="Record.siblings">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.siblings.html#dbdicom.Record.siblings">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">siblings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return all siblings of the record.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs: Provide any number of valid DICOM (tag, value) pair as keywords to filter the list.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of all siblings.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~studies`</span>
+<span class="sd">            :func:`~patients`</span>
+<span class="sd">            :func:`~database`</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            Retrieve a study from a database, and find all other studies performed on the same patient:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; study = database.studies()[0]</span>
+<span class="sd">            &gt;&gt;&gt; print([s.StudyDescription for s in study.siblings()])</span>
+<span class="sd">            [&#39;Xray&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">siblings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">children</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">siblings</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">siblings</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.series">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.series.html#dbdicom.Record.series">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;PatientName&#39;</span><span class="p">,</span> <span class="s1">&#39;StudyDescription&#39;</span><span class="p">,</span> <span class="s1">&#39;SeriesNumber&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of series under the record.</span>
+
+<span class="sd">        If the record is a study, this returns the record&#39;s children. If it is a patient, this returns a list the record&#39;s grand children.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.</span>
+<span class="sd">            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to [&#39;PatientName&#39;, &#39;StudyDescription&#39;, &#39;SeriesNumber&#39;].</span>
+<span class="sd">            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain series with the appropriate values</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of dbdicom Series objects.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~studies`</span>
+<span class="sd">            :func:`~patients`</span>
+<span class="sd">            :func:`~database`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Find all series in a database, and print their labels:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; series_list = database.series()</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in series_list])</span>
+<span class="sd">            [&#39;Series 001 [Localizer]&#39;, &#39;Series 002 [T2w]&#39;, &#39;Series 001 [Chest]&#39;, &#39;Series 002 [Head]&#39;, &#39;Series 001 [Localizer]&#39;, &#39;Series 002 [T2w]&#39;, &#39;Series 001 [Chest]&#39;, &#39;Series 002 [Head]&#39;]</span>
+
+<span class="sd">            Find all series with a given SeriesDescription:</span>
+
+<span class="sd">            &gt;&gt;&gt; series_list = database.series(SeriesDescription=&#39;Chest&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in series_list])</span>
+<span class="sd">            [&#39;Series 001 [Chest]&#39;, &#39;Series 001 [Chest]&#39;]</span>
+
+<span class="sd">            Find all series with a given SeriesDescription of a given Patient:</span>
+
+<span class="sd">            &gt;&gt;&gt; series_list = database.series(SeriesDescription=&#39;Chest&#39;, PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in series_list])</span>
+<span class="sd">            [&#39;Series 001 [Chest]&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">series</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">series</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Series&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span> <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">series</span><span class="p">]</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.studies">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.studies.html#dbdicom.Record.studies">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">studies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;PatientName&#39;</span><span class="p">,</span> <span class="s1">&#39;StudyDescription&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of studies under the record.</span>
+
+<span class="sd">        If the record is a patient, this returns the record&#39;s children. If it is a series, this returns the parent study.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.</span>
+<span class="sd">            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to [&#39;PatientName&#39;, &#39;StudyDescription&#39;].</span>
+<span class="sd">            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain studies with the appropriate values.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of dbdicom Study objects.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~patients`</span>
+<span class="sd">            :func:`~database`</span>
+<span class="sd">        </span>
+<span class="sd">        Example:</span>
+<span class="sd">            Find all studies in a database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; studies_list = database.studies()</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in studies_list])</span>
+<span class="sd">            [&#39;Study MRI [19821201]&#39;, &#39;Study Xray [19821205]&#39;, &#39;Study MRI [19850105]&#39;, &#39;Study Xray [19850106]&#39;]</span>
+
+<span class="sd">            Find all studies of a given Patient:</span>
+
+<span class="sd">            &gt;&gt;&gt; studies_list = database.studies(PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in studies_list])</span>
+<span class="sd">            [&#39;Study MRI [19821201]&#39;, &#39;Study Xray [19821205]&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">studies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">studies</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Study&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span> <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">studies</span><span class="p">]</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.patients">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.patients.html#dbdicom.Record.patients">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">patients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;PatientName&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a list of patients under the record.</span>
+
+<span class="sd">        If the record is a database, this returns the children. If it is a series or a study, this returns the parent patient.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sort (bool, optional): Set to False to return an unsorted list (faster). Defaults to True.</span>
+<span class="sd">            sortby (list, optional):  list of DICOM keywords to sort the result. This argument is ignored if sort=False. Defaults to [&#39;PatientName&#39;].</span>
+<span class="sd">            kwargs (keyword arguments, optional): Set any number of valid DICOM (tag, value) pairs as keywords to filer the list. The result will only contain patients with the appropriate values.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: A list of dbdicom Patient objects.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~studies`</span>
+<span class="sd">            :func:`~database`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Find all patients in a database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">            &gt;&gt;&gt; patients_list = database.patients()</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in patients_list])</span>
+<span class="sd">            [&#39;Patient James Bond&#39;, &#39;Patient Scarface&#39;]</span>
+
+<span class="sd">            Find all patients with a given name:</span>
+
+<span class="sd">            &gt;&gt;&gt; patients_list = database.patients(PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; print([s.label() for s in patients_list])</span>
+<span class="sd">            [&#39;Patient James Bond&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">patients</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Patient&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span> <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">patients</span><span class="p">]</span></div>
+
+    
+    
+<div class="viewcode-block" id="Record.database">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.database.html#dbdicom.Record.database">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">database</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the database of the record.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Database: Database of the record</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~parent`</span>
+<span class="sd">            :func:`~children`</span>
+<span class="sd">            :func:`~siblings`</span>
+<span class="sd">            :func:`~series`</span>
+<span class="sd">            :func:`~studies`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Get the database of a study:</span>
+
+<span class="sd">            &gt;&gt;&gt; study = db.study()</span>
+<span class="sd">            &gt;&gt;&gt; database = study.database()</span>
+<span class="sd">            &gt;&gt;&gt; print(database.label())</span>
+<span class="sd">            Database [in memory]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Database&#39;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Edit a record</span>
+
+
+<div class="viewcode-block" id="Record.new_patient">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_patient.html#dbdicom.Record.new_patient">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_patient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new patient.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new patient.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Patient: instance of the new patient</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_study`</span>
+<span class="sd">            :func:`~new_series`</span>
+<span class="sd">            :func:`~new_pibling`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new patient in a database:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">            ----------------------------------</span>
+<span class="sd">            </span>
+<span class="sd">            &gt;&gt;&gt; nemo = database.new_patient(PatientName=&#39;Nemo&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; dory = database.new_patient(PatientName=&#39;Dory&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">            Patient Dory</span>
+<span class="sd">            Patient Nemo</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            A lower-level record can also create a new patient. Create a new series and show its default database:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.series()</span>
+<span class="sd">            &gt;&gt;&gt; series.database().print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient New Patient</span>
+<span class="sd">                    Study New Study [None]</span>
+<span class="sd">                    Series 001 [New Series]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            The series can create new patients in its database directly:</span>
+
+<span class="sd">            &gt;&gt;&gt; dory = series.new_patient(PatientName=&#39;Dory&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; nemo = series.new_patient(PatientName=&#39;Nemo&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient Dory</span>
+<span class="sd">                Patient Nemo</span>
+<span class="sd">                Patient New Patient</span>
+<span class="sd">                    Study New Study [None]</span>
+<span class="sd">                        Series 001 [New Series]</span>
+<span class="sd">                            Nr of instances: 0</span>
+<span class="sd">            ----------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">}</span>
+        <span class="n">uid</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">new_patient</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Patient&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span></div>
+
+    
+
+<div class="viewcode-block" id="Record.new_study">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_study.html#dbdicom.Record.new_study">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_study</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new study.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new study.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Study: instance of the new study</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_patient`</span>
+<span class="sd">            :func:`~new_series`</span>
+<span class="sd">            :func:`~new_pibling`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new study in a patient:</span>
+
+<span class="sd">            &gt;&gt;&gt; dory = db.patient(PatientName=&#39;Dory&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; dory.print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient Dory</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            &gt;&gt;&gt; fMRI = dory.new_study(StudyDescription=&#39;fMRI&#39;, StudyDate=&#39;20091001&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; CThead = dory.new_study(StudyDescription=&#39;CT head&#39;, StudyDate=&#39;20091002&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; dory.print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient Dory</span>
+<span class="sd">                Study CT head [20091002]</span>
+<span class="sd">                Study fMRI [20091001]</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Any other record can also create a new study. Missing intermediate generations are created automatically:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            &gt;&gt;&gt; fMRI = database.new_study(StudyDescription=&#39;fMRI&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient New Patient</span>
+<span class="sd">                    Study fMRI [None]</span>
+<span class="sd">            ----------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">}</span>
+        <span class="n">uid</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">new_study</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">(),</span><span class="o">**</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Study&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span></div>
+
+    
+
+<div class="viewcode-block" id="Record.new_series">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_series.html#dbdicom.Record.new_series">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new series.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new series.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Series: instance of the new series</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_patient`</span>
+<span class="sd">            :func:`~new_study`</span>
+<span class="sd">            :func:`~new_pibling`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Consider an empty study:</span>
+
+<span class="sd">            &gt;&gt;&gt; fMRI = db.study(StudyDescription=&#39;fMRI&#39;, StudyDate=&#39;20230203&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; fMRI.print()</span>
+<span class="sd">            ---------- STUDY ---------------</span>
+<span class="sd">            Study fMRI [20230203]</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Create two new series in the study:</span>
+
+<span class="sd">            &gt;&gt;&gt; rstate = fMRI.new_series(SeriesDescription=&#39;Resting state&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; ftap = fMRI.new_series(SeriesDescription=&#39;Finger tap&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; fMRI.print()</span>
+<span class="sd">            ---------- STUDY ---------------</span>
+<span class="sd">            Study fMRI [20230203]</span>
+<span class="sd">                Series 001 [Resting state]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">                Series 002 [Finger tap]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Any other record can also create a new series. Missing intermediate generations are created automatically:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            &gt;&gt;&gt; rstate = database.new_series(SeriesDescription=&#39;Resting state&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; ftap = database.new_series(SeriesDescription=&#39;Finger tap&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                    Series 001 [Resting state]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                    Series 001 [Finger tap]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            Note since any missing levels in the hierarchy are automatically created, these new series now end up in different patients.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">}</span>
+        <span class="n">uid</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">new_series</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Series&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span></div>
+
+    
+
+<div class="viewcode-block" id="Record.new_child">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_child.html#dbdicom.Record.new_child">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_child</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new child of the record.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_patient`</span>
+<span class="sd">            :func:`~new_study`</span>
+<span class="sd">            :func:`~new_series`</span>
+<span class="sd">            :func:`~new_sibling`</span>
+<span class="sd">            :func:`~new_pibling`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Consider an empty study:</span>
+
+<span class="sd">            &gt;&gt;&gt; fMRI = db.study(StudyDescription=&#39;fMRI&#39;, StudyDate=&#39;20230203&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; fMRI.print()</span>
+<span class="sd">            ---------- STUDY ---------------</span>
+<span class="sd">            Study fMRI [20230203]</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Create two new series in the study:</span>
+
+<span class="sd">            &gt;&gt;&gt; rstate = fMRI.new_child(SeriesDescription=&#39;Resting state&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; ftap = fMRI.new_child(SeriesDescription=&#39;Finger tap&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; fMRI.print()</span>
+<span class="sd">            ---------- STUDY ---------------</span>
+<span class="sd">            Study fMRI [20230203]</span>
+<span class="sd">                Series 001 [Resting state]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">                Series 002 [Finger tap]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Note the same result could also be obtained by calling :func:`~new_series` on the study.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note this function is implemented in all subclasses - included here for documentation purposes.</span>
+        <span class="k">pass</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.new_sibling">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_sibling.html#dbdicom.Record.new_sibling">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_sibling</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suffix</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new sibling of the record under the same parent.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs: Any valid DICOM (tag, value) pair to assign to the new sibling.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RuntimeError: when called on a Record of type Database. New records can only be created within an existing database.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_patient`</span>
+<span class="sd">            :func:`~new_study`</span>
+<span class="sd">            :func:`~new_series`</span>
+<span class="sd">            :func:`~new_pibling`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a sibling series under the same study:</span>
+
+<span class="sd">            &gt;&gt;&gt; rstate = db.series(SeriesDescription=&#39;Resting state&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; ftap = rstate.new_sibling(SeriesDescription=&#39;Finger tap&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; rstate.parent().print()</span>
+<span class="sd">            ---------- STUDY ---------------</span>
+<span class="sd">            Study New Study [None]</span>
+<span class="sd">                Series 001 [Resting state]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">                Series 002 [Finger tap]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Note this function is implemented in all subclasses - included here for documentation purposes.</span>
+        <span class="c1"># Note the suffix argument is deprecated and should not be used.</span>
+        <span class="k">pass</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.new_pibling">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.new_pibling.html#dbdicom.Record.new_pibling">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_pibling</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new sibling of the parent record (pibling).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the new pibling.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Record: instance of the new parent</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~new_patient`</span>
+<span class="sd">            :func:`~new_study`</span>
+<span class="sd">            :func:`~new_series`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Use a series to create a new study directly. A use case is where image processing results derived from a series should be saved in a separate study under the same patient. </span>
+
+<span class="sd">            &gt;&gt;&gt; fMRI = db.study(StudyDescription=&#39;fMRI&#39;, StudyDate=&#39;202305010&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; rstate = fMRI.new_series(SeriesDescription=&#39;Resting state&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; rstate_results = rstate.new_pibling(StudyDescription=&#39;fMRI resting state analysis&#39;, StudyDate=&#39;20230603&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; rstate.patient().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">            Study New Study [None]</span>
+<span class="sd">                Series 001 [Resting state]</span>
+<span class="sd">                    Nr of instances: 0</span>
+<span class="sd">            Study fMRI resting state analysis [20230603]</span>
+<span class="sd">            --------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;Patient&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+    
+<div class="viewcode-block" id="Record.remove">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.remove.html#dbdicom.Record.remove">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove a record from the database.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~copy`</span>
+<span class="sd">            :func:`~copy_to`</span>
+<span class="sd">            :func:`~move_to`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new study in an empty database, then remove it again:</span>
+
+<span class="sd">            &gt;&gt;&gt; database = db.database()</span>
+<span class="sd">            &gt;&gt;&gt; study = database.new_study(StudyDescription=&#39;Demo Study&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient New Patient</span>
+<span class="sd">                    Study Demo Study [None]</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            &gt;&gt;&gt; study.remove()</span>
+<span class="sd">            &gt;&gt;&gt; database.print()</span>
+<span class="sd">            ---------- DATABASE --------------</span>
+<span class="sd">            Location:  In memory</span>
+<span class="sd">                Patient New Patient</span>
+<span class="sd">            ----------------------------------</span>
+
+<span class="sd">            A record that has been removed from the database can no longer be accessed. Any attempt to do so will raise an error:</span>
+
+<span class="sd">            &gt;&gt;&gt; print(study.label())</span>
+<span class="sd">            ValueError: This record has been removed from the database and can no longer be accessed.</span>
+
+<span class="sd">        Note: </span>
+<span class="sd">            Removing a record will also remove all of its children, and this will be permanent after saving the record with :func:`~save`. </span>
+<span class="sd">            </span>
+<span class="sd">            If a record has been removed accidentally in an interactive session, use :func:`~restore` to revert back to the last saved state. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="Record.move_to">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.move_to.html#dbdicom.Record.move_to">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">move_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Move the record to another parent.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            parent: parent where the record will be moved to.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~remove`</span>
+<span class="sd">            :func:`~copy`</span>
+<span class="sd">            :func:`~copy_to`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a database with two studies and a single series in one:</span>
+
+<span class="sd">            &gt;&gt;&gt; demo = db.series(SeriesDescription=&#39;!!WATCH ME MOVE!!&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; test = demo.new_pibling(StudyDescription=&#39;Test&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.patient().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                    Series 001 [!!WATCH ME MOVE!!]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            Study Test [None]</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Now move the series to the other study:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.move_to(study)</span>
+<span class="sd">            &gt;&gt;&gt; series.patient().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                Study Test [None]</span>
+<span class="sd">                    Series 001 [Demo]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">move_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
+<div class="viewcode-block" id="Record.copy_to">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.copy_to.html#dbdicom.Record.copy_to">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">copy_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of the record under another parent.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            parent: parent where the copy will be placed.</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Record: copy of the same type.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~remove`</span>
+<span class="sd">            :func:`~copy`</span>
+<span class="sd">            :func:`~move_to`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a database with a single patient/study/series:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.series(SeriesDescription=&#39;Demo&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.patient().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                    Series 001 [Demo]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+
+<span class="sd">            Create a new study *Copies* under the same patient, and copy the the *Demo* series into it:</span>
+
+<span class="sd">            &gt;&gt;&gt; study = series.new_pibling(StudyDescription=&#39;Copies&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; copy = series.copy_to(study, SeriesDescription=&#39;Copy of Demo&#39;)</span>
+
+<span class="sd">            The same patient now has two studies, each with a single series:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.patient().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study Copies [None]</span>
+<span class="sd">                    Series 001 [Copy of Demo]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">                Study New Study [None]</span>
+<span class="sd">                    Series 001 [Demo]</span>
+<span class="sd">                        Nr of instances: 0</span>
+<span class="sd">            --------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">parent</span><span class="o">.</span><span class="n">_copy_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    
+    
+<div class="viewcode-block" id="Record.copy">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.copy.html#dbdicom.Record.copy">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of the record under the same parent.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kwargs (optional): Any valid DICOM (tag, value) pair can be assigned up front as properties of the copy.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Record: copy of the same type.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~remove`</span>
+<span class="sd">            :func:`~copy_to`</span>
+<span class="sd">            :func:`~move_to`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new DICOM study and build two copies in the same patient, assigning a new study description on the fly:</span>
+
+<span class="sd">            &gt;&gt;&gt; study = db.study(StudyDescription=&#39;Original&#39;, StudyDate=&#39;20001231&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; copy1 = study.copy(StudyDescription=&#39;Copy 1&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; copy2 = study.copy(StudyDescription=&#39;Copy 2&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; study.parent().print()</span>
+<span class="sd">            ---------- PATIENT -------------</span>
+<span class="sd">            Patient New Patient</span>
+<span class="sd">                Study Copy 1 [20001231]</span>
+<span class="sd">                Study Copy 2 [20001231]</span>
+<span class="sd">                Study Original [20001231]</span>
+<span class="sd">            --------------------------------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Load and save</span>
+
+
+<div class="viewcode-block" id="Record.restore">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.restore.html#dbdicom.Record.restore">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore the record to the last changed state.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Restoring is irreversible! Any edits made to the record since the last time it was saved will be lost.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~save`</span>
+<span class="sd">        </span>
+<span class="sd">            Create a new patient and change the name:</span>
+
+<span class="sd">            &gt;&gt;&gt; patient = db.patient(PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; patient.PatientName = &#39;Scarface&#39;</span>
+<span class="sd">            &gt;&gt;&gt; print(patient.PatientName)</span>
+<span class="sd">            Scarface</span>
+
+<span class="sd">            Calling restore will undo the changes:</span>
+
+<span class="sd">            &gt;&gt;&gt; patient.restore()</span>
+<span class="sd">            &gt;&gt;&gt; print(patient.PatientName)</span>
+<span class="sd">            James Bond</span>
+<span class="sd">        &quot;&quot;&quot;</span>        
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_extract_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="Record.save">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.save.html#dbdicom.Record.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save any changes made to the record.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Saving is irreversible! Any edits made to the record before saving cannot be undone.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~restore`</span>
+<span class="sd">        </span>
+<span class="sd">        Example:</span>
+<span class="sd">            Create a new patient, change the name, and save:</span>
+
+<span class="sd">            &gt;&gt;&gt; patient = db.patient(PatientName=&#39;James Bond&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; patient.PatientName = &#39;Scarface&#39;</span>
+<span class="sd">            &gt;&gt;&gt; patient.save()</span>
+
+<span class="sd">            At this point the original information can no longer be restored. Calling restore does not revert back to the original:</span>
+
+<span class="sd">            &gt;&gt;&gt; patient.restore()</span>
+<span class="sd">            &gt;&gt;&gt; print(patient.PatientName)</span>
+<span class="sd">            Scarface</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_extract_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+        
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the record into memory.</span>
+
+<span class="sd">        After loading the record into memory, all subsequent changes will be made in memory only. Call clear() to write any changes to disk and remove it from memory. </span>
+
+<span class="sd">        Note: </span>
+<span class="sd">            If the record already exists in memory, read() does nothing. This is to avoid that any changes made after reading are overwritten.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~clear`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            As an example, we can verify that editing data in memory is faster than on disk. We&#39;ll need the time package and a large series on disk: </span>
+
+<span class="sd">            &gt;&gt;&gt; from time import time</span>
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((20,20,256,256), in_database=db.database(path))</span>
+
+<span class="sd">            Now measure the time it takes to set the slice locations to a constant value:</span>
+
+<span class="sd">            &gt;&gt;&gt; t=time(); series.SliceLocation=1; print(time()-t)</span>
+<span class="sd">            17.664631605148315</span>
+
+<span class="sd">            Since the series was created on disk, this is editing on disk. Now load the series into memory and perform the same steps:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.load()</span>
+<span class="sd">            &gt;&gt;&gt; t=time(); series.SliceLocation=1; print(time()-t)</span>
+<span class="sd">            2.3518126010894775</span>
+
+<span class="sd">            On the machine where this was executed, the same computation runs more than 10 times faster in memory.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">return</span> <span class="bp">self</span>
+    
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear the record from memory.</span>
+
+<span class="sd">        This will write the record to disk and clear it from memory. After this step, subsequent calculations will be performed from disk.</span>
+
+<span class="sd">        Note: </span>
+<span class="sd">            If the record does not exist in memory, or if its database does not have a path on disk associated, read() does nothing.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~read`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            As an example, we can verify that editing data in memory is faster than on disk. We&#39;ll need the time package and a large series in memory. We also provide a path to a directory for writing data: </span>
+
+<span class="sd">            &gt;&gt;&gt; from time import time</span>
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((20,20,256,256))</span>
+<span class="sd">            &gt;&gt;&gt; series.database().set_path(path)</span>
+
+<span class="sd">            Now measure the time it takes to set the slice locations to a constant value:</span>
+
+<span class="sd">            &gt;&gt;&gt; t=time(); series.SliceLocation=1; print(time()-t)</span>
+<span class="sd">            1.9060208797454834</span>
+
+<span class="sd">            Since the series was created in memory, this is editing in memory. Now we clear the series from memory and perform the same computation:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.clear()</span>
+<span class="sd">            &gt;&gt;&gt; t=time(); series.SliceLocation=1; print(time()-t)</span>
+<span class="sd">            17.933974981307983</span>
+
+<span class="sd">            The computation is now run from disk and is 10 times slower because of the need to read and write the files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="Record.export_as_dicom">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.export_as_dicom.html#dbdicom.Record.export_as_dicom">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_as_dicom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export record in DICOM format to an external directory.</span>
+
+<span class="sd">        Note since this is exporting outside of the current database this will assign new identifiers to the exported data. </span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): path to export directory.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~export_as_png`</span>
+<span class="sd">            :func:`~export_as_nifti`</span>
+<span class="sd">            :func:`~export_as_npy`</span>
+<span class="sd">            :func:`~export_as_csv`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Create a 4D series and export as DICOM</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.ones((128, 128, 10, 5))</span>
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_dicom(path)</span>
+
+<span class="sd">            This should create a single folder in the directory, populated with 50 DICOM files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="s1">&#39;Database&#39;</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">export_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">():</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">export_as_dicom</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Record.export_as_png">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.export_as_png.html#dbdicom.Record.export_as_png">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_as_png</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">center</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> 
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export record in PNG format.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): path to export directory.</span>
+<span class="sd">            center (float, optional): center of the color window. Defaults to None, in which case the center is taken from the DICOM header.</span>
+<span class="sd">            width (float, optional): width of the color window. Defaults to None, in which case the width is taken from the DICOM header.</span>
+<span class="sd">            colormap (str, optional): color map to use as lookup table. Any valid matplotlib colormap can be entered here. Please the `matplotlib colormap reference &lt;https://matplotlib.org/stable/gallery/color/colormap_reference.html&gt;`_ for a complete list. Defaults to None, in which case the colormap is taken from the DICOM header. </span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~export_as_dicom`</span>
+<span class="sd">            :func:`~export_as_nifti`</span>
+<span class="sd">            :func:`~export_as_npy`</span>
+<span class="sd">            :func:`~export_as_csv`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Create a 4D series and export as PNG, using the colormap plasma:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.ones((128, 128, 10, 5))</span>
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_png(path, center=1, width=0.5, colormap=&#39;plasma&#39;)</span>
+
+<span class="sd">            This should create a single folder in the directory, populated with 50 PNG files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="s1">&#39;Database&#39;</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">export_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">():</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">export_as_png</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="n">colormap</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Record.export_as_csv">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.export_as_csv.html#dbdicom.Record.export_as_csv">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_as_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export record in CSV format to an external directory.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): path to export directory.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~export_as_png`</span>
+<span class="sd">            :func:`~export_as_nifti`</span>
+<span class="sd">            :func:`~export_as_npy`</span>
+<span class="sd">            :func:`~export_as_dicom`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Create a 4D series and export as CSV:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.ones((128, 128, 10, 5))</span>
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_csv(path)</span>
+
+<span class="sd">            This should create a single folder in the directory, populated with 50 CSV files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="s1">&#39;Database&#39;</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">export_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">():</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">export_as_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Record.export_as_nifti">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.export_as_nifti.html#dbdicom.Record.export_as_nifti">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_as_nifti</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span><span class="nb">tuple</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export record in NIFTI format to an external directory.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): path to export directory.</span>
+<span class="sd">            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set, each image will be exported in its own file. </span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~export_as_png`</span>
+<span class="sd">            :func:`~export_as_dicom`</span>
+<span class="sd">            :func:`~export_as_npy`</span>
+<span class="sd">            :func:`~export_as_csv`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Create a 4D series and export as NIFTI:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.ones((128, 128, 10, 5))</span>
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_nifti(path)</span>
+
+<span class="sd">            This should create a single folder in the directory, populated with 50 NIFTI files.</span>
+
+<span class="sd">            In order to export the entire series in a single volume, provide the dimensions along which the volume is to be taken:</span>
+
+<span class="sd">            &gt;&gt;&gt; dims = (&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_nifti(path, dims=dims)</span>
+
+<span class="sd">            This will now create a single nifti file.</span>
+
+<span class="sd">            Note: in this case the dimensions must be specified as slice location and acquisition time because these are the default dimensions used by series creation functions like :func:`~ones`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="s1">&#39;Database&#39;</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">export_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">():</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">export_as_nifti</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">dims</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Record.export_as_npy">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.export_as_npy.html#dbdicom.Record.export_as_npy">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_as_npy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="p">:</span><span class="nb">tuple</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export record in numpy&#39;s NPY format to an external directory.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path (str): path to export directory.</span>
+<span class="sd">            dims (tuple, optional): when set, volumes are extracted along the given dimensions and exported in single files. If dims is not set (None), each image will be exported in its own file. Defaults to None.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~export_as_png`</span>
+<span class="sd">            :func:`~export_as_nifti`</span>
+<span class="sd">            :func:`~export_as_dicom`</span>
+<span class="sd">            :func:`~export_as_csv`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            Create a 4D series:</span>
+
+<span class="sd">            &gt;&gt;&gt; series = db.ones((128, 128, 10, 5))</span>
+
+<span class="sd">            Export the series as npy, with each slice in a separate file:</span>
+
+<span class="sd">            &gt;&gt;&gt; path = &#39;path\\to\\empty\\folder&#39;</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_npy(path)</span>
+
+<span class="sd">            This will create 50 npy files in the folder, one for each image. To save the entire volume in a single file, specify the dimensions of the volume:</span>
+
+<span class="sd">            &gt;&gt;&gt; dims = (&#39;SliceLocation&#39;, &#39;AcquisitionTime&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.export_as_npy(path, dims)</span>
+
+<span class="sd">            This will create a single npy file. </span>
+
+<span class="sd">            Note: in this case the dimensions must be specified as slice location and acquisition time because these are the default dimensions used by series creation functions like :func:`~ones`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;Database&#39;</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="s1">&#39;Database&#39;</span> 
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">export_path</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">():</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">export_as_npy</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="n">dims</span><span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="Record.progress">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.progress.html#dbdicom.Record.progress">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">progress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">maximum</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print progress message to the terminal..</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (float): current status</span>
+<span class="sd">            maximum (float): maximal value</span>
+<span class="sd">            message (str, optional): Message to include in the update. Defaults to None.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            When working through a terminal this could easily be replicated with a print statement. The advantage of using the progress interface is that the code does not need to be changed when the computation is run through a graphical user interface (assuming this uses a compatible API). </span>
+<span class="sd">            </span>
+<span class="sd">            Another advantage is that messaging can be muted/unmuted using .mute() and .unmute(), for instance when the object is passed to a subroutine.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~message`</span>
+<span class="sd">            :func:`~mute`</span>
+<span class="sd">            :func:`~unmute`</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; nr_of_slices = 3</span>
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((nr_of_slices,128,128))</span>
+<span class="sd">            &gt;&gt;&gt; for slice in range(nr_of_slices):</span>
+<span class="sd">                series.progress(1+slice, nr_of_slices, &#39;Looping over slices&#39;)</span>
+<span class="sd">            Looping over slices [33 %]</span>
+<span class="sd">            Looping over slices [67 %]</span>
+<span class="sd">            Looping over slices [100 %]  </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mute</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">maximum</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Record.message">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.message.html#dbdicom.Record.message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print a message to the user.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            message (str): Message to be printed.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            When working through a terminal a print statement would have exactly the same effect. The advantage of using the message interface is that the code does not need to be changed when the computation is run through a graphical user interface (assuming this uses a compatible API). </span>
+<span class="sd">            </span>
+<span class="sd">            Another advantage is that messaging can be muted/unmuted using .mute() and .unmute() for instance when the object is passed to a subroutine.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~progress`</span>
+<span class="sd">            :func:`~mute`</span>
+<span class="sd">            :func:`~unmute`</span>
+
+<span class="sd">        Example:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Starting computation..&#39;)</span>
+<span class="sd">            Starting computation..</span>
+<span class="sd">            </span>
+<span class="sd">            After muting the same statment does not send a message:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.mute()</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Starting computation..&#39;)</span>
+
+<span class="sd">            Unmute to reactivate sending messages:</span>
+
+<span class="sd">            &gt;&gt;&gt; series.unmute()</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Starting computation..&#39;)</span>
+<span class="sd">            Starting computation..</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mute</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Record.mute">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.mute.html#dbdicom.Record.mute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prevent the object from sending status updates to the user</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~unmute`</span>
+<span class="sd">            :func:`~message`</span>
+<span class="sd">            :func:`~progress`</span>
+<span class="sd">        </span>
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((3,128,128))</span>
+<span class="sd">            &gt;&gt;&gt; print(&#39;My message: &#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Hello World&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.mute()</span>
+<span class="sd">            &gt;&gt;&gt; print(&#39;My message: &#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Hello World&#39;)</span>
+
+<span class="sd">            My message: </span>
+<span class="sd">            Hello World</span>
+<span class="sd">            My message:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mute</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">muted</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+        
+<div class="viewcode-block" id="Record.unmute">
+<a class="viewcode-back" href="../../generated/api/dbdicom.Record.unmute.html#dbdicom.Record.unmute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unmute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allow the object from sending status updates to the user</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Records are unmuted by default, so unmuting is only necessary after a previouse call to mute(). Unmuting has no effect when the record is already unmuted.</span>
+
+<span class="sd">        See Also:</span>
+<span class="sd">            :func:`~mute`</span>
+<span class="sd">            :func:`~message`</span>
+<span class="sd">            :func:`~progress`</span>
+<span class="sd">        </span>
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; series = db.zeros((3,128,128))</span>
+<span class="sd">            &gt;&gt;&gt; print(&#39;My message: &#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Hello World&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.mute()</span>
+<span class="sd">            &gt;&gt;&gt; print(&#39;My message: &#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Hello World&#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.unmute()</span>
+<span class="sd">            &gt;&gt;&gt; print(&#39;My message: &#39;)</span>
+<span class="sd">            &gt;&gt;&gt; series.message(&#39;Hello World&#39;)</span>
+
+<span class="sd">            My message: </span>
+<span class="sd">            Hello World</span>
+<span class="sd">            My message:</span>
+<span class="sd">            My message:</span>
+<span class="sd">            Hello World</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mute</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">muted</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#if self.manager.register is None:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">is_open</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">keys</span> <span class="o">!=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="s1">&#39;Database&#39;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="c1">#return self.manager.register.loc[self.keys(),:]</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">instances</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="p">{},</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> 
+        <span class="n">inst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">instances</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="n">select</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">inst</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">images</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> 
+        <span class="n">inst</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">instances</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">,</span> <span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">,</span> <span class="n">images</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">inst</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+
+
+    <span class="c1"># This needs a test whether the instance is an image - else move to the next</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+    <span class="c1"># Needs a unit test</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1">#uid = self.manager.register.at[key, &#39;SOPInstanceUID&#39;]</span>
+            <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;SOPInstanceUID&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="c1">#uid = self.manager.register.at[key, &#39;SOPInstanceUID&#39;]</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;SOPInstanceUID&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># Needs a unit test</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1">#uid = self.manager.register.at[key, &#39;SeriesInstanceUID&#39;]</span>
+            <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;SeriesInstanceUID&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Series&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Series&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="c1">#uid = self.manager.register.at[key, &#39;SeriesInstanceUID&#39;]</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;SeriesInstanceUID&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Series&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># Needs a unit test</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">study</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1">#uid = self.manager.register.at[key, &#39;StudyInstanceUID&#39;]</span>
+            <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;StudyInstanceUID&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Study&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Study&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="c1">#uid = self.manager.register.at[key, &#39;StudyInstanceUID&#39;]</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;StudyInstanceUID&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Study&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="c1"># Needs a unit test</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">patient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1">#uid = self.manager.register.at[key, &#39;PatientID&#39;]</span>
+            <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;PatientID&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Patient&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">uid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Patient&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="c1">#uid = self.manager.register.at[key, &#39;PatientID&#39;]</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_at</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="s1">&#39;PatientID&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Patient&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="c1"># Obsolete - replace by load()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span> <span class="c1"># empty database</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">_write_df</span><span class="p">()</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">new_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">}</span>
+        <span class="n">uid</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">new_instance</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="s1">&#39;Instance&#39;</span><span class="p">,</span> <span class="n">uid</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">attr</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attributes</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">attributes</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attributes</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="n">attributes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;mri&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">dtype</span><span class="o">==</span><span class="s1">&#39;mri&#39;</span><span class="p">:</span>
+            <span class="n">ds</span> <span class="o">=</span> <span class="n">MRImage</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># dummy option for now</span>
+            <span class="n">ds</span> <span class="o">=</span> <span class="n">MRImage</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">:</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">set_values</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="n">a</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">ds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">ds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">set_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_dataframe</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">read_dataframe</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">series_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="n">dbdataset</span><span class="o">.</span><span class="n">module_series</span><span class="p">()</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">attr</span><span class="p">,</span> <span class="n">vals</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">study_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="n">dbdataset</span><span class="o">.</span><span class="n">module_study</span><span class="p">()</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">attr</span><span class="p">,</span> <span class="n">vals</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">patient_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attr</span> <span class="o">=</span> <span class="n">dbdataset</span><span class="o">.</span><span class="n">module_patient</span><span class="p">()</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">attr</span><span class="p">,</span> <span class="n">vals</span>
+
+    <span class="c1"># def tree(*args, **kwargs):</span>
+    <span class="c1">#     return tree(*args, **kwargs)</span>
+
+
+
+<span class="c1">#</span>
+<span class="c1"># Functions on a list of records of the same database</span>
+<span class="c1">#</span>
+
+
+<div class="viewcode-block" id="copy_to">
+<a class="viewcode-back" href="../../generated/api/dbdicom.copy_to.html#dbdicom.copy_to">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">copy_to</span><span class="p">(</span><span class="n">records</span><span class="p">:</span><span class="nb">list</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span><span class="n">Record</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Copy a list of records to a new parent.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records (list): list of Records of the same type</span>
+<span class="sd">        parent (Record): location for the copies.</span>
+
+<span class="sd">    See also:</span>
+<span class="sd">        `copy`</span>
+<span class="sd">        `move_to`</span>
+
+<span class="sd">    Example:</span>
+
+<span class="sd">        Consider the hollywood demo database:</span>
+
+<span class="sd">        &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+
+<span class="sd">        There are currently two MRI studies in the database:</span>
+
+<span class="sd">        &gt;&gt;&gt; MRIs = database.studies(StudyDescription=&#39;MRI)</span>
+<span class="sd">        &gt;&gt;&gt; len(MRIs)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        Create a new patient and copy the MRI studies there:</span>
+
+<span class="sd">        &gt;&gt;&gt; tarantino = database.new_patient(PatientName=&#39;Tarantino&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; db.copy_to(MRIs, tarantino)</span>
+<span class="sd">        &gt;&gt;&gt; tarantino_MRIs = tarantino.studies()</span>
+<span class="sd">        &gt;&gt;&gt; len(tarantino_MRIs)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        Note that all header information is automatically updated:</span>
+
+<span class="sd">        &gt;&gt;&gt; tarantino_MRIs[0].PatientName</span>
+<span class="sd">        Tarantino</span>
+
+<span class="sd">        Since the studies were copied, the originals remained and the total number of studies in the database has increased:</span>
+
+<span class="sd">        &gt;&gt;&gt; MRIs = database.studies(StudyDescription=&#39;MRI)</span>
+<span class="sd">        &gt;&gt;&gt; len(MRIs)</span>
+<span class="sd">        4</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">records</span><span class="o">.</span><span class="n">copy_to</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+    <span class="n">copy</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">label</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+        <span class="n">record</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">r</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">),</span> <span class="s1">&#39;Copying &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">copy_record</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">copy_to</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">copy_record</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">copy</span> <span class="o">+=</span> <span class="n">copy_record</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">copy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">copy_record</span><span class="p">)</span>
+    <span class="n">record</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">copy</span></div>
+
+
+<div class="viewcode-block" id="move_to">
+<a class="viewcode-back" href="../../generated/api/dbdicom.move_to.html#dbdicom.move_to">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">move_to</span><span class="p">(</span><span class="n">records</span><span class="p">:</span><span class="nb">list</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span><span class="n">Record</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Move a list of records to a new parent.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records (list): list of Records of the same type</span>
+<span class="sd">        parent (Record): location for the copies.</span>
+
+<span class="sd">    See also:</span>
+<span class="sd">        `copy`</span>
+<span class="sd">        `copy_to`</span>
+
+<span class="sd">    Example:</span>
+
+<span class="sd">        Consider the hollywood demo database:</span>
+
+<span class="sd">        &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+
+<span class="sd">        There are currently two MRI studies in the database:</span>
+
+<span class="sd">        &gt;&gt;&gt; MRIs = database.studies(StudyDescription=&#39;MRI)</span>
+<span class="sd">        &gt;&gt;&gt; len(MRIs)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        Create a new patient and move the MRI studies there:</span>
+
+<span class="sd">        &gt;&gt;&gt; tarantino = database.new_patient(PatientName=&#39;Tarantino&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; db.copy_to(MRIs, tarantino)</span>
+<span class="sd">        &gt;&gt;&gt; tarantino_MRIs = tarantino.studies()</span>
+<span class="sd">        &gt;&gt;&gt; len(tarantino_MRIs)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        Note that all header information is automatically updated:</span>
+
+<span class="sd">        &gt;&gt;&gt; tarantino_MRIs[0].PatientName</span>
+<span class="sd">        Tarantino</span>
+
+<span class="sd">        Since the studies were moved, the total number of studies in the database has stayed the same:</span>
+
+<span class="sd">        &gt;&gt;&gt; MRIs = database.studies(StudyDescription=&#39;MRI)</span>
+<span class="sd">        &gt;&gt;&gt; len(MRIs)</span>
+<span class="sd">        2</span>
+
+<span class="sd">        And the original patients do not have any MRI studies left:</span>
+
+<span class="sd">        &gt;&gt;&gt; jb = database.patients(PatientName = &#39;James Bond&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; MRIs = jb[0].studies(StudyDescription=&#39;MRI&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; len(MRIs)</span>
+<span class="sd">        0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">records</span><span class="p">]</span>
+    <span class="n">mgr</span> <span class="o">=</span> <span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">manager</span>
+    <span class="n">uids</span> <span class="o">=</span> <span class="p">[</span><span class="n">rec</span><span class="o">.</span><span class="n">uid</span> <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">records</span><span class="p">]</span>
+    <span class="n">mgr</span><span class="o">.</span><span class="n">move_to</span><span class="p">(</span><span class="n">uids</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">uid</span><span class="p">,</span> <span class="o">**</span><span class="n">target</span><span class="o">.</span><span class="n">attributes</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">records</span></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="n">records</span><span class="p">:</span><span class="nb">list</span><span class="p">,</span> <span class="n">into</span><span class="p">:</span><span class="n">Record</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Record</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">records</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">into</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">into</span> <span class="o">=</span> <span class="n">records</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">new_pibling</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+        <span class="n">move_to</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">into</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">copy_to</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">into</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">into</span>
+
+<div class="viewcode-block" id="merge">
+<a class="viewcode-back" href="../../generated/api/dbdicom.merge.html#dbdicom.merge">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">merge</span><span class="p">(</span><span class="n">records</span><span class="p">:</span><span class="nb">list</span><span class="p">,</span> <span class="n">into</span><span class="p">:</span><span class="n">Record</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Record</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Merge a list of records into a single new record.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        records (list): list of Records of the same type</span>
+<span class="sd">        into (Record, optional): location for the merged series. If None is provided, the merged series is created in the parent of the first record in the list. Defaults to None.</span>
+<span class="sd">        inplace (bool, optional): If set to True, the original series will be removed and only the merged series retain. If set to False the original series will contine to exist. Default is False.</span>
+
+<span class="sd">    Returns: </span>
+<span class="sd">        new_record (Record): the merged record.</span>
+
+<span class="sd">    See also:</span>
+<span class="sd">        `copy`</span>
+<span class="sd">        `copy_to`</span>
+
+<span class="sd">    Example:</span>
+
+<span class="sd">        The first patient in the hollywood demo database currently has two studies</span>
+
+<span class="sd">        &gt;&gt;&gt; database = db.dro.database_hollywood()</span>
+<span class="sd">        &gt;&gt;&gt; jb = database.patients(PatientName = &#39;James Bond&#39;)[0]</span>
+<span class="sd">        &gt;&gt;&gt; len(jb.studies())</span>
+<span class="sd">        2</span>
+
+<span class="sd">        If we merge them together, the patient now has three studies, the original MRI and Xray studies, and the new merged study:</span>
+
+<span class="sd">        &gt;&gt;&gt; new_study = db.merge(jb.studies())</span>
+<span class="sd">        &gt;&gt;&gt; len(jb.studies())</span>
+<span class="sd">        3</span>
+<span class="sd">        &gt;&gt;&gt; jb.StudyDescription</span>
+<span class="sd">        [&#39;MRI&#39;, &#39;New Study&#39;, &#39;Xray&#39;]</span>
+
+<span class="sd">        Since the original MRI and Xray studies had two series each, the new study now has 2+2=4 series:</span>
+
+<span class="sd">        &gt;&gt;&gt; len(new_study.series())</span>
+<span class="sd">        4 </span>
+
+<span class="sd">        We have used here the default setting of ``inplace=False``, so the original series are preserved. To see what happens with ``inplace=True``, lets merge all 3 studies of the patient: </span>
+
+<span class="sd">        &gt;&gt;&gt; single_jb_study = db.merge(jb.studies(), inplace=True)</span>
+
+<span class="sd">        Since we have merged in place, the original 3 studies have been removed and there is now only one study left.</span>
+<span class="sd">        </span>
+<span class="sd">        &gt;&gt;&gt; len(jb.studies())</span>
+<span class="sd">        1</span>
+
+<span class="sd">        The new study now groups the 8 series that were in the original 3 studies:</span>
+
+<span class="sd">        &gt;&gt;&gt; len(single_jb_study.series())</span>
+<span class="sd">        8</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">records</span><span class="p">]</span>
+    <span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+        <span class="n">children</span> <span class="o">+=</span> <span class="n">record</span><span class="o">.</span><span class="n">children</span><span class="p">()</span>
+    <span class="n">new_record</span> <span class="o">=</span> <span class="n">group</span><span class="p">(</span><span class="n">children</span><span class="p">,</span> <span class="n">into</span><span class="o">=</span><span class="n">into</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="n">inplace</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+            <span class="n">record</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">new_record</span></div>
+
+
+
+
+
+<span class="c1"># </span>
+<span class="c1"># Read and write</span>
+<span class="c1">#</span>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">read_dataframe</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">select</span><span class="o">=</span><span class="p">{},</span> <span class="o">**</span><span class="n">filters</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">tags</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">register</span><span class="p">()[</span><span class="n">tags</span><span class="p">]</span> 
+        <span class="n">filters</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">select</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filters</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">df</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filters</span><span class="p">[</span><span class="n">f</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">f</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">filters</span><span class="p">[</span><span class="n">f</span><span class="p">])]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="o">==</span> <span class="n">filters</span><span class="p">[</span><span class="n">f</span><span class="p">]]</span> 
+        <span class="k">return</span> <span class="n">df</span>
+    <span class="n">instances</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">instances</span><span class="p">(</span><span class="n">select</span><span class="o">=</span><span class="n">select</span><span class="p">,</span> <span class="o">**</span><span class="n">filters</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_read_dataframe_from_instance_array_values</span><span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">tags</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">read_dataframe_from_instance_array</span><span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">tags</span><span class="p">):</span>
+    <span class="n">mgr</span> <span class="o">=</span> <span class="n">instances</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">manager</span>
+    <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">tags</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">mgr</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">key</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">ndenumerate</span><span class="p">(</span><span class="n">instances</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">mgr</span><span class="o">.</span><span class="n">_extract</span><span class="p">(</span><span class="n">keys</span><span class="p">)[</span><span class="n">tags</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">_read_dataframe_from_instance_array_values</span><span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">tags</span><span class="p">)</span>
+
+    
+<span class="k">def</span><span class="w"> </span><span class="nf">_read_dataframe_from_instance_array_values</span><span class="p">(</span><span class="n">instances</span><span class="p">,</span> <span class="n">tags</span><span class="p">):</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">instance</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">instances</span><span class="p">):</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">key</span><span class="p">()</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="n">tags</span><span class="p">)</span>
+        <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">instances</span><span class="p">),</span> <span class="s1">&#39;Reading dataframe..&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">tags</span><span class="p">)</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2022-2025, QIB-Sheffield.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,1566 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dbdicom.extensions.skimage &#8212; dbdicom 0.2.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../../_static/documentation_options.js?v=6ffd866b"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/dbdicom/extensions/skimage';</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../_static/dbd.png" class="logo__image only-light" alt="dbdicom 0.2.4 documentation - Home"/>
+    <img src="../../../_static/dbd.png" class="logo__image only-dark pst-js-only" alt="dbdicom 0.2.4 documentation - Home"/>
+  
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">dbdicom.extensions.skimage</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for dbdicom.extensions.skimage</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ndi</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">skimage</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dbdicom.extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">scipy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dbdicom.utils.image</span><span class="w"> </span><span class="kn">import</span> <span class="n">interpolate3d_isotropic</span>
+
+
+<div class="viewcode-block" id="volume_features">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.volume_features">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">volume_features</span><span class="p">(</span><span class="n">series</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">sery</span> <span class="ow">in</span> <span class="n">series</span><span class="p">:</span>
+            <span class="n">df_sery</span> <span class="o">=</span> <span class="n">volume_features</span><span class="p">(</span><span class="n">sery</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">df_sery</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">df_sery</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
+
+    <span class="n">n_steps</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">step</span><span class="o">+=</span><span class="mi">1</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">,</span> <span class="s1">&#39;Reading affine matrix..&#39;</span><span class="p">)</span>
+
+    <span class="n">affine</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">affine_matrix</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">affine</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">series</span><span class="o">.</span><span class="n">dialog</span><span class="o">.</span><span class="n">information</span><span class="p">(</span><span class="s1">&#39;This series contains multiple orientations&#39;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">affine</span> <span class="o">=</span> <span class="n">affine</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">step</span><span class="o">+=</span><span class="mi">1</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">n_steps</span><span class="p">,</span> <span class="s1">&#39;Reading array..&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Get array sorted by slice location</span>
+    <span class="n">arr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># If there are multiple volumes, show only the first one</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">series_props</span> <span class="o">=</span> <span class="n">_volume_features</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">affine</span><span class="o">=</span><span class="n">affine</span><span class="p">,</span> <span class="n">show_progress</span><span class="o">=</span><span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">)</span>
+
+    <span class="n">instance</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+    <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;PatientID&#39;</span><span class="p">,</span> <span class="s1">&#39;StudyDescription&#39;</span><span class="p">,</span> <span class="s1">&#39;SeriesDescription&#39;</span><span class="p">,</span> <span class="s1">&#39;Parameter&#39;</span><span class="p">,</span> <span class="s1">&#39;Value&#39;</span><span class="p">,</span> <span class="s1">&#39;Unit&#39;</span><span class="p">]</span>
+    <span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">instance</span><span class="o">.</span><span class="n">PatientID</span><span class="p">,</span> <span class="n">instance</span><span class="o">.</span><span class="n">StudyDescription</span><span class="p">,</span> <span class="n">instance</span><span class="o">.</span><span class="n">SeriesDescription</span><span class="p">]</span> 
+    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">par</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">series_props</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">ids</span> <span class="o">+</span> <span class="p">[</span><span class="n">par</span><span class="p">,</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_volume_features</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">affine</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_progress</span><span class="o">=</span><span class="nb">print</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate shape features from a mask array</span>
+<span class="sd">    </span>
+<span class="sd">    This function calculates various shape features from a given mask array.</span>
+<span class="sd">    </span>
+<span class="sd">    Arguments:</span>
+<span class="sd">    - arr (numpy.ndarray): The input mask array - 3D but does not have to be binary</span>
+<span class="sd">    - spacing (list, optional): The voxel dimensions in mm. Default is [1, 1, 1].</span>
+<span class="sd">    - affine (numpy.ndarray, optional): The affine transformation matrix. Default is None. If the affine is </span>
+<span class="sd">    provided then the spacing argument is ignored and spacing is derived from the affine.</span>
+<span class="sd">    - show_progress (function, optional): A function to display progress messages. Default is print.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">    - dict: A dictionary containing the calculated shape features with their corresponding units.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Preprocessing mask...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Scale array in the range [0,1] so it can be treated as mask</span>
+    <span class="c1"># Motivation: the function is intended for mask arrays but this will make</span>
+    <span class="c1"># sure the results are meaningful even if non-binary arrays are provided.</span>
+    <span class="nb">max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="nb">min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="n">arr</span> <span class="o">-=</span> <span class="nb">min</span>
+    <span class="n">arr</span> <span class="o">/=</span> <span class="nb">max</span><span class="o">-</span><span class="nb">min</span>
+    <span class="c1"># Add zeropadding at the boundary slices for masks that extend to the edge</span>
+    <span class="c1"># Motivation: this could have some effect if surfaces are extracted - could create issues</span>
+    <span class="c1"># if the values extend right up to the boundary of the slab.</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="mi">4</span>
+    <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">array</span><span class="p">[:,:,</span><span class="mi">4</span><span class="p">:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">arr</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Extracting surface...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Get voxel dimensions from the affine</span>
+    <span class="c1"># We are assuming here the voxel dimensions are in mm.</span>
+    <span class="c1"># If not the units provided with the return values are incorrect.</span>
+    <span class="k">if</span> <span class="n">affine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">column_spacing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">affine</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">row_spacing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">affine</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">slice_spacing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">affine</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">spacing</span> <span class="o">=</span> <span class="p">(</span><span class="n">column_spacing</span><span class="p">,</span> <span class="n">row_spacing</span><span class="p">,</span> <span class="n">slice_spacing</span><span class="p">)</span> 
+    <span class="n">voxel_volume</span> <span class="o">=</span> <span class="n">spacing</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">spacing</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">spacing</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">nr_of_voxels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">nr_of_voxels</span> <span class="o">*</span> <span class="n">voxel_volume</span>
+    <span class="c1"># Surface properties - for now only extracting surface area</span>
+    <span class="c1"># Note: this is smoothing the surface first - not tested in depth whether this is necessary or helpful.</span>
+    <span class="c1"># It does appear to make a big difference on surface area so should be looked at more carefully.</span>
+    <span class="n">smooth_array</span> <span class="o">=</span> <span class="n">ndi</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">verts</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">measure</span><span class="o">.</span><span class="n">marching_cubes</span><span class="p">(</span><span class="n">smooth_array</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="n">spacing</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">step_size</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">surface_area</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">measure</span><span class="o">.</span><span class="n">mesh_surface_area</span><span class="p">(</span><span class="n">verts</span><span class="p">,</span> <span class="n">faces</span><span class="p">)</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Interpolating to isotropic...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Interpolate to isotropic for non-isotropic voxels</span>
+    <span class="c1"># Motivation: this is required by the region_props function</span>
+    <span class="n">spacing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">spacing</span><span class="p">):</span>
+        <span class="n">array</span><span class="p">,</span> <span class="n">isotropic_spacing</span> <span class="o">=</span> <span class="n">interpolate3d_isotropic</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">spacing</span><span class="p">)</span>
+        <span class="n">isotropic_voxel_volume</span> <span class="o">=</span> <span class="n">isotropic_spacing</span><span class="o">**</span><span class="mi">3</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">isotropic_spacing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+        <span class="n">isotropic_voxel_volume</span> <span class="o">=</span> <span class="n">voxel_volume</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Extracting volume properties...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Get volume properties - mostly from region_props, except for compactness and depth</span>
+    <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">array</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+    <span class="n">region_props_3D</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">measure</span><span class="o">.</span><span class="n">regionprops</span><span class="p">(</span><span class="n">array</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Calculate &#39;compactness&#39; (our definition) - define as volume to surface ratio</span>
+    <span class="c1"># expressed as a percentage of the volume-to-surface ration of an equivalent sphere.</span>
+    <span class="c1"># The sphere is the most compact of all shapes, i.e. it has the largest volume to surface area ratio,</span>
+    <span class="c1"># so this is guaranteed to be between 0 and 100%</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;equivalent_diameter_area&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">2</span> <span class="c1"># mm</span>
+    <span class="n">v2s</span> <span class="o">=</span> <span class="n">volume</span><span class="o">/</span><span class="n">surface_area</span> <span class="c1"># mm</span>
+    <span class="n">v2s_equivalent_sphere</span> <span class="o">=</span> <span class="n">radius</span><span class="o">/</span><span class="mi">3</span> <span class="c1"># mm</span>
+    <span class="n">compactness</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">v2s</span><span class="o">/</span><span class="n">v2s_equivalent_sphere</span> <span class="c1"># %</span>
+    <span class="c1"># Fractional anisotropy - in analogy with FA in diffusion </span>
+    <span class="n">m0</span> <span class="o">=</span> <span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">m1</span> <span class="o">=</span> <span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">m2</span> <span class="o">=</span> <span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="p">(</span><span class="n">m0</span> <span class="o">+</span> <span class="n">m1</span> <span class="o">+</span> <span class="n">m2</span><span class="p">)</span><span class="o">/</span><span class="mi">3</span> <span class="c1"># average moment of inertia (trace of the inertia tensor)</span>
+    <span class="n">FA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">m0</span><span class="o">-</span><span class="n">m</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">m1</span><span class="o">-</span><span class="n">m</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">m2</span><span class="o">-</span><span class="n">m</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">m0</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">m1</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">m2</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Calculating depth...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Measure maximum depth (our definition)</span>
+    <span class="n">distance</span> <span class="o">=</span> <span class="n">ndi</span><span class="o">.</span><span class="n">distance_transform_edt</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="n">max_depth</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">distance</span><span class="p">)</span>
+
+    <span class="n">show_progress</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;Creating output...&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Summarise all values with human-readable names and proper units in a dictionary with values and units.</span>
+    <span class="c1"># Some of the definitions are rephrased or tweaked for more intuitive interpretation.</span>
+    <span class="c1"># The volume can be calculated independently from regionprops - included as sanity check.</span>
+    <span class="n">series_props</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;Surface area&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">surface_area</span><span class="o">/</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;cm^2&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Volume&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">volume</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;mL&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Bounding box volume&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;area_bbox&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_voxel_volume</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;mL&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Convex hull volume&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;area_convex&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_voxel_volume</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;mL&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Volume of holes&#39;</span><span class="p">:</span> <span class="p">((</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;area_filled&#39;</span><span class="p">]</span><span class="o">-</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;area&#39;</span><span class="p">])</span><span class="o">*</span><span class="n">isotropic_voxel_volume</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;mL&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Extent&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;extent&#39;</span><span class="p">]</span><span class="o">*</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;%&#39;</span><span class="p">),</span>    <span class="c1"># Percentage of bounding box filled</span>
+        <span class="s1">&#39;Solidity&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;solidity&#39;</span><span class="p">]</span><span class="o">*</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;%&#39;</span><span class="p">),</span>    <span class="c1"># Percentage of convex hull filled</span>
+        <span class="s1">&#39;Compactness&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">compactness</span><span class="p">,</span> <span class="s1">&#39;%&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Long axis length&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;axis_major_length&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;cm&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Short axis length&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;axis_minor_length&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;cm&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Equivalent diameter&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;equivalent_diameter_area&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;cm&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Longest caliper diameter&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;feret_diameter_max&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;cm&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Maximum depth&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">max_depth</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">/</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;cm&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Primary moment of inertia&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;cm^2&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Second moment of inertia&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;cm^2&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Third moment of inertia&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;inertia_tensor_eigvals&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;cm^2&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Mean moment of inertia&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">m</span><span class="o">*</span><span class="n">isotropic_spacing</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="mi">100</span><span class="p">,</span> <span class="s1">&#39;cm^2&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;Fractional anisotropy of inertia&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">100</span><span class="o">*</span><span class="n">FA</span><span class="p">,</span> <span class="s1">&#39;%&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;QC - Volume check&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">region_props_3D</span><span class="p">[</span><span class="s1">&#39;area&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">isotropic_voxel_volume</span><span class="o">/</span><span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;mL&#39;</span><span class="p">),</span>
+        <span class="c1"># From eigenvectors of inertia tensor: </span>
+        <span class="c1"># Include orientation info with respect to LPH coordinate system (tilt, roll)</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">series_props</span>
+
+
+
+<div class="viewcode-block" id="area_opening_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.area_opening_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">area_opening_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale area opening of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.area_opening. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [area opening 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">area_opening</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="area_opening_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.area_opening_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">area_opening_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale area opening of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.area_opening. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [area opening 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">area_opening</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="area_closing_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.area_closing_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">area_closing_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale area closing of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.area_closing. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [area closing 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">area_closing</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="area_closing_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.area_closing_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">area_closing_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale area closing of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.area_closing. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [area closing 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">area_closing</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="opening_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.opening_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">opening_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale morphological opening of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.opening. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [opening 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">opening</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="opening_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.opening_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">opening_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale morphological opening of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.opening. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [opening 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">opening</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="closing_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.closing_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">closing_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale morphological closing of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.closing. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [closing 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">closing</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="closing_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.closing_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">closing_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return grayscale morphological closing of an image.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.closing. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [closing 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">closing</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="remove_small_holes_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.remove_small_holes_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">remove_small_holes_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove contiguous holes smaller than the specified size.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.remove_small_holes. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [remove small holes 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">remove_small_holes</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="remove_small_holes_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.remove_small_holes_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">remove_small_holes_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove contiguous holes smaller than the specified size.</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.morphology.remove_small_holes. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [remove holes 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">remove_small_holes</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="watershed_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.watershed_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">watershed_2d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Labels structures in an image</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.segmentation.watershed function. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+<span class="sd">    markers: dbdicom series of the same dimensions as series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [watershed 2D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">sortby</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="s1">&#39;AcquisitionTime&#39;</span><span class="p">]</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">images</span><span class="p">(</span><span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">markers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">markers</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">markers</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">markers</span> <span class="o">=</span> <span class="n">markers</span><span class="o">.</span><span class="n">images</span><span class="p">(</span><span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">images</span><span class="p">(</span><span class="n">sortby</span><span class="o">=</span><span class="n">sortby</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">markers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mrk</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mrk</span> <span class="o">=</span> <span class="n">markers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msk</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msk</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool8</span><span class="p">)</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">segmentation</span><span class="o">.</span><span class="n">watershed</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="n">mrk</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">msk</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="c1"># unnecessary - test</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="watershed_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.watershed_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">watershed_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">markers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determine watershed in 3D</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.segmentation.watershed function.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="k">if</span> <span class="n">markers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">markers</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">markers</span><span class="p">,</span> <span class="nb">input</span><span class="p">)</span>
+        <span class="n">markers</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">markers</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">markers</span> <span class="o">=</span> <span class="n">markers</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="nb">input</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool8</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [watershed 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">segmentation</span><span class="o">.</span><span class="n">watershed</span><span class="p">(</span>
+            <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> 
+            <span class="n">markers</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">markers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">markers</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> 
+            <span class="n">mask</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">mask</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> 
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="skeletonize">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.skeletonize">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">skeletonize</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Labels structures in an image</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.segmentation.watershed function. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+<span class="sd">    markers: dbdicom series of the same dimensions as series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [2d skeleton]&#39;</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="c1">#images = filtered.instances() #sort=False should be faster - check</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">filtered</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">skeletonize</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1">#array.astype(np.float32)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<div class="viewcode-block" id="skeletonize_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.skeletonize_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">skeletonize_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Labels structures in an image</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.segmentation.watershed function. </span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+<span class="sd">    markers: dbdicom series of the same dimensions as series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [skeleton 3D]&#39;</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">filtered</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">filtered</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span> <span class="o">+</span> <span class="s1">&#39;. Please bear with me..&#39;</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">skeletonize_3d</span><span class="p">(</span><span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">filtered</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<div class="viewcode-block" id="peak_local_max_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.peak_local_max_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">peak_local_max_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determine local maxima</span>
+<span class="sd">    </span>
+<span class="sd">    Wrapper for skimage.feature.peak_local_max function. </span>
+<span class="sd">    # https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.peak_local_max</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="nb">input</span><span class="p">)</span>
+        <span class="n">labels_array</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [peak local max 3D]&#39;</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">labels_t</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">labels_t</span> <span class="o">=</span> <span class="n">labels_array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">peak_local_max</span><span class="p">(</span><span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels_t</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">3</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">mask</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">T</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">filtered</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<div class="viewcode-block" id="canny">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.canny">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">canny</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper for skimage.feature.canny</span>
+<span class="sd">    # https://scikit-image.org/docs/dev/api/skimage.feature.html#skimage.feature.canny</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="s1">&#39; [Canny filter x &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; ]&#39;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span>
+    <span class="n">filtered</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="o">+</span><span class="n">suffix</span><span class="p">)</span>
+    <span class="c1">#images = filtered.instances()</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">filtered</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Filtering &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">canny</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ubyte</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">filtered</span></div>
+
+
+
+<div class="viewcode-block" id="convex_hull_image">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.convex_hull_image">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">convex_hull_image</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper for skimage.morphology.convex_hull_image</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="s1">&#39; [Convex hull 2D]&#39;</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> 
+    <span class="n">chull</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="o">+</span><span class="n">suffix</span><span class="p">)</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="n">chull</span><span class="o">.</span><span class="n">images</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
+        <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">),</span> <span class="s1">&#39;Calculating convex hull for &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">())</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">convex_hull_image</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ubyte</span><span class="p">)</span>
+        <span class="n">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">chull</span></div>
+
+
+
+<div class="viewcode-block" id="convex_hull_image_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.convex_hull_image_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">convex_hull_image_3d</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper for skimage.morphology.convex_hull_image</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    input: dbdicom series</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filtered : dbdicom series</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [Convex hull 3D]&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Calculating &#39;</span> <span class="o">+</span> <span class="n">desc</span><span class="p">)</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">])</span>
+        <span class="n">hull</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">morphology</span><span class="o">.</span><span class="n">convex_hull_image</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span>  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">hull</span><span class="p">,</span> <span class="n">headers</span><span class="p">[:,</span><span class="n">t</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_reset_window</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">hull</span><span class="p">)</span>
+    <span class="nb">input</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="coregister_2d_to_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.coregister_2d_to_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coregister_2d_to_2d</span><span class="p">(</span><span class="n">moving</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">return_array</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="c1"># https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1</span>
+
+    <span class="c1">#fixed = fixed.map_to(moving)</span>
+    <span class="n">fixed</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">)</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array_fixed</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array_fixed</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">array_moving</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fixed</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">array_fixed</span> <span class="o">=</span> <span class="n">array_moving</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">headers</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">array_fixed</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">row_coords</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">deformation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">2</span><span class="p">,))</span>
+    <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="s1">&#39;Performing coregistration..&#39;</span><span class="p">)</span>
+        <span class="n">image0</span> <span class="o">=</span> <span class="n">array_fixed</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">]</span>
+        <span class="n">image1</span> <span class="o">=</span> <span class="n">array_moving</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">]</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">registration</span><span class="o">.</span><span class="n">optical_flow_tvl1</span><span class="p">(</span><span class="n">image0</span><span class="p">,</span> <span class="n">image1</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span><span class="p">)</span>
+        <span class="n">new_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row_coords</span> <span class="o">+</span> <span class="n">v</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">+</span> <span class="n">u</span><span class="p">])</span>
+        <span class="n">array_moving</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span><span class="n">image1</span><span class="p">,</span> <span class="n">new_coords</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+        <span class="n">deformation</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Return array or new series</span>
+    <span class="k">if</span> <span class="n">return_array</span><span class="p">:</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">array_moving</span><span class="p">,</span> <span class="n">deformation</span><span class="p">,</span> <span class="n">headers</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Writing coregistered series to database..&#39;</span><span class="p">)</span>
+        <span class="c1"># Create new dicom series</span>
+        <span class="n">desc</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> 
+        <span class="n">coreg</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span> <span class="o">+</span> <span class="s1">&#39; [coregistered]&#39;</span><span class="p">)</span>
+        <span class="n">deform</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span> <span class="o">+</span> <span class="s1">&#39; [deformation field]&#39;</span><span class="p">)</span>
+        <span class="c1"># Set arrays of new series</span>
+        <span class="n">coreg</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">deformation</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">deform</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">deformation</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">dim</span><span class="p">],</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coreg</span><span class="p">,</span> <span class="n">deform</span></div>
+
+    
+
+<div class="viewcode-block" id="coregister_3d_to_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.coregister_3d_to_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coregister_3d_to_3d</span><span class="p">(</span><span class="n">moving</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">return_array</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="c1"># https://scikit-image.org/docs/stable/api/skimage.registration.html#skimage.registration.optical_flow_tvl1</span>
+
+    <span class="n">fixed</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">)</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array_fixed</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array_fixed</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">array_moving</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fixed</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">array_fixed</span> <span class="o">=</span> <span class="n">array_moving</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">headers</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">array_fixed</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Performing coregistration. Please be patient. Its hard work and I need to concentrate..&#39;</span><span class="p">)</span>
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">row_coords</span><span class="p">,</span> <span class="n">col_coords</span><span class="p">,</span> <span class="n">slice_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+        <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">registration</span><span class="o">.</span><span class="n">optical_flow_tvl1</span><span class="p">(</span><span class="n">array_fixed</span><span class="p">,</span>  <span class="n">array_moving</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span><span class="p">)</span>
+    <span class="n">new_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row_coords</span> <span class="o">+</span> <span class="n">v</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">+</span> <span class="n">u</span><span class="p">,</span> <span class="n">slice_coords</span> <span class="o">+</span> <span class="n">w</span><span class="p">])</span>
+    <span class="n">array_moving</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span><span class="n">array_moving</span><span class="p">,</span> <span class="n">new_coords</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+    <span class="n">deformation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Return array or new series</span>
+    <span class="k">if</span> <span class="n">return_array</span><span class="p">:</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">array_moving</span><span class="p">,</span> <span class="n">deformation</span><span class="p">,</span> <span class="n">headers</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Writing coregistered series to database..&#39;</span><span class="p">)</span>
+        <span class="c1"># Create new dicom series</span>
+        <span class="n">desc</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span>
+        <span class="n">coreg</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span> <span class="o">+</span> <span class="s1">&#39; [coregistered]&#39;</span><span class="p">)</span>
+        <span class="n">deform</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span> <span class="o">=</span> <span class="n">desc</span> <span class="o">+</span> <span class="s1">&#39; [deformation field]&#39;</span><span class="p">)</span>
+        <span class="c1"># Set arrays of new series</span>
+        <span class="n">coreg</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array_moving</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">deformation</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">deform</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">deformation</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">dim</span><span class="p">],</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coreg</span><span class="p">,</span> <span class="n">deform</span></div>
+
+    
+
+<div class="viewcode-block" id="warp">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.warp">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">warp</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">deformation_field</span><span class="p">):</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">array_deform</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">deformation_field</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># For the deformation field the last dimension is the components</span>
+    <span class="c1"># For the image use only the first time point</span>
+    <span class="c1"># array, headers = array[...,0], headers[...,0]</span>
+
+    <span class="c1"># For this function, image and deformation field must be aligned</span>
+    <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">array_deform</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;The dimensions of image and deformation field are not matching up. </span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;Please select two series with matching dimensions.&#39;</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="c1"># Warp the arrays</span>
+    <span class="k">if</span> <span class="n">array_deform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span> 
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+            <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">array_deform</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">array_deform</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">array_deform</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">new_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="o">+</span><span class="n">v</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="n">u</span><span class="p">,</span> <span class="n">z</span><span class="o">+</span><span class="n">w</span><span class="p">])</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">new_coords</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">array_deform</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span> 
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+            <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="s1">&#39;Deforming slices..&#39;</span><span class="p">)</span>
+            <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">array_deform</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">array_deform</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">new_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="o">+</span><span class="n">v</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="n">u</span><span class="p">])</span>
+            <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="n">z</span><span class="p">],</span> <span class="n">new_coords</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;The deformation field does not have the correct dimensions. </span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;This needs to have the either 2 or 3 images for each slice location.&#39;</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    
+    <span class="c1"># Create new dicom series</span>
+    <span class="n">warped</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;warped&#39;</span><span class="p">)</span>
+    <span class="n">warped</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">warped</span></div>
+
+
+    
+
+<div class="viewcode-block" id="mdreg_constant_3d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.mdreg_constant_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mdreg_constant_3d</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_improvement</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span><span class="s1">&#39;AcquisitionTime&#39;</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">array</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">headers</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">row_coords</span><span class="p">,</span> <span class="n">col_coords</span><span class="p">,</span> <span class="n">slice_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+        <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">coreg</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># constant model</span>
+        <span class="n">cnt</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">improvement</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># pixel sizes</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+            <span class="n">cnt</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Performing iteration &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">it</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; &lt; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">max_iter</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39; (best improvement so far = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">improvement</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39; pixels)&#39;</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">cnt</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">msg</span><span class="p">)</span>
+            <span class="n">v_t</span><span class="p">,</span> <span class="n">u_t</span><span class="p">,</span> <span class="n">w_t</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">registration</span><span class="o">.</span><span class="n">optical_flow_tvl1</span><span class="p">(</span>
+                <span class="n">target</span><span class="p">,</span> 
+                <span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> 
+                <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span><span class="p">)</span>
+            <span class="n">coreg</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span>
+                <span class="n">array</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> 
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row_coords</span> <span class="o">+</span> <span class="n">v_t</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">+</span> <span class="n">u_t</span><span class="p">,</span> <span class="n">slice_coords</span> <span class="o">+</span> <span class="n">w_t</span><span class="p">]),</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+            <span class="n">improvement_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">v_t</span><span class="o">-</span><span class="n">v</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">])</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">u_t</span><span class="o">-</span><span class="n">u</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">])</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">w_t</span><span class="o">-</span><span class="n">w</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">])))</span>
+            <span class="k">if</span> <span class="n">improvement_t</span> <span class="o">&gt;</span> <span class="n">improvement</span><span class="p">:</span>
+                <span class="n">improvement</span> <span class="o">=</span> <span class="n">improvement_t</span>
+            <span class="n">v</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> <span class="n">u</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">],</span> <span class="n">w</span><span class="p">[:,:,:,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_t</span><span class="p">,</span> <span class="n">u_t</span><span class="p">,</span> <span class="n">w_t</span>
+        <span class="k">if</span> <span class="n">improvement</span> <span class="o">&lt;</span> <span class="n">max_improvement</span><span class="p">:</span>
+            <span class="k">break</span>
+    
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Writing coregistered series to database..&#39;</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [coregistered]&#39;</span>
+    <span class="n">registered_series</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span><span class="o">=</span><span class="n">desc</span><span class="p">)</span>
+    <span class="n">registered_series</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">coreg</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">registered_series</span></div>
+
+
+    
+
+<div class="viewcode-block" id="coregister_series_2d_to_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.coregister_series_2d_to_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coregister_series_2d_to_2d</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span><span class="s1">&#39;AcquisitionTime&#39;</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">array</span><span class="p">[:,:,:,:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,:,</span><span class="mi">0</span><span class="p">]</span>
+
+    
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">row_coords</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">cnt</span><span class="o">=</span><span class="mi">0</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+            <span class="n">cnt</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">cnt</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;Performing coregistration..&#39;</span><span class="p">)</span>
+            <span class="n">fixed</span> <span class="o">=</span> <span class="n">target</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">]</span>
+            <span class="n">moving</span> <span class="o">=</span> <span class="n">array</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">]</span>
+            <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">registration</span><span class="o">.</span><span class="n">optical_flow_tvl1</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span><span class="p">)</span>
+            <span class="n">array</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span>
+                <span class="n">moving</span><span class="p">,</span> 
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row_coords</span> <span class="o">+</span> <span class="n">v</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">+</span> <span class="n">u</span><span class="p">]),</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Return array or new series</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Writing coregistered series to database..&#39;</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [coregistered]&#39;</span>
+    <span class="n">registered_series</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span><span class="o">=</span><span class="n">desc</span><span class="p">)</span>
+    <span class="n">registered_series</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">registered_series</span></div>
+
+
+
+<div class="viewcode-block" id="mdreg_constant_2d">
+<a class="viewcode-back" href="../../../reference/extensions.skimage.html#dbdicom.extensions.skimage.mdreg_constant_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mdreg_constant_2d</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_improvement</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_iter</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span><span class="s1">&#39;AcquisitionTime&#39;</span><span class="p">],</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">array</span><span class="p">[:,:,:,:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">headers</span><span class="p">[:,:,</span><span class="mi">0</span><span class="p">]</span>
+
+    
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">row_coords</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">coreg</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># constant model</span>
+        <span class="n">cnt</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">improvement</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># pixel sizes</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="n">cnt</span><span class="o">+=</span><span class="mi">1</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Performing iteration &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">it</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; &lt; &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">max_iter</span><span class="p">)</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39; (best improvement so far = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">improvement</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39; pixels)&#39;</span>
+                <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">cnt</span><span class="p">,</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">msg</span><span class="p">)</span>
+                <span class="n">v_zt</span><span class="p">,</span> <span class="n">u_zt</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">registration</span><span class="o">.</span><span class="n">optical_flow_tvl1</span><span class="p">(</span>
+                    <span class="n">target</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">],</span> 
+                    <span class="n">array</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> 
+                    <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span><span class="p">)</span>
+                <span class="n">coreg</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">skimage</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">warp</span><span class="p">(</span>
+                    <span class="n">array</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> 
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row_coords</span> <span class="o">+</span> <span class="n">v_zt</span><span class="p">,</span> <span class="n">col_coords</span> <span class="o">+</span> <span class="n">u_zt</span><span class="p">]),</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;edge&#39;</span><span class="p">)</span>
+                <span class="n">improvement_zt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">v_zt</span><span class="o">-</span><span class="n">v</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">])</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">u_zt</span><span class="o">-</span><span class="n">u</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">])))</span>
+                <span class="k">if</span> <span class="n">improvement_zt</span> <span class="o">&gt;</span> <span class="n">improvement</span><span class="p">:</span>
+                    <span class="n">improvement</span> <span class="o">=</span> <span class="n">improvement_zt</span>
+                <span class="n">v</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">],</span> <span class="n">u</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">,</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="n">v_zt</span><span class="p">,</span> <span class="n">u_zt</span>
+        <span class="k">if</span> <span class="n">improvement</span> <span class="o">&lt;</span> <span class="n">max_improvement</span><span class="p">:</span>
+            <span class="k">break</span>
+    
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Writing coregistered series to database..&#39;</span><span class="p">)</span>
+    <span class="n">desc</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">SeriesDescription</span> <span class="o">+</span> <span class="s1">&#39; [coregistered]&#39;</span>
+    <span class="n">registered_series</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">SeriesDescription</span><span class="o">=</span><span class="n">desc</span><span class="p">)</span>
+    <span class="n">registered_series</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">coreg</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">series</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Finished coregistration..&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">registered_series</span></div>
+
+
+
+
+    
+
+<span class="c1"># Helper functions</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reset_window</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">array</span><span class="p">):</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="nb">min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="nb">max</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="n">image</span><span class="o">.</span><span class="n">WindowCenter</span><span class="o">=</span> <span class="p">(</span><span class="nb">max</span><span class="o">+</span><span class="nb">min</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+    <span class="k">if</span> <span class="nb">min</span><span class="o">==</span><span class="nb">max</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">min</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">WindowWidth</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image</span><span class="o">.</span><span class="n">WindowWidth</span> <span class="o">=</span> <span class="nb">min</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">WindowWidth</span> <span class="o">=</span> <span class="mf">0.9</span><span class="o">*</span><span class="p">(</span><span class="nb">max</span><span class="o">-</span><span class="nb">min</span><span class="p">)</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2022-2025, QIB-Sheffield.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

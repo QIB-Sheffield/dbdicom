@@ -1,0 +1,1045 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>scipy &#8212; dbdicom 0.2.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=6ffd866b"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/extensions.scipy';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="skimage" href="extensions.skimage.html" />
+    <link rel="prev" title="dbdicom.extensions.matplotlib.plot_mosaic" href="../generated/api/dbdicom.extensions.matplotlib.plot_mosaic.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/dbd.png" class="logo__image only-light" alt="dbdicom 0.2.4 documentation - Home"/>
+    <img src="../_static/dbd.png" class="logo__image only-dark pst-js-only" alt="dbdicom 0.2.4 documentation - Home"/>
+  
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="objects.html">Objects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="routines.html">Routines</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="extensions.html">Extensions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="extensions.numpy.html">numpy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.matplotlib.html">matplotlib</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">scipy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.skimage.html">skimage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.sklearn.html">sklearn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.dipy.html">dipy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.elastix.html">elastix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="extensions.vreg.html">vreg</a></li>
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">Reference</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="extensions.html" class="nav-link">Extensions</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">scipy</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="module-dbdicom.extensions.scipy">
+<span id="scipy"></span><h1>scipy<a class="headerlink" href="#module-dbdicom.extensions.scipy" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.array">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#array"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.array" title="Link to this definition">#</a></dt>
+<dd><p>Return the array overlaid on another series</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.binary_fill_holes">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">binary_fill_holes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#binary_fill_holes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.binary_fill_holes" title="Link to this definition">#</a></dt>
+<dd><p>Fill holes in an existing segmentation.</p>
+<p>Wrapper for scipy.ndimage.binary_fill_holes function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.distance_transform_edt_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">distance_transform_edt_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#distance_transform_edt_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.distance_transform_edt_3d" title="Link to this definition">#</a></dt>
+<dd><p>Euclidian distance transform in 3D</p>
+<p>Wrapper for scipy.ndimage.distance_transform_edt function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>dbdicom series</em>)</p></li>
+<li><p><strong>markers</strong> (<em>dbdicom series</em><em> of </em><em>the same dimensions as series</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.extract_largest_cluster_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">extract_largest_cluster_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#extract_largest_cluster_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.extract_largest_cluster_3d" title="Link to this definition">#</a></dt>
+<dd><p>Label structures in 3D and then extract the largest cluster, return as a mask.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.fourier_ellipsoid">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">fourier_ellipsoid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#fourier_ellipsoid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.fourier_ellipsoid" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.fourier_ellipsoid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.fourier_gaussian">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">fourier_gaussian</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#fourier_gaussian"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.fourier_gaussian" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.fourier_gaussian.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.fourier_shift">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">fourier_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#fourier_shift"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.fourier_shift" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.fourier_shift.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.fourier_uniform">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">fourier_uniform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#fourier_uniform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.fourier_uniform" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.fourier_uniform</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.gaussian_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">gaussian_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#gaussian_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.gaussian_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.gaussian_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.gaussian_filter_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">gaussian_filter_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#gaussian_filter_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.gaussian_filter_3d" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.gaussian_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.gaussian_gradient_magnitude">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">gaussian_gradient_magnitude</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#gaussian_gradient_magnitude"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.gaussian_gradient_magnitude" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.gaussian_gradient_magnitude.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.gaussian_laplace">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">gaussian_laplace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#gaussian_laplace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.gaussian_laplace" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.gaussian_laplace.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.image_calculator">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">image_calculator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'series</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">series</span> <span class="pre">2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">integer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">series_desc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#image_calculator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.image_calculator" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.label_2d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">label_2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#label_2d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.label_2d" title="Link to this definition">#</a></dt>
+<dd><p>Labels structures in an image</p>
+<p>Wrapper for scipy.ndimage.label function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.label_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">label_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#label_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.label_3d" title="Link to this definition">#</a></dt>
+<dd><p>Labels structures in a 3D volume</p>
+<p>Wrapper for scipy.ndimage.label function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.laplace">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">laplace</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#laplace"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.laplace" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.sobel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.map_to">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">map_to</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#map_to"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.map_to" title="Link to this definition">#</a></dt>
+<dd><p>Map non-zero pixels onto another series</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.mask_array">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">mask_array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'InstanceNumber'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#mask_array"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.mask_array" title="Link to this definition">#</a></dt>
+<dd><p>Map non-zero pixels onto another series</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.mask_curve_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">mask_curve_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">masks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#mask_curve_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.mask_curve_3d" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.mask_statistics">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">mask_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">masks</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">images</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#mask_statistics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.mask_statistics" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.maximum_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">maximum_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#maximum_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.maximum_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.maximum_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.median_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">median_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#median_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.median_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.median_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.minimum_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">minimum_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#minimum_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.minimum_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.minimum_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.n_images_calculator">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">n_images_calculator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#n_images_calculator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.n_images_calculator" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.overlay">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">overlay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#overlay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.overlay" title="Link to this definition">#</a></dt>
+<dd><p>Ensure all the features are in the same geometry as the reference feature</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.percentile_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">percentile_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">percentile</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#percentile_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.percentile_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.percentile_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.prewitt_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">prewitt_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#prewitt_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.prewitt_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.prewitt.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.rank_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">rank_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#rank_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.rank_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.rank_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.resample">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">resample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voxel_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1.0,</span> <span class="pre">1.0,</span> <span class="pre">1.0]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#resample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.resample" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.reslice">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">reslice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'axial'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#reslice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.reslice" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.series_calculator">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">series_calculator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1</span> <span class="pre">-</span> <span class="pre">series'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#series_calculator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.series_calculator" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.sobel_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">sobel_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#sobel_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.sobel_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.sobel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.uniform_filter">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">uniform_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#uniform_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.uniform_filter" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.uniform_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.uniform_filter_3d">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">uniform_filter_3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#uniform_filter_3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.uniform_filter_3d" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.uniform_filter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filtered</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dbdicom.extensions.scipy.zoom">
+<span class="sig-prename descclassname"><span class="pre">dbdicom.extensions.scipy.</span></span><span class="sig-name descname"><span class="pre">zoom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zoom</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dbdicom/extensions/scipy.html#zoom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dbdicom.extensions.scipy.zoom" title="Link to this definition">#</a></dt>
+<dd><p>wrapper for scipy.ndimage.zoom.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input</strong> (<em>dbdicom series</em>)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>zoomed</strong></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dbdicom series</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../generated/api/dbdicom.extensions.matplotlib.plot_mosaic.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">dbdicom.extensions.matplotlib.plot_mosaic</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="extensions.skimage.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">skimage</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.array"><code class="docutils literal notranslate"><span class="pre">array()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.binary_fill_holes"><code class="docutils literal notranslate"><span class="pre">binary_fill_holes()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.distance_transform_edt_3d"><code class="docutils literal notranslate"><span class="pre">distance_transform_edt_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.extract_largest_cluster_3d"><code class="docutils literal notranslate"><span class="pre">extract_largest_cluster_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.fourier_ellipsoid"><code class="docutils literal notranslate"><span class="pre">fourier_ellipsoid()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.fourier_gaussian"><code class="docutils literal notranslate"><span class="pre">fourier_gaussian()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.fourier_shift"><code class="docutils literal notranslate"><span class="pre">fourier_shift()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.fourier_uniform"><code class="docutils literal notranslate"><span class="pre">fourier_uniform()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.gaussian_filter"><code class="docutils literal notranslate"><span class="pre">gaussian_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.gaussian_filter_3d"><code class="docutils literal notranslate"><span class="pre">gaussian_filter_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.gaussian_gradient_magnitude"><code class="docutils literal notranslate"><span class="pre">gaussian_gradient_magnitude()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.gaussian_laplace"><code class="docutils literal notranslate"><span class="pre">gaussian_laplace()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.image_calculator"><code class="docutils literal notranslate"><span class="pre">image_calculator()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.label_2d"><code class="docutils literal notranslate"><span class="pre">label_2d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.label_3d"><code class="docutils literal notranslate"><span class="pre">label_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.laplace"><code class="docutils literal notranslate"><span class="pre">laplace()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.map_to"><code class="docutils literal notranslate"><span class="pre">map_to()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.mask_array"><code class="docutils literal notranslate"><span class="pre">mask_array()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.mask_curve_3d"><code class="docutils literal notranslate"><span class="pre">mask_curve_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.mask_statistics"><code class="docutils literal notranslate"><span class="pre">mask_statistics()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.maximum_filter"><code class="docutils literal notranslate"><span class="pre">maximum_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.median_filter"><code class="docutils literal notranslate"><span class="pre">median_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.minimum_filter"><code class="docutils literal notranslate"><span class="pre">minimum_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.n_images_calculator"><code class="docutils literal notranslate"><span class="pre">n_images_calculator()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.overlay"><code class="docutils literal notranslate"><span class="pre">overlay()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.percentile_filter"><code class="docutils literal notranslate"><span class="pre">percentile_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.prewitt_filter"><code class="docutils literal notranslate"><span class="pre">prewitt_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.rank_filter"><code class="docutils literal notranslate"><span class="pre">rank_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.resample"><code class="docutils literal notranslate"><span class="pre">resample()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.reslice"><code class="docutils literal notranslate"><span class="pre">reslice()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.series_calculator"><code class="docutils literal notranslate"><span class="pre">series_calculator()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.sobel_filter"><code class="docutils literal notranslate"><span class="pre">sobel_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.uniform_filter"><code class="docutils literal notranslate"><span class="pre">uniform_filter()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.uniform_filter_3d"><code class="docutils literal notranslate"><span class="pre">uniform_filter_3d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dbdicom.extensions.scipy.zoom"><code class="docutils literal notranslate"><span class="pre">zoom()</span></code></a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/reference/extensions.scipy.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2022-2025, QIB-Sheffield.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

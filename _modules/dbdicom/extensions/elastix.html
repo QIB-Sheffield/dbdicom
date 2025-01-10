@@ -1,0 +1,970 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dbdicom.extensions.elastix &#8212; dbdicom 0.2.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../../_static/documentation_options.js?v=6ffd866b"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/dbdicom/extensions/elastix';</script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../_static/dbd.png" class="logo__image only-light" alt="dbdicom 0.2.4 documentation - Home"/>
+    <img src="../../../_static/dbd.png" class="logo__image only-dark pst-js-only" alt="dbdicom 0.2.4 documentation - Home"/>
+  
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../reference/index.html">
+    Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../generated/examples/index.html">
+    Examples
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../developers_guide/index.html">
+    Developer guide
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../about/index.html">
+    About
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/QIB-Sheffield/dbdicom" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">dbdicom.extensions.elastix</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for dbdicom.extensions.elastix</h1><div class="highlight"><pre>
+<span></span><span class="c1"># pip install SimpleITK-SimpleElastix</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itk</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.measure</span><span class="w"> </span><span class="kn">import</span> <span class="n">block_reduce</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dbdicom.extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">vreg</span>
+
+
+<div class="viewcode-block" id="coregister_3d_to_3d">
+<a class="viewcode-back" href="../../../reference/extensions.elastix.html#dbdicom.extensions.elastix.coregister_3d_to_3d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coregister_3d_to_3d</span><span class="p">(</span><span class="n">moving</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> 
+        <span class="n">transformation</span> <span class="o">=</span> <span class="s1">&#39;Affine&#39;</span><span class="p">,</span>
+        <span class="n">metric</span> <span class="o">=</span> <span class="s2">&quot;NormalizedMutualInformation&quot;</span><span class="p">,</span>
+        <span class="n">final_grid_spacing</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">apply_to</span> <span class="o">=</span> <span class="p">[]):</span>
+
+    <span class="n">background</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">fixed_map</span> <span class="o">=</span> <span class="n">vreg</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="n">background</span><span class="p">)</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array_fixed</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fixed_map</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers_moving</span>  <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Remove temporary overlay</span>
+    <span class="k">if</span> <span class="n">fixed_map</span> <span class="o">!=</span> <span class="n">fixed</span><span class="p">:</span>
+        <span class="n">fixed_map</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+    <span class="c1"># Set background pixels to zero for both images</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">array_fixed</span><span class="o">==</span><span class="n">background</span><span class="p">)</span>
+    <span class="n">array_fixed</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">array_moving</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Apply coregistration settings</span>
+    <span class="n">moving</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Preparing coregistration..&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">transformation</span> <span class="o">==</span> <span class="s1">&#39;Rigid&#39;</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_rigid</span><span class="p">(</span><span class="s1">&#39;3&#39;</span><span class="p">)</span>  
+    <span class="k">elif</span> <span class="n">transformation</span> <span class="o">==</span> <span class="s1">&#39;Affine&#39;</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_affine</span><span class="p">(</span><span class="s1">&#39;3&#39;</span><span class="p">)</span> 
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_bspline</span><span class="p">(</span><span class="s1">&#39;3&#39;</span><span class="p">)</span>
+    <span class="n">pars</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Metric&quot;</span><span class="p">,</span> <span class="n">metric</span><span class="p">)</span>
+    <span class="n">pars</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalGridSpacingInPhysicalUnits&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">final_grid_spacing</span><span class="p">))</span>
+
+    <span class="c1"># Get slice spacing</span>
+    <span class="n">slice_spacing</span> <span class="o">=</span> <span class="n">headers_moving</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">SpacingBetweenSlices</span>
+    <span class="k">if</span> <span class="n">slice_spacing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">slice_spacing</span> <span class="o">=</span> <span class="n">headers_moving</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">SliceThickness</span>
+    <span class="n">pixel_spacing</span> <span class="o">=</span> <span class="n">headers_moving</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">PixelSpacing</span> <span class="o">+</span> <span class="p">[</span><span class="n">slice_spacing</span><span class="p">]</span>
+
+    <span class="c1"># Coregister and save as DICOM</span>
+    <span class="n">coregistered</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">_coregister_arrays_3d</span><span class="p">(</span>
+        <span class="n">array_fixed</span><span class="p">,</span> <span class="n">array_moving</span><span class="p">,</span> 
+        <span class="n">pars</span><span class="p">,</span> <span class="n">pixel_spacing</span><span class="p">,</span> 
+        <span class="n">return_deformation_field</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;coreg&#39;</span><span class="p">)</span>
+    <span class="n">coreg</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">coregistered</span><span class="p">,</span> <span class="n">headers_moving</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Apply the transformation to other series</span>
+    <span class="n">apply_to_coreg</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">series</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">apply_to</span><span class="p">):</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">apply_to</span><span class="p">),</span> <span class="s1">&#39;Applying transformation..&#39;</span><span class="p">)</span>
+        <span class="n">array</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Cannot apply the same transformation to other series with a different shape&#39;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">_apply_3d_transformation</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">pixel_spacing</span><span class="p">)</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;coreg&#39;</span><span class="p">)</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">apply_to_coreg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">coreg</span><span class="p">,</span> <span class="n">apply_to_coreg</span></div>
+
+
+
+
+
+<div class="viewcode-block" id="coregister_2d_to_2d">
+<a class="viewcode-back" href="../../../reference/extensions.elastix.html#dbdicom.extensions.elastix.coregister_2d_to_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">coregister_2d_to_2d</span><span class="p">(</span><span class="n">moving</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> 
+        <span class="n">transformation</span> <span class="o">=</span> <span class="s1">&#39;Affine&#39;</span><span class="p">,</span>
+        <span class="n">metric</span> <span class="o">=</span> <span class="s2">&quot;NormalizedMutualInformation&quot;</span><span class="p">,</span>
+        <span class="n">final_grid_spacing</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">):</span>
+
+    <span class="n">background</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">fixed_map</span> <span class="o">=</span> <span class="n">vreg</span><span class="o">.</span><span class="n">map_to</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">,</span> <span class="n">cval</span><span class="o">=</span><span class="n">background</span><span class="p">)</span>
+
+    <span class="c1"># Get arrays for fixed and moving series</span>
+    <span class="n">array_fixed</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fixed_map</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">array_moving</span><span class="p">,</span> <span class="n">headers_moving</span>  <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="s1">&#39;SliceLocation&#39;</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">first_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Remove temporary overlay</span>
+    <span class="k">if</span> <span class="n">fixed_map</span> <span class="o">!=</span> <span class="n">fixed</span><span class="p">:</span>
+        <span class="n">fixed_map</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+    <span class="c1"># Set background pixels to zero for both images</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">array_fixed</span><span class="o">==</span><span class="n">background</span><span class="p">)</span>
+    <span class="n">array_fixed</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">array_moving</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Get coregistration settings</span>
+    <span class="n">moving</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s1">&#39;Setting up coregistration..&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">transformation</span> <span class="o">==</span> <span class="s1">&#39;Rigid&#39;</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_rigid</span><span class="p">(</span><span class="s1">&#39;2&#39;</span><span class="p">)</span>  
+    <span class="k">elif</span> <span class="n">transformation</span> <span class="o">==</span> <span class="s1">&#39;Affine&#39;</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_affine</span><span class="p">(</span><span class="s1">&#39;2&#39;</span><span class="p">)</span> 
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="n">_default_bspline</span><span class="p">(</span><span class="s1">&#39;2&#39;</span><span class="p">)</span>
+    <span class="n">pars</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Metric&quot;</span><span class="p">,</span> <span class="n">metric</span><span class="p">)</span>
+    <span class="n">pars</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalGridSpacingInPhysicalUnits&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">final_grid_spacing</span><span class="p">))</span>
+   
+    <span class="c1"># Coregister fixed and moving slice-by-slice</span>
+    <span class="n">pixel_spacing</span> <span class="o">=</span> <span class="n">headers_moving</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">PixelSpacing</span>
+    <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">progress</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">array_moving</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="s1">&#39;Performing coregistration..&#39;</span><span class="p">)</span>
+        <span class="n">coreg</span> <span class="o">=</span> <span class="n">_coregister_arrays</span><span class="p">(</span><span class="n">array_fixed</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">],</span> <span class="n">array_moving</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">],</span> <span class="n">pars</span><span class="p">,</span> <span class="n">pixel_spacing</span><span class="p">,</span> <span class="n">return_deformation_field</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">array_moving</span><span class="p">[:,:,</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="n">coreg</span>
+
+    <span class="c1"># Save as DICOM</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">moving</span><span class="o">.</span><span class="n">new_sibling</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;coregistered&#39;</span><span class="p">)</span>
+    <span class="n">coreg</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">array_moving</span><span class="p">,</span> <span class="n">headers_moving</span><span class="p">,</span> <span class="n">pixels_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coreg</span></div>
+
+
+
+
+
+
+<span class="c1"># BELOW HERE NON-DICOM FUNCTIONALITY</span>
+
+
+    
+
+<span class="c1"># 3D version does not have the downsampling option</span>
+<span class="c1"># some bug involving the image shaping</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_coregister_arrays_3d</span><span class="p">(</span>
+        <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> 
+        <span class="n">elastix_model_parameters</span><span class="p">,</span> 
+        <span class="n">spacing</span><span class="p">,</span> 
+        <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">return_deformation_field</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    
+    <span class="c1"># Convert to itk images</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span> 
+    <span class="n">target</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">source</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+    <span class="n">target</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+
+    <span class="c1"># Coregister source to target</span>
+    <span class="n">coreg</span><span class="p">,</span> <span class="n">result_transform_parameters</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">elastix_registration_method</span><span class="p">(</span>
+        <span class="n">target</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
+        <span class="n">parameter_object</span><span class="o">=</span><span class="n">elastix_model_parameters</span><span class="p">,</span> 
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">coreg</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">return_deformation_field</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">coreg</span><span class="p">,</span> <span class="n">result_transform_parameters</span>
+
+    <span class="c1"># Get deformation field</span>
+    <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">transformix_deformation_field</span><span class="p">(</span>
+        <span class="n">target</span><span class="p">,</span> <span class="n">result_transform_parameters</span><span class="p">,</span> 
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">deformation_field</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coreg</span><span class="p">,</span> <span class="n">result_transform_parameters</span><span class="p">,</span> <span class="n">deformation_field</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_apply_3d_transformation</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">result_transform_parameters</span><span class="p">,</span>
+        <span class="n">spacing</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    
+    <span class="n">source</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span> 
+    <span class="n">source</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing</span><span class="p">)</span>
+    <span class="n">coreg</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">transformix_filter</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">result_transform_parameters</span><span class="p">,</span>
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">coreg</span><span class="p">)</span>
+
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_coregister_arrays</span><span class="p">(</span>
+        <span class="n">target_large</span><span class="p">,</span> 
+        <span class="n">source_large</span><span class="p">,</span> 
+        <span class="n">elastix_model_parameters</span><span class="p">,</span> 
+        <span class="n">spacing_large</span><span class="p">,</span> 
+        <span class="n">log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+        <span class="n">downsample</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> 
+        <span class="n">return_deformation_field</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+    <span class="c1"># Downsample source and target</span>
+    <span class="c1"># The origin of an image is the center of the voxel in the lower left corner</span>
+    <span class="c1"># The origin of the large image is (0,0).</span>
+    <span class="c1"># The original of the small image is therefore: </span>
+    <span class="c1">#   spacing_large/2 + (spacing_small/2 - spacing_large)</span>
+    <span class="c1">#   = (spacing_small - spacing_large)/2</span>
+    <span class="n">target_small</span> <span class="o">=</span> <span class="n">block_reduce</span><span class="p">(</span><span class="n">target_large</span><span class="p">,</span> <span class="n">block_size</span><span class="o">=</span><span class="n">downsample</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+    <span class="n">source_small</span> <span class="o">=</span> <span class="n">block_reduce</span><span class="p">(</span><span class="n">source_large</span><span class="p">,</span> <span class="n">block_size</span><span class="o">=</span><span class="n">downsample</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+    <span class="n">spacing_small</span> <span class="o">=</span> <span class="p">[</span><span class="n">spacing</span><span class="o">*</span><span class="n">downsample</span> <span class="k">for</span> <span class="n">spacing</span> <span class="ow">in</span> <span class="n">spacing_large</span><span class="p">]</span>
+    <span class="n">origin_large</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">spacing_large</span><span class="p">)</span>
+    <span class="n">origin_small</span> <span class="o">=</span> <span class="p">[(</span><span class="n">spacing_small</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">spacing_large</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spacing_small</span><span class="p">))]</span>
+
+    <span class="c1"># Coregister downsampled source to target</span>
+    <span class="n">source_small</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">source_small</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span> 
+    <span class="n">target_small</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">target_small</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">source_small</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing_small</span><span class="p">)</span>
+    <span class="n">target_small</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing_small</span><span class="p">)</span>
+    <span class="n">source_small</span><span class="o">.</span><span class="n">SetOrigin</span><span class="p">(</span><span class="n">origin_small</span><span class="p">)</span>
+    <span class="n">target_small</span><span class="o">.</span><span class="n">SetOrigin</span><span class="p">(</span><span class="n">origin_small</span><span class="p">)</span>
+    <span class="n">coreg_small</span><span class="p">,</span> <span class="n">result_transform_parameters</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">elastix_registration_method</span><span class="p">(</span>
+        <span class="n">target_small</span><span class="p">,</span> <span class="n">source_small</span><span class="p">,</span>
+        <span class="n">parameter_object</span><span class="o">=</span><span class="n">elastix_model_parameters</span><span class="p">,</span> 
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    
+    <span class="c1"># Get coregistered image at original size</span>
+    <span class="n">result_transform_parameters</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Size&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">source_large</span><span class="o">.</span><span class="n">shape</span><span class="p">])</span>
+    <span class="n">result_transform_parameters</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Spacing&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">spacing_large</span><span class="p">])</span>
+    <span class="n">source_large</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">source_large</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">source_large</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing_large</span><span class="p">)</span>
+    <span class="n">source_large</span><span class="o">.</span><span class="n">SetOrigin</span><span class="p">(</span><span class="n">origin_large</span><span class="p">)</span>
+    <span class="n">coreg_large</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">transformix_filter</span><span class="p">(</span>
+        <span class="n">source_large</span><span class="p">,</span>
+        <span class="n">result_transform_parameters</span><span class="p">,</span>
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    <span class="n">coreg_large</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">coreg_large</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">coreg_large</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+        <span class="n">coreg_large</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">coreg_large</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">return_deformation_field</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">coreg_large</span>
+    
+    <span class="c1"># Get deformation field at original size</span>
+    <span class="n">target_large</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetImageFromArray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">target_large</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>
+    <span class="n">target_large</span><span class="o">.</span><span class="n">SetSpacing</span><span class="p">(</span><span class="n">spacing_large</span><span class="p">)</span>
+    <span class="n">target_large</span><span class="o">.</span><span class="n">SetOrigin</span><span class="p">(</span><span class="n">origin_large</span><span class="p">)</span>
+    <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">transformix_deformation_field</span><span class="p">(</span>
+        <span class="n">target_large</span><span class="p">,</span> 
+        <span class="n">result_transform_parameters</span><span class="p">,</span> 
+        <span class="n">log_to_console</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+    <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">GetArrayFromImage</span><span class="p">(</span><span class="n">deformation_field</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">deformation_field</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">4</span><span class="p">:</span>
+        <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">deformation_field</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">deformation_field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">deformation_field</span><span class="p">,</span> <span class="n">target_large</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">target_large</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="p">))</span>
+    <span class="k">return</span> <span class="n">coreg_large</span><span class="p">,</span> <span class="n">deformation_field</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_default_bspline</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="n">param_obj</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">ParameterObject</span><span class="o">.</span><span class="n">New</span><span class="p">()</span>
+    <span class="n">parameter_map_bspline</span> <span class="o">=</span> <span class="n">param_obj</span><span class="o">.</span><span class="n">GetDefaultParameterMap</span><span class="p">(</span><span class="s1">&#39;bspline&#39;</span><span class="p">)</span>
+    <span class="c1">## add parameter map file to the parameter object: required in itk-elastix</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">AddParameterMap</span><span class="p">(</span><span class="n">parameter_map_bspline</span><span class="p">)</span> 
+    <span class="c1">#OPTIONAL: Write the default parameter file to output file</span>
+    <span class="c1"># param_obj.WriteParameterFile(parameter_map_bspline, &quot;bspline.default.txt&quot;)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * ImageTypes</span>
+    <span class="c1"># *********************</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="c1">## selection based on 3D or 2D image data: newest elastix version does not require input image dimension</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;UseDirectionCosines&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Components</span>
+    <span class="c1"># *********************</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Registration&quot;</span><span class="p">,</span> <span class="s2">&quot;MultiResolutionRegistration&quot;</span><span class="p">)</span>
+    <span class="c1"># Image intensities are sampled using an ImageSampler, Interpolator and ResampleInterpolator.</span>
+    <span class="c1"># Image sampler is responsible for selecting points in the image to sample. </span>
+    <span class="c1"># The RandomCoordinate simply selects random positions.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ImageSampler&quot;</span><span class="p">,</span> <span class="s2">&quot;RandomCoordinate&quot;</span><span class="p">)</span>
+    <span class="c1"># Interpolator is responsible for interpolating off-grid positions during optimization. </span>
+    <span class="c1"># The BSplineInterpolator with BSplineInterpolationOrder = 1 used here is very fast and uses very little memory</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Interpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;BSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="c1"># ResampleInterpolator here chosen to be FinalBSplineInterpolator with FinalBSplineInterpolationOrder = 1</span>
+    <span class="c1"># is used to resample the result image from the moving image once the final transformation has been found.</span>
+    <span class="c1"># This is a one-time step so the additional computational complexity is worth the trade-off for higher image quality.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResampleInterpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;FinalBSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Resampler&quot;</span><span class="p">,</span> <span class="s2">&quot;DefaultResampler&quot;</span><span class="p">)</span>
+    <span class="c1"># Order of B-Spline interpolation used during registration/optimisation.</span>
+    <span class="c1"># It may improve accuracy if you set this to 3. Never use 0.</span>
+    <span class="c1"># An order of 1 gives linear interpolation. This is in most </span>
+    <span class="c1"># applications a good choice.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;BSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">)</span>
+    <span class="c1"># Order of B-Spline interpolation used for applying the final</span>
+    <span class="c1"># deformation.</span>
+    <span class="c1"># 3 gives good accuracy; recommended in most cases.</span>
+    <span class="c1"># 1 gives worse accuracy (linear interpolation)</span>
+    <span class="c1"># 0 gives worst accuracy, but is appropriate for binary images</span>
+    <span class="c1"># (masks, segmentations); equivalent to nearest neighbor interpolation.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalBSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">)</span>
+    <span class="c1"># Pyramids found in Elastix:</span>
+    <span class="c1"># 1)	Smoothing -&gt; Smoothing: YES, Downsampling: NO</span>
+    <span class="c1"># 2)	Recursive -&gt; Smoothing: YES, Downsampling: YES</span>
+    <span class="c1">#      If Recursive is chosen and only # of resolutions is given </span>
+    <span class="c1">#      then downsamlping by a factor of 2 (default)</span>
+    <span class="c1"># 3)	Shrinking -&gt; Smoothing: NO, Downsampling: YES</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;FixedSmoothingImagePyramid&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;MovingSmoothingImagePyramid&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Optimizer&quot;</span><span class="p">,</span> <span class="s2">&quot;AdaptiveStochasticGradientDescent&quot;</span><span class="p">)</span>
+    <span class="c1"># Whether transforms are combined by composition or by addition.</span>
+    <span class="c1"># In generally, Compose is the best option in most cases.</span>
+    <span class="c1"># It does not influence the results very much.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;HowToCombineTransforms&quot;</span><span class="p">,</span> <span class="s2">&quot;Compose&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Transform&quot;</span><span class="p">,</span> <span class="s2">&quot;BSplineTransform&quot;</span><span class="p">)</span>
+    <span class="c1"># Metric</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Metric&quot;</span><span class="p">,</span> <span class="s2">&quot;NormalizedMutualInformation&quot;</span><span class="p">)</span>
+    <span class="c1"># Number of grey level bins in each resolution level,</span>
+    <span class="c1"># for the mutual information. 16 or 32 usually works fine.</span>
+    <span class="c1"># You could also employ a hierarchical strategy:</span>
+    <span class="c1">#(NumberOfHistogramBins 16 32 64)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfHistogramBins&quot;</span><span class="p">,</span> <span class="s2">&quot;32&quot;</span><span class="p">)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Transformation</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># The control point spacing of the bspline transformation in </span>
+    <span class="c1"># the finest resolution level. Can be specified for each </span>
+    <span class="c1"># dimension differently. Unit: mm.</span>
+    <span class="c1"># The lower this value, the more flexible the deformation.</span>
+    <span class="c1"># Low values may improve the accuracy, but may also cause</span>
+    <span class="c1"># unrealistic deformations.</span>
+    <span class="c1"># By default the grid spacing is halved after every resolution,</span>
+    <span class="c1"># such that the final grid spacing is obtained in the last </span>
+    <span class="c1"># resolution level.</span>
+    <span class="c1"># The grid spacing here is specified in voxel units.</span>
+    <span class="c1">#(FinalGridSpacingInPhysicalUnits 10.0 10.0)</span>
+    <span class="c1">#(FinalGridSpacingInVoxels 8)</span>
+    <span class="c1">#param_obj.SetParameter(&quot;FinalGridSpacingInPhysicalUnits&quot;, [&quot;50.0&quot;, &quot;50.0&quot;])</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalGridSpacingInPhysicalUnits&quot;</span><span class="p">,</span> <span class="s2">&quot;25.0&quot;</span><span class="p">)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Optimizer settings</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># The number of resolutions. 1 Is only enough if the expected</span>
+    <span class="c1"># deformations are small. 3 or 4 mostly works fine. For large</span>
+    <span class="c1"># images and large deformations, 5 or 6 may even be useful.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfResolutions&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticParameterEstimation&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ASGDParameterEstimationMethod&quot;</span><span class="p">,</span> <span class="s2">&quot;Original&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumNumberOfIterations&quot;</span><span class="p">,</span> <span class="s2">&quot;500&quot;</span><span class="p">)</span>
+    <span class="c1"># The step size of the optimizer, in mm. By default the voxel size is used.</span>
+    <span class="c1"># which usually works well. In case of unusual high-resolution images</span>
+    <span class="c1"># (eg histology) it is necessary to increase this value a bit, to the size</span>
+    <span class="c1"># of the &quot;smallest visible structure&quot; in the image:</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumStepLength&quot;</span><span class="p">,</span> <span class="s2">&quot;0.1&quot;</span><span class="p">)</span> 
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Pyramid settings</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># The downsampling/blurring factors for the image pyramids.</span>
+    <span class="c1"># By default, the images are downsampled by a factor of 2</span>
+    <span class="c1"># compared to the next resolution.</span>
+    <span class="c1">#param_obj.SetParameter(&quot;ImagePyramidSchedule&quot;, &quot;8 8  4 4  2 2  1 1&quot;)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Sampler parameters</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># Number of spatial samples used to compute the mutual</span>
+    <span class="c1"># information (and its derivative) in each iteration.</span>
+    <span class="c1"># With an AdaptiveStochasticGradientDescent optimizer,</span>
+    <span class="c1"># in combination with the two options below, around 2000</span>
+    <span class="c1"># samples may already suffice.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfSpatialSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;2048&quot;</span><span class="p">)</span>
+    <span class="c1"># Refresh these spatial samples in every iteration, and select</span>
+    <span class="c1"># them randomly. See the manual for information on other sampling</span>
+    <span class="c1"># strategies.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NewSamplesEveryIteration&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;CheckNumberOfSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Mask settings</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># If you use a mask, this option is important. </span>
+    <span class="c1"># If the mask serves as region of interest, set it to false.</span>
+    <span class="c1"># If the mask indicates which pixels are valid, then set it to true.</span>
+    <span class="c1"># If you do not use a mask, the option doesn&#39;t matter.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeFixedMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="c1"># *********************</span>
+    <span class="c1"># * Output settings</span>
+    <span class="c1"># *********************</span>
+    <span class="c1">#Default pixel value for pixels that come from outside the picture:</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;DefaultPixelValue&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+    <span class="c1"># Choose whether to generate the deformed moving image.</span>
+    <span class="c1"># You can save some time by setting this to false, if you are</span>
+    <span class="c1"># not interested in the final deformed moving image, but only</span>
+    <span class="c1"># want to analyze the deformation field for example.</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;WriteResultImage&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="c1"># The pixel type and format of the resulting deformed moving image</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImageFormat&quot;</span><span class="p">,</span> <span class="s2">&quot;nii&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">param_obj</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_default_affine</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="n">param_obj</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">ParameterObject</span><span class="o">.</span><span class="n">New</span><span class="p">()</span>
+    <span class="n">parameter_map_bspline</span> <span class="o">=</span> <span class="n">param_obj</span><span class="o">.</span><span class="n">GetDefaultParameterMap</span><span class="p">(</span><span class="s1">&#39;affine&#39;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">AddParameterMap</span><span class="p">(</span><span class="n">parameter_map_bspline</span><span class="p">)</span> 
+
+    <span class="c1"># ImageTypes</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;UseDirectionCosines&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Components</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Registration&quot;</span><span class="p">,</span> <span class="s2">&quot;MultiResolutionRegistration&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ImageSampler&quot;</span><span class="p">,</span> <span class="s2">&quot;Random&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Interpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;BSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResampleInterpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;FinalBSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Resampler&quot;</span><span class="p">,</span> <span class="s2">&quot;DefaultResampler&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;BSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalBSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;FixedRecursiveImagePyramid&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;MovingRecursiveImagePyramid&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Metric</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Metric&quot;</span><span class="p">,</span> <span class="s2">&quot;AdvancedMattesMutualInformation&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfHistogramBins&quot;</span><span class="p">,</span> <span class="s2">&quot;32&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Transformation</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Transform&quot;</span><span class="p">,</span> <span class="s2">&quot;AffineTransform&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;HowToCombineTransforms&quot;</span><span class="p">,</span> <span class="s2">&quot;Compose&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticTransformInitialization&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalGridSpacingInPhysicalUnits&quot;</span><span class="p">,</span> <span class="s2">&quot;25.0&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Optimizer</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Optimizer&quot;</span><span class="p">,</span> <span class="s2">&quot;AdaptiveStochasticGradientDescent&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfResolutions&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticParameterEstimation&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ASGDParameterEstimationMethod&quot;</span><span class="p">,</span> <span class="s2">&quot;Original&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumNumberOfIterations&quot;</span><span class="p">,</span> <span class="s2">&quot;500&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumStepLength&quot;</span><span class="p">,</span> <span class="s2">&quot;1.0&quot;</span><span class="p">)</span> 
+
+    <span class="c1"># Pyramid settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfSpatialSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;2048&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NewSamplesEveryIteration&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;CheckNumberOfSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Mask settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeFixedMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Output settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;DefaultPixelValue&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;WriteResultImage&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImageFormat&quot;</span><span class="p">,</span> <span class="s2">&quot;nii&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">param_obj</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_default_rigid</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="n">param_obj</span> <span class="o">=</span> <span class="n">itk</span><span class="o">.</span><span class="n">ParameterObject</span><span class="o">.</span><span class="n">New</span><span class="p">()</span>
+    <span class="n">parameter_map_bspline</span> <span class="o">=</span> <span class="n">param_obj</span><span class="o">.</span><span class="n">GetDefaultParameterMap</span><span class="p">(</span><span class="s1">&#39;rigid&#39;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">AddParameterMap</span><span class="p">(</span><span class="n">parameter_map_bspline</span><span class="p">)</span> 
+
+    <span class="c1"># ImageTypes</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingInternalImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImageDimension&quot;</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> 
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;UseDirectionCosines&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+   
+    <span class="c1"># Components</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Registration&quot;</span><span class="p">,</span> <span class="s2">&quot;MultiResolutionRegistration&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ImageSampler&quot;</span><span class="p">,</span> <span class="s2">&quot;Random&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Interpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;BSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResampleInterpolator&quot;</span><span class="p">,</span> <span class="s2">&quot;FinalBSplineInterpolator&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Resampler&quot;</span><span class="p">,</span> <span class="s2">&quot;DefaultResampler&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;BSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FinalBSplineInterpolationOrder&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;FixedImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;FixedRecursiveImagePyramid&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MovingImagePyramid&quot;</span><span class="p">,</span> <span class="s2">&quot;MovingRecursiveImagePyramid&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Optimizer&quot;</span><span class="p">,</span> <span class="s2">&quot;AdaptiveStochasticGradientDescent&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Transformation</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;HowToCombineTransforms&quot;</span><span class="p">,</span> <span class="s2">&quot;Compose&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Transform&quot;</span><span class="p">,</span> <span class="s2">&quot;EulerTransform&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticTransformInitialization&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticTransformInitializationMethod&quot;</span><span class="p">,</span> <span class="s2">&quot;GeometricalCenter&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticScalesEstimation&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Metric</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;Metric&quot;</span><span class="p">,</span> <span class="s2">&quot;AdvancedMattesMutualInformation&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfHistogramBins&quot;</span><span class="p">,</span> <span class="s2">&quot;32&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Optimizer settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfResolutions&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;AutomaticParameterEstimation&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="c1">#param_obj.SetParameter(&quot;ASGDParameterEstimationMethod&quot;, &quot;Original&quot;)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumNumberOfIterations&quot;</span><span class="p">,</span> <span class="s2">&quot;500&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumStepLength&quot;</span><span class="p">,</span> <span class="s2">&quot;1.0&quot;</span><span class="p">)</span> 
+
+    <span class="c1"># Sampler parameters</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfSpatialSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;2048&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NewSamplesEveryIteration&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;NumberOfSamplesForExactGradient&quot;</span><span class="p">,</span> <span class="s2">&quot;1024&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;MaximumNumberOfSamplingAttempts&quot;</span><span class="p">,</span> <span class="s2">&quot;15&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;CheckNumberOfSamples&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Mask settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ErodeFixedMask&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span>
+   
+    <span class="c1"># Output settings</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;DefaultPixelValue&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;WriteResultImage&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImagePixelType&quot;</span><span class="p">,</span> <span class="s2">&quot;float&quot;</span><span class="p">)</span>
+    <span class="n">param_obj</span><span class="o">.</span><span class="n">SetParameter</span><span class="p">(</span><span class="s2">&quot;ResultImageFormat&quot;</span><span class="p">,</span> <span class="s2">&quot;nii&quot;</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">param_obj</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2022-2025, QIB-Sheffield.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
