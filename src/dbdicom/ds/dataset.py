@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+import struct
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.util.codify import code_file
 import pydicom.config
+import vreg
 
 import dbdicom.utils.image as image
 import dbdicom.utils.variables as variables
@@ -19,6 +21,12 @@ import dbdicom.utils.variables as variables
 # This ensures that dates and times are read as TM, DT and DA classes
 pydicom.config.datetime_conversion= True
 
+# List of attributes that can be treated in the same way as DICOM keywords
+CUSTOM = ['affine', 'pixel_values', 'volume', 'window', 'lut', 'colormap', 
+          'image_type', 'signal_type']
+
+# Obsolete - replace by affine
+CUSTOM += ['affine_matrix']
 
 class DbDataset(Dataset):
 
@@ -36,84 +44,273 @@ class DbDataset(Dataset):
 
     def set_values(self, tags, values):
         return set_values(self, tags, values)
+    
+    def value(self, tags):
+        return value(self, tags)
 
-    def get_lut(self): 
-        return get_lut(self)
+    def set_value(self, tags, values):
+        return set_value(self, tags, values)
 
-    def set_lut(*args, **kwargs): 
-        set_lut(*args, **kwargs)
 
-    def get_colormap(self):
-        return get_colormap(self)
+    # CUSTOM ATTRIBUTES
 
-    def set_colormap(*args, **kwargs):
-        set_colormap(*args, **kwargs)
 
-    # Should be just pixel_array to fit in with logic 
-    # of custom attributes but conflicts with pydicom definition
-    # go back to just array?
-    def get_pixel_array(self):
-        return get_pixel_array(self)
+    # def affine(self):
+    #     return affine(self)
+    
+    # def set_affine(self):
+    #     set_affine(self)
 
-    def set_pixel_array(self, array, value_range=None):
-        set_pixel_array(self, array, value_range=value_range)
+    # def pixel_values(self):
+    #     return pixel_values(self)
 
-    def map_mask_to(self, ds_target):
-        return map_mask_to(self, ds_target)
+    # def set_pixel_values(self, array, value_range=None):
+    #     set_pixel_values(self, array, value_range=value_range)
+
+    # def volume(self):
+    #     return volume(self)
+    
+    # def set_volume(self):
+    #     set_volume(self)
+
+    # def window(self):
+    #     return get_window(self)
+
+    # def set_window(self):
+    #     set_window(self)
+
+    # def lut(self): 
+    #     return get_lut(self)
+
+    # def set_lut(*args, **kwargs): 
+    #     set_lut(*args, **kwargs)
+
+    # def colormap(self):
+    #     return get_colormap(self)
+
+    # def set_colormap(*args, **kwargs):
+    #     set_colormap(*args, **kwargs)
+
+
+    # def map_mask_to(self, ds_target):
+    #     return map_mask_to(self, ds_target)
 
     ##
     ## CUSTOM ATTRIBUTES
     ## 
 
-    def get_attribute_affine_matrix(self):
-        return get_affine_matrix(self)
+    # def get_attribute_affine(self):
+    #     return affine(self)
 
-    def set_attribute_affine_matrix(*args, **kwargs):
-        set_affine_matrix(*args, **kwargs)
+    # def set_attribute_affine(*args, **kwargs):
+    #     set_affine(*args, **kwargs)
 
-    def get_attribute_window(self):
-        return get_window(self)
+    # def get_attribute_pixel_values(self):
+    #     return pixel_values(self)
 
-    def set_attribute_window(self):
-        set_window(self)
+    # def set_attribute_pixel_values(*args, **kwargs):
+    #     set_pixel_values(*args, **kwargs)
 
-    def get_attribute_lut(self): # use _get_attribute to encode these
-        return get_lut(self)
+    # def get_attribute_volume(self):
+    #     return volume(self)
 
-    def set_attribute_lut(*args, **kwargs): # use _set_attribute to encode these
-        set_lut(*args, **kwargs)
+    # def set_attribute_volume(*args, **kwargs):
+    #     set_volume(*args, **kwargs)
 
-    def get_attribute_colormap(self):
-        return get_colormap(self)
+    # def get_attribute_window(self):
+    #     return get_window(self)
 
-    def set_attribute_colormap(*args, **kwargs):
-        set_colormap(*args, **kwargs)
+    # def set_attribute_window(self):
+    #     set_window(self)
+
+    # def get_attribute_lut(self): # use _get_attribute to encode these
+    #     return get_lut(self)
+
+    # def set_attribute_lut(*args, **kwargs): # use _set_attribute to encode these
+    #     set_lut(*args, **kwargs)
+
+    # def get_attribute_colormap(self):
+    #     return get_colormap(self)
+
+    # def set_attribute_colormap(*args, **kwargs):
+    #     set_colormap(*args, **kwargs)
+
+
+    ###### OBSOLETE - REMOVE IN FUTURE VERSIONS #####
+
+    def get_colormap(self):
+        return colormap(self)
+
+    def get_lut(self): 
+        return lut(self)
+
+    def get_pixel_array(self):
+        return pixel_values(self)
+
+    def set_pixel_array(self, array, value_range=None):
+        set_pixel_values(self, array, value_range=value_range)
 
 
 
-def get_window(ds):
-    """Centre and width of the pixel data after applying rescale slope and intercept"""
 
-    if 'WindowCenter' in ds: 
-        centre = ds.WindowCenter
-    if 'WindowWidth' in ds: 
-        width = ds.WindowWidth
-    if centre is None or width is None:
-        array = ds.get_pixel_array()
-        #p = np.percentile(array, [25, 50, 75])
-        min = np.min(array)
-        max = np.max(array)
-    if centre is None: 
-        centre = (max+min)/2
-        #centre = p[1]
-    if width is None: 
-        width = 0.9*(max-min)
-        #width = p[2] - p[0]
-    return centre, width
 
-def set_window(ds, center, width):
-    ds.WindowCenter = center
-    ds.WindowWidth = width
+def get_values(ds, tags):
+    """Return a list of values for a dataset"""
+
+    # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
+    if not isinstance(tags, list): 
+        return get_values(ds, [tags])[0]
+            
+    row = []  
+    for tag in tags:
+        value = None
+
+        # If the tag is provided as string
+        # check first if it is a custom attribute
+        if isinstance(tag, str):
+
+            if tag in CUSTOM:
+                #value = getattr(ds, tag)()
+                value = globals()[tag](ds)
+            elif hasattr(ds, tag):
+                pydcm_value = ds[tag].value
+                try:
+                    VR = pydicom.datadict.dictionary_VR(tag)
+                except:
+                    VR = None
+                value = to_set_type(pydcm_value, VR) # ELIMINATE THIS STEP - return pydicom datatypes
+
+        # If the tag is a tuple of hexadecimal values
+        else: 
+            if tag in ds:
+                try:
+                    VR = pydicom.datadict.dictionary_VR(tag)
+                except:
+                    VR = None
+                value = to_set_type(ds[tag].value, VR)
+
+        # If a tag is not present in the dataset, check if it can be derived
+        if value is None:
+            value = derive_data_element(ds, tag)
+
+        row.append(value)
+    return row
+
+
+def set_values(ds, tags, values, VR=None, coords=None):
+
+    if not isinstance(tags, list): 
+        tags = [tags]
+        values = [values]
+        VR = [VR]
+    elif VR is None:
+        VR = [None] * len(tags)
+
+    if coords is not None:
+        tags += list(coords.keys())
+        values += list(coords.values())
+
+    for i, tag in enumerate(tags):
+                
+        if values[i] is None:
+            if isinstance(tag, str):
+                if tag in CUSTOM:
+                    globals()['set_' +tag](ds, None) 
+                elif hasattr(ds, tag):
+                    del ds[tag]
+            else: # hexadecimal tuple
+                if tag in ds:
+                    del ds[tag]
+
+        elif isinstance(tag, str):
+            if tag in CUSTOM:
+                globals()['set_' +tag](ds, values[i])
+            elif hasattr(ds, tag):
+                ds[tag].value = format_value(values[i], tag=tag)
+            else:
+                _add_new(ds, tag, values[i], VR=VR[i])
+
+        else: # hexadecimal tuple
+            if tag in ds:
+                ds[tag].value = format_value(values[i], tag=tag)
+            else:
+                _add_new(ds, tag, values[i], VR=VR[i])
+
+        #_set_derived_data_element(ds, tag, values[i])
+                
+    return ds
+
+
+
+def value(ds, tags):
+    # Same as get_values but without VR lookup
+
+    # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
+    if not isinstance(tags, list): 
+        return values(ds, [tags])[0]
+            
+    row = []  
+    for tag in tags:
+        value = None
+
+        # If the tag is provided as string
+        # check first if it is a custom attribute
+        if isinstance(tag, str):
+
+            if tag in CUSTOM:
+                #value = getattr(ds, tag)()
+                value = globals()[tag](ds)
+            elif hasattr(ds, tag):
+                value = to_set_type(ds[tag].value)
+
+        # If the tag is a tuple of hexadecimal values
+        else: 
+            if tag in ds:
+                value = to_set_type(ds[tag].value)
+
+        # If a tag is not present in the dataset, check if it can be derived
+        if value is None:
+            value = derive_data_element(ds, tag)
+
+        row.append(value)
+    return row
+
+
+def set_value(ds, tags, values):
+    # Same as set_values but without VR lookup
+    # This excludes new private tags - set those using add_private()
+    if not isinstance(tags, list): 
+        tags = [tags]
+        values = [values]
+
+    for i, tag in enumerate(tags):
+                
+        if values[i] is None:
+            if isinstance(tag, str):
+                if tag in CUSTOM:
+                    globals()['set_' +tag](ds, None) 
+                elif hasattr(ds, tag):
+                    del ds[tag]
+            else: # hexadecimal tuple
+                if tag in ds:
+                    del ds[tag]
+
+        elif isinstance(tag, str):
+            if tag in CUSTOM:
+                globals()['set_' +tag](ds, values[i])
+            elif hasattr(ds, tag):
+                ds[tag].value = check_value(values[i], tag)
+            else:
+                add_new(ds, tag, values[i])
+
+        else: # hexadecimal tuple
+            if tag in ds:
+                ds[tag].value = check_value(values[i], tag)
+            else:
+                add_new(ds, tag, values[i])
+                
+    return ds
+
 
 
 def read(file, dialog=None, nifti=False):
@@ -122,7 +319,7 @@ def read(file, dialog=None, nifti=False):
             nim = nib.load(file)
             ds = nim.header.extensions[0].get_content()
             array = nim.get_fdata()
-            set_pixel_array(ds, array)
+            set_pixel_values(ds, array)
         else:
             ds = pydicom.dcmread(file)
         return DbDataset(ds)
@@ -139,23 +336,9 @@ def write(ds, file, status=None):
     if not os.path.exists(dir):
         os.makedirs(dir)
     ds.save_as(file, write_like_original=False)
-    # try:
-    #     # check if directory exists and create it if not
-    #     dir = os.path.dirname(file)
-    #     if not os.path.exists(dir):
-    #         os.makedirs(dir)
-    #     ds.save_as(file, write_like_original=False)
-    # except:
-    #     msg = 'Cannot write to file \n' + file
-    #     if status is not None:
-    #         status.message(msg)
-    #     else:
-    #         print(msg)
-    #     raise RuntimeError
 
 
 def codify(source_file, save_file, **kwargs):
-    
     str = code_file(source_file, **kwargs)
     file = open(save_file, "w")
     file.write(str)
@@ -258,60 +441,6 @@ def read_dataframe(files, tags, status=None, path=None, message='Reading DICOM f
     return df
 
 
-
-def set_values(ds, tags, values, VR=None):
-    """
-    Sets DICOM tags in the pydicom dataset in memory
-    
-    Private and standard tags can both be set.
-    tags, values and VR must either be lists of equal lengths,
-    or single values.
-    VR is required for private tags. 
-    If private and standard tags are set in the same function call, 
-    VR can be set to any value for the standard tags: e.g. 
-        set_values(ds, ['Rows', (0x0019, 0x0100)], [128, 'Hello'], [None, 'LO'])
-    """
-
-    if not isinstance(tags, list): 
-        tags = [tags]
-        values = [values]
-        VR = [VR]
-    elif VR is None:
-        VR = [None] * len(tags)
-    for i, tag in enumerate(tags):
-                
-        if values[i] is None:
-            if isinstance(tag, str):
-                if hasattr(ds, tag):
-                    # Setting standard DICOM attribute to None
-                    del ds[tag]
-                else:
-                    # Setting custom attribute to None
-                    if hasattr(ds, 'set_attribute_' + tag):
-                        getattr(ds, 'set_attribute_' + tag)(values[i])  
-            else: # hexadecimal tuple
-                if tag in ds:
-                    del ds[tag]
-        else:
-            if isinstance(tag, str):
-                if hasattr(ds, tag):
-                    ds[tag].value = format_value(values[i], tag=tag)
-                else:
-                    if hasattr(ds, 'set_attribute_' + tag):
-                        getattr(ds, 'set_attribute_' + tag)(values[i])
-                        continue
-                    _add_new(ds, tag, values[i], VR=VR[i])
-            else: # hexadecimal tuple
-                if tag in ds:
-                    ds[tag].value = format_value(values[i], tag=tag)
-                else:
-                    _add_new(ds, tag, values[i], VR=VR[i])
-
-        #_set_derived_data_element(ds, tag, values[i])
-                
-    return ds
-
-
 # def _set_derived_data_element(ds, tag, value):
 #     """Set any tags that are need to change as well"""
 
@@ -340,51 +469,31 @@ def _add_new(ds, tag, value, VR='OW'):
         ds.add_new(tag, VR, format_value(value, VR))
 
 
+def add_new(ds, tag, value):
+    if not isinstance(tag, pydicom.tag.BaseTag):
+        tag = pydicom.tag.Tag(tag)
+    if tag.is_private:
+        raise ValueError("if you want to add a private data element, use "
+                         "dataset.add_private()")
+   # Add a new data element
+    value_repr = pydicom.datadict.dictionary_VR(tag)
+    if value_repr == 'US or SS':
+        if value >= 0:
+            value_repr = 'US'
+        else:
+            value_repr = 'SS'
+    elif value_repr == 'OB or OW':
+        value_repr = 'OW'
+    ds.add_new(tag, value_repr, format_value(value, value_repr))
 
 
 
-
-
-def get_values(ds, tags):
-    """Return a list of values for a dataset"""
-
-    # https://pydicom.github.io/pydicom/stable/guides/element_value_types.html
-    if not isinstance(tags, list): 
-        return get_values(ds, [tags])[0]
-            
-    row = []  
-    for tag in tags:
-        value = None
-
-        # If the tag is provided as string
-        # check first if it is a custom attribute
-        if isinstance(tag, str):
-            if not hasattr(ds, tag):
-                if hasattr(ds, 'get_attribute_' + tag):
-                    value = getattr(ds, 'get_attribute_' + tag)()
-            else:
-                pydcm_value = ds[tag].value
-                try:
-                    VR = pydicom.datadict.dictionary_VR(tag)
-                except:
-                    VR = None
-                value = to_set_type(pydcm_value, VR) # ELIMINATE THIS STEP - return pydicom datatypes
-
-        # If the tag is a tuple of hexadecimal values
-        else: 
-            if tag in ds:
-                try:
-                    VR = pydicom.datadict.dictionary_VR(tag)
-                except:
-                    VR = None
-                value = to_set_type(ds[tag].value, VR)
-
-        # If a tag is not present in the dataset, check if it can be derived
-        if value is None:
-            value = derive_data_element(ds, tag)
-
-        row.append(value)
-    return row
+def add_private(ds, tag, value, VR):
+    if not isinstance(tag, pydicom.tag.BaseTag):
+        tag = pydicom.tag.Tag(tag)
+    if (tag.group, 0x0010) not in ds:
+        ds.private_block(tag.group, 'dbdicom ' + str(tag.group), create=True)
+    ds.add_new(tag, VR, format_value(value, VR))
 
 
 def derive_data_element(ds, tag):
@@ -420,7 +529,29 @@ def format_value(value, VR=None, tag=None):
     return value
 
 
-def to_set_type(value, VR):
+def check_value(value, tag):
+
+    # If the change below is made (TM, DA, DT) then this needs to 
+    # convert those to string before setting
+
+    LO = [
+        'SeriesDescription',
+        'StudyDescription',
+    ]
+    TM = [
+        'AcquisitionTime',
+    ]
+
+    if tag in LO:
+        if len(value) > 64:
+            return value[-64:]
+    if tag in TM:
+        return variables.seconds_to_str(value)
+    
+    return value
+
+
+def to_set_type(value, VR=None):
     """
     Convert pydicom datatypes to the python datatypes used to set the parameter.
     """
@@ -463,70 +594,80 @@ def new_uid(n=None):
         return [pydicom.uid.generate_uid() for _ in range(n)]
 
 
-# Obsolete - replaced by instance.affine()
-def get_affine_matrix(ds):
-    """Affine transformation matrix for a DICOM image"""
-
-    # slice_spacing = get_values(ds, 'SpacingBetweenSlices')
-    # if slice_spacing is None:
-    #     slice_spacing = get_values(ds, 'SliceThickness')
-    slice_spacing = get_values(ds, 'SliceThickness')
-    return image.affine_matrix(
-        get_values(ds, 'ImageOrientationPatient'), 
-        get_values(ds, 'ImagePositionPatient'), 
-        get_values(ds, 'PixelSpacing'), 
-        slice_spacing)
 
 
-# Obsolete - replaced by instance.set_affine()
-def set_affine_matrix(ds, affine):
-    v = image.dismantle_affine_matrix(affine)
-    set_values(ds, 'PixelSpacing', v['PixelSpacing'])
-    #set_values(ds, 'SpacingBetweenSlices', v['SpacingBetweenSlices'])
-    set_values(ds, 'SliceThickness', v['SpacingBetweenSlices'])
-    set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
-    set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
-    set_values(ds, 'SliceLocation', np.dot(v['ImagePositionPatient'], v['slice_cosine']))
-
-
-def map_mask_to(ds_source, ds_target):
-    """Map non-zero image pixels onto a target image.
+# def map_mask_to(ds_source, ds_target):
+#     """Map non-zero image pixels onto a target image.
     
-    Overwrite pixel values in the target"""
+#     Overwrite pixel values in the target"""
 
-    # Create a coordinate array of non-zero pixels
-    coords = np.transpose(np.where(ds_source.get_pixel_array() != 0)) 
-    coords = [[coord[0], coord[1], 0] for coord in coords] 
-    coords = np.array(coords)
+#     # Create a coordinate array of non-zero pixels
+#     coords = np.transpose(np.where(ds_source.get_pixel_array() != 0)) 
+#     coords = [[coord[0], coord[1], 0] for coord in coords] 
+#     coords = np.array(coords)
 
-    # Determine coordinate transformation matrix
-    affine_source = ds_source.get_values('affine_matrix')
-    affine_target = ds_target.get_values('affine_matrix')
-    source_to_target = np.linalg.inv(affine_target).dot(affine_source)
+#     # Determine coordinate transformation matrix
+#     affine_source = ds_source.get_values('affine_matrix')
+#     affine_target = ds_target.get_values('affine_matrix')
+#     source_to_target = np.linalg.inv(affine_target).dot(affine_source)
 
-    # Apply coordinate transformation and interpolate (nearest neighbour)
-    coords = nib.affines.apply_affine(source_to_target, coords)
-    coords = np.round(coords).astype(int)
-    # x = y = []
-    # for r in coords:
-    #     if r[2] == 0:
-    #         if (0 <= r[0]) & (r[0] < ds_target.Columns):
-    #             if (0 <= r[1]) & (r[1] < ds_target.Rows):
-    #                 x.append(r[0])
-    #                 y.append(r[1])
-    # x = tuple(x)
-    # y = tuple(y)
-    x = tuple([c[0] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
-    y = tuple([c[1] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
-    # x = tuple([c[0] for c in coords if c[2] == 0])
-    # y = tuple([c[1] for c in coords if c[2] == 0])
+#     # Apply coordinate transformation and interpolate (nearest neighbour)
+#     coords = nib.affines.apply_affine(source_to_target, coords)
+#     coords = np.round(coords).astype(int)
+#     # x = y = []
+#     # for r in coords:
+#     #     if r[2] == 0:
+#     #         if (0 <= r[0]) & (r[0] < ds_target.Columns):
+#     #             if (0 <= r[1]) & (r[1] < ds_target.Rows):
+#     #                 x.append(r[0])
+#     #                 y.append(r[1])
+#     # x = tuple(x)
+#     # y = tuple(y)
+#     x = tuple([c[0] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+#     y = tuple([c[1] for c in coords if (c[2] == 0) & (0 <= c[0]) & (c[0] < ds_target.Columns) & (0 <= c[1]) & (c[1] < ds_target.Rows)])
+#     # x = tuple([c[0] for c in coords if c[2] == 0])
+#     # y = tuple([c[1] for c in coords if c[2] == 0])
 
-    # Set values in the target image
-    # array = np.zeros((record.Rows, record.Columns))
-    array = np.zeros((ds_target.Columns, ds_target.Rows))
-    array[(x, y)] = 1.0
+#     # Set values in the target image
+#     # array = np.zeros((record.Rows, record.Columns))
+#     array = np.zeros((ds_target.Columns, ds_target.Rows))
+#     array[(x, y)] = 1.0
 
-    return array
+#     return array
+
+
+#  OBSOLETE custom tag
+def affine_matrix(self):
+    return affine(self)
+
+#  OBSOLETE custom tag
+def set_affine_matrix(*args, **kwargs):
+    set_affine(*args, **kwargs)
+
+
+def window(ds):
+    """Centre and width of the pixel data after applying rescale slope and intercept"""
+
+    if 'WindowCenter' in ds: 
+        centre = ds.WindowCenter
+    if 'WindowWidth' in ds: 
+        width = ds.WindowWidth
+    if centre is None or width is None:
+        array = pixel_values(ds)
+        #p = np.percentile(array, [25, 50, 75])
+        min = np.min(array)
+        max = np.max(array)
+    if centre is None: 
+        centre = (max+min)/2
+        #centre = p[1]
+    if width is None: 
+        width = 0.9*(max-min)
+        #width = p[2] - p[0]
+    return centre, width
+
+def set_window(ds, center, width):
+    ds.WindowCenter = center
+    ds.WindowWidth = width
 
 # List of all supported (matplotlib) colormaps
 
@@ -546,7 +687,7 @@ COLORMAPS =  ['cividis',  'magma', 'plasma', 'viridis',
 
 # Include support for DICOM natiove colormaps (see pydicom guide on working with pixel data)
 
-def get_colormap(ds):
+def colormap(ds):
     """Returns the colormap if there is any."""
 
     # Hijacking this free text field to store the colormap
@@ -584,30 +725,7 @@ def set_colormap(ds, colormap=None):
         set_lut(ds, RGBA[:,:3])
 
 
-def set_lut(ds, RGB):
-    """Set RGB as float with values in range [0,1]"""
-
-    ds.PhotometricInterpretation = 'PALETTE COLOR'
-
-    RGB *= (np.power(2, ds.BitsAllocated) - 1)
-
-    if ds.BitsAllocated == 8:
-        RGB = RGB.astype(np.ubyte)
-    elif ds.BitsAllocated == 16:
-        RGB = RGB.astype(np.uint16)
-
-    # Define the properties of the LUT
-    ds.add_new('0x00281101', 'US', [255, 0, ds.BitsAllocated])
-    ds.add_new('0x00281102', 'US', [255, 0, ds.BitsAllocated])
-    ds.add_new('0x00281103', 'US', [255, 0, ds.BitsAllocated])
-
-    # Scale the colorsList to the available range
-    ds.RedPaletteColorLookupTableData = bytes(RGB[:,0])
-    ds.GreenPaletteColorLookupTableData = bytes(RGB[:,1])
-    ds.BluePaletteColorLookupTableData = bytes(RGB[:,2])
-
-
-def get_lut(ds):
+def lut(ds):
     """Return RGB as float with values in [0,1]"""
 
     if 'PhotometricInterpretation' not in ds:
@@ -639,9 +757,55 @@ def get_lut(ds):
     return np.transpose([R, G, B])
 
 
-def get_pixel_array(ds):
-    """Read the pixel array from an image"""
+def set_lut(ds, RGB):
+    """Set RGB as float with values in range [0,1]"""
 
+    ds.PhotometricInterpretation = 'PALETTE COLOR'
+
+    RGB *= (np.power(2, ds.BitsAllocated) - 1)
+
+    if ds.BitsAllocated == 8:
+        RGB = RGB.astype(np.ubyte)
+    elif ds.BitsAllocated == 16:
+        RGB = RGB.astype(np.uint16)
+
+    # Define the properties of the LUT
+    ds.add_new('0x00281101', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281102', 'US', [255, 0, ds.BitsAllocated])
+    ds.add_new('0x00281103', 'US', [255, 0, ds.BitsAllocated])
+
+    # Scale the colorsList to the available range
+    ds.RedPaletteColorLookupTableData = bytes(RGB[:,0])
+    ds.GreenPaletteColorLookupTableData = bytes(RGB[:,1])
+    ds.BluePaletteColorLookupTableData = bytes(RGB[:,2])
+
+
+
+def affine(ds):
+    return image.affine_matrix(
+        get_values(ds, 'ImageOrientationPatient'), 
+        get_values(ds, 'ImagePositionPatient'), 
+        get_values(ds, 'PixelSpacing'), 
+        get_values(ds, 'SliceThickness'))
+
+
+def set_affine(ds, affine):
+    if affine is None:
+        raise ValueError('The affine cannot be set to an empty value')
+    v = image.dismantle_affine_matrix(affine)
+    set_values(ds, 'PixelSpacing', v['PixelSpacing'])
+    set_values(ds, 'SliceThickness', v['SliceThickness'])
+    set_values(ds, 'ImageOrientationPatient', v['ImageOrientationPatient'])
+    set_values(ds, 'ImagePositionPatient', v['ImagePositionPatient'])
+    set_values(ds, 'SliceLocation', np.dot(v['ImagePositionPatient'], v['slice_cosine']))
+
+
+
+def pixel_values(ds):
+
+    if ds.SOPClassUID=='1.2.840.10008.5.1.4.1.1.4':
+        return pixel_values_mr_image(ds)
+    
     try:
         array = ds.pixel_array
     except:
@@ -651,11 +815,39 @@ def get_pixel_array(ds):
     intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
     array *= slope
     array += intercept
-    
     return np.transpose(array)
 
 
-def set_pixel_array(ds, array, value_range=None):
+def pixel_values_mr_image(ds):
+    """Read the pixel array from an MR image"""
+
+    #array = ds.pixel_array.astype(np.float64)
+    #array = ds.pixel_array
+    #array = np.frombuffer(ds.PixelData, dtype=np.uint16).reshape(ds.Rows, ds.Columns)
+    #array = array.astype(np.float32)
+
+    array = ds.pixel_array
+    array = array.astype(np.float32)
+    if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
+        slope = ds[(0x2005, 0x100E)].value
+        intercept = ds[(0x2005, 0x100D)].value
+        array -= intercept
+        array /= slope
+    else:
+        slope = float(getattr(ds, 'RescaleSlope', 1)) 
+        intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
+        array *= slope
+        array += intercept
+    return np.transpose(array)
+
+
+def set_pixel_values(ds, array, value_range=None):
+    if array is None:
+        raise ValueError('The pixel array cannot be set to an empty value.')
+    
+    if ds.SOPClassUID=='1.2.840.10008.5.1.4.1.1.4':
+        set_pixel_values_mr_image(ds, array)
+        return
     
     # if array.ndim >= 3: # remove spurious dimensions of 1
     #     array = np.squeeze(array) 
@@ -664,22 +856,121 @@ def set_pixel_array(ds, array, value_range=None):
     array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
     array = np.transpose(array)
 
-    #maximum = np.amax(array)
-    #minimum = np.amin(array)
-    shape = np.shape(array)
-
     ds.PixelRepresentation = 0
     #ds.SmallestImagePixelValue = int(0)
     #ds.LargestImagePixelValue = int(2**ds.BitsAllocated - 1)
-    ds.set_values('SmallestImagePixelValue', int(0))
-    ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+    #ds.set_values('SmallestImagePixelValue', int(0))
+    #ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
     ds.RescaleSlope = 1 / slope
     ds.RescaleIntercept = - intercept / slope
 #        ds.WindowCenter = (maximum + minimum) / 2
 #        ds.WindowWidth = maximum - minimum
-    ds.Rows = shape[0]
-    ds.Columns = shape[1]
+    ds.Rows = array.shape[0]
+    ds.Columns = array.shape[1]
     ds.PixelData = array.tobytes()
+
+
+def set_pixel_values_mr_image(ds, array):
+
+    if (0x2005, 0x100E) in ds: 
+        del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
+    if (0x2005, 0x100D) in ds: 
+        del ds[0x2005, 0x100D]
+
+    # clipping may slow down a lot
+    array = image.clip(array.astype(np.float32))
+    array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
+    array = np.transpose(array)
+
+    ds.PixelRepresentation = 0
+
+    # Does this need setting? Optional and should not be used like this anyway.
+    # Prob
+    # 11 june 2016: commented this out it produced busg in some cases due to US vs SS confusion
+    # vr = ds.data_element('SmallestImagePixelValue').VR 
+    # if vr =='US':
+    #     ds.set_values('SmallestImagePixelValue', int(0))
+    #     ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
+    # else:
+    #     ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
+    #     ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
+
+    ds.RescaleSlope = 1 / slope
+    ds.RescaleIntercept = - intercept / slope
+#        ds.WindowCenter = (maximum + minimum) / 2
+#        ds.WindowWidth = maximum - minimum
+    ds.Rows = array.shape[0]
+    ds.Columns = array.shape[1]
+    ds.PixelData = array.tobytes()
+
+
+def volume(ds):
+    return vreg.volume(pixel_values(ds), affine(ds))
+
+def set_volume(ds, volume:vreg.Volume3D):
+    if volume is None:
+        raise ValueError('The volume cannot be set to an empty value.')
+    set_pixel_values(ds, np.squeeze(volume.values))
+    set_affine(ds, volume.affine)
+
+
+def image_type(ds):
+    """Determine if an image is Magnitude, Phase, Real or Imaginary image or None"""
+
+    if (0x0043, 0x102f) in ds:
+        private_ge = ds[0x0043, 0x102f]
+        try: 
+            value = struct.unpack('h', private_ge.value)[0]
+        except: 
+            value = private_ge.value
+        if value == 0: 
+            return 'MAGNITUDE'
+        if value == 1: 
+            return 'PHASE'
+        if value == 2: 
+            return 'REAL'
+        if value == 3: 
+            return 'IMAGINARY'
+
+    if 'ImageType' in ds:
+        type = set(ds.ImageType)
+        if set(['M', 'MAGNITUDE']).intersection(type):
+            return 'MAGNITUDE'
+        if set(['P', 'PHASE']).intersection(type):
+            return 'PHASE'
+        if set(['R', 'REAL']).intersection(type):
+            return 'REAL'
+        if set(['I', 'IMAGINARY']).intersection(type):
+            return 'IMAGINARY'
+
+    if 'ComplexImageComponent' in ds:
+        return ds.ComplexImageComponent
+
+    return 'UNKNOWN'
+
+
+def set_image_type(ds, value):
+    ds.ImageType = value
+
+
+def signal_type(ds):
+    """Determine if an image is Water, Fat, In-Phase, Out-phase image or None"""
+
+    if hasattr(ds, 'ImageType'):
+        type = set(ds.ImageType)
+        if set(['W', 'WATER']).intersection(type):
+            return 'WATER'
+        elif set(['F', 'FAT']).intersection(type):
+            return 'FAT'
+        elif set(['IP', 'IN_PHASE']).intersection(type):
+            return 'IN_PHASE'
+        elif set(['OP', 'OUT_PHASE']).intersection(type):
+            return 'OP_PHASE'
+    return 'UNKNOWN'
+
+
+def set_signal_type(ds, value):
+    ds.ImageType = value
 
 
 def module_patient():

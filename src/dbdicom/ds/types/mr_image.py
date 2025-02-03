@@ -25,23 +25,25 @@ class MRImage(DbDataset):
         if template == 'RIDER': 
             rider(self)
 
-    def get_pixel_array(self):
-        return get_pixel_array(self)
+    ###### OBSOLETE - REMOVE IN FUTURE VERSIONS #####
 
-    def set_pixel_array(self, array):
-        set_pixel_array(self, array)
+    # def get_pixel_array(self):
+    #     return pixel_values(self)
 
-    def get_attribute_image_type(self):
-        return get_attribute_image_type(self)
+    # def set_pixel_array(self, array):
+    #     set_pixel_values(self, array)
 
-    def set_attribute_image_type(self, value):
-        set_attribute_image_type(self, value)
+    # def get_attribute_image_type(self):
+    #     return get_attribute_image_type(self)
 
-    def get_attribute_signal_type(self):
-        return get_attribute_signal_type(self)
+    # def set_attribute_image_type(self, value):
+    #     set_attribute_image_type(self, value)
 
-    def set_attribute_signal_type(self, value):
-        set_attribute_signal_type(self, value)
+    # def get_attribute_signal_type(self):
+    #     return get_attribute_signal_type(self)
+
+    # def set_attribute_signal_type(self, value):
+    #     set_attribute_signal_type(self, value)
 
 
 
@@ -162,117 +164,9 @@ def rider(ds): # required only - check
     return ds
 
 
-def get_pixel_array(ds):
-    """Read the pixel array from an MR image"""
-
-    #array = ds.pixel_array.astype(np.float64)
-    #array = ds.pixel_array
-    #array = np.frombuffer(ds.PixelData, dtype=np.uint16).reshape(ds.Rows, ds.Columns)
-    #array = array.astype(np.float32)
-
-    array = ds.pixel_array
-    array = array.astype(np.float32)
-    if [0x2005, 0x100E] in ds: # 'Philips Rescale Slope'
-        slope = ds[(0x2005, 0x100E)].value
-        intercept = ds[(0x2005, 0x100D)].value
-        array -= intercept
-        array /= slope
-    else:
-        slope = float(getattr(ds, 'RescaleSlope', 1)) 
-        intercept = float(getattr(ds, 'RescaleIntercept', 0)) 
-        array *= slope
-        array += intercept
-    return np.transpose(array)
 
 
-def set_pixel_array(ds, array):
-
-    if (0x2005, 0x100E) in ds: 
-        del ds[0x2005, 0x100E]  # Delete 'Philips Rescale Slope'
-    if (0x2005, 0x100D) in ds: 
-        del ds[0x2005, 0x100D]
-
-    # clipping may slow down a lot
-    array = image.clip(array.astype(np.float32))
-    array, slope, intercept = image.scale_to_range(array, ds.BitsAllocated)
-    array = np.transpose(array)
-
-    ds.PixelRepresentation = 0
-
-    # Does this need setting? Optional and should not be used like this anyway.
-    # Prob
-    # 11 june 2016: commented this out it produced busg in some cases due to US vs SS confusion
-    # vr = ds.data_element('SmallestImagePixelValue').VR 
-    # if vr =='US':
-    #     ds.set_values('SmallestImagePixelValue', int(0))
-    #     ds.set_values('LargestImagePixelValue', int(2**ds.BitsAllocated - 1))
-    # else:
-    #     ds.set_values('SmallestImagePixelValue', int(-2**(ds.BitsAllocated - 1)))
-    #     ds.set_values('LargestImagePixelValue', int(2**(ds.BitsAllocated - 1)-1))
-
-    ds.RescaleSlope = 1 / slope
-    ds.RescaleIntercept = - intercept / slope
-#        ds.WindowCenter = (maximum + minimum) / 2
-#        ds.WindowWidth = maximum - minimum
-    ds.Rows = array.shape[0]
-    ds.Columns = array.shape[1]
-    ds.PixelData = array.tobytes()
 
 
-def get_attribute_image_type(ds):
-    """Determine if an image is Magnitude, Phase, Real or Imaginary image or None"""
-
-    if (0x0043, 0x102f) in ds:
-        private_ge = ds[0x0043, 0x102f]
-        try: 
-            value = struct.unpack('h', private_ge.value)[0]
-        except: 
-            value = private_ge.value
-        if value == 0: 
-            return 'MAGNITUDE'
-        if value == 1: 
-            return 'PHASE'
-        if value == 2: 
-            return 'REAL'
-        if value == 3: 
-            return 'IMAGINARY'
-
-    if 'ImageType' in ds:
-        type = set(ds.ImageType)
-        if set(['M', 'MAGNITUDE']).intersection(type):
-            return 'MAGNITUDE'
-        if set(['P', 'PHASE']).intersection(type):
-            return 'PHASE'
-        if set(['R', 'REAL']).intersection(type):
-            return 'REAL'
-        if set(['I', 'IMAGINARY']).intersection(type):
-            return 'IMAGINARY'
-
-    if 'ComplexImageComponent' in ds:
-        return ds.ComplexImageComponent
-
-    return 'UNKNOWN'
 
 
-def set_attribute_image_type(ds, value):
-    ds.ImageType = value
-
-
-def get_attribute_signal_type(ds):
-    """Determine if an image is Water, Fat, In-Phase, Out-phase image or None"""
-
-    if hasattr(ds, 'ImageType'):
-        type = set(ds.ImageType)
-        if set(['W', 'WATER']).intersection(type):
-            return 'WATER'
-        elif set(['F', 'FAT']).intersection(type):
-            return 'FAT'
-        elif set(['IP', 'IN_PHASE']).intersection(type):
-            return 'IN_PHASE'
-        elif set(['OP', 'OUT_PHASE']).intersection(type):
-            return 'OP_PHASE'
-    return 'UNKNOWN'
-
-
-def set_attribute_signal_type(ds, value):
-    ds.ImageType = value

@@ -166,6 +166,57 @@ def test_grid_to_meshcoords():
     else:
         assert False
 
+
+
+def test_check_if_ivals():
+
+    # All cols unique
+    crds = np.array([[6,6,6,6,5,5,5,5],
+                     [6,6,5,5,3,3,4,4],
+                     [1,2,4,3,5,6,8,7]])
+    try:
+        db.types.series._check_if_ivals(crds)
+    except:
+        assert False
+    else:
+        assert True
+
+    # One col duplicated
+    crds = np.array([[6,6,6,6,5,5,5,5],
+                     [5,6,5,5,3,3,4,4],
+                     [3,2,4,3,5,6,8,7]])
+    try:
+        db.types.series._check_if_ivals(crds)
+    except:
+        assert True
+    else:
+        assert False
+
+    # Same thing with object arrays
+    crds = np.array([[6,6,6,6,5,5,5,5],
+                     [6,6,5,5,3,3,4,4],
+                     [1,2,4,3,5,6,8,7]], dtype=object)
+    try:
+        db.types.series._check_if_ivals(crds)
+    except:
+        assert False
+    else:
+        assert True
+
+    # One col duplicated
+    crds = np.array([[6,6,6,6,5,5,5,5],
+                     [5,6,5,5,3,3,4,4],
+                     [3,2,4,3,5,6,8,7]], dtype=object)
+    try:
+        db.types.series._check_if_ivals(crds)
+    except:
+        assert True
+    else:
+        assert False
+
+
+
+
 def test_meshdata():
 
     print('Testing meshdata')
@@ -181,12 +232,39 @@ def test_meshdata():
         [0,1,2,3,4,5,6,7],
         [7,6,5,4,3,2,1,0],
     ])
-    cmesh = db.types.series._meshvals(crds)
-    vmesh = db.types.series._meshdata(vals, crds, cmesh)
-    assert np.array_equal(cmesh[:,1,0,1], [6,5,3])
-    assert np.array_equal(vmesh[:,1,0,1], [4,5,3,4])
-    assert np.array_equal(cmesh[:,0,1,0], [5,4,8])
-    assert np.array_equal(vmesh[:,0,1,0], [7,2,6,1])
+    cmesh, inds = db.types.series._meshvals(crds)
+    vmesh = db.types.series._meshdata(vals, inds, cmesh)
+    assert np.array_equal(cmesh[:,1,0,1], [6,5,4])
+    assert np.array_equal(vmesh[:,1,0,1], [3,6,2,5])
+    assert np.array_equal(cmesh[:,0,1,0], [5,4,7])
+    assert np.array_equal(vmesh[:,0,1,0], [8,1,7,0])
+
+    # change order of values
+    crds = np.array([
+        [6,5,6,6,6,5,5,5],
+        [6,3,5,5,6,3,4,4],
+        [1,5,4,3,2,6,8,7],
+    ])
+    cmesh2, _ = db.types.series._meshvals(crds)
+    assert np.array_equal(cmesh, cmesh2)
+
+    crds = np.array([
+        [6,6,6,6,5,5,5,5],
+        [6,6,5,5,4,4,4,4],
+        [1,2,4,3,5,6,8,7],
+        [0,0,0,0,0,0,0,0],
+    ])
+    cmesh, _ = db.types.series._meshvals(crds)
+    assert np.array_equal(cmesh[:,0,1,0,0], [5,4,7,0])
+    assert np.array_equal(cmesh[:,0,1,1,0], [5,4,8,0])
+
+    crds = np.array([
+        [6,6,6,6,5,5,5,5],
+        [4,4,4,4,4,4,4,4],
+        [1,2,4,3,5,6,8,7],
+    ])
+    cmesh, _ = db.types.series._meshvals(crds)
+    assert np.array_equal(cmesh[:,0,0,2], [5,4,7])
 
 
 def test_as_meshcoords():
@@ -1255,13 +1333,16 @@ def test_islice():
 
 if __name__ == "__main__":
 
+
+
     # Helper functions
 
-    test_check_if_coords()
-    test_grid_to_meshcoords()
-    test_meshdata()
-    test_as_meshcoords()
-    test_concatenate_coords()
+    # test_check_if_coords()
+    # test_grid_to_meshcoords()
+    test_check_if_ivals()
+    # test_meshdata()
+    # test_as_meshcoords()
+    # test_concatenate_coords()
 
     ## API
     

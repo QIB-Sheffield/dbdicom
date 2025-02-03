@@ -299,6 +299,10 @@ def bounding_box(
     column_cosine = np.array(image_orientation[3:])
     slice_cosine = np.cross(row_cosine, column_cosine)
 
+    # The coronal orientation has a left-handed reference frame
+    if np.array_equal(np.around(image_orientation, 3), [1,0,0,0,0,-1]):
+        slice_cosine = -slice_cosine
+
     number_of_slices = len(image_positions)
     image_locations = [np.dot(np.array(pos), slice_cosine) for pos in image_positions]
     slab_thickness = max(image_locations) - min(image_locations)
@@ -396,7 +400,7 @@ def standard_affine_matrix(
         image_position = bounding_box['RAH']
         row_cosine = np.array([1,0,0])
         column_cosine = np.array([0,0,-1])
-        slice_cosine = np.array([0,1,0]) 
+        slice_cosine = -np.array([0,1,0]) 
     elif orientation == 'sagittal':
         image_position = bounding_box['LAH']
         row_cosine = np.array([0,1,0])
@@ -425,6 +429,10 @@ def affine_matrix(      # single slice function
     column_cosine = np.array(image_orientation[3:])
     slice_cosine = np.cross(row_cosine, column_cosine)
 
+    # The coronal orientation has a left-handed reference frame
+    if np.array_equal(np.around(image_orientation, 3), [1,0,0,0,0,-1]):
+        slice_cosine = -slice_cosine
+
     affine = np.identity(4, dtype=np.float32)
     affine[:3, 0] = row_cosine * column_spacing
     affine[:3, 1] = column_cosine * row_spacing
@@ -443,6 +451,10 @@ def slice_location(
     row_cosine = np.array(image_orientation[:3])    
     column_cosine = np.array(image_orientation[3:]) 
     slice_cosine = np.cross(row_cosine, column_cosine)
+
+    # The coronal orientation has a left-handed reference frame
+    if np.array_equal(np.around(image_orientation, 3), [1,0,0,0,0,-1]):
+        slice_cosine = -slice_cosine
 
     return np.dot(np.array(image_position), slice_cosine)
 
@@ -479,6 +491,10 @@ def affine_matrix_multislice(
     row_cosine = np.array(image_orientation[:3])    
     column_cosine = np.array(image_orientation[3:]) 
     slice_cosine = np.cross(row_cosine, column_cosine)
+
+    # The coronal orientation has a left-handed reference frame
+    if np.array_equal(np.around(image_orientation, 3), [1,0,0,0,0,-1]):
+        slice_cosine = -slice_cosine
 
     image_locations = [np.dot(np.array(pos), slice_cosine) for pos in image_positions]
     #number_of_slices = len(image_positions)

@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import math
 from numbers import Number
+from tqdm import tqdm
 
 import numpy as np
 import nibabel as nib
@@ -12,6 +13,7 @@ import vreg
 
 from dbdicom.record import Record, read_dataframe_from_instance_array
 from dbdicom.ds import MRImage
+from dbdicom.ds.create import new_dataset
 import dbdicom.utils.image as image_utils
 from dbdicom.manager import Manager
 # import dbdicom.extensions.scipy as scipy_utils
@@ -60,7 +62,10 @@ class Series(Record):
         if isinstance(uids, list):
             return [self.record('Instance', uid) for uid in uids]
         else:
-            return self.record('Instance', uids)        
+            return self.record('Instance', uids)    
+
+    def write_dataset(self, ds):
+        self.new_instance().write_dataset(ds)    
 
     def _copy_from(self, record, **kwargs):
         attr = {**kwargs, **self.attributes}
@@ -115,30 +120,14 @@ class Series(Record):
             with open(filepath, 'wb') as f:
                 np.save(f, array)
 
-    def export_as_nifti(self, path, dims=None):
-        if dims is None:
-            folder = self.label()
-            path = export_path(path, folder)
-            affine = self.affine_matrix()
-            if not isinstance(affine, list):
-                affine = [affine]
-            for a in affine:
-                matrix = a[0]
-                images = a[1]
-                for i, img in enumerate(images):
-                    img.progress(i+1, len(images), 'Exporting nifti..')
-                    img.export_as_nifti(path, matrix)
+    def export_as_nifti(self, path, dims='SliceLocation'):
+        vols = self.volumes(dims=dims, stack=True)
+        if isinstance(vols, vreg.Volume3D):
+            vreg.write_nifti(vols, path)
         else:
-            ds = self.instance().get_dataset()
-            sgroups = self.slice_groups(dims=dims)
-            for i, sg in enumerate(sgroups):
-                self.progress(i+1, len(sgroups), 'Exporting nifti..')
-                dicom_header = nib.nifti1.Nifti1DicomExtension(2, ds)
-                nifti1_image = nib.Nifti1Image(sg['ndarray'], image_utils.affine_to_RAH(sg['affine']))
-                nifti1_image.header.extensions.append(dicom_header)
-                filepath = self.label()
-                filepath = os.path.join(path, filepath + '[' + str(i) + '].nii')
-                nib.save(nifti1_image, filepath)
+            for i, v in enumerate(vols.reshape(-1)):
+                vreg.write_nifti(v, path[:-7] + '(' + str(i) + ').nii.gz')
+
 
     def import_dicom(self, files):
         uids = self.manager.import_datasets(files)
@@ -223,10 +212,14 @@ class Series(Record):
 
         # Filter values
         values = _filter_values(values, fltr, coords, exclude=exclude)
+        value_array = np.empty((len(values[0]), len(values)), dtype=object)
+        for i, v in enumerate(values):
+            value_array[:,i] = v
+        values = value_array
 
         # If requested, mesh values
         if mesh:
-            values = _meshvals(values)
+            values, _ = _meshvals(values)
             mshape = values.shape[1:]
 
         # Build coordinates
@@ -239,18 +232,28 @@ class Series(Record):
         return vcoords
     
 
-    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, mesh=True, slice={}, coords={}, exclude=False, **filters)->np.ndarray:
+    def values(self, *tags, dims=('InstanceNumber', ), return_coords=False, 
+               mesh=True, slice={}, coords={}, exclude=False, **filters
+               ) -> np.ndarray:
         """Return the values of one or more attributes for each frame in the series.
 
         Args:
-            tag (str or tuple): either a keyword string or a (group, element) tag of a DICOM data element.
-            dims (tuple, optional): Dimensions of the resulting array. If *dims* is not provided, values are ordered by InstanceNumber. Defaults to None.
-            inds (dict, optional): Dictionary with indices to retrieve a slice of the entire array. Defaults to None.
-            select (dict, optional): A dictionary of values for DICOM attributes to filter the result. By default the data are not filtered.
-            filters (dict, optional): keyword arguments to filter the data by value of DICOM attributes.
+            tag (str or tuple): either a keyword string or a (group, element) 
+              tag of a DICOM data element.
+            dims (tuple, optional): Dimensions of the resulting array. If 
+              *dims* is not provided, values are ordered by InstanceNumber. 
+              Defaults to None.
+            inds (dict, optional): Dictionary with indices to retrieve a 
+              slice of the entire array. Defaults to None.
+            select (dict, optional): A dictionary of values for DICOM 
+              attributes to filter the result. By default the data are not filtered.
+            filters (dict, optional): keyword arguments to filter the data 
+              by value of DICOM attributes.
 
         Returns:
-            An `numpy.ndarray` of values with dimensions as specified by *dims*. If the value is not defined in *one or more* of the slices, an empty array is returned.
+            An `numpy.ndarray` of values with dimensions as specified by 
+            *dims*. If the value is not defined in *one or more* of the 
+            slices, an empty array is returned.
 
         See also:
             `unique`
@@ -358,25 +361,33 @@ class Series(Record):
                 return values, vcoords
             return values
               
-        # Read values and sort
+        # Read values
         filters = {**slice, **filters}
         values = []
-        for i, f in enumerate(frames):
-            self.progress(i+1,len(frames), 'Reading values..')
-            v = f[list(dims)+list(tags)+list(tuple(filters))+list(tuple(coords))]
+        attributes = list(dims) + list(tags) + list(tuple(filters)) + list(tuple(coords))
+        for i, f in tqdm(enumerate(frames), total=len(frames), desc='Reading values..', disable=self.in_gui()):
+            if self.in_gui():
+                self.progress(i+1,len(frames), 'Reading values..')
+            if set(attributes) <= set(self.manager.columns):
+                v = f[attributes] # slower when reading
+            else:
+                v = f.get_dataset().get_values(attributes)
             values.append(v)
+
+        # sort frames by values of dimensions
         fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
         values = [values[i] for i in fsort]
         
         # Check if dimensions are proper
-        # Need object array here because the values can be different type including lists.
         cvalues = [v[:len(dims)] for v in values]
         cvalues = np.array(cvalues, dtype=object).T
         _check_if_ivals(cvalues)
 
         # Filter values
         values = _filter_values(values, filters, coords, exclude=exclude)
-        if values.size == 0:
+
+        # If there is nothing left, return empty
+        if len(values) == 0:
             if return_coords:
                 if len(tags) == 1: 
                     return values, vcoords
@@ -384,25 +395,36 @@ class Series(Record):
                     values = [np.array([]) for _ in range(len(tags))]
                     return tuple(values) + (vcoords,)
             return values
-        cvalues = values[:len(dims),:]
-        values = values[len(dims):,:]
+
+        # Separate coordinate values and arguments
+        cvalues = np.stack([v[:len(dims)] for v in values], axis=-1)
+        #values = np.stack([v[len(dims):] for v in values], axis=-1)
+        value_array = np.empty((len(values[0])-len(dims), len(values)), dtype=object)
+        for i, v in enumerate(values):
+            value_array[:,i] = v[len(dims):]
+        values = value_array
 
         # If requested, mesh values
         if mesh:
-            cmesh = _meshvals(cvalues)
-            values = _meshdata(values, cvalues, cmesh)
+            cmesh, inds = _meshvals(cvalues)
+            values = _meshdata(values, inds, cmesh)
             cvalues = cmesh
             
         # Create return values
         if len(tags) == 1:
             values = values[0,...]
         else:
-            values = [values[i,...] for i in range(values.shape[0])]
+            values = [
+                #np.squeeze(values[i,...], axis=0)  
+                values[i,...]
+                for i in range(values.shape[0])
+            ]
             values = tuple(values)
 
         if return_coords:
             for i, tag in enumerate(dims):
-                vcoords[tag] = cvalues[i,...] 
+                #vcoords[tag] = cvalues[i,...] 
+                vcoords[tag] = np.squeeze(cvalues[i,...], axis=0) 
             if len(tags) == 1: 
                 return values, vcoords
             else:
@@ -411,15 +433,19 @@ class Series(Record):
             return values
 
 
-
-
-
     def frames(
             self, dims=('InstanceNumber', ), return_coords=False, 
-            return_vals=(), mesh=True, slice={}, coords={}, exclude=False, 
+            return_vals=None, mesh=True, slice={}, coords={}, exclude=False, 
             **filters):
         """Return the frames of given coordinates in the correct order"""
 
+        # Ensure return_vals is a list
+        if return_vals is None:
+            return_vals = []
+        scalar_return_val = isinstance(return_vals, str)
+        if scalar_return_val:
+            return_vals = [return_vals]
+        
         if np.isscalar(dims):
             dims = (dims,)
 
@@ -436,13 +462,12 @@ class Series(Record):
         # Get all frames and return if empty
         frames_sel = self.instances()
         if frames_sel == []:
-
             # Empty return values
             frames = np.array([]).reshape(fshape)
             rval = (frames,)
             if return_coords:
                 rval += (vcoords, )
-            if return_vals != ():
+            if len(return_vals)>0:
                 rval += (values, )
             if len(rval)==1:
                 return rval[0]
@@ -451,7 +476,15 @@ class Series(Record):
               
         # Read values and sort
         filters = {**slice, **filters}
-        values = [f[list(dims)+list(return_vals)+list(tuple(filters))+list(tuple(coords))] for f in frames_sel]
+        values = []
+        attributes = list(dims) + list(return_vals) + list(tuple(filters)) + list(tuple(coords))
+        for i, f in tqdm(enumerate(frames_sel), total=len(frames_sel), desc='Reading frames..', disable=self.in_gui()):
+            if self.in_gui():
+                self.progress(i+1, len(frames_sel), 'Reading frames..')
+            vf = f[attributes]
+            values.append(vf)
+
+        # Sort by dimensions
         fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
         values = [values[i] for i in fsort]
 
@@ -473,7 +506,7 @@ class Series(Record):
             rval = (frames,)
             if return_coords:
                 rval += (vcoords, )
-            if return_vals != ():
+            if len(return_vals)>0:
                 rval += (np.array([]), )
             if len(rval)==1:
                 return rval[0]
@@ -481,14 +514,18 @@ class Series(Record):
                 return rval           
         frames = frames[finds]
         values = _filter_values(values, filters, coords, exclude=exclude)
-        cvalues = values[:len(dims),:]
-        values = values[len(dims):,:]
+        cvalues = np.stack([v[:len(dims)] for v in values], axis=-1)
+        value_array = np.empty((len(values[0])-len(dims), len(values)), dtype=object)
+        for i, v in enumerate(values):
+            value_array[:,i] = v[len(dims):]
+        values = value_array
+        #values = np.stack([v[len(dims):] for v in values], axis=-1)
 
         # If requested, mesh values
         if mesh:
-            cmesh = _meshvals(cvalues)
-            values = _meshdata(values, cvalues, cmesh)
-            frames = _meshdata(frames.reshape((1,frames.size)), cvalues, cmesh)
+            cmesh, inds = _meshvals(cvalues)
+            values = _meshdata(values, inds, cmesh)
+            frames = _meshdata(frames.reshape((1,frames.size)), inds, cmesh)
             frames = frames[0,...]
             cvalues = cmesh
             
@@ -496,14 +533,404 @@ class Series(Record):
         rval = (frames,)
         if return_coords:
             for i, tag in enumerate(dims):
-                vcoords[tag] = cvalues[i,...] 
+                vcoords[tag] = np.squeeze(cvalues[i,...], axis=0)
+                #vcoords[tag] = cvalues[i,...]
             rval += (vcoords, )
-        if return_vals != ():
+        if len(return_vals)>0:
+            if scalar_return_val:
+                values = values[0,...]
+                #values = np.squeeze(values[0,...], axis=0)
             rval += (values, )
         if len(rval)==1:
             return rval[0]
         else:
             return rval
+
+        
+    def pixel_values(self, dims=('InstanceNumber', ), return_coords=False, 
+                     return_vals=None, mesh=True, slice={}, coords={}, 
+                     exclude=False, **filters) -> np.ndarray:
+        """Return a numpy.ndarray with pixel data.
+
+        Args:
+            dims (tuple, optional): Dimensions of the result, as a tuple of 
+              valid DICOM tags of any length. If *dims* is not provided, 
+              pixel values are ordered by instance number. Defaults to None.
+            inds (dict, optional): Dictionary with indices to retrieve a 
+              slice of the entire array. Defaults to None.
+            select (dict, optional): A dictionary of values for DICOM 
+              attributes to filter the result. By default the data are not filtered.
+            filters (dict, optional): keyword arguments to filter the data 
+              by value of DICOM attributes.
+
+        Returns:
+            np.ndarray: pixel data. The number of dimensions will be 2 plus 
+            the number of elements in *dim*. The first two indices will 
+            enumerate (column, row) indices in the slice, the other dimensions 
+            are as specified by the *dims* argument. 
+            
+            The function returns an empty array when no data are found at the 
+            specified locations.
+
+        Raises:
+            ValueError: Indices must be in the dimensions provided. If *ind* 
+              is set but keys are not part of *dims*.
+            ValueError: if the images are different shapes.
+
+        See also:
+            `set_pixel_values`
+
+        Example:
+            Create a zero-filled array with 3 slice dimensions:
+
+            >>> coords = {
+            ...    'SliceLocation': 10*np.arange(4),
+            ...    'FlipAngle': np.array([2, 15, 30]),
+            ...    'RepetitionTime': np.array([2.5, 5.0]),
+            ... }
+            >>> zeros = db.zeros((128,64,4,3,2), coords)
+
+            Retrieve the pixel array of the series:
+
+            >>> dims = tuple(coords)
+            >>> array = zeros.pixel_values(dims)
+            >>> array.shape
+            (128, 64, 4, 3, 2)
+
+            To retrieve an array containing only the data with flip angle 15:
+
+            >>> array = zeros.pixel_values(dims, FlipAngle=15)
+            >>> array.shape
+            (128, 64, 4, 1, 2)
+
+            If no data fit the requirement, and empty array is returned:
+
+            >>> array = zeros.pixel_values(dims, FlipAngle=15)
+            >>> array.size
+            0
+
+            Multiple possible values can be specified as an array:
+
+            >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]))
+            >>> array.shape
+            (128, 64, 4, 2, 2)
+
+            And multiple filters can be specified by adding keyword arguments. The following returns an array of pixel values with flip angle of 15 or 30, and slice location of 10 or 20:
+
+            >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]), SliceLocation=np.array([10,20]))
+            >>> array.shape
+            (128, 64, 2, 2, 2)
+
+            The filters can be any DICOM attribute:
+
+            >>> array = zeros.pixel_values(dims, AcquisitionTime=0)
+            >>> array.size
+            0
+
+            The filters can also be specified as a dictionary of values:
+
+            >>> array = zeros.pixel_values(dims, select={'FlipAngle': 15})
+            >>> array.shape
+            (128, 64, 4, 1, 2)
+
+            Since keywords need to be strings in python, this is the only way to specify filters with (group, element) tags:
+
+            >>> array = zeros.pixel_values(dims, select={(0x0018, 0x1314): 15})
+            >>> array.shape
+            (128, 64, 4, 1, 2)
+
+            Using the *inds* argument, the pixel array can be indexed to 
+            avoid reading a large array if only a subarray is required:
+
+            >>> array = zeros.pixel_values(dims, inds={'FlipAngle': 1})
+            >>> array.shape
+            (128, 64, 4, 1, 2)
+
+            Note unlike filters defind by *value*, the indices must be 
+            provided in the dimensions of the array. If not, a `ValueError` is raised:
+
+            >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
+            ValueError: Indices must be in the dimensions provided.
+        """
+
+        # Ensure return_vals is a list
+        if return_vals is None:
+            return_vals = []
+        scalar_return_val = isinstance(return_vals, str)
+        if scalar_return_val:
+            return_vals = [return_vals]
+
+        # Ensure dims is a tuple
+        if np.isscalar(dims):
+            dims = (dims,)
+
+        # Get all frames and return if empty
+        frames = self.instances()
+
+        # If there aren't any, return empty
+        if frames == []:
+            pixel_values = np.array([])
+            ret = (pixel_values, )
+            if return_coords:
+                vcoords = {tag:np.array([]) for tag in dims}
+                ret = ret + (vcoords, )
+            if len(return_vals)>0:
+                if scalar_return_val:
+                    values = np.array([])
+                else:
+                    values = {tag:np.array([]) for tag in return_vals}
+                ret = ret + (values, )
+            if len(ret) == 1:
+                return ret[0]
+            else:
+                return ret
+            
+        # Read values
+        filters = {**slice, **filters}
+        values = []
+        attributes = list(dims) + list(return_vals) + list(tuple(filters)) + list(tuple(coords)) + ['pixel_values']
+        for i, frame in tqdm(enumerate(frames), total=len(frames), 
+                             desc='Reading pixel values..', 
+                             disable=self.in_gui()):
+            if self.in_gui():
+                self.progress(i+1, len(frames), 'Reading files..')
+            #v = frame[attributes]
+            # TODO: Implement the filter here so filtered values are not retained in memory
+            v = frame.get_dataset().get_values(attributes)
+            values.append(v)
+
+        # Sort frames by values of dimensions
+        fsort = sorted(range(len(values)), key=lambda k: values[k][:len(dims)])
+        values = [values[i] for i in fsort]
+
+        # Check if dimensions are proper
+        coord_values = [v[:len(dims)] for v in values]
+        coord_values = np.array(coord_values, dtype=object).T
+        _check_if_ivals(coord_values)
+
+        # Filter values
+        values = _filter_values(values, filters, coords, exclude=exclude)
+
+        # If there is nothing left, return empty
+        if len(values) == 0:
+            pixel_values = np.array([])
+            ret = (pixel_values, )
+            if return_coords:
+                vcoords = {tag: np.array([]) for tag in dims}
+                ret = ret + (vcoords, )
+            if len(return_vals)>0:
+                if scalar_return_val:
+                    values = np.array([])
+                else:
+                    values = {tag:np.array([]) for tag in return_vals}
+                ret = ret + (values, )
+            if len(ret) == 1:
+                return ret[0]
+            else:
+                return ret
+
+        # Separate types of return values
+        pixel_values = [v[-1] for v in values]
+        coord_values = np.stack([v[:len(dims)] for v in values], axis=-1)
+        value_array = np.empty((len(values[0])-len(dims)-1, len(values)), dtype=object)
+        for i, v in enumerate(values):
+            value_array[:,i] = v[len(dims):-1]
+        values = value_array
+
+        # If requested, mesh values
+        if mesh:
+            coord_values, inds = _meshvals(coord_values)
+            if values.size > 0:
+                values = _meshdata(values, inds, coord_values) 
+        
+        # Check that all pixel arrays have the same shape sizes
+        vshape = np.array([v.shape for v in pixel_values])
+        vshape = np.unique(vshape.T, axis=1)
+        if vshape.shape[1] > 1:
+            raise ValueError("Cannot extract an array of pixel values - "
+                             "not all frames have the same matrix size.")
+        
+        # Format returned pixel values
+        pixel_values = np.stack(pixel_values, axis=-1)
+        pixel_values = pixel_values.reshape(pixel_values.shape[:2] + coord_values.shape[1:])
+
+        # Format returned coordinates
+        if return_coords:
+            vcoords = {
+                tag: np.squeeze(coord_values[i,...], axis=0)
+                #tag: coord_values[i,...]
+                for i, tag in enumerate(dims)
+            }
+        
+        # Format returned values
+        if len(return_vals) > 0:
+            if scalar_return_val:
+                #values = np.squeeze(values[0,...], axis=0)
+                values = values[0,...]
+            else:
+                values = {
+                    tag: np.squeeze(values[i,...], axis=0)
+                    #tag: values[i,...]
+                    for i, tag in enumerate(return_vals)
+                }
+
+        # Return values
+        ret = (pixel_values, )
+        if return_coords:
+            ret = ret + (vcoords, )
+        if len(return_vals) > 0:
+            ret = ret + (values, )
+        if len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
+        
+
+    # def _pixel_values(self, dims=('InstanceNumber', ), return_coords=False, 
+    #                  slice={}, coords={}, **filters) -> np.ndarray:
+    #     """Return a numpy.ndarray with pixel data.
+    
+    #     Args:
+    #         dims (tuple, optional): Dimensions of the result, as a tuple of 
+    #           valid DICOM tags of any length. If *dims* is not provided, 
+    #           pixel values are ordered by instance number. Defaults to None.
+    #         inds (dict, optional): Dictionary with indices to retrieve a 
+    #           slice of the entire array. Defaults to None.
+    #         select (dict, optional): A dictionary of values for DICOM 
+    #           attributes to filter the result. By default the data are not filtered.
+    #         filters (dict, optional): keyword arguments to filter the data 
+    #           by value of DICOM attributes.
+
+    #     Returns:
+    #         np.ndarray: pixel data. The number of dimensions will be 2 plus 
+    #         the number of elements in *dim*. The first two indices will 
+    #         enumerate (column, row) indices in the slice, the other dimensions 
+    #         are as specified by the *dims* argument. 
+            
+    #         The function returns an empty array when no data are found at the 
+    #         specified locations.
+
+    #     Raises:
+    #         ValueError: Indices must be in the dimensions provided. If *ind* 
+    #           is set but keys are not part of *dims*.
+    #         ValueError: if the images are different shapes.
+
+    #     See also:
+    #         `set_pixel_values`
+
+    #     Example:
+    #         Create a zero-filled array with 3 slice dimensions:
+
+    #         >>> coords = {
+    #         ...    'SliceLocation': 10*np.arange(4),
+    #         ...    'FlipAngle': np.array([2, 15, 30]),
+    #         ...    'RepetitionTime': np.array([2.5, 5.0]),
+    #         ... }
+    #         >>> zeros = db.zeros((128,64,4,3,2), coords)
+
+    #         Retrieve the pixel array of the series:
+
+    #         >>> dims = tuple(coords)
+    #         >>> array = zeros.pixel_values(dims)
+    #         >>> array.shape
+    #         (128, 64, 4, 3, 2)
+
+    #         To retrieve an array containing only the data with flip angle 15:
+
+    #         >>> array = zeros.pixel_values(dims, FlipAngle=15)
+    #         >>> array.shape
+    #         (128, 64, 4, 1, 2)
+
+    #         If no data fit the requirement, and empty array is returned:
+
+    #         >>> array = zeros.pixel_values(dims, FlipAngle=15)
+    #         >>> array.size
+    #         0
+
+    #         Multiple possible values can be specified as an array:
+
+    #         >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]))
+    #         >>> array.shape
+    #         (128, 64, 4, 2, 2)
+
+    #         And multiple filters can be specified by adding keyword arguments. The following returns an array of pixel values with flip angle of 15 or 30, and slice location of 10 or 20:
+
+    #         >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]), SliceLocation=np.array([10,20]))
+    #         >>> array.shape
+    #         (128, 64, 2, 2, 2)
+
+    #         The filters can be any DICOM attribute:
+
+    #         >>> array = zeros.pixel_values(dims, AcquisitionTime=0)
+    #         >>> array.size
+    #         0
+
+    #         The filters can also be specified as a dictionary of values:
+
+    #         >>> array = zeros.pixel_values(dims, select={'FlipAngle': 15})
+    #         >>> array.shape
+    #         (128, 64, 4, 1, 2)
+
+    #         Since keywords need to be strings in python, this is the only way to specify filters with (group, element) tags:
+
+    #         >>> array = zeros.pixel_values(dims, select={(0x0018, 0x1314): 15})
+    #         >>> array.shape
+    #         (128, 64, 4, 1, 2)
+
+    #         Using the *inds* argument, the pixel array can be indexed to 
+    #         avoid reading a large array if only a subarray is required:
+
+    #         >>> array = zeros.pixel_values(dims, inds={'FlipAngle': 1})
+    #         >>> array.shape
+    #         (128, 64, 4, 1, 2)
+
+    #         Note unlike filters defind by *value*, the indices must be 
+    #         provided in the dimensions of the array. If not, a `ValueError` is raised:
+
+    #         >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
+    #         ValueError: Indices must be in the dimensions provided.
+    #     """
+    #     if np.isscalar(dims):
+    #         dims = (dims,)
+    #     frames = self.frames(dims, return_coords=return_coords, slice=slice, 
+    #                          coords=coords, **filters)
+    #     if return_coords:
+    #         frames, fcoords = frames
+    #     if frames.size == 0:
+    #         shape = (0,0) + frames.shape
+    #         values = np.array([]).reshape(shape)
+    #         if return_coords:
+    #             return values, fcoords
+    #         else:
+    #             return values
+        
+    #     # Read values
+    #     fshape = frames.shape
+    #     frames = frames.ravel()
+    #     values = []
+    #     for i, frame in tqdm(enumerate(frames), total=len(frames), 
+    #                          desc='Reading pixel values..', 
+    #                          disable=self.in_gui()):
+    #         if self.in_gui():
+    #             self.progress(i+1, len(frames), 'Reading pixel values..')
+    #         #v = f.get_dataset().get_values(attributes) # can include pixel_values & values
+    #         values.append(frame.pixel_values())
+
+    #     # Check that all matrix sizes are the same
+    #     vshape = np.array([v.shape for v in values])
+    #     vshape = np.unique(vshape.T, axis=1)
+    #     if vshape.shape[1] > 1:
+    #         msg = 'Cannot extract an array of pixel values - not all frames have the same matrix size.'
+    #         raise ValueError(msg)
+        
+    #     # Create the array
+    #     values = np.stack(values, axis=-1)
+    #     values = values.reshape(values.shape[:2] + fshape)
+
+    #     if return_coords:
+    #         return values, fcoords
+    #     else:
+    #         return values
         
 
     def expand(self, coords={}, gridcoords={}): # gridcoords -> slice
@@ -1012,132 +1439,7 @@ class Series(Record):
             return uvals
     
 
-    def pixel_values(self, dims=('InstanceNumber', ), return_coords=False, slice={}, coords={}, **filters) -> np.ndarray:
-        """Return a numpy.ndarray with pixel data.
 
-        Args:
-            dims (tuple, optional): Dimensions of the result, as a tuple of valid DICOM tags of any length. If *dims* is not provided, pixel values are ordered by instance number. Defaults to None.
-            inds (dict, optional): Dictionary with indices to retrieve a slice of the entire array. Defaults to None.
-            select (dict, optional): A dictionary of values for DICOM attributes to filter the result. By default the data are not filtered.
-            filters (dict, optional): keyword arguments to filter the data by value of DICOM attributes.
-
-        Returns:
-            np.ndarray: pixel data. The number of dimensions will be 2 plus the number of elements in *dim*. The first two indices will enumerate (column, row) indices in the slice, the other dimensions are as specified by the *dims* argument. 
-            
-            The function returns an empty array when no data are found at the specified locations.
-
-        Raises:
-            ValueError: Indices must be in the dimensions provided. If *ind* is set but keys are not part of *dims*.
-            ValueError: if the images are different shapes.
-
-        See also:
-            `set_pixel_values`
-
-        Example:
-            Create a zero-filled array with 3 slice dimensions:
-
-            >>> coords = {
-            ...    'SliceLocation': 10*np.arange(4),
-            ...    'FlipAngle': np.array([2, 15, 30]),
-            ...    'RepetitionTime': np.array([2.5, 5.0]),
-            ... }
-            >>> zeros = db.zeros((128,64,4,3,2), coords)
-
-            Retrieve the pixel array of the series:
-
-            >>> dims = tuple(coords)
-            >>> array = zeros.pixel_values(dims)
-            >>> array.shape
-            (128, 64, 4, 3, 2)
-
-            To retrieve an array containing only the data with flip angle 15:
-
-            >>> array = zeros.pixel_values(dims, FlipAngle=15)
-            >>> array.shape
-            (128, 64, 4, 1, 2)
-
-            If no data fit the requirement, and empty array is returned:
-
-            >>> array = zeros.pixel_values(dims, FlipAngle=15)
-            >>> array.size
-            0
-
-            Multiple possible values can be specified as an array:
-
-            >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]))
-            >>> array.shape
-            (128, 64, 4, 2, 2)
-
-            And multiple filters can be specified by adding keyword arguments. The following returns an array of pixel values with flip angle of 15 or 30, and slice location of 10 or 20:
-
-            >>> array = zeros.pixel_values(dims, FlipAngle=np.array([15,30]), SliceLocation=np.array([10,20]))
-            >>> array.shape
-            (128, 64, 2, 2, 2)
-
-            The filters can be any DICOM attribute:
-
-            >>> array = zeros.pixel_values(dims, AcquisitionTime=0)
-            >>> array.size
-            0
-
-            The filters can also be specified as a dictionary of values:
-
-            >>> array = zeros.pixel_values(dims, select={'FlipAngle': 15})
-            >>> array.shape
-            (128, 64, 4, 1, 2)
-
-            Since keywords need to be strings in python, this is the only way to specify filters with (group, element) tags:
-
-            >>> array = zeros.pixel_values(dims, select={(0x0018, 0x1314): 15})
-            >>> array.shape
-            (128, 64, 4, 1, 2)
-
-            Using the *inds* argument, the pixel array can be indexed to avoid reading a large array if only a subarray is required:
-
-            >>> array = zeros.pixel_values(dims, inds={'FlipAngle': 1})
-            >>> array.shape
-            (128, 64, 4, 1, 2)
-
-            Note unlike filters defind by *value*, the indices must be provided in the dimensions of the array. If not, a `ValueError` is raised:
-
-            >>> zeros.pixel_values(dims, inds={'AcquisitionTime':0})
-            ValueError: Indices must be in the dimensions provided.
-        """
-        if np.isscalar(dims):
-            dims = (dims,)
-        frames = self.frames(dims, return_coords=return_coords, slice=slice, coords=coords, **filters)
-        if return_coords:
-            frames, fcoords = frames
-        if frames.size == 0:
-            shape = (0,0) + frames.shape
-            values = np.array([]).reshape(shape)
-            if return_coords:
-                return values, fcoords
-            else:
-                return values
-        
-        # Read values
-        fshape = frames.shape
-        frames = frames.ravel()
-        values = []
-        for f, frame in enumerate(frames):
-            self.progress(f+1, len(frames), 'Reading pixel values..')
-            values.append(frame.get_pixel_array())
-
-        # Check that all matrix sizes are the same
-        vshape = np.array([v.shape for v in values])
-        vshape = np.unique(vshape.T, axis=1)
-        if vshape.shape[1] > 1:
-            msg = 'Cannot extract an array of pixel values - not all frames have the same matrix size.'
-            raise ValueError(msg)
-        
-        # Create the array
-        values = np.stack(values, axis=-1)
-        values = values.reshape(values.shape[:2] + fshape)
-        if return_coords:
-            return values, fcoords
-        else:
-            return values
     
 
     def set_pixel_values(self, values:np.ndarray, dims:tuple=None, slice={}, coords={}, **filters):
@@ -1193,24 +1495,80 @@ class Series(Record):
         values = values.reshape(values.shape[:2] + (-1,))
         for f, frame in enumerate(frames):
             self.progress(f+1, frames.size, 'Writing pixel values..')
-            frame.set_pixel_array(values[:,:,f])
+            frame.set_pixel_values(values[:,:,f])
 
-    def volume(self):
-        return self.volumes(stack=True)
 
-    def volumes(self,  dims='SliceLocation', mesh=True, stack=False):
+    def volume(self, dims=None, return_coords=False) -> vreg.Volume3D:
+
+        if isinstance(dims, str):
+            dims = (dims, )
+        if dims is None:
+            dims = ('SliceLocation', )
+        else:
+            dims = ('SliceLocation', ) + dims
+
+        if return_coords:
+            vols, coords = self.values('volume', dims=dims, return_coords=True)
+            del coords['SliceLocation']
+            return vreg.join(vols), coords
+        else:
+            vols = self.values('volume', dims=dims)
+            return vreg.join(vols)
+
+
+    def write_volume(self, vol:vreg.Volume3D, ref:Series=None, 
+                     coords:dict=None) -> Series:
+        # Get template dataset
+        if ref is None:
+            ds = new_dataset('MRImage')
+        else:
+            ds = ref.instance().read_dataset()
+        
+        # Write slice by slice
+        if vol.ndim==3:
+            slices = vol.split()
+            for sl in tqdm(slices, desc='Writing volume..'):
+                ds.set_values('volume', sl)
+                self.write_dataset(ds)
+        else:
+            vols = vol.separate().reshape(-1)
+            for t, vt in tqdm(enumerate(vols), desc='Writing volume..'):
+                if coords is not None:
+                    # Take a slice out of the coordinates
+                    crds = list(coords.keys())
+                    vals = [v.reshape(-1)[t] for v in coords.values()]
+                for sl in vt.split():
+                    if coords is None:
+                        ds.set_values('volume', sl)
+                    else:
+                        ds.set_values(['volume'] + crds, [sl] + vals)
+                    self.write_dataset(ds)
+        return self
+    
+
+    def volumes(self, dims=None, mesh=True, stack=False):
         """Return vreg volumes for each frame, or stacked"""
 
-        frames = self.frames(dims, mesh=mesh)
-        vols = [f.volume() for f in frames.reshape(-1)]
-        vols = np.asarray(vols).reshape(frames.shape)
+        if dims is None:
+            if stack:
+                dims = ('SliceLocation', )
+            else:
+                dims = ('InstanceNumber', )
+        else:
+            if stack:
+                dims = ('SliceLocation', ) + tuple(dims)
+
+        vols = self.values('volume', dims=dims, mesh=mesh)
+
         if not stack:
             return vols
+        
+        # stack along the first dimension
         shape = vols.shape
         vols = vols.reshape((shape[0],-1))
         vols_stack = []
         for k in range(vols.shape[1]):
-            vstack = vreg.concatenate(vols[:,k], prec=3)
+            vstack = vreg.concatenate(vols[:,k], axis=2, prec=3) 
             vols_stack.append(vstack)
         if len(shape) == 1:
             return vols_stack[0]
@@ -1293,12 +1651,18 @@ class Series(Record):
         return self
     
 
-    def affines(self,  dims='SliceLocation', mesh=True, stack=False):
+    def affines(self, dims='SliceLocation', mesh=True, stack=False):
         """Return affines for each frame"""
 
-        frames = self.frames(dims, mesh=mesh)
-        affines = [f.affine() for f in frames.reshape(-1)]
-        affines = np.asarray(affines).reshape(frames.shape)
+        # This is two files reads - replace
+        # frames = self.frames(dims, mesh=mesh)
+        # affines = np.empty(frames.size, dtype=np.ndarray)
+        # for f, frame in enumerate(frames.reshape(-1)):
+        #     affines[f] = frame.affine()
+        # affines = affines.reshape(frames.shape)
+
+        affines = self.values('affine', dims=dims, mesh=mesh)
+
         if not stack:
             return affines
         shape = affines.shape
@@ -1311,6 +1675,7 @@ class Series(Record):
             return affines_stack[0]
         else:
             return affines_stack.reshape(shape[1:])
+        
 
     def set_affines(self, affines, dims='SliceLocation', mesh=True):
 
@@ -1841,133 +2206,133 @@ class Series(Record):
     #
 
 
-    def _old_set_pixel_values(self, array:np.ndarray, coords:dict=None, inds:dict=None):
-        """Assign new pixel data with a new numpy.ndarray. 
+    # def _old_set_pixel_values(self, array:np.ndarray, coords:dict=None, inds:dict=None):
+    #     """Assign new pixel data with a new numpy.ndarray. 
 
-        Args:
-            array (np.ndarray): array with new pixel data.
-            coords (dict, optional): Provide coordinates for the array, using a dictionary where the keys list the dimensions, and the values are provided as 1D or meshgrid arrays of coordinates. If data already exist at the specified coordinates, these will be overwritten. If not, the new data will be added to the series.
-            inds (dict, optional): Provide a slice of existing data that will be overwritten with the new array. The format is the same as the dictionary of coordinates, except that the slice is identified by indices rather than values. 
+    #     Args:
+    #         array (np.ndarray): array with new pixel data.
+    #         coords (dict, optional): Provide coordinates for the array, using a dictionary where the keys list the dimensions, and the values are provided as 1D or meshgrid arrays of coordinates. If data already exist at the specified coordinates, these will be overwritten. If not, the new data will be added to the series.
+    #         inds (dict, optional): Provide a slice of existing data that will be overwritten with the new array. The format is the same as the dictionary of coordinates, except that the slice is identified by indices rather than values. 
 
-        Raises:
-            ValueError: if neither coords or inds or provided, if both are provided, or if the dimensions in coords or inds does not match up with the dimensions of the array.
-            IndexError: when attempting to set a slice in an empty array, or when the indices in inds are out of range of the existing coordinates. 
+    #     Raises:
+    #         ValueError: if neither coords or inds or provided, if both are provided, or if the dimensions in coords or inds does not match up with the dimensions of the array.
+    #         IndexError: when attempting to set a slice in an empty array, or when the indices in inds are out of range of the existing coordinates. 
 
-        See also:
-            `pixel_values`
+    #     See also:
+    #         `pixel_values`
 
-        Example:
-            Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times:
+    #     Example:
+    #         Create a zero-filled array, describing 8 MRI images each measured at 3 flip angles and 2 repetition times:
 
-            >>> coords = {
-            ...    'SliceLocation': np.arange(8),
-            ...    'FlipAngle': [2, 15, 30],
-            ...    'RepetitionTime': [2.5, 5.0],
-            ... }
-            >>> series = db.zeros((128,128,8,3,2), coords)
+    #         >>> coords = {
+    #         ...    'SliceLocation': np.arange(8),
+    #         ...    'FlipAngle': [2, 15, 30],
+    #         ...    'RepetitionTime': [2.5, 5.0],
+    #         ... }
+    #         >>> series = db.zeros((128,128,8,3,2), coords)
 
-            Retrieve the array and check that it is populated with zeros:
+    #         Retrieve the array and check that it is populated with zeros:
 
-            >>> array = series.pixel_values(dims=tuple(coords)) 
-            >>> print(np.mean(array))
-            0.0
+    #         >>> array = series.pixel_values(dims=tuple(coords)) 
+    #         >>> print(np.mean(array))
+    #         0.0
 
-            Now overwrite the values with a new array of ones in a new shape:
+    #         Now overwrite the values with a new array of ones in a new shape:
 
-            >>> new_shape = (128,128,8)
-            >>> new_coords = {
-            ...     'SliceLocation': np.arange(8),
-            ... }
-            >>> ones = np.ones(new_shape)
-            >>> series.set_pixel_values(ones, coords=new_coords)
+    #         >>> new_shape = (128,128,8)
+    #         >>> new_coords = {
+    #         ...     'SliceLocation': np.arange(8),
+    #         ... }
+    #         >>> ones = np.ones(new_shape)
+    #         >>> series.set_pixel_values(ones, coords=new_coords)
 
-            Retrieve the new array and check shape:
+    #         Retrieve the new array and check shape:
             
-            >>> array = series.pixel_values(dims=tuple(new_coords))
-            >>> print(array.shape)
-            (128,128,8)
+    #         >>> array = series.pixel_values(dims=tuple(new_coords))
+    #         >>> print(array.shape)
+    #         (128,128,8)
 
-            Check that the value is overwritten:
+    #         Check that the value is overwritten:
 
-            >>> print(np.mean(array))
-            1.0
-        """
+    #         >>> print(np.mean(array))
+    #         1.0
+    #     """
 
-        # Check whether the arguments are valid, and initialize dims.
-        cnt = 0
-        if coords is not None:
-            cnt+=1
-            dims = tuple(coords)
-            if len(dims) != array.ndim-2:
-                msg = 'One coordinate must be specified for each dimensions in the array.'
-                raise ValueError(msg)
-            for d, dim in enumerate(coords):
-                if len(coords[dim]) != array.shape[d+2]:
-                    msg = str(dim) + ' in the coords must have the same number of elements as the corresponding dimension in the array'
-                    raise ValueError(msg)
-        if inds is not None:
-            cnt+=1
-            dims = tuple(inds)
-            if len(dims) != array.ndim-2:
-                msg = 'One coordinate must be specified for each dimensions in the array.'
-                raise ValueError(msg)
-        if cnt == 0:
-            msg = 'At least one of the optional arguments coords or inds must be provided'
-            raise ValueError(msg)
-        if cnt == 2:
-            msg = 'Only one of the optional arguments coords or inds must be provided'
-            raise ValueError(msg)
+    #     # Check whether the arguments are valid, and initialize dims.
+    #     cnt = 0
+    #     if coords is not None:
+    #         cnt+=1
+    #         dims = tuple(coords)
+    #         if len(dims) != array.ndim-2:
+    #             msg = 'One coordinate must be specified for each dimensions in the array.'
+    #             raise ValueError(msg)
+    #         for d, dim in enumerate(coords):
+    #             if len(coords[dim]) != array.shape[d+2]:
+    #                 msg = str(dim) + ' in the coords must have the same number of elements as the corresponding dimension in the array'
+    #                 raise ValueError(msg)
+    #     if inds is not None:
+    #         cnt+=1
+    #         dims = tuple(inds)
+    #         if len(dims) != array.ndim-2:
+    #             msg = 'One coordinate must be specified for each dimensions in the array.'
+    #             raise ValueError(msg)
+    #     if cnt == 0:
+    #         msg = 'At least one of the optional arguments coords or inds must be provided'
+    #         raise ValueError(msg)
+    #     if cnt == 2:
+    #         msg = 'Only one of the optional arguments coords or inds must be provided'
+    #         raise ValueError(msg)
 
-        source = instance_array(self, sortby=list(dims))
+    #     source = instance_array(self, sortby=list(dims))
         
-        if coords is not None:
-            # Retrieve the instances corresponding to the coordinates.
-            if source.size != 0:
-                for d, dim in enumerate(coords):
-                    ind = []
-                    for i in range(source.shape[d]):
-                        si = source.take(i,axis=d).ravel()
-                        if si[0][dim] in coords[dim]:
-                            ind.append(i)
-                    source = source.take(ind, axis=d)
-                    # Insert dimensions of 1 back in
-                    if len(ind)==1:
-                        source = np.expand_dims(source, axis=d)
-        elif inds is not None:
-            # Retrieve the instances of the slice, as well as their coordinates.
-            coords = {}
-            for d, dim in enumerate(inds):
-                ind = inds[dim]
-                if isinstance(ind, np.ndarray):
-                    ind = list(ind)
-                try:
-                    source = source.take(ind, axis=d)
-                except IndexError as e:
-                    msg = str(e) + '\n'
-                    msg += 'The indices for ' + str(dim) + ' in the inds argument are out of bounds'
-                    raise IndexError(msg)
-                coords[dim] = []
-                for i in range(source.shape[d]):
-                    si = source.take(i,axis=d).ravel()
-                    coords[dim].append(si[0][dim])  
+    #     if coords is not None:
+    #         # Retrieve the instances corresponding to the coordinates.
+    #         if source.size != 0:
+    #             for d, dim in enumerate(coords):
+    #                 ind = []
+    #                 for i in range(source.shape[d]):
+    #                     si = source.take(i,axis=d).ravel()
+    #                     if si[0][dim] in coords[dim]:
+    #                         ind.append(i)
+    #                 source = source.take(ind, axis=d)
+    #                 # Insert dimensions of 1 back in
+    #                 if len(ind)==1:
+    #                     source = np.expand_dims(source, axis=d)
+    #     elif inds is not None:
+    #         # Retrieve the instances of the slice, as well as their coordinates.
+    #         coords = {}
+    #         for d, dim in enumerate(inds):
+    #             ind = inds[dim]
+    #             if isinstance(ind, np.ndarray):
+    #                 ind = list(ind)
+    #             try:
+    #                 source = source.take(ind, axis=d)
+    #             except IndexError as e:
+    #                 msg = str(e) + '\n'
+    #                 msg += 'The indices for ' + str(dim) + ' in the inds argument are out of bounds'
+    #                 raise IndexError(msg)
+    #             coords[dim] = []
+    #             for i in range(source.shape[d]):
+    #                 si = source.take(i,axis=d).ravel()
+    #                 coords[dim].append(si[0][dim])  
 
-        nr_of_slices = int(np.prod(array.shape[2:]))
-        if source.size == 0:
-            # If there are not yet any instances at the correct coordinates, they will be created from scratch
-            source = [self.new_instance(MRImage()) for _ in range(nr_of_slices)]
-            set_pixel_values(self, array, source=source, coords=coords)
-        elif array.shape[2:] == source.shape:
-            # If the new array has the same shape, use the exact headers.
-            set_pixel_values(self, array, source=source.ravel().tolist(), coords=coords)
-        else:
-            # If the new array has a different shape, use the first header for all and delete all the others
-            # This happens when some of the new coordinates are present, but not all.
-            # TODO: This is overkill - only fill in the gaps with copies.
-            source = source.ravel().tolist()
-            for series in source[1:]:
-                series.remove()
-            source = [source[0]] + [source[0].copy_to(self) for _ in range(nr_of_slices-1)]
-            set_pixel_values(self, array, source=source, coords=coords)
+    #     nr_of_slices = int(np.prod(array.shape[2:]))
+    #     if source.size == 0:
+    #         # If there are not yet any instances at the correct coordinates, they will be created from scratch
+    #         source = [self.new_instance(MRImage()) for _ in range(nr_of_slices)]
+    #         set_pixel_values(self, array, source=source, coords=coords)
+    #     elif array.shape[2:] == source.shape:
+    #         # If the new array has the same shape, use the exact headers.
+    #         set_pixel_values(self, array, source=source.ravel().tolist(), coords=coords)
+    #     else:
+    #         # If the new array has a different shape, use the first header for all and delete all the others
+    #         # This happens when some of the new coordinates are present, but not all.
+    #         # TODO: This is overkill - only fill in the gaps with copies.
+    #         source = source.ravel().tolist()
+    #         for series in source[1:]:
+    #             series.remove()
+    #         source = [source[0]] + [source[0].copy_to(self) for _ in range(nr_of_slices-1)]
+    #         set_pixel_values(self, array, source=source, coords=coords)
     
     def subseries(self, **kwargs)->Series:
         """Extract a subseries based on values of header elements.
@@ -2141,14 +2506,17 @@ def _filter_values(vframes, slice, coords, exclude=False):
     if len(fvalues) == 0:
         return np.array([]).reshape((0,0))
     
-    # Create array of return values. Values can be of different types including lists so this must be an object array.
-    nd, nf = len(fvalues[0]), len(fvalues)
-    rvalues = np.empty((nd,nf), dtype=object)
-    for d in range(nd):
-        for f in range(nf):
-            rvalues[d,f] = fvalues[f][d]
+    return fvalues
+    
+    # # Create array of return values. Values can be of different types 
+    # # including lists so this must be an object array.
+    # nd, nf = len(fvalues[0]), len(fvalues)
+    # rvalues = np.empty((nd,nf), dtype=object)
+    # for d in range(nd):
+    #     for f in range(nf):
+    #         rvalues[d,f] = fvalues[f][d]
 
-    return rvalues
+    # return rvalues
     
 
 
@@ -2230,26 +2598,48 @@ def _coords_vals(coords):
     values = [coords[tag].ravel() for tag in coords]
     values = np.stack(values)
     return values
- 
+
+
 def _check_if_ivals(values):
+    # values have dimensions (d, f), where f is the number of frames.
+
     if None in values:
-        msg = 'These are not proper dimensions. Coordinate values must be defined everywhere.'
-        raise ValueError(msg)
+        raise ValueError("These are not proper dimensions. Coordinate values "
+                         "must be defined everywhere.")
     
-    # Check if the values are unique
-    for f in range(values.shape[1]-1):
-        for g in range(f+1, values.shape[1]):
-            equal = True
-            for d in range(values.shape[0]):
-                if values[d,f] != values[d,g]:
-                    equal = False
-                    break
-            if equal:
-                msg = 'These are not proper dimensions. Coordinate values must be unique.'
-                raise ValueError(msg)
-    # if values.shape[1] != np.unique(values, axis=1).shape[1]:
-    #     msg = 'These are not proper dimensions. Coordinate values must be unique.'
-    #     raise ValueError(msg)
+    if values.dtype != 'O':
+        unique_columns = np.unique(values, axis=1)
+    else:
+        # axis keyword in np.unique is not supported for object arrays
+        # use this workaround
+        unique_columns = np.unique([tuple(row) for row in values.T], axis=0).T
+
+    is_unique = unique_columns.shape[1] == values.shape[1]         
+
+    if not is_unique:
+        raise ValueError("These are not proper dimensions. Coordinate values "
+                         "must be unique.")
+
+# Old version - slow
+# def _check_if_ivals(values):
+#     # values have dimensions (d, f), where f is the number of frames
+
+#     if None in values:
+#         msg = 'These are not proper dimensions. Coordinate values must be defined everywhere.'
+#         raise ValueError(msg)
+    
+#     # Check if the values are unique
+#     for f in range(values.shape[1]-1):
+#         for g in range(f+1, values.shape[1]):
+#             equal = True
+#             for d in range(values.shape[0]):
+#                 if values[d,f] != values[d,g]:
+#                     equal = False
+#                     break
+#             if equal:
+#                 msg = 'These are not proper dimensions. Coordinate values must be unique.'
+#                 raise ValueError(msg)
+
 
 def _check_if_coords(coords):
 
@@ -2324,53 +2714,97 @@ def _as_meshcoords(coords):
     # First check that they are proper coordinates
     values = _coords_vals(coords)
     _check_if_ivals(values)
-    values = _meshvals(values)
+    values, _ = _meshvals(values)
     meshcoords = {}
     for i, c in enumerate(coords):
         meshcoords[c] = values[i,...]
     return meshcoords
-        
-def _meshvals(values):
+
+
+
+
+def _meshdata(vals, sorted_indices, cmesh):
+    sorted_array = vals[:, sorted_indices]
+    shape = (vals.shape[0],) + cmesh.shape[1:]
+    return sorted_array.reshape(shape)
+
+
+def _meshvals(coords):
     # Input array shape: (d, f) with d = nr of dims and f = nr of frames
     # Output array shape: (d, f1,..., fd)
-    if values.size == 0:
+    if coords.size == 0:
         return np.array([])
-    # List the unique values of the first coordinate
-    vals, cnts = np.unique(values[0,:], return_counts=True)
-    # Check that there is an equal number of each value
-    if len(np.unique(cnts)) > 1:
-        msg = 'These are not mesh coordinates.'
-        raise ValueError(msg) 
-    # If there is only one dimension, we are done
-    if values.shape[0] == 1:
-        return values
-    mesh = []
-    for v in vals:
-        vind = np.where(values[0,:]==v)[0]
-        vmesh = _meshvals(values[1:,vind])
-        mesh.append(vmesh)
-    mesh = np.stack(mesh, axis=1)
-    a = [np.full(mesh.shape[2:], v) for v in vals]
-    a = np.stack(a)
-    a = np.expand_dims(a,0)
-    mesh = np.concatenate((a, mesh))
-    return mesh
+    # Sort by column
+    sorted_indices = np.lexsort(coords[::-1])
+    sorted_array = coords[:, sorted_indices]
+    # Find shape
+    shape = _mesh_shape(sorted_array)  
+    # Reshape
+    mesh_array = sorted_array.reshape(shape)
+    return mesh_array, sorted_indices
 
-def _meshdata(vals, crds, cmesh):
-    mshape = (vals.shape[0],) + cmesh.shape[1:]
-    if mshape[0]==0:
-        return vals.reshape(mshape)
-    vmesh = np.zeros(mshape, dtype=object)
-    cmesh = cmesh.reshape((cmesh.shape[0],-1))
-    vmesh = vmesh.reshape((vmesh.shape[0],-1))
-    for i in range(vals.shape[1]):
-        # find location of coordinate i in cmesh
-        for j in range(cmesh.shape[1]):
-            if np.array_equal(cmesh[:,j], crds[:,i]):
-                break
-        # Write value i at the same location in vmesh
-        vmesh[:,j] = vals[:,i]
-    return vmesh.reshape(mshape)
+
+def _mesh_shape(sorted_array):
+    
+    nd = np.unique(sorted_array[0,:]).size
+    shape = (sorted_array.shape[0], nd)
+
+    for dim in range(1,shape[0]):
+        shape_dim = (shape[0], np.prod(shape[1:]), -1)
+        sorted_array = sorted_array.reshape(shape_dim)
+        nd = [np.unique(sorted_array[dim,d,:]).size for d in range(shape_dim[1])]
+        shape = shape + (max(nd),)
+
+    if np.prod(shape) != sorted_array.size:
+        raise ValueError('These are not mesh coordinates.') 
+    
+    return shape
+
+    
+# Original versio - very slow
+# def _meshvals(values):
+#     # Input array shape: (d, f) with d = nr of dims and f = nr of frames
+#     # Output array shape: (d, f1,..., fd)
+#     if values.size == 0:
+#         return np.array([])
+#     # List the unique values of the first coordinate
+#     vals, cnts = np.unique(values[0,:], return_counts=True)
+#     # Check that there is an equal number of each value
+#     if len(np.unique(cnts)) > 1:
+#         msg = 'These are not mesh coordinates.'
+#         raise ValueError(msg) 
+#     # If there is only one dimension, we are done
+#     if values.shape[0] == 1:
+#         return values
+#     mesh = []
+#     for v in vals:
+#         vind = np.where(values[0,:]==v)[0]
+#         vmesh = _meshvals(values[1:,vind])
+#         mesh.append(vmesh)
+#     mesh = np.stack(mesh, axis=1)
+#     a = [np.full(mesh.shape[2:], v) for v in vals]
+#     a = np.stack(a)
+#     a = np.expand_dims(a,0)
+#     mesh = np.concatenate((a, mesh))
+#     return mesh
+
+# Old version = slow
+# def _meshdata(vals, crds, cmesh):
+#     mshape = (vals.shape[0],) + cmesh.shape[1:]
+#     if mshape[0]==0:
+#         return vals.reshape(mshape)
+#     vmesh = np.zeros(mshape, dtype=object)
+#     cmesh = cmesh.reshape((cmesh.shape[0],-1))
+#     vmesh = vmesh.reshape((vmesh.shape[0],-1))
+#     for i in range(vals.shape[1]):
+#         # find location of coordinate i in cmesh
+#         for j in range(cmesh.shape[1]):
+#             if np.array_equal(cmesh[:,j], crds[:,i]):
+#                 break
+#         # Write value i at the same location in vmesh
+#         vmesh[:,j] = vals[:,i]
+#     return vmesh.reshape(mshape)
+
 
 def _concatenate_coords(coords:tuple, mesh=False):
     concat = {}
@@ -2710,49 +3144,49 @@ def sort_instance_array(instance_array, sortby=None):
         return df_to_sorted_instance_array(instance_array[0], df, sortby)
 
 
-def _instances(series, dims:tuple=None, inds:dict=None, select={}, **filters):
+# def _instances(series, dims:tuple=None, inds:dict=None, select={}, **filters):
 
-    # Use default dimensions if needed.
-    if dims is None:
-        dims = ('InstanceNumber',)
+#     # Use default dimensions if needed.
+#     if dims is None:
+#         dims = ('InstanceNumber',)
 
-    # If indices are provided, check that they are compatible with dims.
-    if inds is not None:
-        for dim in inds:
-            if dim not in dims:
-                msg = 'Indices must be in the dimensions provided.'
-                raise ValueError(msg)
+#     # If indices are provided, check that they are compatible with dims.
+#     if inds is not None:
+#         for dim in inds:
+#             if dim not in dims:
+#                 msg = 'Indices must be in the dimensions provided.'
+#                 raise ValueError(msg)
     
-    # Get the frames and sort by dim
-    frames = instance_array(series, list(dims), report_none=True, select=select, **filters)
-    if frames.size == 0:
-        return frames.reshape(tuple([0]*len(dims)))
-    if frames.shape[-1] > 1:
-        d = ''.join(['('] + [str(v)+', ' for v in dims] + [')'])
-        msg = 'series shape is ambiguous in dimensions ' + d
-        msg += '\n--> Multiple frames exist at some or all locations.'
-        msg += '\n--> Hint: use Series.unique() to list the values at all locations.'
-        raise ValueError(msg)
-    if None in frames:
-        d = ''.join(['('] + [str(v)+', ' for v in dims] + [')'])
-        msg = 'series shape is not well defined in dimensions ' + d
-        msg += '\n--> There are no frames at some locations.'
-        msg += '\n--> Hint: use Series.value() to find the values at all locations.'
-        raise ValueError(msg)
-    frames = frames[...,0]
+#     # Get the frames and sort by dim
+#     frames = instance_array(series, list(dims), report_none=True, select=select, **filters)
+#     if frames.size == 0:
+#         return frames.reshape(tuple([0]*len(dims)))
+#     if frames.shape[-1] > 1:
+#         d = ''.join(['('] + [str(v)+', ' for v in dims] + [')'])
+#         msg = 'series shape is ambiguous in dimensions ' + d
+#         msg += '\n--> Multiple frames exist at some or all locations.'
+#         msg += '\n--> Hint: use Series.unique() to list the values at all locations.'
+#         raise ValueError(msg)
+#     if None in frames:
+#         d = ''.join(['('] + [str(v)+', ' for v in dims] + [')'])
+#         msg = 'series shape is not well defined in dimensions ' + d
+#         msg += '\n--> There are no frames at some locations.'
+#         msg += '\n--> Hint: use Series.value() to find the values at all locations.'
+#         raise ValueError(msg)
+#     frames = frames[...,0]
 
-    # Extract indices and coordinates if provided
-    if inds is not None:
-        for dim in inds:
-            ind = inds[dim]
-            d = dims.index(dim)
-            frames = frames.take(ind, axis=d)
-            if not isinstance(ind, np.ndarray):
-                frames = np.expand_dims(frames, axis=d)
-    if frames.size == 0:
-        return frames.reshape(tuple([0]*len(dims)))
-    else:
-        return frames
+#     # Extract indices and coordinates if provided
+#     if inds is not None:
+#         for dim in inds:
+#             ind = inds[dim]
+#             d = dims.index(dim)
+#             frames = frames.take(ind, axis=d)
+#             if not isinstance(ind, np.ndarray):
+#                 frames = np.expand_dims(frames, axis=d)
+#     if frames.size == 0:
+#         return frames.reshape(tuple([0]*len(dims)))
+#     else:
+#         return frames
 
 
 def instance_array(record, sortby=None, report_none=False, select={}, **filters): 

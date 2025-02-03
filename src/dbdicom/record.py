@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import datetime
+from tqdm import tqdm
 
 # Import packages
 import numpy as np
@@ -10,6 +11,7 @@ import pandas as pd
 import dbdicom.ds.dataset as dbdataset
 from dbdicom.ds import MRImage
 from dbdicom.utils.files import export_path
+
 
 
 
@@ -457,7 +459,9 @@ class Record():
         return siblings
 
     
-    def series(self, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs)->list:
+    def series(self, series=None, sort=True, 
+               sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], 
+               select={}, **kwargs) -> list:
         """Return a list of series under the record.
 
         If the record is a study, this returns the record's children. If it is a patient, this returns a list the record's grand children.
@@ -498,7 +502,11 @@ class Record():
             >>> print([s.label() for s in series_list])
             ['Series 001 [Chest]']
         """
-        series = self.manager.series(keys=self.keys(), sort=sort, sortby=sortby, **kwargs)
+        if series is not None:
+            kwargs = {'SeriesDescription': series} | kwargs
+            return self.series(sort=sort, sortby=sortby, select=select, **kwargs)
+        keys = self.keys()
+        series = self.manager.series(keys=keys, sort=sort, sortby=sortby, select=select, **kwargs)
         return [self.record('Series', uid) for uid in series]
 
     
@@ -1121,6 +1129,7 @@ class Record():
         rows = self.manager._extract_record(self.name, self.uid)
         self.manager.save(rows)
         self.write(path)
+        return self
         
 
     def load(self):
@@ -1405,6 +1414,9 @@ class Record():
         if not self._mute:
             self.manager.status.progress(value, maximum, message=message)
 
+    def in_gui(self):
+        return hasattr(self.manager.status, 'progressBar')
+
 
     def message(self, message: str):
         """Print a message to the user.
@@ -1654,6 +1666,7 @@ class Record():
         vals = self[attr]
         return attr, vals
 
+    
     # def tree(*args, **kwargs):
     #     return tree(*args, **kwargs)
 
@@ -1711,7 +1724,7 @@ def copy_to(records:list, parent:Record):
     copy = []
     desc = parent.label()
     for r, record in enumerate(records):
-        record.progress(r+1, len(records), 'Copying ' + desc)
+        record.progress(r+1, len(records), 'Copying to ' + desc)
         copy_record = record.copy_to(parent)
         if isinstance(copy_record, list):
             copy += copy_record
@@ -1787,6 +1800,8 @@ def group(records:list, into:Record=None, inplace=False)->Record:
         copy_to(records, into)
     return into
 
+
+
 def merge(records:list, into:Record=None, inplace=False)->Record:
     """Merge a list of records into a single new record.
 
@@ -1855,7 +1870,6 @@ def merge(records:list, into:Record=None, inplace=False)->Record:
 # 
 # Read and write
 #
-
 
 
 def read_dataframe(record, tags, select={}, **filters):

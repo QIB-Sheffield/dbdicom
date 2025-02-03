@@ -1,8 +1,16 @@
 # Importing annotations to handle or sign in import type hints
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import vreg
+
 from dbdicom.record import Record
 from dbdicom.utils.files import gif2numpy
+from dbdicom.ds.create import read_dataset
+
+
 
 class Database(Record):
 
@@ -47,6 +55,7 @@ class Database(Record):
         #self.manager.save('Database')
         self.manager.save()
         self.write(path)
+        return self
 
     def restore(self, path=None):
         self.manager.restore()
@@ -98,10 +107,117 @@ class Database(Record):
     #     for child in self.children():
     #         child.export_as_csv(path)
 
+    def pixel_values(self, series, index=None, 
+                     dims=('InstanceNumber', ), return_vals=None):
+        s = _series(self, series, index)
+        return s.pixel_values(dims=dims, return_vals=return_vals)
+
+
+    def volume(self, series, index=None, dims=None, return_coords=False) -> vreg.Volume3D:
+        s =  _series(self, series, index)
+        return s.volume(dims, return_coords=return_coords)
+
+    
+    def write_volume(self, vol, series='Series', ref=None, ref_index=None, 
+                     coords=None, study=None, **kwargs):
+    
+        # Find study and reference series
+        study = _study(self, study) 
+        ref = _series(self, ref, ref_index)  
+
+        # Create new series
+        if study is not None:
+            series = study.new_series(SeriesDescription=series, **kwargs)
+        elif ref is not None:
+            series = ref.new_sibling(SeriesDescription=series, **kwargs)
+        else:
+            series = self.new_series(SeriesDescription=series, **kwargs)
+
+        # Write the volume
+        series.write_volume(vol, ref=ref, coords=coords)
+        return self
+
+
+    def merge_series(self, desc, merged='Merged Series', study=None):
+
+        # Get series to merge
+        if isinstance(desc, list):
+            series = []
+            for d in desc:
+                series += self.series(SeriesDescription=d)
+        else:
+            series = self.series(SeriesDescription=desc)
+
+        # Check if all valid
+        if series == []:
+            raise ValueError(
+                "Cannot merge series " + str(desc) + ". No "
+                "series found with that SeriesDescription."
+            )
+        for s in series:
+            if s.type() != 'Series':
+                raise ValueError(
+                    "Cannot merge series " + str(desc) + ". These "
+                    "are not all valid series."
+                )
+            
+        # Get study for new series
+        if study is None:
+            study = series[0].parent()
+        else:
+            study = _study(self, study) 
+        
+        # Merge series
+        uid, key = self.manager.merge_series(
+            [s.uid for s in series], 
+            study.uid, 
+            SeriesDescription=merged,
+        )
+        return self.record('Series', uid, key)
+
+
+
+
 
 def zeros(database, shape, dtype='mri'): # OBSOLETE - remove
     study = database.new_study()
     return study.zeros(shape, dtype=dtype)
+
+
+def _study(database, study):
+        
+    if isinstance(study, str):
+        studies = database.studies(StudyDescription=study)
+        if studies == []:
+            study = database.new_study(StudyDescription=study)
+        elif len(studies) == 1:
+            study = studies[0]
+        else:
+            raise ValueError(
+                "Multiple studies found with the same "
+                "StudyDescription. Use studies() to list them all and "
+                "select one.")  
+    return study
+
+
+def _series(database, series, index=None):
+
+    if isinstance(series, str):
+        all_series = database.series(SeriesDescription=series)
+        if all_series == []:
+            raise ValueError(
+                "No series found with the SeriesDescription " + series)  
+        elif len(all_series) == 1:
+            series = all_series[0]
+        elif index is not None:
+            series = all_series[index]
+        else:
+            raise ValueError(
+                "Multiple series found with the "
+                "SeriesDescription " + series + ". Use series() to select"
+                "a single one.") 
+        
+    return series
 
 
 

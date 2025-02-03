@@ -8,6 +8,7 @@ import timeit
 #from tkinter import N
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 import nibabel as nib
 
 from dbdicom.message import StatusBar, Dialog
@@ -30,10 +31,27 @@ class Manager():
     # Note this makes all existing pkl files unusable - ensure backwards compatibility.
 
     # The column labels of the register
-    columns = [    
-        'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'SOPClassUID', 
-        'PatientName', 'StudyDescription', 'StudyDate', 'SeriesDescription', 'SeriesNumber', 'InstanceNumber', 
-        'ImageOrientationPatient', 'ImagePositionPatient', 'PixelSpacing', 'SliceThickness', 'SliceLocation', 'AcquisitionTime',
+    columns = [   
+        # Identifiers (unique)
+        'PatientID', 
+        'StudyInstanceUID', 
+        'SeriesInstanceUID', 
+        'SOPInstanceUID', 
+        'SOPClassUID', 
+        # Human-readable identifiers (not unique)
+        'PatientName', 
+        'StudyDescription', 
+        'StudyDate', 
+        'SeriesDescription', 
+        'SeriesNumber', 
+        'InstanceNumber', 
+        # Geometry information
+        'ImageOrientationPatient', 
+        'ImagePositionPatient', 
+        'PixelSpacing', 
+        'SliceThickness', 
+        'SliceLocation', 
+        'AcquisitionTime',
     ]
 
     # Non-UID subset of column labels with their respective indices
@@ -413,12 +431,12 @@ class Manager():
             return row[i-1]
 
 
-    def filter(self, uids=None, **kwargs):
+    def filter(self, uids=None, select={}, **kwargs):
         uids = [id for id in uids if id is not None]
-        if not kwargs:
+        if (not kwargs) and (select=={}):
             return uids
-        vals = list(kwargs.values())
-        attr = list(kwargs.keys())
+        vals = list(kwargs.values()) + list(select.values())
+        attr = list(kwargs.keys()) + list(select.keys())
         return [id for id in uids if self.get_values(attr, uid=id) == vals]
         #return [id for id in uids if function(self.get_values(attr, uid=id), vals)]
 
@@ -467,7 +485,9 @@ class Manager():
         return df
 
 
-    def series(self, uid=None, keys=None, sort=True, sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], **kwargs):
+    def series(self, uid=None, keys=None, sort=True, 
+               sortby=['PatientName', 'StudyDescription', 'SeriesNumber'], 
+               select={}, **kwargs):
         if keys is None:
             keys = self.keys(uid)
         if sort:  
@@ -479,7 +499,7 @@ class Manager():
         else:
             df = self.register.loc[keys,'SeriesInstanceUID']
         uids = df.unique().tolist()
-        return self.filter(uids, **kwargs)
+        return self.filter(uids, select=select, **kwargs)
 
 
     def studies(self, uid=None, keys=None, sort=True, sortby=['PatientName', 'StudyDescription'], **kwargs):
@@ -532,8 +552,10 @@ class Manager():
         """Gets a list of datasets for a single record
         
         Datasets in memory will be returned.
-        If they are not in memory, and the database exists on disk, they will be read from disk.
-        If they are not in memory, and the database does not exist on disk, an exception is raised.
+        If they are not in memory, and the database exists on disk, they will 
+          be read from disk.
+        If they are not in memory, and the database does not exist on disk, 
+          an exception is raised.
         """
         if uid is None: # empty record
             return
@@ -1010,7 +1032,7 @@ class Manager():
 
         # If the row has been created or modified, use existing row
         if self.register.at[key, 'created'] == True:
-            for i, c in enumerate(self.columns): # Same as above but faster
+            for i, c in enumerate(self.columns): 
                 try:
                     self.register.at[key, c] = data[i]
                 except:
@@ -1104,7 +1126,6 @@ class Manager():
                 parent, key = self.new_series()
                 keys = self.keys(series=parent)
             elif self.type(parent) != 'Series':
-                # parent = self.series(parent)[0] 
                 parent, key = self.new_series(parent)
                 keys = self.keys(series=parent)
             else:
@@ -1124,20 +1145,18 @@ class Manager():
         data = self.value(key, self.columns)
         data[3] = dbdataset.new_uid()
         data[4] = self.default()[4]
-        #data[10] = 1 + len(self.instances(parent))
-        #data[10] = 1 + len(self.instances(keys=self.keys(series=parent)))
         data[10] = 1 + max_number
         for val in kwargs:
             if val in self._descriptives:
                 data[self._descriptives[val]] = kwargs[val]
 
+        # Add new data to the register
         if self.value(key, 'SOPInstanceUID') is None:
-            # Empty series
-            key = self.update_row_data(key, data)
+            key = self.update_row_data(key, data) # Empty series
         else:
-            # Series with existing instances
-            key = self.new_row(data)
+            key = self.new_row(data)  # Series with existing instances
 
+        # Set dataset if needed
         if dataset is not None:
             self.set_instance_dataset(data[3], dataset, key)
 
@@ -1148,7 +1167,8 @@ class Manager():
 
         if isinstance(ds, list):
             if len(ds) > 1:
-                raise ValueError('Cannot set multiple datasets to a single instance')
+                raise ValueError(
+                    'Cannot set multiple datasets to a single instance')
             else:
                 ds = ds[0]
         if key is None:
@@ -1164,6 +1184,68 @@ class Manager():
         ds.set_values(self.columns[:11], data[:11]) 
         self.dataset[key] = ds
         return key
+
+
+    def merge_series(self, series_uids, study_uid, **kwargs):
+
+        # Create a new series and get the row data
+        merged_uid, merged_key = self.new_series(study_uid, **kwargs)
+        merged_data = self.register.loc[merged_key, self.columns].values
+        
+        new_data = []
+        new_keys = []
+        instance_number = 1
+
+        for series_uid in tqdm(series_uids, desc='Merging series..'):
+
+            # Get the series keys sorted by instance number
+            loc = self.register.SeriesInstanceUID == series_uid 
+            loc &= self.register.removed == False 
+            inst = self.register.loc[loc, 'InstanceNumber'].sort_values()
+            keys = inst.keys()
+
+            # Copy each dataset to the merged series
+            for key in tqdm(keys, desc='Copying datasets..'):
+
+                # Read dataset
+                datapath = self.filepath(key)
+                ds = read_dataset(datapath, self.dialog)
+
+                # Create new data for the register
+                data = merged_data.copy().tolist()
+                data[3] = dbdataset.new_uid()
+                data[4] = ds.SOPClassUID
+                data[10] = instance_number
+                data[11:] = ds.value(self.columns[11:])
+
+                # Update register rows
+                if instance_number==1:
+                    relpath = merged_key
+                    for i, c in enumerate(self.columns): 
+                        self.register.at[merged_key, c] = data[i]
+                else: 
+                    relpath = self.new_key()
+                    new_data.append(data)
+                    new_keys.append(relpath)
+
+                # Write to the new file
+                file = self.filepath(relpath)
+                ds.set_value(self.columns[:11], data[:11])
+                ds.write(file, self.status)
+
+                # Increment instance number
+                instance_number += 1
+
+        # Append new data to register
+        if new_data != []:
+            df = pd.DataFrame(new_data, new_keys, columns=self.columns)
+            df['removed'] = False
+            df['created'] = True
+            self.register = pd.concat([self.register, df])
+
+        return merged_uid, merged_key
+
+    
 
     def set_dataset(self, uid, dataset, keys=None):
 
@@ -1945,7 +2027,7 @@ class Manager():
             if len(value) == 1:
                 return value[0]
             try: 
-                value.sort() # added 30/12/22
+                value.sort() 
             except:
                 pass
             return value
@@ -1974,21 +2056,19 @@ class Manager():
         values = []
         for a in range(v.shape[1]):
             va = v[:,a]
-            va = va[va != np.array(None)]
-            #va = np.unique(va)
+            # Remove None values
+            #va = va[va != np.array(None)]
+            va = va[[x is not None for x in va]]
             va = list(va)
-            # Get unique values
+            # Get unique values and sort
             va = [x for i, x in enumerate(va) if i==va.index(x)]
-            #if va.size == 0:
             if len(va) == 0:
                 va = None
             elif len(va) == 1:
-            #elif va.size == 1:
                 va = va[0]
             else:
-                #va = list(va)
                 try: 
-                    va.sort() # added 30/12/22
+                    va.sort()
                 except:
                     pass
             values.append(va)
